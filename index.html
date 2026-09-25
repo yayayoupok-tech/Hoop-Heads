@@ -13,12 +13,12 @@
 <style>
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #1E1633; overflow: hidden;
     touch-action: none; -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-touch-callout: none; }
-  canvas#game { display: block; position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; touch-action: none; }
+  canvas#game { display: block; position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; touch-action: none; outline: none; }
   #fontprobe { position: absolute; left: -9999px; top: -9999px; font-family: "Big Shoulders Display"; font-weight: 900; }
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+<canvas id="game" tabindex="0"></canvas>
 <span id="fontprobe" aria-hidden="true">HOOP HEADS</span>
 <script>
 'use strict';
@@ -712,12 +712,15 @@ class HumanInput {
     window.addEventListener('gamepadconnected', e => { this.gamepadIndex = e.gamepad.index; });
     window.addEventListener('gamepaddisconnected', e => { if (this.gamepadIndex === e.gamepad.index) this.gamepadIndex = -1; });
     const c = this.canvas;
-    c.addEventListener('pointerdown', e => { this.anyPress = true; if (e.pointerType === 'touch') { this.lastDevice = 'touch'; this.touch.down(e); } else { this.mouse.down = true; this.mouse.clicked = true; this.mouse.x = e.clientX; this.mouse.y = e.clientY; if (this.hasTouch && e.pointerType === 'pen') this.touch.down(e); } e.preventDefault(); });
+    c.addEventListener('pointerdown', e => { this.grabFocus(); this.anyPress = true; if (e.pointerType === 'touch') { this.lastDevice = 'touch'; this.touch.down(e); } else { this.mouse.down = true; this.mouse.clicked = true; this.mouse.x = e.clientX; this.mouse.y = e.clientY; if (this.hasTouch && e.pointerType === 'pen') this.touch.down(e); } e.preventDefault(); });
     c.addEventListener('pointermove', e => { if (e.pointerType === 'touch') this.touch.move(e); else { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.moved = true; } });
     const up = e => { if (e.pointerType === 'touch') this.touch.up(e); else { this.mouse.down = false; } };
     c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up); c.addEventListener('pointerout', e => { if (e.pointerType === 'touch') this.touch.up(e); });
     c.addEventListener('contextmenu', e => e.preventDefault());
   }
+  // Inside an embedded frame the keyboard only reaches us once the frame has focus.
+  grabFocus() { try { this.canvas.focus({ preventScroll: true }); } catch (e) {} try { window.focus(); } catch (e) {} }
+  hasFocus() { try { return document.hasFocus(); } catch (e) { return true; } }
   setPreset(p) { this.preset = p; this.keys = Object.create(null); this.actionsHeld = Object.create(null); }
   pollGamepad() {
     const pads = navigator.getGamepads ? navigator.getGamepads() : null; if (!pads) return;
@@ -4084,7 +4087,7 @@ class Game {
     window.addEventListener('blur', () => this.autoPause());
     const unlock = () => { this.audio.unlock(); if (this.audio.ok && !this.audio.crowd && this.mode === 'match') this.audio.startCrowd(); }; window.addEventListener('pointerdown', unlock, { passive: true }); window.addEventListener('keydown', unlock); window.addEventListener('touchend', unlock, { passive: true });
     try { if (document.fonts && document.fonts.load) document.fonts.load('900 40px "Big Shoulders Display"').catch(() => {}); } catch (e) {}
-    this.ui.push(titleScreen(this));
+    this.ui.push(titleScreen(this)); this.input.grabFocus(); window.addEventListener('load', () => this.input.grabFocus());
     if (this.save.corrupted) this.ui.toastMsg('Save data was corrupted and has been reset.');
     window.HH = { game: this, CONFIG, simulateMatch, runSims, shotLab, tunnelTest, formatSimTable, aggregateSims, Match, TEAMS, ROSTER };
   }
@@ -4125,6 +4128,7 @@ class Game {
     if (this.input.consumeDev()) { if (this.ui.screen && this.ui.screen.name === 'dev') this.ui.pop(); else { if (this.mode === 'match') this.paused = true; this.ui.push(devScreen(this)); } }
     if (this.input.consumeF('F1')) this.overlays.f1 = !this.overlays.f1; if (this.input.consumeF('F2')) this.overlays.f2 = !this.overlays.f2; if (this.input.consumeF('F3')) this.overlays.f3 = !this.overlays.f3;
     if (this.mode === 'match' && this.match) this.matchFrame(dt); else { this.input.consumePause(); this.ui.update(dt, this.input); this.ui.draw(ctx, W_, H_); }
+    if (!this.input.hasFocus() && !this.portrait && !(this.input.lastDevice === 'touch')) this.drawFocusHint(ctx, W_, H_);
     if (this.save.data.settings.showFps) this.perf.draw(ctx, W_, H_);
     this.perf.push(performance.now() - t0 + 0.0001);
     if (this.perf.degraded && this.fx.budget !== CONFIG.fx.reducedBudget) this.fx.budget = CONFIG.fx.reducedBudget;
@@ -4215,6 +4219,7 @@ class Game {
     if (m.ended && !this.ui.screen && this.after.kind === 'practice') { ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.fillText('Practice over · Esc for the summary', W_ / 2, H_ - 40); }
   }
   drawPosterCard(ctx, ps) { const W_ = this.W, H_ = this.H; const k = easeOutBack(clamp01((CONFIG.fx.posterMs / 1000 - ps.t) / 0.25)); ctx.fillStyle = 'rgba(30,22,51,0.5)'; ctx.fillRect(0, 0, W_, H_); const cw = Math.min(W_ * 0.7, H_ * 0.7 * ps.canvas.width / ps.canvas.height), ch = cw * ps.canvas.height / ps.canvas.width; ctx.save(); ctx.translate(W_ / 2, H_ / 2); ctx.rotate(-0.035); ctx.scale(k, k); ctx.fillStyle = '#F3F0FF'; ctx.fillRect(-cw / 2 - 14, -ch / 2 - 14, cw + 28, ch + 28); ctx.drawImage(ps.canvas, -cw / 2, -ch / 2, cw, ch); ctx.restore(); }
+  drawFocusHint(ctx, W_, H_) { const t = performance.now() / 1000; const w = Math.min(520, W_ - 40); inkShape(ctx, c => roundRectPath(c, W_ / 2 - w / 2, H_ - 96, w, 52, 8), '#FFD23F', INK, 3); ctx.fillStyle = INK; ctx.font = fontStr(Math.min(22, w / 22), true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText((Math.sin(t * 5) > 0 ? '▶ ' : '   ') + 'CLICK THE GAME TO GIVE IT THE KEYBOARD', W_ / 2, H_ - 70); }
   drawRotate(ctx, W_, H_) { ctx.fillStyle = '#1E1633'; ctx.fillRect(0, 0, W_, H_); stampText(ctx, 'ROTATE', W_ / 2, H_ * 0.4, Math.min(80, W_ * 0.2), '#FF4FA3', '#F3F0FF', -4); stampText(ctx, 'YOUR PHONE', W_ / 2, H_ * 0.4 + Math.min(80, W_ * 0.2), Math.min(60, W_ * 0.15), '#FF8A2A', '#F3F0FF', 3); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, false); ctx.textAlign = 'center'; ctx.fillText('Hoop Heads plays in landscape.', W_ / 2, H_ * 0.62); ctx.save(); ctx.translate(W_ / 2, H_ * 0.75); ctx.rotate(Math.sin(performance.now() / 500) * 0.4 + 0.8); ctx.strokeStyle = '#F3F0FF'; ctx.lineWidth = 4; ctx.strokeRect(-22, -38, 44, 76); ctx.restore(); }
 }
 
