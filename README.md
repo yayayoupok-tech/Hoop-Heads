@@ -8,6 +8,8 @@ Big-head caricature players drawn in code, bouncy physics, dunks, blocks, hooks,
 
 Open `index.html` in a current Chrome, Safari, Firefox or Edge. It works from a double-click on the file and when hosted on any static host (GitHub Pages, Vercel). Landscape only on phones. If the page is embedded in another page, click the court once so it receives the keyboard.
 
+On a phone every button is at least 64 px, and long screens (settings, Quick 1v1, the face editor, lists) turn into pages with ◀ ▶. If a match runs slow, a frame guard sheds cost one step at a time: the crowd at 15 Hz, then no floor reflections, then no bloom, then a lower resolution for the match.
+
 ## The career
 
 One life, from a 14-year-old freshman to the Hall of Fame vote.
@@ -87,7 +89,13 @@ node tests/stylemix.js [n]         # bots play to their build: post-ups, jumpers
 node tests/heighttest.js [n]       # 2.12 m against 1.82 m, with and without the career's height shifts
 node tests/careersim.js [40] [seed] [--set career.proMean=83 ...]   # whole simulated careers against the career targets
                                    # (the week, press answers and recruiting included); --set tries a CONFIG value
-node tests/perf.js                 # frame cost at phone size in the arena
+node tests/perf.js                 # frame cost at phone size in the arena, at each performance-guard level
+node tests/modes.js                # every mode played to its end through its screens (quick 1v1, tournament, contest,
+                                   # practice, tutorial, the classic league, and the career's games, drills and All-Star weekend)
+node tests/oldsaves.js [actions]   # every save in tests/fixtures (from older builds) reloaded and played on through the UI
+node tests/phoneaudit.js [dir]     # 65 screens at 844×390: tap targets under 64 px, overlaps, off-screen widgets, smallest text
+node tests/gen_oldsaves.js [dir]   # rebuilds the old-build fixtures by running earlier builds from git history
+node tests/beforeafter.js <dir>    # pairs shots/audit with a fresh shots.js run into shots/before-after/
 node tests/artlab.js <m> <round>   # Art Lab + in-match screenshots → shots/<m>/round-<round>/
 node tests/reel.js <m> <round> [court] [seconds]   # plays a bot match and screenshots each key animation (dunk, crossover, rim hang...)
 node tests/shots.js <dir>          # a screenshot of every screen (the audit and before/after gallery)

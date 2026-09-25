@@ -13,6 +13,8 @@ fs.mkdirSync(OUT, { recursive: true });
   const shot = async (n) => { await page.waitForTimeout(250); await page.screenshot({ path: path.join(OUT, n + '.jpg'), type: 'jpeg', quality: 88 }); console.log('shot', n); };
   const press = re => ev(re => { const s = HH.game.ui.screen; const w = s.widgets.find(w => !w.hidden && w.label && new RegExp(re).test(w.label)); if (!w) throw new Error('no widget /' + re + '/ on ' + s.name + ': ' + s.widgets.filter(w => !w.hidden).map(w => w.label).filter(Boolean).join('|')); w.onPress(); }, re.source);
   const name = () => ev(() => HH.game.ui.screen ? HH.game.ui.screen.name : '(none)');
+  // M8 story cards, the press room and rival cards come between screens: answer and move on
+  const drain = async () => { for (let i = 0; i < 12; i++) { const s = await name(); if (s === 'press') { await press(/^HUMBLE$/); await press(/^CONTINUE$/); continue; } if (!/^(amevent|rivalmoment|commitday)$/.test(s)) return; await press(/^(Continue|CONTINUE)$/); await page.waitForTimeout(150); } };
   // step the live match until pred(m) holds, then freeze it for a screenshot
   const moment = async (predSrc, max, label) => { const ok = await ev(({ predSrc, max }) => { const g = HH.game, m = g.match; if (!m) return 'no match'; const pred = new Function('m', 'return ' + predSrc); for (const p of m.players) p.controlled = false; let n = 0; while (!pred(m) && n < max && !m.ended) { simStep(m, STEP); n++; } g.paused = true; g.acc = 0; return pred(m) ? 'ok after ' + n : 'pred not met after ' + n; }, { predSrc, max }); console.log('  moment', label, ok); await page.waitForTimeout(700); await shot(label); await ev(() => { HH.game.paused = false; }); };
   await ev(() => { localStorage.clear(); HH.game.save = new SaveSystem(); HH.game.ui.clearTo(titleScreen(HH.game)); });
@@ -21,42 +23,44 @@ fs.mkdirSync(OUT, { recursive: true });
   await press(/START YOUR CAREER/); await page.waitForTimeout(300); await shot('d03_create');
   try { await press(/Face shape|Customize face/); await page.waitForTimeout(250); await shot('d04_customize_face'); await ev(() => HH.game.ui.pop()); } catch (e) { console.log('no customize', e.message.slice(0, 120)); }
   await press(/START HIGH SCHOOL/); await page.waitForTimeout(1600); await shot('d05_genes_reveal');
-  await press(/^(Continue|CONTINUE)$/); await page.waitForTimeout(400); await shot('d06_hs_hub');
+  await drain(); await page.waitForTimeout(400); await shot('d06_hs_hub');
   await press(/^PLAY( GAME)?$/); await page.waitForTimeout(2600); await shot('d07_hs_match_start');
   await moment("m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.12)", 120 * 90, 'd08_hs_match_jumpshot');
   await moment("m.players.some(p => (p.state === 'dunk' || p.state === 'layup') && p.stateT > 0.15)", 120 * 240, 'd09_hs_match_rim');
   await moment("m.players.some(p => p.state === 'stance' || (p.anim && p.anim.defStance)) && m.ball.owner && Math.abs(m.players[0].x - m.players[1].x) < 1.6", 120 * 90, 'd10_hs_match_defense');
   await page.keyboard.press('Escape'); await page.waitForTimeout(300); await shot('d11_pause');
   await press(/Sim the rest/); await page.waitForTimeout(1500); await shot('d12_hs_result');
-  await press(/CONTINUE/); await page.waitForTimeout(400);
+  await press(/CONTINUE/); await page.waitForTimeout(400); await drain();
   await press(/Standings/); await page.waitForTimeout(250); await shot('d13_hs_standings'); await ev(() => HH.game.ui.pop());
   await press(/^Stats/); await page.waitForTimeout(250); await shot('d14_hs_history'); await ev(() => HH.game.ui.pop());
-  for (let i = 0; i < 30; i++) { const s = await name(); if (s === 'amevent') break; if (s === 'amresult') { await press(/CONTINUE/); await page.waitForTimeout(100); continue; } await press(/^SIM$/); await page.waitForTimeout(100); }
+  for (let i = 0; i < 80; i++) { const s = await name(); if (s === 'amevent' && await ev(() => { const e = HH.game.save.data.c1.events[0]; return !!e && e.kind === 'recap'; })) break; if (s === 'amresult') { await press(/CONTINUE/); await page.waitForTimeout(100); continue; }
+    if (s === 'press') { await press(/^HUMBLE$/); await press(/^CONTINUE$/); continue; } if (s !== 'amhub') { await press(/^(Continue|CONTINUE)$/); await page.waitForTimeout(150); continue; } await press(/^SIM$/); await page.waitForTimeout(100); } // one card at a time: stop on the recap
   await page.waitForTimeout(1500); await shot('d15_season_recap');
-  for (let i = 0; i < 6; i++) { const s = await name(); if (s !== 'amevent') break; await press(/^(Continue|CONTINUE)$/); await page.waitForTimeout(250); }
+  await drain(); await page.waitForTimeout(250);
   await shot('d16_hs_hub_year2');
   await ev(() => { const g = HH.game, a = g.save.data.c1; let guard = 0; while (!a.decision && a.stage === 'hs' && guard++ < 200) { a.events.length = 0; if (!amSimGame(a)) break; } a.events.length = 0; g.ui.clearTo(amHub(g)); });
   await page.waitForTimeout(300); await press(/CHOOSE YOUR COLLEGE/); await page.waitForTimeout(300); await shot('d17_college_offers');
-  await ev(() => { const s = HH.game.ui.screen; s.widgets.find(w => w.primary).onPress(); }); await page.waitForTimeout(600);
-  for (let i = 0; i < 4; i++) { const s = await name(); if (s !== 'amevent') break; await press(/^(Continue|CONTINUE)$/); await page.waitForTimeout(250); }
+  await ev(() => { const s = HH.game.ui.screen; s.widgets.find(w => w.primary).onPress(); }); await page.waitForTimeout(300); await press(/^Yes$/); await page.waitForTimeout(600);
+  await drain(); await page.waitForTimeout(300);
   await shot('d18_college_hub');
   await press(/^PLAY( GAME)?$/); await page.waitForTimeout(2600);
   await moment("m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.1)", 120 * 90, 'd19_college_match');
   await ev(() => { const m = HH.game.match; let n = 0; while (!m.ended && n < 120 * 60 * 15) { simStep(m, STEP); n++; } }); await page.waitForTimeout(1500);
-  for (let i = 0; i < 4; i++) { const s = await name(); if (s === 'amresult') { await press(/CONTINUE/); await page.waitForTimeout(300); } }
+  for (let i = 0; i < 4; i++) { const s = await name(); if (s === 'amresult') { await press(/CONTINUE/); await page.waitForTimeout(300); } } await drain();
   await ev(() => { const g = HH.game, a = g.save.data.c1; let guard = 0; while (a.stage !== 'combine' && guard++ < 300) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, true); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; } a.events.length = 0; g.ui.clearTo(amHub(g)); });
   await page.waitForTimeout(300); await shot('d20_combine_hub');
   await press(/DRAFT COMBINE/); await page.waitForTimeout(6500); await shot('d21_combine');
   await press(/DRAFT NIGHT/); await page.waitForTimeout(7000); await shot('d22_draft');
-  await press(/START YOUR PRO CAREER/); await page.waitForTimeout(500); await shot('d23_pro_hub');
+  await press(/START YOUR PRO CAREER/); await page.waitForTimeout(500); await drain(); await page.waitForTimeout(300); await shot('d23_pro_hub');
   await press(/^PLAY( GAME)?$/); await page.waitForTimeout(400); await shot('d24_pregame');
   await press(/TIP OFF/); await page.waitForTimeout(2600); await shot('d25_pro_match_start');
   await moment("m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.12)", 120 * 90, 'd26_pro_match_jumpshot');
   await moment("m.players.some(p => (p.state === 'dunk' || p.state === 'rimhang'))", 120 * 300, 'd27_pro_match_dunk');
   await moment("!m.ball.owner && m.ball.shot && m.ball.rimTouched && m.players.some(p => !p.grounded)", 120 * 300, 'd28_pro_match_rebound');
   await ev(() => { const m = HH.game.match; let n = 0; while (!m.ended && n < 120 * 60 * 15) { simStep(m, STEP); n++; } }); await page.waitForTimeout(2500); await shot('d29_pro_result');
-  for (let i = 0; i < 4; i++) { const s = await name(); if (s === 'result' || s === 'postgame') { try { await press(/CONTINUE/); } catch (e) { break; } await page.waitForTimeout(300); } }
-  try { await press(/^TRAIN/); await page.waitForTimeout(300); await shot('d30_training'); await ev(() => HH.game.ui.pop()); } catch (e) { console.log('training', e.message.slice(0, 160)); }
+  for (let i = 0; i < 4; i++) { const s = await name(); if (s === 'result' || s === 'postgame') { try { await press(/CONTINUE/); } catch (e) { break; } await page.waitForTimeout(300); } } await drain();
+  await ev(() => { const g = HH.game, c = g.save.data.career; if (c && c.events) c.events.length = 0; g.ui.clearTo(careerHub(g)); }); await page.waitForTimeout(300);
+  await press(/^PRACTICE/); await page.waitForTimeout(300); await shot('d30_practice'); await ev(() => HH.game.ui.pop());
   // other screens from the menu
   const toMenu = () => ev(() => { HH.game.quitToMenu && HH.game.mode === 'match' && HH.game.quitToMenu(); HH.game.ui.clearTo(mainMenu(HH.game)); });
   await toMenu(); await page.waitForTimeout(300); await shot('d31_menu_with_career');

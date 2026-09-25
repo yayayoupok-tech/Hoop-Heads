@@ -108,7 +108,9 @@ the simulator hits every §6.5 target over 3 × 200 careers: OVR 56/69/76, peak 
 - A first-ten-minutes story beat: create, genes, first game, first growth spurt.
 - Tune the 40-career simulator onto the §6.5 targets: HOF 10–20%, about 1 title per career, few #1 picks.
 
-**M9 — Balance, performance, phone, gallery**
+**M9 — Balance, performance, phone, gallery** *(done: every audited phone screen has 64 px targets (paged lists, bottom bars,
+two-line rows); 16 old saves and 13 mode runs play through without errors; the guard's fourth level renders a slow match at
+1.25×; the balance harness reproduces M7; 52 before/after pairs; see CHANGES.md)*
 - Full harness and simulator runs, the perf pass at 844×390 in the pro arena, a phone pass and a bug sweep over every mode
   and every old save.
 - The before/after gallery in `shots/before-after/`, then publish.
@@ -124,6 +126,9 @@ node tests/devtools.js             # runSims (1v1 Pro mirror, Legend vs Pro, 3v3
 node tests/balance.js [n]          # scripted human: PPP by strategy vs Pro and Legend
 node tests/careersim.js 40         # 40 simulated careers vs the §6.5 targets
 node tests/perf.js                 # frame cost at 844×390 in the pro arena (CPU raster in headless Chromium)
+node tests/modes.js                # every mode to its end (M9)
+node tests/oldsaves.js             # every fixture save reloaded and played on (M9)
+node tests/phoneaudit.js [dir]     # phone tap targets, overlaps and text size on 65 screens (M9)
 ```
 
 Every tuned number is logged in `CHANGES.md`.
@@ -136,4 +141,4 @@ Every tuned number is logged in `CHANGES.md`.
 - **Visual quality is subjective:** every art milestone gets at least three screenshot-and-fix rounds, written down in
   `CHANGES.md`. Without reference images, the bar is the spec's own numbers and descriptions.
 - **Saves:** migrations only add fields and convert looks. Nothing is deleted, and the fixtures in `tests/fixtures/` cover
-  v2, v3 and v4 saves.
+  v2, v3 and v4 saves, plus saves written by the builds before M0, M0, M5 and M7 (M9).

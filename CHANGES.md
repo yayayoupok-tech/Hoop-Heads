@@ -3,6 +3,119 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## M9 — Phone pass, bug sweep, performance, before/after gallery
+
+M9 adds no features. It makes every screen work at phone size, sweeps every mode and every old save, measures the frame
+cost and adds one step to the performance guard, reruns the balance harness and the career simulator, and builds the
+before/after gallery.
+
+The phone pass (spec: "Phones (844×390): tap targets at least 64 px, safe-area insets respected, nothing overflows a panel")
+
+An audit script (`tests/phoneaudit.js`) opens screens at 844×390 with touch and lists every widget narrower or shorter
+than 64 CSS px, every widget off the screen, every pair that overlaps, and the smallest text drawn. Its first run covered 43
+screens and flagged 22: settings (19 rows 22 px tall), How to Play, Extras, Quick 1v1, the tournament and 3-point setups,
+the Hall of Fame, the face editor, the amateur standings and history, the draft decision, the league, player and management
+pages (their View selects, the staff and shop lists), the offseason and its contract offers, the classic team league
+(37 px face buttons), and the All-Star weekend, whose "Sim the contest" button sat below the screen.
+
+New UI-kit pieces, used on every flagged screen:
+- `phonePager`: a long list becomes pages of 64 px rows, in one or two columns, with ◀ ▶ in the bottom bar and a
+  "SECTION · PAGE 1 / 2" chip. Fixed pages can hold a grid (the classic league's faces, four to a row).
+- `phoneBar`: a screen's bottom buttons as one bar of 64 px buttons.
+- Tall rows: on a phone a select, slider or toggle 64 px tall draws its label over the control in bigger type (22–32
+  design px instead of 18). Tapping the left or right half of a select steps it back or forward.
+
+What each screen became on a phone:
+- Settings: two pages of eight rows (Gameplay; Feel, sound & touch). The keyboard preset is hidden on touch screens.
+  Reset and Back sit in the bar.
+- Quick 1v1: two pages beside the matchup (the half-court rows only appear for the half-court ruleset); PLAY and Back in
+  the bar; bigger names.
+- The face editor (both careers): three pages of rows beside the face.
+- How to Play: the touch column of the controls table and one tip at a time in bigger type.
+- Extras, the tournament, the bracket, the 3-point contest, free practice, the Hall of Fame (five bigger cards a page),
+  the draft decision, the amateur standings and history, the All-Star weekend, the 3-point results, the postgame: 64 px
+  buttons in a bar or a grid.
+- The league, player and management pages: View (and Player) and Back in the bottom bar; lists end above it. Staff are
+  four big selects with their notes underneath; the shop is a grid; sponsor offers are 64 px rows.
+- The offseason: contract offers are 64 px rows with the facilities on a second line; the step's buttons are in the bar.
+- The on-screen name keyboard: 64 px keys across the whole screen.
+- The classic team league: faces in pages of eight, the hub menu in pages, and every list (shop, front office, lineup,
+  trades, free agents, game plan) in pages of rows.
+
+Result: the last audit run checks 65 screens (the M8 hubs, cards and story screens included) and finds no target
+under 64 px, nothing off the screen, no overlaps, and no text running past its button (a check added late, after the one
+look at the published page showed the menu's Extras sub-label spilling out of its button; it also caught the classic
+league's team blurbs overflowing their cards on every screen size). `--desktop` runs the same screens at 1280×720: also
+clean. The smoke test checks every page of the paged screens. Screenshots: `shots/m9-final/phone/`.
+
+Bugs found and fixed
+- Extras → Practice opened the main menu, or with a career saved, the career's practice week. M8's career practice
+  screen was also named `practiceScreen`, and in one script the later function silently replaces the earlier one. The
+  Extras screen is now `freePracticeScreen`; the classic league's Training button had the same bug. The smoke test's
+  practice step used to press whatever primary button appeared, so it passed; it now checks for the free-shooting screen.
+- `tests/check-syntax.js` now fails on two top-level functions with one name. On its first run it caught a second clash
+  before it shipped: the new phone rows' `fitFont` had the UI kit's name with the arguments in another order.
+- A v2 save whose classic team league had an empty league crashed when you opened Team league. On load the league is now
+  rebuilt around the same player; coins, awards, results and career numbers stay (`tcRepair`).
+- On the tall phone toggles the ON/OFF text ran under the knob.
+- Two-line button sub-labels were never fitted to the button: on a phone the menu's "team league · modes · art lab" ran
+  past both edges. The classic league's team blurbs overflowed their cards at every size. Both now shrink to fit.
+- The screenshot tour (`tests/shots.js`) pressed the removed TRAIN button and stopped at M8's story cards. It now answers
+  the press, walks the cards one at a time and shoots the Practice screen.
+
+New tests
+- `tests/oldsaves.js`: every save in `tests/fixtures/` goes through a page reload and 160 actions on the real screens (weeks
+  with rotating plans, the press room, recruiting and visits, commitment day, the combine and the draft, All-Star weekends,
+  playoffs, offseasons and contracts). Then the hub's pages are drawn and the classic league plays two games. Ten new fixtures
+  come from four older builds (`tests/gen_oldsaves.js` runs the builds from git history: before M0, M0, M5 and M7): a
+  high-school career with a classic league on the side, a mid-season pro career, and from M7 a playoff and an offseason
+  save. 16 of 16 pass, most reaching three to five seasons further.
+- `tests/modes.js`: every mode played to its end through its screens: Quick 1v1 in all three rulesets with a rematch, a
+  whole street tournament, the 3-point contest twice, practice, the tutorial, the classic league in 5v5 and 3v3, and in
+  the career a live high-school game, a 60 s drill, a pro game from the pregame to the result, and the All-Star weekend
+  played live. 13 of 13 pass.
+- The smoke test: 82 → 84 steps (the guard's last level; every page of the paged phone screens).
+
+Performance (`node tests/perf.js`, pro arena, 844×390 at 2×, headless Chromium with software raster)
+
+A CPU profile of 240 frames shows where the time goes: about 72% is rasterizing the canvas (it lands on the 1-pixel
+readback that closes each timed frame) and about 10% more in `drawImage`. The game's own JavaScript is about 5 ms a frame.
+So the cost is pixels, and this machine's speed varies: the M7 build and this build, measured back to back twice, gave a
+guard-0 median of 23.9 and 30.8 ms (M7) against 23.1 and 29.3 ms (M9). There is no regression: M8's renderer changes only run in
+drills, and M9's only at the new guard level.
+
+| Value | Spec | Was | Now | Why |
+| --- | --- | --- | --- | --- |
+| `perf.maxLevel` | shed cost in order: crowd rate, reflections, glow | 3 levels | 4 | A fourth step for devices that are still slow with everything shed |
+| `perf.lowDpr` | — | — | 1.25 | At guard level 4 a match renders at 1.25× instead of the device's 2× (39% of the pixels). Menus stay sharp: the resolution comes back when the match ends or the guard recovers |
+
+| Guard level | 1× CPU, median / p95 | 4× CPU, median |
+| --- | --- | --- |
+| 0 (everything on) | 26.1 / 44.7 ms | 169.5 ms |
+| 1 (crowd at 15 Hz, fewer particles) | 31.2 / 41.6 ms | 160.0 ms |
+| 2 (no reflections) | 27.8 / 42.6 ms | 160.9 ms |
+| 3 (no bloom or beam dust) | 28.7 / 44.2 ms | 157.4 ms |
+| 4 (new: the match at 1.25×) | 16.2 / 24.9 ms | 104.1 ms |
+
+In the same run levels 0–3 differ by less than the machine's noise; level 4 is the first step that clearly moves the cost.
+These are CPU-raster numbers, not a phone: phone browsers rasterize canvas on the GPU.
+
+Balance and the simulators (no gameplay or career changes in M9)
+- `node tests/balance.js 12 21` reproduces the M7 table exactly: brute force 1.18 PPP against Pro, perfect-timing jumpers
+  1.88, reads 1.80; Legend beats Pro in 75 of 96 games (78%). Every target passes.
+- `node tests/devtools.js`: no softlocks, no invariant failures, no tunneling in 1000 balls; shot-lab rolls are honored
+  100%. Its 40-game Legend-vs-Pro sample gave 70% (the 96-game harness above is the reference).
+- `node tests/stylemix.js`: post-ups 51% (target 45%), shooter jumpers 57% (55%) with 49% threes (half), slasher drives
+  59% (60%).
+- `node tests/heighttest.js`: 2.12 m against 1.82 m with the career's height shifts, 29–31 in 60 games (1.44 against
+  1.43 PPP).
+- `node tests/careersim.js 200 4` (a seed the M8 tuning never saw): median OVR 56 / 68 / 76 at 17 / 21 / 25, peak 78,
+  0.95 titles per career, Hall of Fame 13%, 0 stuck careers. Every target passes. Draft: 15 #1 picks and 24 undrafted of
+  200. The week: practice 63%, rest 26%, film 11%; 3.3 injuries per career.
+
+Before/after gallery: `shots/before-after/`, 52 pairs (44 desktop, 8 phone): every M0 audit shot beside the same shot on
+this build, with notes in `shots/before-after/NOTES.md`.
+
 ## M8 — Career systems
 
 Before M8 a season was Play or Sim clicking. M8 adds the week (Practice, Rest or Film before every game, fatigue and injuries), the story (press questions after big games, hype and confidence, the rival's scripted moments, a headlines feed), recruiting (offers across the four tiers, official visits, the rival's recruiting battle, commitment day), hidden potential, the first-ten-minutes story cards, the pro extras (4-year deals, the All-Star 1v1, All-League 1st and 2nd teams, the spec's DPOY), a trophy case and a career timeline. It ends with the career simulator tuned onto the §6.5 targets. Everything below is in CONFIG with a one-line comment.
@@ -348,6 +461,6 @@ Performance: `node tests/perf.js` at 844×390 @2x shows a median of 35.7 ms per 
 - Median OVR at 17 / 21 / 25: 56 / 68 / 76 (target 55–60 / 66–70 / 74–78). Met.
 - Peak: median 78, range 70–89 (target about 76–80, declining after 30). Met.
 - Draft picks spread out. Met.
-- Pro titles: 1.27 per career (target about 1). Close.
-- Hall of Fame: 43% (target 10–20%). Too high: players who stay near the top win several MVPs, and an MVP is worth as much as a title in the legacy formula. To fix in the balance milestone.
+- Pro titles: 1.27 per career (target about 1). Close. (M8: 1.01 over 3 × 200 careers; M9 check: 0.95.)
+- Hall of Fame: 43% (target 10–20%). Too high: players who stay near the top win several MVPs, and an MVP is worth as much as a title in the legacy formula. To fix in the balance milestone. (Fixed in M8: 16–20% over 3 × 200 careers; M9 check with a new seed: 13%.)
 - Stuck states: 0.
