@@ -110,6 +110,7 @@ const CONFIG = {
     protectSpeedMul: 0.6,      // protecting the ball moves at this fraction of run speed (-40%)
     dunkReachMargin: 0.40,     // dunk needs max hand height ≥ rim + this (m): short players need real hops to dunk
     backdownSpeed: 0.7,        // how fast a big backs down a defender per point of Strength edge (m/s)
+    dribbleSpeedMul: 0.94,     // a dribbler's top speed is this fraction of the same run without the ball (a chasing defender can recover)
     stamina: {
       max: 100,                // stamina scale
       sprintCost: 18,          // stamina per second while sprinting
@@ -138,17 +139,22 @@ const CONFIG = {
     accelPerM: 0.6,            // acceleration changes by this fraction per meter from ref
     stealPerM: 0.4,            // a taller handler dribbles higher: steal exposure per meter above ref
     anklePerM: 0.3,            // ankle-breaker chance per meter the defender is taller than the handler
-    postPerM: 2.0,             // back-down push speed per meter of height advantage (m/s)
+    postPerM: 3.0,             // back-down push speed per meter of height advantage (m/s)
     reboundPerM: 3.0,          // rebound tie-break score per meter above ref
     wingReach: 0.5,            // standing reach grows by this × (wingspan ratio − wingRef)
     wingRef: 1.04,             // average wingspan-to-height ratio
     gatherPerM: 0.8,           // shot gather time changes by this fraction per meter from ref (small guards get it off quicker)
-    blockPerM: 0.8,            // block chance per meter the blocker is taller than the shooter
+    blockPerM: 1.0,            // block chance per meter the blocker is taller than the shooter
+    smallGuard: 1.88,          // below this height (m) a player is a small guard...
+    smallFirstStep: 0.08,      // ...with this much more first-step acceleration...
+    smallAnkle: 0.05,          // ...and this much more ankle-breaker chance
   },
   frames: {                    // state frame data in milliseconds
     crossover:  { startup: 60, active: 120, recovery: 60, burst: 250 },   // the jab is the active window; then a burst
     spin:       { startup: 80, active: 250, recovery: 120 },
     stepback:   { startup: 60, active: 200, recovery: 150 },
+    dropstep:   { startup: 60, active: 220, recovery: 80 },               // post drop step: a pivot around the defender's hip
+    upunder:    { startup: 40, active: 240, recovery: 80 },               // up-and-under: step through after a post pump fake
     hesitation: { startup: 40, active: 250, recovery: 60, go: 250 },     // the stop is the active window; then the go
     pumpfake:   { startup: 60, active: 200, recovery: 120 },
     swipe:      { startup: 70, active: 120, recovery: 280 },             // recovery applies on a whiff
@@ -230,13 +236,20 @@ const CONFIG = {
     releaseAbove: 0.28,        // release point above the top of the head (m)
     heaveMul: 0.9,             // heaves get a flatter arc multiplier
     hookRange: 4.2,            // a shot from the post (backing down) within this distance is a hook (m)
-    hookBase: 0.6,             // open hook at Finishing 5
+    hookBase: 0.55,            // open post hook at Finishing 5
+    hookContestMul: 0.6,       // the hook is released away from the defender: contest counts at 60%
     hookContest: 0.45,         // hook contest penalty (released high, one hand, over the defender)
     hookJumpMul: 0.8,          // hook hop height as a fraction of a full jump
     hookApexExtra: 0.5,        // hooks arc this much higher than a jumper from the same spot (m)
     fadeSpeed: 1.5,            // fadeaway drift away from the hoop (m/s)
-    fadeContestMul: 0.55,      // a fadeaway cuts the defender's contest to this
-    fadeMakeMul: 0.88,         // fadeaway make chance multiplier (a harder shot)
+    fadeContestMul: 0.8,       // a fadeaway cuts the defender's contest to this
+    fadeMakeMul: 0.92,         // fadeaway make chance multiplier (a harder shot)
+    twoHandLift: 0.1,          // a two-hand dunk needs this much hand height over the dunk minimum (m), or a 2.00 m frame
+    tomahawkJmp: 6.5,          // a tomahawk needs this much Jump (engine scale)
+    windmillJmp: 7.0,          // a windmill needs this much Jump (and the learned move)...
+    windmillMaxH: 2.12,        // ...on a frame no taller than this (m)
+    spinDunkJmp: 7.0,          // a 360 needs this much Jump (and the learned move)...
+    spinDunkMaxH: 2.05,        // ...on a frame no taller than this (m)
     fadeWindowMul: 0.85,       // fadeaway perfect-window multiplier
   },
   contest: {
@@ -247,8 +260,8 @@ const CONFIG = {
     vertStance: 0.45,          // verticality when grounded in stance (a hand in the face, not a wall)
     vertOther: 0.3,            // verticality otherwise
     handsMargin: 0.3,          // hands count as "at release height" from this far below it (m)
-    heightBonus: 0.25,         // verticality bonus per meter the defender is taller than the shooter
-    heightClamp: 0.15,         // ...clamped to ± this
+    heightBonus: 0.3,          // verticality bonus per meter the defender is taller than the shooter
+    heightClamp: 0.2,          // ...clamped to ± this
     posBehind: 0.5,            // position factor when trailing from behind
     posNear: 0.4,              // within this distance position always counts as in front (m)
   },
@@ -260,13 +273,22 @@ const CONFIG = {
     swatSpeed: 5.0,            // horizontal speed of a swatted ball (m/s)
     swatUp: 2.5,               // vertical speed of a swatted ball (m/s)
     shooterGraceS: 0.01,       // block checks start this soon after release (the shooter is excluded until rim contact)
-    jumperGraceS: 0.04,        // jump shots and floaters get this long to clear the defender's hand before a block can count (s); short, because the block roll already keeps jumper blocks rare
+    jumperGraceS: 0.08,        // jump shots and floaters are protected this long after release before a hand can block them (s): blocks on jumpers stay rare
     risingOnly: true,          // blocks only on a rising ball
     jumperBase: 0.35,          // a hand on a rising jumper, hook or floater blocks it this often at Defense 5 and equal height
     layupBase: 0.6,            // ...a layup
     defSlope: 0.06,            // per point of Defense above 5
     chanceMin: 0.1,            // block chance floor
     chanceMax: 0.85,           // block chance ceiling
+    rimBase: 0.18,             // rim protection: a leaping defender at the ball when a layup, floater or hook leaves the hand blocks it this often at Defense 5, Jump 5, equal height
+    rimJmpSlope: 0.03,         // ...per point of Jump above 5 (Defense uses defSlope)
+    rimRange: 1.1,             // ...hands count within this distance of the release point (m; lanes add their penalty)
+    rimHandsMargin: 0.3,       // ...hands at most this far below the release height count (m)
+    rimBehindMul: 0.6,         // ...from behind (a chase-down) it works this much as often
+    rimFloaterMul: 0.45,       // ...a floater goes up over the hand this much as often (floaters beat bigs)
+    rimHookMul: 0.6,           // ...a hook is released away from the defender
+    rimMax: 0.55,              // ...never above this
+    rimDunkMul: 0.6,           // ...a dunk is stuffed at the rim this much as often as a layup
   },
   goaltend: {
     range: 0.8,                // horizontal range from the hoop for goaltending (m)
@@ -274,12 +296,13 @@ const CONFIG = {
   },
   duel: {                      // rim duel between a dunker and a leaping shot blocker
     margin: 2.0,               // power margin needed for a clean result either way
-    momentum: 2.5,             // flat dunk power bonus: the dunker has the momentum
-    speedBonusPer: 0.35,       // dunk power per m/s of approach speed
+    momentum: 1.0,             // flat dunk power bonus: the dunker has the momentum
+    speedBonusPer: 0.15,       // dunk power per m/s of approach speed (a well-timed block beats a full-speed dunk about as often as it loses)
     heightBonusPer: 4,         // power per meter of height above 2.0 m
     timingBonusMax: 2,         // block power bonus at a perfect apex timing
     timingWindow: 0.3,         // timing bonus falls to zero this far from the defender's apex (s)
     noise: 1.2,                // ± uniform noise added to each side
+    reach: 0.25,               // a blocker's hand meets the dunker's ball within hand radius + ball radius + this (m)
     knockback: 4,              // posterized defender's knockback speed (m/s)
   },
   defense: {
@@ -293,12 +316,23 @@ const CONFIG = {
     slipAfter: 0.22,           // 1v1: keep pushing this long and the handler tries to slip into a free lane (s)
     slipAfterTeam: 0.7,        // team modes: a handler who keeps pushing this long can slip into a free lane (s)...
     slipStrEdge: 2,            // ...but only with at least this much more Strength than the defender (bully ball)
-    soloSlipBase: 0.35,        // 1v1: a slip-around beats a set defender this often at equal Handling/Defense and speed
+    soloSlipBase: 0.12,        // 1v1: a straight push slips around a set defender this often at equal Handling/Defense and speed (moves beat walls, pushing doesn't)
+    soloSlipMin: 0.04,         // ...never below this
+    soloSlipMax: 0.6,          // ...never above this
     soloSlipHan: 0.06,         // ...per point of (Handling − Defense)
     soloSlipSpd: 0.05,         // ...per point of (Speed − the defender's Speed)
     soloSlipHeight: 0.8,       // ...per meter the defender is taller (big men are slower to cut off the angle)
     soloSlipStr: 0.03,         // ...per point of (Strength − the defender's Strength): bully ball
     cutoffS: 0.45,             // a failed slip: the defender cut off the angle; wait this long before trying again (s)
+    slipDragS: 0.35,           // after a slip the defender is still on the handler's hip for this long (s)...
+    slipDragMul: 0.72,         // ...and the handler runs at this fraction of top speed through the contact
+    chargeSpeedFrac: 1.02,     // a charge needs the handler sprinting faster than this × their own run speed at first contact
+    chargeSetS: 0.12,          // ...into a defender planted in stance at least this long (s)
+    chargePlantedVel: 1.0,     // ...moving slower than this (m/s)
+    chargeBase: 0.3,           // charge chance at Defense 5
+    chargeDefSlope: 0.03,      // ...per point of Defense above 5
+    chargeRestrictedR: 1.25,   // no charges on a defender standing within this of the hoop (the restricted arc, m)
+    chargeFallMs: 650,         // the defender who takes the charge is on the floor this long (ms)
     bumpKnockback: 0.8,        // handler's speed after a body-up (m/s, backwards)
     blowBySpeedMul: 0.75,      // speed multiplier while passing through a soft defender
     exposureBumpMul: 2,        // steal exposure multiplier during a bump stagger
@@ -311,6 +345,11 @@ const CONFIG = {
     jabSpeed: 3.2,             // crossover jab speed the other way (m/s)
     burstMul: 1.3,             // burst speed multiplier (+30%)
     spinRange: 0.9,            // spin opens a pass-through when the defender was within this (m)
+    spinBase: 0.45,            // a spin into a close defender gets around him this often at equal Handling and Defense...
+    spinHanSlope: 0.06,        // ...per point of (Handling − Defense)
+    spinLeanBonus: 0.2,        // ...plus this when the defender is leaning on you (spin off a body-up) or off balance
+    spinMin: 0.12,             // ...never below this
+    spinMax: 0.85,             // ...never above this
     spinSpeed: 4.0,            // forward speed during a spin (m/s)
     stepbackDist: 1.1,         // step-back hop distance (m)
     hesiMaxSpeed: 4.0,         // hesitation available while dribbling slower than this (m/s)
@@ -388,6 +427,24 @@ const CONFIG = {
     putbackRange: 1.0,         // put-back dunk within this distance of the hoop (m)
     looseDriftZ: 0.5,          // loose balls drift toward this lane
     driftRate: 1.5,            // lane drift rate (per s)
+    heightWinPerDh: 0.04,      // box-outs and 50/50 balls: win chance +0.04 per 10 cm of height edge
+    boxOutBase: 0.55,          // a player in stance with an opponent at his back seals him this often (equal size and Strength)
+    boxOutStr: 0.04,           // ...per point of Strength edge
+    boxOutReach: 0.25,         // ...when the opponent is within this of body contact (m)
+  },
+  post: {                      // the post game: at least 3 in. taller than the defender, near the block, holding Down
+    minEdge: 0.076,            // height edge needed (m)
+    range: 4.6,                // within this of the hoop (m)
+    defRange: 1.4,             // the defender is on your back within this (m)
+    dropSpeed: 3.6,            // drop step speed toward the rim (m/s)
+    dropBase: 0.5,             // a drop step gets around the defender this often at equal Strength and a 3 in. edge
+    dropStrSlope: 0.05,        // ...per point of Strength edge
+    dropEdgePerDh: 0.08,       // ...per extra 10 cm of height edge
+    upUnderSpeed: 3.0,         // up-and-under step speed (m/s)
+    upUnderBit: 0.85,          // an up-and-under beats a defender who bit on the fake this often...
+    upUnderBase: 0.2,          // ...and one who stayed down this often
+    dropMin: 0.15,             // drop step chance floor
+    dropMax: 0.85,             // drop step chance ceiling
   },
   arcade: {
     shove: {
@@ -438,15 +495,20 @@ const CONFIG = {
     inboundTossHeight: 0.9,    // inbound ball appears at this height in the receiver's hands (m)
     tipoffJumpDelay: 0.35,     // tip-off ball is tossed this long after the phase starts (s)
     stallStepS: 0.25,          // dead-ball stagger between celebration and inbound (s)
+    charges: true,             // offensive fouls: sprinting into a set defender can be a charge (Settings can turn it off)
+    checkDist: 8.2,            // street half court: every possession starts with a check ball this far from the hoop (the top)...
+    checkGap: 1.4,             // ...with the defender this far in front of the ball
+    checkBeat: 0.7,            // ...and this dead-ball beat before it's live (s)
+    midlinePad: 0.3,           // half court: players stay on the hoop's side of the midcourt line, less this (m); a loose ball past it is out
   },
   ai: {
     teamBrainHz: 10,           // TeamBrain update rate
     playerBrainHz: 30,         // PlayerBrain update rate
     difficulties: {            // only the brain changes with difficulty
-      rookie:  { reaction: 0.38, reactionJitter: 0.06, temperature: 1.0,  releaseSigma: 0.110, bite: 0.65, discipline: 0.15, help: 0.20, rebNoise: 0.12, moves: ['crossover'], memory: 0 },
-      pro:     { reaction: 0.26, reactionJitter: 0.04, temperature: 0.55, releaseSigma: 0.050, bite: 0.35, discipline: 0.30, help: 0.55, rebNoise: 0.07, moves: ['crossover', 'stepback', 'pumpfake', 'hesitation', 'lane'], memory: 0.5 },
-      allstar: { reaction: 0.19, reactionJitter: 0.03, temperature: 0.30, releaseSigma: 0.040, bite: 0.18, discipline: 0.40, help: 0.80, rebNoise: 0.04, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane'], memory: 1 },
-      legend:  { reaction: 0.13, reactionJitter: 0.02, temperature: 0.12, releaseSigma: 0.030, bite: 0.07, discipline: 0.50, help: 0.95, rebNoise: 0.02, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane'], memory: 1, rotations: true, readsMomentum: true },
+      rookie:  { reaction: 0.38, reactionJitter: 0.06, temperature: 1.0,  releaseSigma: 0.110, bite: 0.65, discipline: 0.15, help: 0.20, rebNoise: 0.12, moves: ['crossover'], memory: 0, anticipation: 0.3 },
+      pro:     { reaction: 0.26, reactionJitter: 0.04, temperature: 0.55, releaseSigma: 0.050, bite: 0.35, discipline: 0.30, help: 0.55, rebNoise: 0.07, moves: ['crossover', 'stepback', 'pumpfake', 'hesitation', 'lane'], memory: 0.5, anticipation: 0.6 },
+      allstar: { reaction: 0.19, reactionJitter: 0.03, temperature: 0.30, releaseSigma: 0.040, bite: 0.18, discipline: 0.40, help: 0.80, rebNoise: 0.04, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane'], memory: 1, anticipation: 0.8 },
+      legend:  { reaction: 0.13, reactionJitter: 0.02, temperature: 0.12, releaseSigma: 0.030, bite: 0.07, discipline: 0.50, help: 0.95, rebNoise: 0.02, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane'], memory: 1, rotations: true, readsMomentum: true, anticipation: 1 },
     },
     tierOrder: ['rookie', 'pro', 'allstar', 'legend'], // ordered tiers for Adaptive and tournaments
     adaptiveLead: 10,          // Adaptive shifts the brain when the human leads/trails by this
@@ -489,7 +551,8 @@ const CONFIG = {
     commitJitter: 0.1,         // random commitment jitter (s)
     evScale: 4,                // EVs are scaled by this before the softmax so small EV gaps matter
     pickupDist: 7.6,           // on-ball defenders pick up the handler this far from their hoop, not before (m)
-    pickupDistSolo: 8.5,       // ...in 1v1 they pick up above the arc so the handler has to go to work
+    pickupDistSolo: 8.5,       // ...in 1v1 they pick up above the arc so the handler has to go to work...
+    pickupDistSoloBig: 6.8,    // ...but a handler who can't shoot (Shooting 3.5 or less) is met here instead, and anyone up to Shooting 5.5 in between
     contestJumpExpect: 0.75,   // bots expect a close defender to leave their feet on the shot (contest anticipation)
     soloApproachMinGap: 0.9,   // 1v1: a handler walks the defender down while they give at least this much room (m)
     soloDriveEMA0: 0.5,        // 1v1: a bot's starting belief that its drives get through (learned during the game)
@@ -515,10 +578,49 @@ const CONFIG = {
     postEVPerEdge: 0.2,        // extra post-up value per point of size edge
     postEVMax: 1.25,           // cap on the post-up value multiplier
     postShootDist: 3.0,        // a posting bot turns into a hook at this distance from the hoop (m)
-    postMaxS: 3.0,             // a post-up that goes nowhere ends after this long (s)
+    postMaxS: 5.0,             // a post-up that goes nowhere ends after this long (s)
+    postWorkS: 1.2,            // a posting bot works the defender at least this long before finishing from hook range (s)
+    postRetryS: 3.0,           // ...and the bot waits this long before posting up again
     fadeMinSho: 4.5,           // bots only fade away with at least this Shooting (engine scale)
+    styleMix: {                // bots play to their build: option value multipliers by play style (Post 45% post-ups, Shooter 55% jumpers with half of them threes, Slasher 60% drives; measured by tests/stylemix.js)
+      postscorer:   { post: 1.3, drive: 0.9, jumper: 0.8, three: 0.5, move: 0.9 },
+      rimprotector: { post: 1.0, drive: 1.0, jumper: 0.7, three: 0.35, move: 0.8 },
+      sharpshooter: { post: 0.6, drive: 1.2, jumper: 0.95, three: 0.85, move: 1.15 },
+      slasher:      { post: 0.8, drive: 1.15, jumper: 0.9, three: 0.8, move: 1.1 },
+      playmaker:    { post: 0.8, drive: 1.1, jumper: 1.0, three: 1.0, move: 1.2 },
+      lockdown:     { post: 1.0, drive: 1.0, jumper: 1.0, three: 1.0, move: 1.0 },
+    },
+    postFinish: { hook: 1.0, drop: 0.8, fake: 0.5 }, // how a posting bot likes to finish, before weighing each by how well it works on this defender
+    stylePlan: {               // 1v1: each possession a bot plans a post-up, a drive, a three or a mid-range jumper by its build (a post plan needs 3 in. on its man, else it drives)
+      postscorer:   { post: 0.5, drive: 0.25, three: 0.05, mid: 0.2 },
+      rimprotector: { post: 0.22, drive: 0.6, three: 0.0, mid: 0.18 },
+      sharpshooter: { post: 0.0, drive: 0.42, three: 0.29, mid: 0.29 },
+      slasher:      { post: 0.05, drive: 0.35, three: 0.28, mid: 0.32 },
+      playmaker:    { post: 0.05, drive: 0.5, three: 0.25, mid: 0.2 },
+      lockdown:     { post: 0.15, drive: 0.45, three: 0.2, mid: 0.2 },
+    },
+    planMismatch: 2.0,         // plans weigh the matchup: per meter of size edge beyond the 3 in. post minimum, this much more post-up weight (a smaller player: that much more drive weight)...
+    planMismatchMax: 0.4,      // ...up to this much
+    planBoost: 1.7,            // the planned option's value is multiplied by this until the bot has run it once...
+    planDamp: 0.55,            // ...and the other planned kinds (post-up, drive, jumper) by this
+    planDropClock: 5,          // plans are dropped with this much shot clock left (s): take what's there
+    careerShift: { hs: -0.45, hsPerYear: 0.07, college: -0.15, collegePerYear: 0.05, pro: 0.1, playoff: 0.2, gapPerTier: 15, gapMax: 0.6, max: 1.0 }, // career bots: tier shift by level and year, plus the OVR gap (15 OVR = a tier, capped ±0.6), on top of the Settings level. Never by the score
+    recoverAhead: 0.4,         // a beaten on-ball defender sprints for a spot this far past the handler, in the next lane over (m)
+    cushionPerSpeed: 3.0,      // on-ball cushion per unit of top-speed edge the handler has (a slow big drops back and protects the rim)...
+    cushionMax: 0.9,           // ...up to this much extra room (m)
+    rimRecoverH: 2.0,          // a beaten defender this tall or taller races to the rim spot instead of the driver's hip...
+    rimRecoverDist: 5.0,       // ...once the driver is this close to the rim (m)
+    rimSpot: 0.9,              // ...the spot this far in front of the rim (m)
+    recoverHoldS: 0.4,         // ...and keeps racing for at least this long before cutting back in (no lane flip-flop)
+    cutInLead: 0.6,            // ...cutting back into the handler's lane only a full body ahead of him (m)
+    flyCloseout: 2.0,          // an on-ball defender leaves the floor at a jump shot within this distance (m)
+    contactReaction: 0.12,     // a defender who feels the handler slip past reacts this fast (touch is quicker than sight, s)...
+    contactWindow: 0.6,        // ...for this long after the contact (s)
+    rimJumpDist: 1.9,          // an on-ball defender leaves the floor for a layup or dunk within this distance of the finisher (m)
+    chargeSlowDist: 2.4,       // a driving bot lets go of Sprint this far from a set defender ahead of it (no charges, m)
   },
   camera: {
+    halfCourtPad: 1.0,         // street half court: the view stops this far past the midcourt line (m)
     playerKeepM: 0.9,          // the player you control always stays at least this far inside the frame edge (m)
     wBall: 0.6,                // focus weight: ball
     wPlayer: 0.25,             // focus weight: controlled player
@@ -1825,6 +1927,8 @@ function rigSelect(c) {
   switch (st) {
     case 'crossover': case 'spin': case 'stepback': case 'hesitation': case 'swipe': case 'shove': case 'pass': case 'lob': case 'pumpfake': case 'celebrate': case 'rimhang': case 'stagger': case 'land': case 'protect': return [st, T];
     case 'burst': return [sd.kind === 'crossover' ? 'burstCross' : 'sprint', T];
+    case 'dropstep': return ['spin', T]; // the pivot around the defender's hip
+    case 'upunder': return ['burstCross', T]; // a low step through
     case 'gather': return [sd.type === 'layup' || sd.type === 'dunk' ? 'layupGather' : 'shotGather', T];
     case 'jumpshot': return ['jumpshot', T];
     case 'floater': return [sd.type === 'hook' ? 'hook' : 'floater', T];
@@ -1853,7 +1957,7 @@ function rigBoxingOut(c) { // the rebound battle: a shot in the air, near its ho
 function rigEnter(c, name) {
   const a = c.a, p = c.p, s = p.stats || {}; const seed = hashString((p.name || '') + '|' + name + '|' + ((s.pts || 0) + 7 * (s.fga || 0) + 13 * (s.dunkA || 0) + 17 * (s.blk || 0)));
   if (name === 'celebrate') a.celeb = RIG_CELEBS.includes(a.forceVar) ? a.forceVar : RIG_CELEBS[seed % RIG_CELEBS.length];
-  else if (name === 'dunk') { const st = c.sd.style | 0; a.dunkVar = a.forceVar || (st === 1 ? 'spin360' : st === 2 ? 'windmill' : ['onehand', 'twohand', 'tomahawk'][seed % 3]); }
+  else if (name === 'dunk') { a.dunkVar = a.forceVar || DUNK_STYLES[c.sd.style | 0] || 'onehand'; } // the style was picked in play (gated by Hops and height)
   else if (name === 'land') a.landSoft = a.rigClip === 'jumpshot' || a.rigClip === 'floater' || a.rigClip === 'hook';
 }
 // Squash and stretch in the air (§3.7): 0.9 y / 1.08 x for 60 ms after takeoff, 1.05 y around the apex.
@@ -2491,7 +2595,7 @@ class Player {
     this.coyote = 0; this.jumpBuf = 0; this.shootBuf = 0; this.passBuf = 0; this.actionBuf = 0; this.landT = 0; this.airT = 0;
     this.lastMove = ''; this.lastMoveT = -9; this.shoveCd = 0; this.blowByT = 0; this.passThroughT = 0; this.stepbackT = -9; this.pickedUp = false; this.pickedUpT = 0; this.reDribbleT = 0;
     this.dribble = { phase: 0, side: 1, y: 0.9, cross: 0, bounced: false };
-    this.hand = { x: 0, y: 0 }; this.beaten = 0; this.offBalanceT = 0; this.biteT = 0; this.celebrateT = 0; this.screenFightT = 0; this.boxedOutBy = null; this.lastTouchT = -9;
+    this.hand = { x: 0, y: 0 }; this.beaten = 0; this.slipDragT = 0; this.plantT = 0; this.offBalanceT = 0; this.biteT = 0; this.celebrateT = 0; this.screenFightT = 0; this.boxedOutBy = null; this.lastTouchT = -9;
     this.anim = { bobX: 0, bobVX: 0, bobY: 0, bobVY: 0, runPh: 0, squash: 1, expr: 'neutral', exprT: 0, armL: { x: 0, y: 0 }, armR: { x: 0, y: 0 }, dunkStyle: 0, spinAngle: 0 };
     this.stats = makeStats(); this.lastAx = 0; this.prevVx = 0; this.prevVy = 0; this.catchT = -9; this.lastCatchFrom = null;
     this.ftMode = false; this.tipoff = false; this.hintUsed = {};
@@ -2513,7 +2617,7 @@ class Player {
   get recovering() { return (this.state === 'swipe' && this.sd.phase === 'recovery') || this.inState('stumble', 'knocked', 'stagger') || this.biteT > 0; }
   get busy() { return this.inState('crossover', 'spin', 'stepback', 'hesitation', 'pumpfake', 'swipe', 'pass', 'lob', 'shove', 'gather', 'jumpshot', 'layup', 'dunk', 'rimhang', 'floater', 'tipin', 'stumble', 'knocked', 'stagger', 'catch', 'ft', 'tipoff'); }
 }
-function makeStats() { return { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, oreb: 0, ast: 0, stl: 0, blk: 0, to: 0, dunkM: 0, dunkA: 0, layM: 0, layA: 0, tipM: 0, tipA: 0, hookM: 0, hookA: 0, fadeM: 0, fadeA: 0, moves: 0, midM: 0, midA: 0, threeM: 0, threeA: 0, deepM: 0, deepA: 0, heaveM: 0, heaveA: 0, green: 0, ankles: 0, posters: 0, fouls: 0, highlights: 0 }; }
+function makeStats() { return { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, oreb: 0, ast: 0, stl: 0, blk: 0, to: 0, dunkM: 0, dunkA: 0, layM: 0, layA: 0, tipM: 0, tipA: 0, hookM: 0, hookA: 0, fadeM: 0, fadeA: 0, moves: 0, midM: 0, midA: 0, threeM: 0, threeA: 0, deepM: 0, deepA: 0, heaveM: 0, heaveA: 0, green: 0, ankles: 0, posters: 0, fouls: 0, chg: 0, highlights: 0 }; }
 
 class Ball {
   constructor() {
@@ -2543,17 +2647,18 @@ class Match {
   constructor(o) {
     this.opts = o; this.seed = o.seed >>> 0 || 1; this.rng = new RNG(this.seed); this.bus = new EventBus();
     this.mode = o.mode || '1v1'; this.perSide = this.mode === '5v5' ? 5 : this.mode === '3v3' ? 3 : (this.mode === '2v2' ? 2 : 1);
-    this.ruleset = o.ruleset || 'arcade'; this.arcade = this.ruleset === 'arcade';
+    this.ruleset = o.ruleset || 'arcade'; this.halfCourt = this.ruleset === 'half' && this.perSide === 1; this.arcade = this.ruleset === 'arcade' || this.ruleset === 'half';
+    const hc = o.half || {}; this.makeItTakeIt = this.halfCourt && !!hc.makeItTakeIt; this.pointBase = this.halfCourt && hc.scoring === '1s2s' ? 1 : 2; this.mustClear = -1; // street half court: winner's ball, 1s and 2s, clear after a stop
     this.format = o.format || { type: 'first', target: CONFIG.rules.targetScore, winBy2: false };
     this.courtId = o.court || 'blacktop'; this.headless = !!o.headless; this.practice = o.practice || null; this.tutorial = o.tutorial || null; this.contest3 = o.contest3 || null;
-    this.controlMode = o.controlMode || 'ball'; this.adaptive = !!o.adaptive; this.difficulty = o.difficulty || 'pro';
+    this.controlMode = o.controlMode || 'ball'; this.adaptive = !!o.adaptive; this.difficulty = o.difficulty || 'pro'; this.charges = o.charges != null ? !!o.charges : CONFIG.rules.charges;
     this.time = 0; this.stepCount = 0; this.phase = 'pregame'; this.phaseT = 0; this.period = 1; this.periods = 2; this.gameClock = 0; this.shotClock = CONFIG.rules.shotClock; this.clockRunning = false; this.overtime = 0;
     this.possession = 0; this.lastScorer = null; this.ended = false; this.winner = -1; this.hintCounts = {}; this.buzzerPending = false; this.deadReason = ''; this.pendingInbound = -1; this.ftState = null; this.tipT = 0; this.callouts = []; this.lastShot = null; this.humanTeam = o.humanTeam == null ? 0 : o.humanTeam;
     this.sidesSwapped = false; this.lastPasser = null; this.lastPassT = -9; this.posStartT = 0; this.periodPossession = [0, 0]; this.stallT = 0; this.replayHold = 0; this.replayRequested = false;
     this.snapshots = null; this.replay = null; this.heads = []; this.contact = makeContact(); this.invariantFails = {}; this.invariantCount = 0; this.dev = !!o.dev; this.slowMoT = 0;
     this.build();
   }
-  hoopFor(team) { const rightTeam = this.opts.rightTeam != null ? this.opts.rightTeam : (this.humanTeam >= 0 ? this.humanTeam : 0); const attackRight = (team === rightTeam) !== this.sidesSwapped; return attackRight ? HOOPS[1] : HOOPS[0]; }
+  hoopFor(team) { if (this.halfCourt) return HOOPS[1]; const rightTeam = this.opts.rightTeam != null ? this.opts.rightTeam : (this.humanTeam >= 0 ? this.humanTeam : 0); const attackRight = (team === rightTeam) !== this.sidesSwapped; return attackRight ? HOOPS[1] : HOOPS[0]; }
   build() {
     const o = this.opts; this.teams = []; this.players = [];
     for (let t = 0; t < 2; t++) {
@@ -2603,9 +2708,9 @@ class Match {
 // ============================================================================
 // SECTION: MECHANICS (part 1) — player controller, state machine, moves, steals, shoves
 // ============================================================================
-const PC = CONFIG.player, FR = CONFIG.frames, MV = CONFIG.moves, HT = CONFIG.height;
+const PC = CONFIG.player, FR = CONFIG.frames, MV = CONFIG.moves, HT = CONFIG.height, PG = CONFIG.post;
 const FREE_STATES = { move: 1, stance: 1, protect: 1, celebrate: 1 };
-const MOVE_STATES = { crossover: 1, spin: 1, stepback: 1, hesitation: 1, pumpfake: 1 };
+const MOVE_STATES = { crossover: 1, spin: 1, stepback: 1, hesitation: 1, pumpfake: 1, dropstep: 1, upunder: 1 };
 const AIR_STATES = { jump: 1, jumpshot: 1, layup: 1, dunk: 1, floater: 1, tipin: 1, fall: 1 };
 
 function phaseOf(p) {
@@ -2618,6 +2723,8 @@ function maxSpeedOf(p, sprint) {
   if (p.screenFightT > 0) s *= 0.4;
   if (p.boxedOutBy) s *= (1 - CONFIG.rebound.boxOutSlow);
   if (Math.abs(p.z - p.zTarget) > 0.04) s *= W.laneChangeSpeedMul;
+  if (p.hasBall && p.grounded && !p.pickedUp) s *= PC.dribbleSpeedMul;
+  if (p.slipDragT > 0) s *= DF.slipDragMul;
   return s;
 }
 const LANES = CONFIG.world.lanes;
@@ -2638,7 +2745,7 @@ function checkLaneAnkle(p, fromLane) {
     const d = ops[i]; if (Math.abs(d.x - p.x) > A_.range || !d.grounded || d.inState('stumble', 'knocked')) continue;
     const sliding = Math.abs(d.z - d.zTarget) > 0.06 && Math.abs(d.zTarget - LANES[fromLane]) < 0.05;
     if (!sliding && !d.recovering) continue;
-    let chance = clamp(A_.base + A_.ratingSlope * (p.attrs.han - d.attrs.def) + (d.recovering ? A_.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.traits.snatcher ? CONFIG.career.trait.snatcher : 0), 0, A_.max) * 0.8;
+    let chance = clamp(A_.base + A_.ratingSlope * (p.attrs.han - d.attrs.def) + (d.recovering ? A_.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.height < HT.smallGuard ? HT.smallAnkle : 0) + (p.traits.snatcher ? CONFIG.career.trait.snatcher : 0), 0, A_.max) * 0.8;
     const roll = m.rng.next();
     if (roll < chance) { const sit = roll < chance * A_.sitDownFrac; d.setState('stumble', { ms: sit ? FR.sitdown : FR.stumble, sit }); d.anim.expr = 'shocked'; d.anim.exprT = 1.5; p.anim.expr = 'hyped'; p.anim.exprT = 1.2; p.stats.ankles++; m.bus.emit('ANKLE_BREAK', { player: p, victim: d, sit }); return; }
   }
@@ -2650,6 +2757,12 @@ function mirrorLane(p, dt) {
   const want = laneOf(h.z); if (want === laneOf(p.zTarget)) { p.mirrorT = 0; return; }
   p.mirrorT = (p.mirrorT || 0) + dt; if (p.mirrorT >= DF.humanMirrorDelay) { p.mirrorT = 0; p.lane = want; p.zTarget = LANES[want]; p.laneT = m.time; }
 }
+// The post game: a defender on your back (between you and the hoop), near the block, and at least 3 in. of height on him.
+function postDefender(p) { const ops = p.match.opponentsOf(p), dir = p.dirToHoop(); let best = null, bd = PG.defRange; for (let i = 0; i < ops.length; i++) { const o = ops[i]; if (o.hidden || Math.abs(o.z - p.z) > W.laneShare) continue; const d = Math.abs(o.x - p.x); if (d < bd && (o.x - p.x) * dir > -0.2) { bd = d; best = o; } } return best; }
+function canPost(p) { if (Math.abs(p.x - p.hoop.x) > PG.range) return null; const d = postDefender(p); return d && p.height - d.height >= PG.minEdge - 1e-6 ? d : null; }
+function dropStepChance(p, d) { return clamp(PG.dropBase + PG.dropStrSlope * (p.attrs.str - d.attrs.str) + PG.dropEdgePerDh * (p.height - d.height - PG.minEdge) / 0.1 + (d.offBalance ? 0.2 : 0), PG.dropMin, PG.dropMax); }
+// A spin into a close defender: Handling against Defense, easier off a defender who is leaning on you.
+function spinChance(p, d) { const lean = (p.bodyUpT || 0) > 0 || d.offBalance || d.biteT > 0; return clamp(MV.spinBase + MV.spinHanSlope * (p.attrs.han - d.attrs.def) + (lean ? MV.spinLeanBonus : 0), MV.spinMin, MV.spinMax); }
 function canDribbleMove(p) { return p.hasBall && p.grounded && !p.pickedUp && (FREE_STATES[p.state] || p.state === 'burst'); }
 
 // Called once per sim step for every player (humans and bots alike read their InputState here).
@@ -2662,6 +2775,7 @@ function updatePlayer(p, dt) {
   p.coyote = p.grounded ? PC.coyoteMs / 1000 : Math.max(0, p.coyote - dt);
   p.shoveCd = Math.max(0, p.shoveCd - dt); p.exposureBumpT = Math.max(0, (p.exposureBumpT || 0) - dt); if (!p.hasBall) p.bodyUpT = 0; if (p.state !== 'protect') p.postT = 0; p.blowByT = Math.max(0, p.blowByT - dt); p.passThroughT = Math.max(0, p.passThroughT - dt); p.offBalanceT = Math.max(0, p.offBalanceT - dt); p.biteT = Math.max(0, p.biteT - dt); p.screenFightT = Math.max(0, p.screenFightT - dt); p.reDribbleT = Math.max(0, p.reDribbleT - dt);
   if (p.beaten > 0) p.beaten = Math.max(0, p.beaten - dt);
+  p.slipDragT = Math.max(0, p.slipDragT - dt); p.plantT = p.grounded && p.state === 'stance' && Math.abs(p.vx) < DF.chargePlantedVel ? p.plantT + dt : 0; // how long a defender has been set (charges)
   p.stateT += dt; if (!p.grounded) p.airT += dt;
   // stamina
   const sprinting = I.sprint && Math.abs(p.vx) > 2 && p.grounded && !(m.practice && m.practice.infiniteStamina);
@@ -2728,7 +2842,7 @@ function stepStateMachine(p, dt) {
       const ms = p.stateT * 1000, g = sd.gatherMs;
       if (sd.type === 'layup' || sd.type === 'dunk') { if (I.moveX !== 0 && sd.moveX0 !== 0 && sgn(I.moveX) !== sgn(sd.moveX0) && p.moves.euro) sd.euro = true; }
       const releasedEarly = sd.btn === 'pass' ? (I.passR || !I.pass) : (I.shootR || !I.shoot);
-      if (releasedEarly && ms < g && sd.type !== 'ft') { p.setState('pumpfake'); m.bus.emit('PUMP_FAKE', { player: p }); break; }
+      if (releasedEarly && ms < g && sd.type !== 'ft') { p.setState('pumpfake', { fromPost: sd.type === 'hook' }); m.bus.emit('PUMP_FAKE', { player: p, post: sd.type === 'hook' }); break; }
       if (ms >= g) launchShotJump(p);
       break;
     }
@@ -2753,7 +2867,7 @@ function stepStateMachine(p, dt) {
         const hx = p.x + p.facing * 0.35, hy = p.y + p.reach; const dxr = Math.abs(hx - p.hoop.x), dyr = hy - RIM_Y;
         if (!sd.dueled) checkRimDuel(p);
         if (sd.blocked) { p.setState('fall', { wasAir: true }); break; }
-        if ((dxr < 0.45 && dyr > -0.05 && p.stateT > 0.08) || (p.vy < -1.5 && dxr < 0.7) || p.stateT > 1.2) slam(p);
+        if ((dxr < 0.45 && dyr > -0.05 && p.stateT > 0.08) || (p.vy < -1.5 && dxr < 0.7) || p.stateT > 1.2) { if (!sd.poster && !sd.protectRolled) { sd.protectRolled = true; if (dunkProtect(p)) { p.setState('fall', { wasAir: true }); break; } } slam(p); }
       }
       break;
     }
@@ -2767,7 +2881,7 @@ function stepStateMachine(p, dt) {
       else if (p.grounded) land(p);
       break;
     }
-    case 'crossover': case 'spin': case 'stepback': case 'hesitation': case 'pumpfake': {
+    case 'crossover': case 'spin': case 'stepback': case 'hesitation': case 'pumpfake': case 'dropstep': case 'upunder': {
       const ph = phaseOf(p);
       sd.phase = ph;
       // cancel into a shot or pass during the burst/go phase (handled in burst) — pumpfake recovery can go to a drive
@@ -2776,12 +2890,16 @@ function stepStateMachine(p, dt) {
         else if (st === 'hesitation') { p.setState('burst', { dir: sd.dir, ms: FR.hesitation.go, kind: 'go' }); checkAnkleBreak(p, sd.dir); }
         else if (st === 'spin') { p.setState('move'); checkAnkleBreak(p, sd.dir); }
         else if (st === 'stepback') { p.stepbackT = m.time; p.setState('move'); checkAnkleBreak(p, -sd.dir); }
+        else if (st === 'dropstep') { p.setState('move'); checkAnkleBreak(p, sd.dir); }
         else p.setState('move');
         break;
       }
+      if (st === 'spin' && ph === 'active' && sd.beat && !sd.around) { sd.around = true; p.blowByT = (FR.spin.active + FR.spin.recovery + FR.spinWindow) / 1000; const d = sd.def; if (d) { d.beaten = 0.8; d.lastBeatT = m.time; m.bus.emit('BLOW_BY', { player: p, defender: d, spin: true }); } } // spun around him: a pass-through
+      if ((st === 'dropstep' || st === 'upunder') && ph === 'active' && sd.beat && !sd.around && sd.def) { sd.around = true; const f = FR[st]; p.blowByT = (f.active + f.recovery + 120) / 1000; sd.def.beaten = 0.8; sd.def.lastBeatT = m.time; m.bus.emit('BLOW_BY', { player: p, defender: sd.def, post: st }); } // sealed him and went around
       if (st === 'spin' && ph === 'recovery' && !sd.windowGiven) { sd.windowGiven = true; if (sd.closeDef) p.passThroughT = FR.spinWindow / 1000; }
       if (st === 'crossover' && ph === 'active') { p.dribble.cross = clamp((p.stateT * 1000 - FR.crossover.startup) / FR.crossover.active, 0, 1); if (p.dribble.side !== -sd.dir * 0 && !sd.swapped && p.dribble.cross > 0.5) { sd.swapped = true; p.dribble.side = sd.dir; } }
       if (st === 'pumpfake' && ph !== 'startup' && hasBall && p.grounded) {
+        if (p.actionBuf > 0 && sd.fromPost) { p.actionBuf = 0; startNamedMove(p, 'upunder'); break; } // the up-and-under
         if (p.shootBuf > 0) { p.shootBuf = 0; startShot(p); break; }
         if (p.passBuf > 0 && m.teammatesOf(p).length > 1) { p.passBuf = 0; startPass(p, I.holdPass >= CONFIG.pass.lobHoldMs / 1000); break; }
         if (p.passBuf > 0) { p.passBuf = 0; startShot(p, 'fade'); break; }
@@ -2855,11 +2973,19 @@ function startTipOrPutback(p) {
   if (d < CONFIG.rebound.putbackRange && b.y > RIM_Y && canDunk(p) && p.vy > -1) { p.setState('dunk', { style: pickDunkStyle(p), fromAir: true, wasAir: true, tApex: 0.1 }); p.match.bus.emit('DUNK_START', { player: p }); }
   else p.setState('tipin', { type: 'tip', released: false, wasAir: true });
 }
-function pickDunkStyle(p) { const r = p.match.rng.next(); const owned = [0]; if (p.moves.dunk360) owned.push(1); if (p.moves.windmill) owned.push(2); return owned[Math.floor(r * owned.length)]; }
+// Five dunk styles, gated by Hops and height: one-hand (anyone who can dunk), two-hand (more lift, or a big frame), tomahawk, windmill, 360.
+const DUNK_STYLES = ['onehand', 'spin360', 'windmill', 'twohand', 'tomahawk'];
+function dunkStylesFor(p) {
+  const v = jumpVelOf(p), lift = reachOf(p) + v * v / (2 * G) - (RIM_Y + PC.dunkReachMargin), J = p.attrs.jmp, H = p.height, out = [0];
+  if (lift >= SH.twoHandLift || H >= 2.0) out.push(3); if (J >= SH.tomahawkJmp) out.push(4);
+  if (p.moves.windmill && J >= SH.windmillJmp && H <= SH.windmillMaxH) out.push(2); if (p.moves.dunk360 && J >= SH.spinDunkJmp && H <= SH.spinDunkMaxH) out.push(1);
+  return out;
+}
+function pickDunkStyle(p) { const r = p.match.rng.next(); const owned = dunkStylesFor(p); return owned[Math.floor(r * owned.length)]; }
 
 // Integrate the body: ground acceleration/friction, air control, gravity, floor.
 function integrateBody(p, dt) {
-  const I = p.input, st = p.state, sd = p.sd; const ACC = PC.accel * heightMul(p, HT.accelPerM);
+  const I = p.input, st = p.state, sd = p.sd; const ACC = PC.accel * heightMul(p, HT.accelPerM) * (p.height < HT.smallGuard ? 1 + HT.smallFirstStep : 1); // small guards: a quicker first step
   let target = 0, accel = ACC, control = true, sprint = I.sprint && !I.down;
   switch (st) {
     case 'idle': case 'move': target = I.moveX * maxSpeedOf(p, sprint); break;
@@ -2871,6 +2997,8 @@ function integrateBody(p, dt) {
     case 'spin': { const ph = sd.phase || phaseOf(p); target = ph === 'active' ? sd.dir * MV.spinSpeed : 0; accel = ACC * 2; break; }
     case 'stepback': { const ph = sd.phase || phaseOf(p); target = ph === 'active' ? -sd.dir * (MV.stepbackDist / (FR.stepback.active / 1000)) : 0; accel = ACC * 4; break; }
     case 'hesitation': { target = 0; accel = ACC * 3; break; }
+    case 'dropstep': { const ph = sd.phase || phaseOf(p); target = ph === 'active' ? sd.dir * PG.dropSpeed : 0; accel = ACC * 2.5; break; }
+    case 'upunder': { const ph = sd.phase || phaseOf(p); target = ph === 'active' ? sd.dir * PG.upUnderSpeed : 0; accel = ACC * 2.5; break; }
     case 'gather': target = (sd.type === 'layup' || sd.type === 'dunk' || sd.type === 'floater') ? sd.vx0 : 0; accel = ACC * 2; break;
     case 'catch': target = I.moveX * maxSpeedOf(p, false) * 0.5; break;
     case 'land': target = I.moveX * maxSpeedOf(p, false) * 0.6; break;
@@ -2900,8 +3028,8 @@ function integrateBody(p, dt) {
   // floor
   if (p.y <= 0) { if (!p.grounded) { p.grounded = true; p.sd.wasAir = true; onTouchGround(p); } p.y = 0; if (p.vy < 0) p.vy = 0; }
   else if (p.y > 0.001 && p.grounded) { p.grounded = false; }
-  // court bounds (players can't go into the padded walls)
-  const minX = WALL_L + 0.5, maxX = WALL_R - 0.5; if (p.x < minX) { p.x = minX; if (p.vx < 0) p.vx = 0; } if (p.x > maxX) { p.x = maxX; if (p.vx > 0) p.vx = 0; }
+  // court bounds (players can't go into the padded walls; street half court: they stay on the hoop's half)
+  const minX = p.match.halfCourt ? COURT_L / 2 - CONFIG.rules.midlinePad : WALL_L + 0.5, maxX = WALL_R - 0.5; if (p.x < minX) { p.x = minX; if (p.vx < 0) p.vx = 0; } if (p.x > maxX) { p.x = maxX; if (p.vx > 0) p.vx = 0; }
   // inbound hold: defenders held back
   const m = p.match; if (m.inboundHoldT > 0 && m.inboundPlayer && p.team !== m.inboundPlayer.team) { const ip = m.inboundPlayer, d = p.x - ip.x; const need = CONFIG.rules.inboundDist * sgn(d || ip.dirToHoop()); if (Math.abs(d) < CONFIG.rules.inboundDist) { p.x = ip.x + need; p.vx = 0; } }
 }
@@ -2925,13 +3053,13 @@ function updateFacing(p) {
 function updateDribble(p, dt) {
   const b = p.match.ball; if (b.owner !== p) return;
   const D = PC.dribble, st = p.state, d = p.dribble;
-  const dribbling = p.grounded && !p.pickedUp && (st === 'move' || st === 'stance' || st === 'protect' || st === 'burst' || st === 'crossover' || st === 'spin' || st === 'stepback' || st === 'hesitation' || st === 'celebrate' || st === 'catch' || st === 'land');
+  const dribbling = p.grounded && !p.pickedUp && (st === 'move' || st === 'stance' || st === 'protect' || st === 'burst' || st === 'crossover' || st === 'spin' || st === 'stepback' || st === 'hesitation' || st === 'celebrate' || st === 'catch' || st === 'land' || st === 'dropstep' || st === 'upunder');
   if (dribbling) {
     const sp = Math.abs(p.vx); const cycle = sp < 0.5 ? D.cycleIdle : (sp > PC.runSpeed * 0.9 ? D.cycleSprint : D.cycleWalk);
     const prev = d.phase; d.phase += dt / cycle; if (Math.floor(d.phase) !== Math.floor(prev)) { d.bounced = true; p.match.bus.emit('DRIBBLE_BOUNCE', { player: p, speed: 3 + sp * 0.3 }); }
     const f = d.phase - Math.floor(d.phase); const h = Math.abs(Math.sin(f * Math.PI));
     let side = d.side; const tbD = p.match.teams[1 - p.team].brain; const op = (tbD && tbD.onBallDefender) || p.match.nearestOpponent(p); const attacking = st === 'burst' || (p.input.sprint && sp > 3) || st === 'spin' || st === 'stepback';
-    if (st === 'protect') { if (op) side = -sgn(op.x - p.x) || side; d.side = side; }
+    if (st === 'protect' || st === 'spin' || st === 'dropstep' || st === 'upunder') { if (op) side = -sgn(op.x - p.x) || side; d.side = side; } // shield the ball with the body (a spin swings it around the back)
     else if (st !== 'crossover' && st !== 'hesitation') { if (attacking) side = p.facing; else if (op && Math.abs(op.x - p.x) < 2.5 && Math.abs(op.z - p.z) < W.laneShare + 0.2) side = -sgn(op.x - p.x) || side; else side = p.facing; d.side = side; }
     let sx = side * D.sideOffset;
     if (st === 'crossover') { const c = d.cross; sx = lerp(-p.sd.dir * D.sideOffset, p.sd.dir * D.sideOffset, easeInOutQuad(c)); }
@@ -2962,7 +3090,8 @@ function startMove(p) {
   const I = p.input, m = p.match; if (!canDribbleMove(p)) return false;
   const dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > 0.5 ? sgn(p.vx) : p.dirToHoop());
   let name;
-  if (I.sprint && p.moves.spin) name = 'spin';
+  if (p.state === 'protect' && canPost(p)) name = 'dropstep';
+  else if (I.sprint && p.moves.spin) name = 'spin';
   else if (I.moveX !== 0 && sgn(I.moveX) === -p.dirToHoop() && p.moves.stepback) name = 'stepback';
   else name = 'crossover';
   return startNamedMove(p, name, dir);
@@ -2973,8 +3102,10 @@ function startNamedMove(p, name, dir) {
   const repeat = p.lastMove === name && (m.time - p.lastMoveT) < MV.repeatWindowS;
   p.stamina = Math.max(0, p.stamina - PC.stamina.moveCost);
   const sd = { dir, repeat, phase: 'startup' };
-  if (name === 'spin') { const op = m.nearestOpponent(p); sd.closeDef = !!(op && Math.abs(op.x - p.x) < MV.spinRange && Math.abs(op.z - p.z) < W.laneShare); sd.dir = p.dirToHoop(); }
+  if (name === 'spin') { const op = m.nearestOpponent(p); sd.closeDef = !!(op && Math.abs(op.x - p.x) < MV.spinRange && Math.abs(op.z - p.z) < W.laneShare); sd.dir = p.dirToHoop(); if (sd.closeDef) { sd.def = op; sd.beat = m.rng.next() < spinChance(p, op); } }
   if (name === 'stepback') sd.dir = p.dirToHoop();
+  if (name === 'dropstep') { sd.dir = p.dirToHoop(); const d = postDefender(p); sd.def = d; sd.beat = !!d && m.rng.next() < dropStepChance(p, d); }
+  if (name === 'upunder') { sd.dir = p.dirToHoop(); const d = postDefender(p); sd.def = d; sd.beat = !!d && m.rng.next() < (d.biteT > 0 || !d.grounded ? PG.upUnderBit : PG.upUnderBase); }
   if (name === 'crossover') { sd.dir = dir; }
   if (name === 'hesitation') { sd.dir = Math.abs(p.vx) > 0.3 ? sgn(p.vx) : p.dirToHoop(); }
   p.setState(name, sd); p.lastMove = name; p.lastMoveT = m.time; p.facing = sd.dir; p.stats.moves++;
@@ -2989,7 +3120,7 @@ function checkAnkleBreak(p, newDir) {
     if (d.inState('stumble', 'knocked')) continue;
     const wrongWay = d.vx * newDir < -A.wrongWayVel; const recovering = d.recovering || d.biteT > 0;
     if (!wrongWay && !recovering) continue;
-    let chance = clamp(A.base + A.ratingSlope * (p.attrs.han - d.attrs.def) + (recovering ? A.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.traits.snatcher ? CONFIG.career.trait.snatcher : 0), 0, A.max);
+    let chance = clamp(A.base + A.ratingSlope * (p.attrs.han - d.attrs.def) + (recovering ? A.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.height < HT.smallGuard ? HT.smallAnkle : 0) + (p.traits.snatcher ? CONFIG.career.trait.snatcher : 0), 0, A.max);
     if (p.sd && p.sd.repeat) chance *= MV.repeatAnkleMul;
     const roll = m.rng.next();
     if (roll < chance) {
@@ -3115,12 +3246,13 @@ function computeContest(shooter, releaseY) {
 
 // --- shot selection when Shoot is pressed on the ground ---
 function startShot(p, variant) {
+  if (mustClearNow(p)) { clearViolation(p.match, p); return; }
   const m = p.match, hoop = p.hoop, d = Math.abs(p.x - hoop.x), dir = sgn(hoop.x - p.x) || p.facing, toward = p.vx * dir; const fade = variant === 'fade';
-  const posting = p.state === 'protect' || (p.pickedUp && p.input.down);
+  const posting = p.state === 'protect' || (p.pickedUp && p.input.down); const pdef = posting ? postDefender(p) : null; const postOk = !pdef || p.height - pdef.height >= PG.minEdge - 1e-6; // a post hook needs 3 in. on the man on your back
   let type = 'jumper';
   if (m.phase === 'freethrow' && m.ftState && m.ftState.shooter === p) type = 'ft';
   else if (fade) type = 'jumper';
-  else if (posting && d <= SH.hookRange) type = 'hook';
+  else if (posting && d <= SH.hookRange && postOk) type = 'hook';
   else if (d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p) && (m.arcade || !p.pickedUp)) type = 'dunk';
   else if (d <= SH.layupRange) type = 'layup';
   else if (d <= SH.floaterRange && toward >= SH.floaterMinSpeed) type = 'floater';
@@ -3156,13 +3288,14 @@ const _launch = [0, 0, 0];
 function releaseShot(p, err, forced) {
   const m = p.match, sd = p.sd, b = m.ball, hoop = p.hoop; if (sd.released) return; sd.released = true; sd.relT = p.stateT; // relT: when the ball left the hand (the rig times the follow-through from it)
   if (b.owner !== p) return;
+  if (sd.type !== 'ft' && mustClearNow(p)) { clearViolation(m, p); return; }
   const type = sd.type; const dir = sgn(hoop.x - p.x) || p.facing; p.facing = dir;
   let x0 = b.x, y0 = b.y; if (type === 'jumper' || type === 'ft' || type === 'floater') { x0 = p.x + dir * 0.12; y0 = p.y + p.height + SH.releaseAbove; }
   else if (type === 'hook') { x0 = p.x + dir * 0.22; y0 = p.y + p.reach + 0.05; }
   else if (type === 'layup') { x0 = p.x + dir * 0.4; y0 = p.y + p.reach - 0.15; }
   else if (type === 'tip') { x0 = b.x; y0 = b.y; }
   const d = Math.abs(x0 - hoop.x); const zone = zoneOf(d);
-  const ct = computeContest(p, y0); let contest = ct.value; if (sd.euro) contest *= SH.euroContestMul; if (sd.fade) contest *= SH.fadeContestMul; if (type === 'ft') contest = 0;
+  const ct = computeContest(p, y0); let contest = ct.value; if (sd.euro) contest *= SH.euroContestMul; if (sd.fade) contest *= SH.fadeContestMul; if (type === 'hook') contest *= SH.hookContestMul; if (type === 'ft') contest = 0;
   const timed = type === 'jumper' || type === 'ft' || type === 'floater';
   let w = 0, grade = -1;
   if (timed) { if (p.arch === 'sharpshooter') err += SH.quickReleaseEarlyMs / 1000; w = perfectWindow(p, contest, d) * (sd.fade ? SH.fadeWindowMul : 1); grade = forced ? 3 : gradeOf(err, w); }
@@ -3172,7 +3305,7 @@ function releaseShot(p, err, forced) {
   const flavor = pickFlavor(m, make, type, d, grade, contest, err);
   b.setOwner(null); b.mode = 'flight'; b.x = x0; b.y = y0; b.z = p.z; b.zTarget = 0.5; b.flightZ0 = p.z; b.armed = false; b.fromBelow = false; b.rimTouched = false; b.boardTouched = false; b.flightT = 0; b.touchedAfterShot = false; b.lastTouch = p; b.lastTouchTeam = p.team;
   const solve = launchShot(b, x0, y0, hoop, type, make, flavor, d, dir);
-  const points = (type === 'jumper' && zone !== 'mid') ? 3 : (type === 'ft' ? 1 : 2);
+  const points = type === 'ft' ? 1 : m.pointBase + ((type === 'jumper' && zone !== 'mid') ? 1 : 0); // half court can score by 1s and 2s
   const shot = { shooter: p, type, zone, grade, err, window: w, contest, contestBy: ct.by, P, roll, make, flavor, green, x0, y0, d, points, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, solver: solve.attempts, solverOk: solve.ok, solverFallback: solve.fallback, base: mp.base, forced: !!forced, stepback: !!sd.stepback, euro: !!sd.euro, fade: !!sd.fade, id: m.stepCount };
   b.shot = shot; m.lastShot = shot;
   if (type !== 'ft') { p.stats.fga++; if (points === 3) p.stats.tpa++; } else p.stats.fta++;
@@ -3181,6 +3314,24 @@ function releaseShot(p, err, forced) {
   p.anim.expr = 'focused'; p.anim.exprT = 0.5;
   if (sd.zBack) { p.zTarget = 0.5; }
   m.bus.emit('SHOT_RELEASED', shot);
+  if (type === 'layup' || type === 'floater' || type === 'hook') rimProtect(m, p, shot);
+}
+// Rim protection: a leaping defender whose hand is at the ball as a layup, floater or hook leaves the hand can block it on
+// the way up. Position (in front, alongside or chasing from behind), hands up in time, Defense, Jump and height decide it.
+function rimProtect(m, p, shot) {
+  const BK = CONFIG.block, C = CONFIG.contest, ops = m.opponentsOf(p), hoop = p.hoop; if (m.practice && m.practice.noDefender) return;
+  const typeMul = shot.type === 'floater' ? BK.rimFloaterMul : (shot.type === 'hook' ? BK.rimHookMul : 1);
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i]; if (d.hidden || d.grounded || d.inState('stumble', 'knocked')) continue;
+    handPos(d, _hp); if (_hp.y < shot.y0 - BK.rimHandsMargin) continue;
+    const dx = Math.abs(_hp.x - shot.x0) + Math.abs(d.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
+    const tried = shot.blockTried || (shot.blockTried = {}); if (tried[d.id]) continue; tried[d.id] = true;
+    const inFront = (d.x - p.x) * (hoop.x - p.x) > 0 || Math.abs(d.x - p.x) < C.posNear;
+    const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height) + (d.traits.eraser ? CONFIG.career.trait.eraser : 0), 0, BK.rimMax);
+    const ch = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * typeMul; shot.rimBlockP = Math.max(shot.rimBlockP || 0, ch);
+    if (m.rng.next() < ch) { doBlock(m, d, p); return; }
+    m.bus.emit('ALTERED', { player: d, shooter: p });
+  }
 }
 function pickFlavor(m, make, type, d, grade, contest, err) {
   if (type === 'dunk') return 'dunk';
@@ -3285,17 +3436,13 @@ function checkRimDuel(p) {
   const m = p.match, b = m.ball, D = CONFIG.duel, ops = m.opponentsOf(p);
   for (let i = 0; i < ops.length; i++) {
     const d = ops[i]; if (d.grounded || d.state !== 'jump') continue; if (Math.abs(d.z - p.z) > W.laneShare + 0.2) continue;
-    handPos(d, _hp); const rr = CONFIG.block.handRadius + BALL.radius + 0.1; const dx = b.x - _hp.x, dy = b.y - _hp.y; if (dx * dx + dy * dy > rr * rr) continue;
+    handPos(d, _hp); const rr = CONFIG.block.handRadius + BALL.radius + D.reach; const dx = b.x - _hp.x, dy = b.y - _hp.y; if (dx * dx + dy * dy > rr * rr) continue;
     p.sd.dueled = true;
     const dunkPower = p.attrs.fin + p.attrs.str + (p.traits.posterizer ? CONFIG.career.trait.posterizer : 0) + D.momentum + D.speedBonusPer * (p.sd.approach || 0) + D.heightBonusPer * (p.height - 2.0) + m.rng.range(-D.noise, D.noise);
     const tApex = d.sd.tApex || 0.3; const timing = clamp01(1 - Math.abs(d.airT - tApex) / D.timingWindow) * D.timingBonusMax;
     const blockPower = d.attrs.def + d.attrs.jmp + timing + D.heightBonusPer * (d.height - 2.0) + m.rng.range(-D.noise, D.noise);
-    if (blockPower - dunkPower > D.margin) {
-      // blocked at the rim
-      p.sd.blocked = true; b.setOwner(null); b.mode = 'loose'; b.x = _hp.x; b.y = _hp.y; b.vx = -p.facing * CONFIG.block.swatSpeed; b.vy = 1.5; b.z = d.z; b.lastTouch = d; b.lastTouchTeam = d.team; b.shot = null;
-      d.stats.blk++; p.stats.dunkA++; p.stats.fga++; m.bus.emit('BLOCK', { player: d, shooter: p, caught: false, rim: true }); m.bus.emit('MISS', { shooter: p, type: 'dunk', reason: 'block' });
-      p.anim.expr = 'shocked'; p.anim.exprT = 1; d.anim.expr = 'hyped'; d.anim.exprT = 1;
-    } else if (dunkPower - blockPower > D.margin) {
+    if (blockPower - dunkPower > D.margin) stuffDunk(m, p, d); // blocked at the rim
+    else if (dunkPower - blockPower > D.margin) {
       p.sd.poster = d; d.vx = p.facing * D.knockback; d.vy = Math.max(d.vy, 1);
       d.setState('stumble', { ms: FR.stumble, posterized: true }); d.anim.expr = 'shocked'; d.anim.exprT = 2; p.anim.expr = 'hyped'; p.anim.exprT = 2;
     } else if (blockPower > dunkPower) {
@@ -3304,13 +3451,33 @@ function checkRimDuel(p) {
     return;
   }
 }
+function stuffDunk(m, p, d) {
+  const b = m.ball; handPos(d, _hp); p.sd.blocked = true; b.setOwner(null); b.mode = 'loose'; b.x = _hp.x; b.y = _hp.y; b.vx = -p.facing * CONFIG.block.swatSpeed; b.vy = 1.5; b.z = d.z; b.lastTouch = d; b.lastTouchTeam = d.team; b.shot = null;
+  d.stats.blk++; p.stats.dunkA++; p.stats.fga++; m.bus.emit('BLOCK', { player: d, shooter: p, caught: false, rim: true }); m.bus.emit('MISS', { shooter: p, type: 'dunk', reason: 'block' });
+  p.anim.expr = 'shocked'; p.anim.exprT = 1; d.anim.expr = 'hyped'; d.anim.exprT = 1;
+}
+// Rim protection on a dunk, rolled as the dunker reaches the rim: the same terms as a layup (position, hands up in time,
+// Defense, Jump, height), less often (BK.rimDunkMul). Returns true when the dunk is stuffed.
+function dunkProtect(p) {
+  const m = p.match, b = m.ball, BK = CONFIG.block, C = CONFIG.contest, ops = m.opponentsOf(p); if (b.owner !== p || (m.practice && m.practice.noDefender)) return false;
+  for (let i = 0; i < ops.length; i++) {
+    const d = ops[i]; if (d.hidden || d.grounded || d.inState('stumble', 'knocked')) continue;
+    handPos(d, _hp); if (_hp.y < b.y - BK.rimHandsMargin) continue;
+    const dx = Math.abs(_hp.x - b.x) + Math.abs(d.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
+    const inFront = (d.x - p.x) * (p.hoop.x - p.x) > 0 || Math.abs(d.x - p.x) < C.posNear;
+    const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height) + (d.traits.eraser ? CONFIG.career.trait.eraser : 0), 0, BK.rimMax);
+    if (m.rng.next() < base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * BK.rimDunkMul) { stuffDunk(m, p, d); return true; }
+  }
+  return false;
+}
 // The slam: the dunk counts (or clanks), the dunker hangs on the rim.
 function slam(p) {
   const m = p.match, sd = p.sd, b = m.ball, hoop = p.hoop; if (sd.slammed) return; sd.slammed = true;
   if (b.owner !== p) { p.setState('fall', { wasAir: true }); return; }
+  if (mustClearNow(p)) { clearViolation(m, p); p.setState('fall', { wasAir: true }); return; }
   const roll = m.rng.next(); const dct = sd.poster ? { value: 0, by: null } : computeContest(p, RIM_Y + 0.3); const dunkP = SH.dunkOpenP * (1 - SH.dunkContest * dct.value); const make = sd.poster ? true : (sd.clank ? false : roll < dunkP);
   b.setOwner(null); b.mode = 'flight'; b.z = p.z; b.rimTouched = false; b.boardTouched = false; b.flightT = 0; b.lastTouch = p; b.lastTouchTeam = p.team;
-  const shot = { shooter: p, type: 'dunk', zone: 'mid', grade: -1, err: 0, window: 0, contest: dct.value, contestBy: dct.by, P: dunkP, roll, make, flavor: 'dunk', green: false, x0: hoop.x, y0: RIM_Y + 0.3, d: 0, points: 2, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, poster: !!sd.poster, style: sd.style, id: m.stepCount };
+  const shot = { shooter: p, type: 'dunk', zone: 'mid', grade: -1, err: 0, window: 0, contest: dct.value, contestBy: dct.by, P: dunkP, roll, make, flavor: 'dunk', green: false, x0: hoop.x, y0: RIM_Y + 0.3, d: 0, points: 2, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, poster: !!sd.poster, style: sd.style, id: m.stepCount }; shot.points = m.pointBase;
   b.shot = shot; m.lastShot = shot; p.stats.fga++; p.stats.dunkA++;
   if (make) { b.x = hoop.x; b.y = RIM_Y + 0.22; b.vx = 0; b.vy = -7; b.armed = true; b.fromBelow = false; }
   else { b.x = hoop.x - p.facing * 0.1; b.y = RIM_Y + 0.35; b.vx = -p.facing * 2.5; b.vy = 2.5; b.armed = false; }
@@ -3428,13 +3595,38 @@ function resolveCatches(m, dt) {
   }
   // loose balls and rebounds: nearby touches resolve by strength, timing and position
   let winner = _contenders[0];
-  if (n > 1) {
+  if (n === 2) {
+    // a 50/50 ball: position, timing and Strength make the favorite; height adds 0.04 win chance per 10 cm (RB.heightWinPerDh)
+    const a = _contenders[0], c = _contenders[1], hx = (b.shot ? b.shot.shooter.hoop : a.hoop).x;
+    const pa = clamp(winChanceOfGap(looseScore(a, b, hx) - looseScore(c, b, hx)) + RB.heightWinPerDh * (a.height - c.height) / 0.1, 0.03, 0.97);
+    winner = m.rng.next() < pa ? a : c;
+    if (m.rng.next() < RB.tipChance) { const loser = winner === a ? c : a; b.vx += sgn(loser.x - winner.x) * -1.5; b.vy = 2.5 + m.rng.next(); b.lastTouch = loser; b.lastTouchTeam = loser.team; loser.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } m.bus.emit('TIP', { player: loser }); return; }
+  } else if (n > 2) {
     let bs = -Infinity; const hx = winner.hoop.x;
     for (let i = 0; i < n; i++) { const p = _contenders[i]; let s = p.attrs.str * 0.5 + HT.reboundPerM * (p.height - HT.ref) + (p.grounded ? 0 : 2 + (p.vy > 0 ? 1 : 0)) + (Math.abs(p.x - b.x) < 0.3 ? 1.5 : 0) + m.rng.range(0, 1.5); const underOrFront = (b.x - p.x) * (hx - p.x) >= 0; if (underOrFront) s += 1; if (s > bs) { bs = s; winner = p; } }
     // the loser may tip it
     if (m.rng.next() < RB.tipChance) { const loser = _contenders[0] === winner ? _contenders[1] : _contenders[0]; b.vx += sgn(loser.x - winner.x) * -1.5; b.vy = 2.5 + m.rng.next(); b.lastTouch = loser; b.lastTouchTeam = loser.team; loser.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } m.bus.emit('TIP', { player: loser }); return; }
   }
   completeCatch(m, winner, b.shot ? 'rebound' : 'loose');
+}
+// Loose-ball favorite score without height (height enters as a straight win-chance shift). The noise is two U(0, 1.5) draws.
+function looseScore(p, b, hx) { return p.attrs.str * 0.5 + (p.grounded ? 0 : 2 + (p.vy > 0 ? 1 : 0)) + (Math.abs(p.x - b.x) < 0.3 ? 1.5 : 0) + ((b.x - p.x) * (hx - p.x) >= 0 ? 1 : 0); }
+function winChanceOfGap(g) { const R = 1.5; if (g >= R) return 1; if (g <= -R) return 0; return g >= 0 ? 1 - (R - g) * (R - g) / (2 * R * R) : (R + g) * (R + g) / (2 * R * R); }
+// Box-outs: while a shot is up, a player in stance with an opponent at his back (same lane, farther from the hoop) can seal
+// him; one roll per shot and pair (Strength, +0.04 per 10 cm of height). A sealed player moves 40% slower toward the ball.
+function updateBoxOuts(m) {
+  const b = m.ball, live = !!b.shot && !b.owner && (b.mode === 'flight' || b.mode === 'loose');
+  for (let i = 0; i < m.players.length; i++) { const p = m.players[i], bx = p.boxedOutBy; if (bx && (!live || bx.hidden || bx.state !== 'stance' || Math.abs(bx.x - p.x) > DF.contactDist + RB.boxOutReach + 0.2 || Math.abs(bx.z - p.z) > W.laneShare)) p.boxedOutBy = null; }
+  if (!live) return; const hoopX = b.shot.shooter.hoop.x, tried = b.shot.boxTried || (b.shot.boxTried = {});
+  for (let i = 0; i < m.players.length; i++) {
+    const bx = m.players[i]; if (bx.hidden || !bx.grounded || bx.state !== 'stance') continue; const ops = m.opponentsOf(bx);
+    for (let j = 0; j < ops.length; j++) {
+      const o = ops[j]; if (o.hidden || o.boxedOutBy || Math.abs(o.z - bx.z) > W.laneShare || Math.abs(o.x - bx.x) > DF.contactDist + RB.boxOutReach) continue;
+      if (Math.abs(o.x - hoopX) <= Math.abs(bx.x - hoopX)) continue; // he has to be behind me
+      const key = bx.id + ':' + o.id; if (tried[key]) continue; tried[key] = true;
+      if (m.rng.next() < clamp(RB.boxOutBase + RB.boxOutStr * (bx.attrs.str - o.attrs.str) + RB.heightWinPerDh * (bx.height - o.height) / 0.1, 0.1, 0.9)) { o.boxedOutBy = bx; m.bus.emit('BOX_OUT', { player: bx, victim: o }); }
+    }
+  }
 }
 function completeCatch(m, p, how) {
   const b = m.ball; const wasShot = b.shot; const prevTeam = m.possession; const shooterTeam = wasShot ? wasShot.shooter.team : -1;
@@ -3445,7 +3637,7 @@ function completeCatch(m, p, how) {
   if (how === 'rebound') { p.stats.reb++; const off = p.team === shooterTeam; if (off) p.stats.oreb++; m.bus.emit('REBOUND', { player: p, offensive: off }); if (off) { if (b.rimTouched || b.boardTouched) m.shotClock = Math.min(m.shotClock, CONFIG.rules.shotClockOffReb); } }
   if (fromPass) { p.lastCatchFrom = fromPass.from; p.catchT = m.time; m.bus.emit('CATCH', { player: p, from: fromPass.from }); }
   else { p.lastCatchFrom = null; }
-  if (p.team !== prevTeam || m.possession !== p.team) { m.possession = p.team; m.shotClock = CONFIG.rules.shotClock; m.bus.emit('POSSESSION_CHANGE', { team: p.team, player: p, how }); }
+  if (p.team !== prevTeam || m.possession !== p.team) { m.possession = p.team; m.shotClock = CONFIG.rules.shotClock; if (m.halfCourt) m.mustClear = p.team; m.bus.emit('POSSESSION_CHANGE', { team: p.team, player: p, how }); } // half court: a stop has to be cleared past the arc
   if (p.grounded && !p.pickedUp) { /* live dribble resumes */ }
   if (how === 'loose' && b.lastTouchTeam !== p.team) { /* recovered after a steal/deflection */ }
 }
@@ -3471,6 +3663,20 @@ function isSquare(d, h) {
   if (d.input && d.input.sprint && Math.abs(d.vx) > 3 && !sameDir) return false;
   return true;
 }
+// A charge: first contact at a sprint (faster than the handler's own run) into a defender set in stance, outside the restricted arc.
+function isCharge(m, h, d, vIn) {
+  if (!m.charges || m.phase !== 'live' || m.practice || m.tutorial) return false;
+  if (h.state !== 'move' || !h.input.sprint || !d.grounded || d.state !== 'stance') return false;
+  if (d.plantT < DF.chargeSetS || Math.abs(d.x - h.hoop.x) < DF.chargeRestrictedR) return false;
+  return vIn > maxSpeedOf(h, false) * DF.chargeSpeedFrac;
+}
+function callCharge(m, h, d) {
+  const dir = sgn(d.x - h.x) || h.facing; h.stats.to++; h.stats.fouls++; d.stats.chg++;
+  d.setState('knocked', { ms: DF.chargeFallMs, charge: true }); d.vx = dir * 1.2; d.anim.expr = 'focused'; d.anim.exprT = 1.2;
+  h.setState('stagger'); h.vx = -dir * 0.6; h.anim.expr = 'shocked'; h.anim.exprT = 1.2;
+  m.bus.emit('CHARGE', { player: h, defender: d });
+  turnoverTo(m, d.team, h, 'charge');
+}
 function resolveBodies(m, dt) {
   const A = m.teams[0].players, B = m.teams[1].players, h = m.ball.owner;
   // beating a defender through another lane counts as a blow-by (help defense reacts to it)
@@ -3483,7 +3689,8 @@ function resolveBodies(m, dt) {
     const handler = a === h ? a : (b === h ? b : null); const def = handler === a ? b : a;
     if (handler && handler.grounded && handler.bodyUpT > 0 && Math.abs(handler.vx) < 0.2) handler.bodyUpT = 0;
     if (handler && handler.grounded && (handler.state === 'move' || handler.state === 'burst' || handler.state === 'spin' || handler.state === 'protect' || handler.state === 'gather') && handler.passThroughT <= 0) {
-      const toward = handler.vx * sgn(def.x - handler.x) > DF.bumpMinSpeed;
+      const backingDown = handler.state === 'protect' && def.state === 'stance' && handler.input.moveX * sgn(def.x - handler.x) > 0.3; // a back-down is a steady lean, not a charge
+      const toward = backingDown || handler.vx * sgn(def.x - handler.x) > DF.bumpMinSpeed;
       if (toward && handler.blowByT <= 0) {
         if (handler.state === 'protect' && def.state === 'stance') {
           // back-down: strength vs strength, the loser gives ground slowly
@@ -3492,12 +3699,14 @@ function resolveBodies(m, dt) {
           // BODY-UP: a set defender is a wall you can lean on but never get stuck against. Speed is capped,
           // the defender gives ground slowly (Strength vs Strength), and if you keep pushing you slip
           // around into a free lane. The defender has to mirror the lane in time or he is beaten.
-          const back = sgn(handler.x - def.x) || -handler.facing; const fwd = -back;
+          const back = sgn(handler.x - def.x) || -handler.facing; const fwd = -back; const fresh = m.time - (handler.lastBumpT || -9) > 0.6;
+          // CHARGE: sprinting into a defender who was already set (outside the restricted arc) can be an offensive foul
+          if (fresh && isCharge(m, handler, def, handler.vx * fwd) && m.rng.next() < clamp(DF.chargeBase + DF.chargeDefSlope * (def.attrs.def - 5), 0.05, 0.6)) { callCharge(m, handler, def); return; }
           handler.x = def.x + back * (DF.contactDist + 0.01); if (handler.vx * fwd > DF.bodyUpSpeed) handler.vx = fwd * DF.bodyUpSpeed;
           const push = Math.max(0.1, DF.bodyUpPush + 0.08 * (handler.attrs.str - def.attrs.str)) * dt; def.x += fwd * push; def.vx *= 0.5; def.anim.bodyUpT = 0.2;
-          handler.bodyUpT = (handler.bodyUpT || 0) + dt; handler.exposureBumpT = 0.2;
-          if (m.time - (handler.lastBumpT || -9) > 0.6) { handler.lastBumpT = m.time; m.bus.emit('BUMP', { player: handler, defender: def }); }
-          if (handler.bodyUpT > (m.perSide === 1 ? DF.slipAfter : DF.slipAfterTeam) * clamp(1.3 - PC.slipHanSlope * handler.attrs.han, 0.6, 1.3) && handler.input.moveX * fwd > 0.2 && canChangeLane(handler) && (m.perSide === 1 || (handler.attrs.str - def.attrs.str) >= DF.slipStrEdge)) { const cur = laneOf(handler.zTarget); const cands = [cur - 1, cur + 1].filter(l => l >= 0 && l < LANES.length); let best = -1; for (const l of cands) { let blocked = false; const ops = m.opponentsOf(handler); for (let k = 0; k < ops.length; k++) { const o = ops[k]; if (o.hidden) continue; if (Math.abs(o.z - LANES[l]) < W.laneShare && (o.x - handler.x) * fwd > -0.4 && Math.abs(o.x - handler.x) < 1.6) blocked = true; } if (!blocked) { best = l; break; } } if (best >= 0) { let ok = true; if (m.perSide === 1) { const ch = clamp(DF.soloSlipBase + DF.soloSlipHan * (handler.attrs.han - def.attrs.def) + DF.soloSlipSpd * (handler.attrs.spd - def.attrs.spd) + DF.soloSlipHeight * (def.height - handler.height) + DF.soloSlipStr * (handler.attrs.str - def.attrs.str), 0.08, 0.9); ok = m.rng.next() < ch; } if (ok) { setLane(handler, best); handler.bodyUpT = 0; m.bus.emit('SLIP', { player: handler, defender: def }); } else { handler.bodyUpT = -DF.cutoffS; handler.vx = -fwd * DF.bumpKnockback; handler.exposureBumpT = 0.25; m.bus.emit('CUTOFF', { player: handler, defender: def }); } } }
+          handler.bodyUpT = (handler.bodyUpT || 0) + dt; if (handler.state !== 'spin') handler.exposureBumpT = 0.2; // a walled spin still shields the ball
+          if (fresh) { handler.lastBumpT = m.time; m.bus.emit('BUMP', { player: handler, defender: def }); }
+          if (handler.bodyUpT > (m.perSide === 1 ? DF.slipAfter : DF.slipAfterTeam) * clamp(1.3 - PC.slipHanSlope * handler.attrs.han, 0.6, 1.3) && handler.input.moveX * fwd > 0.2 && canChangeLane(handler) && (m.perSide === 1 || (handler.attrs.str - def.attrs.str) >= DF.slipStrEdge)) { const cur = laneOf(handler.zTarget); const cands = [cur - 1, cur + 1].filter(l => l >= 0 && l < LANES.length); let best = -1; for (const l of cands) { let blocked = false; const ops = m.opponentsOf(handler); for (let k = 0; k < ops.length; k++) { const o = ops[k]; if (o.hidden) continue; if (Math.abs(o.z - LANES[l]) < W.laneShare && (o.x - handler.x) * fwd > -0.4 && Math.abs(o.x - handler.x) < 1.6) blocked = true; } if (!blocked) { best = l; break; } } if (best >= 0) { let ok = true; if (m.perSide === 1) { const ch = clamp(DF.soloSlipBase + DF.soloSlipHan * (handler.attrs.han - def.attrs.def) + DF.soloSlipSpd * (handler.attrs.spd - def.attrs.spd) + DF.soloSlipHeight * (def.height - handler.height) + DF.soloSlipStr * (handler.attrs.str - def.attrs.str), DF.soloSlipMin, DF.soloSlipMax); ok = m.rng.next() < ch; } if (ok) { setLane(handler, best); handler.bodyUpT = 0; handler.slipDragT = DF.slipDragS; m.bus.emit('SLIP', { player: handler, defender: def }); } else { handler.bodyUpT = -DF.cutoffS; handler.vx = -fwd * DF.bumpKnockback; handler.exposureBumpT = 0.25; m.bus.emit('CUTOFF', { player: handler, defender: def }); } } }
           continue;
         } else if (handler.state !== 'gather') {
           // BLOW-BY: soft defender, pass through at a speed penalty
@@ -3566,6 +3775,7 @@ function simStep(m, dt) {
   updateLanes(m);
   for (let i = 0; i < m.players.length; i++) if (!m.players[i].hidden) updatePlayer(m.players[i], dt);
   resolveBodies(m, dt);
+  updateBoxOuts(m);
   updateBall(m, dt);
   resolveShotTouches(m, dt);
   resolveCatches(m, dt);
@@ -3587,7 +3797,7 @@ class PerceptionBuffer {
     this.m = m; this.n = Math.ceil(CONFIG.sim.perceptionSeconds / (STEP * CONFIG.sim.snapshotEvery)) + 2; this.head = -1; this.count = 0; this.snaps = [];
     for (let i = 0; i < this.n; i++) {
       const s = { t: 0, players: [], ball: { x: 0, y: 0, z: 0, vx: 0, vy: 0, mode: 'loose', owner: -1, isShot: false, isPass: false, passTo: -1, rimTouched: false, shooter: -1 } };
-      for (let j = 0; j < m.players.length; j++) s.players.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, facing: 1, state: 'idle', stateT: 0, grounded: true, hasBall: false, phase: 'done', ballSide: 1, pickedUp: false, biteT: 0 });
+      for (let j = 0; j < m.players.length; j++) s.players.push({ x: 0, y: 0, z: 0, vx: 0, vy: 0, facing: 1, state: 'idle', stateT: 0, grounded: true, hasBall: false, phase: 'done', ballSide: 1, pickedUp: false, biteT: 0, gType: '' });
       this.snaps.push(s);
     }
     this.record();
@@ -3595,7 +3805,7 @@ class PerceptionBuffer {
   maybeRecord() { if (this.m.stepCount % CONFIG.sim.snapshotEvery === 0) this.record(); }
   record() {
     const m = this.m; this.head = (this.head + 1) % this.n; this.count = Math.min(this.count + 1, this.n); const s = this.snaps[this.head]; s.t = m.time;
-    for (let j = 0; j < m.players.length; j++) { const p = m.players[j], q = s.players[j]; q.x = p.x; q.y = p.y; q.z = p.z; q.vx = p.vx; q.vy = p.vy; q.facing = p.facing; q.state = p.state; q.stateT = p.stateT; q.grounded = p.grounded; q.hasBall = p.hasBall; q.phase = MOVE_STATES[p.state] || p.state === 'swipe' ? phaseOf(p) : 'done'; q.ballSide = p.dribble.side; q.pickedUp = p.pickedUp; q.biteT = p.biteT; }
+    for (let j = 0; j < m.players.length; j++) { const p = m.players[j], q = s.players[j]; q.x = p.x; q.y = p.y; q.z = p.z; q.vx = p.vx; q.vy = p.vy; q.facing = p.facing; q.state = p.state; q.stateT = p.stateT; q.grounded = p.grounded; q.hasBall = p.hasBall; q.phase = MOVE_STATES[p.state] || p.state === 'swipe' ? phaseOf(p) : 'done'; q.ballSide = p.dribble.side; q.pickedUp = p.pickedUp; q.biteT = p.biteT; q.gType = p.state === 'gather' ? p.sd.type : ''; }
     const b = m.ball, q = s.ball; q.x = b.x; q.y = b.y; q.z = b.z; q.vx = b.vx; q.vy = b.vy; q.mode = b.mode; q.owner = b.owner ? m.players.indexOf(b.owner) : -1; q.isShot = !!b.shot && b.mode === 'flight'; q.isPass = !!b.pass; q.passTo = b.pass ? m.players.indexOf(b.pass.to) : -1; q.rimTouched = b.rimTouched; q.shooter = b.shot ? m.players.indexOf(b.shot.shooter) : -1;
   }
   get(delay) { const back = Math.min(this.count - 1, Math.max(0, Math.round(delay / (STEP * CONFIG.sim.snapshotEvery)))); return this.snaps[(this.head - back + this.n) % this.n]; }
@@ -3632,7 +3842,7 @@ function brainParams(team) {
   const f = clamp(idx + shift, 0, tiers.length - 1); const i0 = Math.floor(f), i1 = Math.min(tiers.length - 1, i0 + 1), t = f - i0;
   const A = AI.difficulties[tiers[i0]], B = AI.difficulties[tiers[i1]];
   const out = team._bp || (team._bp = {});
-  for (const k of ['reaction', 'reactionJitter', 'temperature', 'releaseSigma', 'bite', 'discipline', 'help', 'rebNoise', 'memory']) out[k] = lerp(A[k], B[k], t);
+  for (const k of ['reaction', 'reactionJitter', 'temperature', 'releaseSigma', 'bite', 'discipline', 'help', 'rebNoise', 'memory', 'anticipation']) out[k] = lerp(A[k], B[k], t);
   out.moves = t < 0.5 ? A.moves : B.moves; out.rotations = !!(t < 0.5 ? A.rotations : B.rotations); out.readsMomentum = !!(t < 0.5 ? A.readsMomentum : B.readsMomentum); out.tier = tiers[t < 0.5 ? i0 : i1]; out.switch = AI.switchChance[out.tier];
   return out;
 }
@@ -3742,13 +3952,22 @@ class PlayerBrain {
     m.bus.on('CUTOFF', e => { if (e.player === p) this.driveEMA = lerp(this.driveEMA, 0, 0.25); });
     m.bus.on('BLOW_BY', e => { if (e.player === p) this.driveEMA = lerp(this.driveEMA, 1, 0.3); });
     m.bus.on('SCORE', e => { if (e.player === p && (e.dunk || (e.shot && e.shot.type === 'layup'))) this.driveEMA = lerp(this.driveEMA, 1, 0.15); });
+    this.contactT = -9; this.recoverUntil = -9; this.plan = null;
+    m.bus.on('POSSESSION_CHANGE', e => { this.plan = e.team === p.team && m.perSide === 1 ? this.pickPlan() : null; this.lastPlan = null; }); // play to the build: this possession's plan
+    m.bus.on('SLIP', e => { if (e.defender === p) this.contactT = m.time; }); m.bus.on('BLOW_BY', e => { if (e.defender === p && !e.lane) this.contactT = m.time; }); // felt it go by
   }
   get params() { return brainParams(this.m.teams[this.p.team]); }
+  // 1v1 possession plan by build, tilted by the matchup: a big mismatch posts up more, a small quick one drives more
+  pickPlan() {
+    const p = this.p, w = Object.assign({}, AI.stylePlan[p.arch] || AI.stylePlan.lockdown), o = this.m.opponentsOf(p)[0]; const edge = o ? p.height - o.height : 0, extra = Math.abs(edge) - PG.minEdge;
+    if (extra > 0) { const add = Math.min(AI.planMismatchMax, extra * AI.planMismatch); if (edge > 0) w.post = (w.post || 0) + add; else w.drive = (w.drive || 0) + add; }
+    return weightedPick(w, this.rng);
+  }
   update(dt) {
     const p = this.p; if (p.controlled) return;
     this.t += dt; this.stealCd -= dt; this.jumpCd -= dt; this.jitterT -= dt; this.commitT -= dt; this.freezeT -= dt;
     if (this.jitterT <= 0) { const P = this.params; this.delay = Math.max(0.03, P.reaction + P.reactionJitter * this.rng.gauss()); this.jitterT = 0.5; }
-    if (this.t >= this.interval) { this.t -= this.interval; this.snap = this.m.perception.get(this.delay); this.think(); }
+    if (this.t >= this.interval) { this.t -= this.interval; const felt = this.m.time - this.contactT < AI.contactWindow; this.snap = this.m.perception.get(felt ? Math.min(this.delay, AI.contactReaction) : this.delay); this.think(); }
     this.act(dt);
   }
   // ---------------- perception helpers ----------------
@@ -3809,6 +4028,7 @@ class PlayerBrain {
     if (p.inState('gather', 'jumpshot', 'floater', 'layup', 'dunk', 'rimhang', 'tipin')) { if (this.intent && (this.intent.type === 'fade' || this.intent.type === 'post')) { this.commitT = Math.max(this.commitT, 0.3); return; } if (!this.intent || this.intent.type !== 'shoot') { this.setIntent('shoot', 1.0); this.holdShoot = p.state === 'gather' || p.state === 'jumpshot' || p.state === 'floater'; } this.commitT = Math.max(this.commitT, 0.3); return; }
     if (MOVE_STATES[p.state] || p.state === 'burst' || p.state === 'pass' || p.state === 'lob') { this.commitT = Math.max(this.commitT, 0.1); this.refreshHandlerIntent(); return; }
     if (!p.grounded || p.state === 'catch' || p.state === 'land' || (m.time - p.lastTouchT) < 0.1 || (p.pickedUp && m.arcade && p.pickedUpT < CONFIG.rules.reDribblePenaltyS && m.shotClock > 3)) { this.setIntent('hold', 0.12); return; }
+    if (m.halfCourt && m.mustClear === p.team && d < W.threeLine + 0.4) { if (!this.intent || this.intent.type !== 'clear') this.setIntent('clear', 0.2, { dir: sgn(COURT_L / 2 - hoop.x) }); else this.commitT = 0.2; return; } // half court: take it back past the arc first (toward the top, even from behind the rim)
     if (this.commitT > 0 && this.intent && this.intent.type !== 'idle') { this.refreshHandlerIntent(); return; }
     const ops = m.opponentsOf(p); let def = null, defDist = 99, defQ = null;
     for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.z - p.z) > W.laneShare + 0.1) continue; const dd = Math.abs(q.x - p.x); const between = (q.x - p.x) * dir > 0 || dd < 0.8; if (between && dd < defDist) { defDist = dd; def = ops[i]; defQ = q; } }
@@ -3826,6 +4046,9 @@ class PlayerBrain {
     if (p.pickedUp && !m.arcade) shootEV *= 1.2;
     if (p.attrs.sho <= 3 && d > SH.layupRange + 1.5) shootEV *= 0.35; // bigs don't live outside
     if (d > SH.heaveRange) shootEV = 0; if (d > SH.zoneDeep && contest > 0.3) shootEV *= 0.3; if (contest > AI.goodLookContest && d > SH.layupRange) shootEV *= 0.55; else if (contest < 0.3 && d > SH.layupRange) shootEV *= 1.3; if (J.P < AI.minShotP && d > SH.layupRange && sc >= 3) shootEV = -50; if (d > SH.zoneDeep && sc >= 4 && shootEV > 0) shootEV *= AI.deepShotMul; shootEV *= 1 + pressure * 1.5; if (sc < AI.shotClockPanicS) shootEV += 5;
+    if (sc < AI.planDropClock) this.plan = null; const pl = k => !this.plan ? 1 : (this.plan === k ? AI.planBoost : AI.planDamp); // the possession plan
+    const sm = AI.styleMix[p.arch] || AI.styleMix.lockdown; if (d > SH.layupRange) shootEV *= (J.pts === 3 ? sm.three : sm.jumper) * pl(J.pts === 3 ? 'three' : 'mid'); // play to the build
+    const sizeEdge = !!def && p.height - def.height >= PG.minEdge - 1e-6; if (this.plan === 'post' && !sizeEdge && def) this.plan = 'drive'; // no size on him: attack instead
     _evNames[n] = 'shoot'; _evScores[n] = shootEV; _evData[n++] = null;
     // drive
     if (!p.pickedUp || (m.arcade && p.pickedUpT > CONFIG.rules.reDribblePenaltyS)) {
@@ -3836,37 +4059,37 @@ class PlayerBrain {
       let driveEV = laneOpen * finishP * 2 * (1 - helpRisk) * (1 - stealRisk) * (1 + AI.personalityEVMul * (pr.driveRate - 0.5)) * (1 + pressure * 0.8);
       if (m.time - (p.lastBumpT || -9) < 2.0) driveEV *= 0.3;
       if (d < 2.8) driveEV = finishP * 2 * (1 - helpRisk * 0.6) * (defSquare && defDist < 1 ? 0.5 : 1) * (1 + pressure);
-      if (walled) driveEV *= 0.3;
+      if (walled) driveEV *= 0.3; driveEV *= sm.drive * pl('drive');
       _evNames[n] = 'drive'; _evScores[n] = driveEV; _evData[n++] = null;
       // walk it up: get to a real shot zone before deciding again (1v1: walk the defender down while they give room)
-      const solo = m.perSide === 1; const spot = solo ? (p.attrs.sho >= 7 ? AI.soloSpotShooter : AI.soloSpotOther) : SH.zoneThree - 0.6;
-      if ((solo ? d > spot + 0.4 : d > SH.zoneThree + 0.5) && (!def || defDist > (solo ? AI.soloApproachMinGap : 1.5))) { const J3 = this.jumperEV(p, solo ? spot : SH.zoneThree - 0.8, 0.35); _evNames[n] = 'approach'; _evScores[n] = J3.ev * 0.9 * (1 - pressure * 0.5) * (solo ? 1.15 : 1); _evData[n++] = { dir, stopAt: solo ? spot : SH.zoneThree - 0.6, solo }; }
+      const solo = m.perSide === 1, postStyle = solo && this.plan === 'post' && sizeEdge; const spot = solo ? (postStyle ? PG.range : this.plan === 'three' ? Math.max(AI.soloSpotShooter, SH.zoneThree + 0.4) : this.plan === 'mid' ? AI.soloSpotOther : (p.attrs.sho >= 7 ? AI.soloSpotShooter : AI.soloSpotOther)) : SH.zoneThree - 0.6;
+      if ((solo ? d > spot + 0.4 : d > SH.zoneThree + 0.5) && (!def || defDist > (solo ? AI.soloApproachMinGap : 1.5))) { const J3 = this.jumperEV(p, solo ? spot : SH.zoneThree - 0.8, 0.35); let aev = J3.ev * 0.9; if (postStyle) aev = Math.max(aev, makeProbability(p, 'hook', 'mid', 0, 0.2).P * 2 * sm.post * 0.8); _evNames[n] = 'approach'; _evScores[n] = aev * (1 - pressure * 0.5) * (solo ? 1.15 : 1); _evData[n++] = { dir, stopAt: spot, solo }; } // bigs walk it up to the block
       // dribble moves: each applicable move is its own option (the softmax picks among reads)
       if (def && defDist < 2.0 && d > 2.4 && canDribbleMove(p) && sc > 1.5) {
         const moves = P.moves; const openAfter = 0.9 * finishP * 2 * (1 - helpRisk); const recent = m.time - this.lastMoveT < 1.5; const bumped = m.time - (p.lastBumpT || -9) < 2.0;
         const ankleBonus = 0.06 * (p.attrs.han - def.attrs.def); const flash = 1 + AI.personalityEVMul * (pr.flashiness - 0.5) * 0.5;
         const oppP = brainParams(m.teams[1 - p.team]); const biteGuess = def.controlled ? (m.memory ? m.memory.humanBite() : 0.4) : 0.5 * oppP.bite + 0.2;
-        const add = (mv, ev, mdir) => { if (m.perSide === 1 && mv !== 'pumpfake') ev *= AI.soloMoveMul; if (recent && this.lastMoveName === mv) ev *= 0.5; if (mv === 'pumpfake' && this.lastMoveName === 'pumpfake' && m.time - this.lastMoveT < AI.pumpFakeRepeatS) ev *= 0.15; if (bumped && !walled) ev *= 0.6; if (walled) ev *= 1.3; _evNames[n] = 'move'; _evScores[n] = ev * flash; _evData[n++] = { move: mv, dir: mdir || dir }; };
+        const add = (mv, ev, mdir) => { if (m.perSide === 1 && mv !== 'pumpfake') ev *= AI.soloMoveMul; if (recent && this.lastMoveName === mv) ev *= 0.5; if (mv === 'pumpfake' && this.lastMoveName === 'pumpfake' && m.time - this.lastMoveT < AI.pumpFakeRepeatS) ev *= 0.15; if (bumped && !walled) ev *= 0.6; if (walled) ev *= 1.3; _evNames[n] = 'move'; _evScores[n] = ev * flash * sm.move; _evData[n++] = { move: mv, dir: mdir || dir }; };
         const closing = defQ.vx * dir < -1.0; // the defender is stepping toward me: cross him
         if (moves.includes('crossover') && (closing || Math.abs(defQ.vx) > 1.5)) add('crossover', 0.8 * openAfter + ankleBonus, P.readsMomentum && Math.abs(defQ.vx) > 1.5 ? (-sgn(defQ.vx) || dir) : dir);
         else if (moves.includes('crossover') && !defSquare) add('crossover', 0.45 * openAfter + ankleBonus);
         else if (moves.includes('crossover')) add('crossover', AI.crossBaitMul * (def.controlled ? 0.35 : oppP.bite) * openAfter + ankleBonus);
         if (moves.includes('pumpfake') && defSquare && defDist < 1.4 && d < SH.zoneDeep) add('pumpfake', AI.pumpFakeEVMul * biteGuess * 2 * openAfter * clamp01(J.P / AI.pumpFakeShotP));
-        if (moves.includes('stepback') && p.moves.stepback && defSquare && defDist < 1.7 && d + MV.stepbackDist < SH.zoneDeep - 0.3 && p.attrs.sho >= 5) add('stepback', this.jumperEV(p, d + MV.stepbackDist, contest * 0.3).ev * 0.95);
+        if (moves.includes('stepback') && p.moves.stepback && defSquare && defDist < 1.7 && d + MV.stepbackDist < SH.zoneDeep - 0.3 && p.attrs.sho >= 5) { const JS = this.jumperEV(p, d + MV.stepbackDist, contest * 0.3); add('stepback', JS.ev * 0.95 * (JS.pts === 3 ? sm.three / sm.move : sm.jumper / sm.move) * pl(JS.pts === 3 ? 'three' : 'mid')); } // a step-back is a jumper: weigh it like one
         if (moves.includes('hesitation') && p.moves.hesitation && defSquare && Math.abs(p.vx) > 0.5 && Math.abs(p.vx) < MV.hesiMaxSpeed) add('hesitation', 0.5 * biteGuess * 2 * openAfter);
-        if (moves.includes('spin') && p.moves.spin && defSquare && defDist < MV.spinRange + 0.1) add('spin', 0.8 * openAfter);
+        if (moves.includes('spin') && p.moves.spin && defSquare && defDist < MV.spinRange + 0.1) add('spin', 0.95 * spinChance(p, def) * openAfter);
         // go around: switch to the lane with the clearest path and drive
         if (moves.includes('lane') && defSquare && p.grounded) { const myLane = laneOf(p.zTarget); for (const cand of [myLane - 1, myLane + 1]) { if (cand < 0 || cand >= LANES.length) continue; let blocked = false; for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > -0.3 && Math.abs(q.x - p.x) < 2.6 && Math.abs(q.z - LANES[cand]) < W.laneShare) blocked = true; } if (!blocked) add('lane', 0.7 * openAfter + ankleBonus * 0.5, cand); } }
       }
     }
-    // post up: a taller, stronger handler backs a smaller defender down and finishes with a hook
-    if (def && defDist < 1.8 && d < 7.5 && d > 1.2 && !p.pickedUp && p.grounded && sc > 2.5) {
+    // post up: at least 3 in. taller than the man guarding you, back him down and finish with a hook, a drop step or an up-and-under
+    if (def && defDist < 1.8 && d < 8.5 && d > 1.2 && !p.pickedUp && p.grounded && sc > 3.5 && p.height - def.height >= PG.minEdge - 1e-6 && m.time > (this.postCdT || -9)) {
       const edge = (p.height - def.height) * 5 + (p.attrs.str - def.attrs.str) * 0.35;
-      if (edge > AI.postEdgeMin) { const hookP = makeProbability(p, 'hook', 'mid', 0, clamp01(contest * 0.8 - (p.height - def.height) * 0.4)).P; const postEV = hookP * 2 * clamp(AI.postEVBase + edge * AI.postEVPerEdge, AI.postEVBase, AI.postEVMax) * (1 + AI.personalityEVMul * (pr.aggression - 0.5)) * (1 + pressure * 0.3); _evNames[n] = 'post'; _evScores[n] = postEV; _evData[n++] = { dir }; }
+      if (edge > AI.postEdgeMin) { const hookP = makeProbability(p, 'hook', 'mid', 0, clamp01(contest * SH.hookContestMul - (p.height - def.height) * 0.4)).P; const postEV = hookP * 2 * clamp(AI.postEVBase + edge * AI.postEVPerEdge, AI.postEVBase, AI.postEVMax) * (1 + AI.personalityEVMul * (pr.aggression - 0.5)) * (1 + pressure * 0.3) * sm.post * pl('post'); _evNames[n] = 'post'; _evScores[n] = postEV; _evData[n++] = { dir }; }
     }
     // fadeaway over a tight defender (1v1: Pass is the fadeaway button)
     if (def && defDist < 1.4 && d > 2.8 && d < SH.zoneDeep && p.attrs.sho >= AI.fadeMinSho && m.teammatesOf(p).length === 1 && p.grounded) {
-      const JF = this.jumperEV(p, d + 0.8, contest * SH.fadeContestMul); if (JF.P >= AI.minShotP || sc < 3) { _evNames[n] = 'fade'; _evScores[n] = JF.ev * SH.fadeMakeMul * (1 + pressure * 1.2); _evData[n++] = null; }
+      const JF = this.jumperEV(p, d + 0.8, contest * SH.fadeContestMul); if (JF.P >= AI.minShotP || sc < 3) { _evNames[n] = 'fade'; _evScores[n] = JF.ev * SH.fadeMakeMul * (1 + pressure * 1.2) * (JF.pts === 3 ? sm.three : sm.jumper) * pl(JF.pts === 3 ? 'three' : 'mid'); _evData[n++] = null; }
     }
     // passes
     const mates = m.teammatesOf(p);
@@ -3895,20 +4118,27 @@ class PlayerBrain {
     const idx = softmaxPick(_evScores, n, P.temperature, this.rng);
     const dbg = this.debug.options; dbg.length = 0; for (let i = 0; i < n; i++) dbg.push({ name: _evNames[i] + (_evData[i] && _evData[i].move ? ':' + _evData[i].move : (_evData[i] && _evData[i].target ? ':' + _evData[i].target.nick + (_evData[i].lob ? '(lob)' : '') : '')), ev: _evScores[i] }); dbg.sort((a, b) => b.ev - a.ev); if (dbg.length > 3) dbg.length = 3;
     const name = _evNames[idx], data = _evData[idx];
+    if ((name === 'post' && this.plan === 'post') || (name === 'drive' && this.plan === 'drive' && d < 7.5) || (name === 'shoot' && (this.plan === 'three' || this.plan === 'mid') && d > SH.layupRange)) { this.lastPlan = this.plan; this.plan = null; } // ran the plan
     if (name === 'shoot') { this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; }
     else if (name === 'drive') { this.setIntent('drive', AI.driveCommitS, { dir, stopAt: 0 }); }
     else if (name === 'approach') { this.setIntent('drive', 1.5, data); }
     else if (name === 'move') { this.setIntent('move', AI.moveCommitS, data); this.lastMoveT = m.time; this.lastMoveName = data.move; }
     else if (name === 'pass') { this.setIntent('pass', AI.passCommitS, data); }
-    else if (name === 'post') { this.setIntent('post', AI.postCommitS, data); this.postStartT = m.time; this.movePressed = false; }
+    else if (name === 'post') { this.setIntent('post', AI.postCommitS, data); this.postStartT = m.time; this.movePressed = false; this.postFinish = null; this.postActPressed = false; this.postFakePressed = false; }
     else if (name === 'fade') { this.setIntent('fade', AI.shootCommitS); this.holdPass = true; this.releasePlanned = false; this.mv = 0; }
     else this.setIntent('reset', 0.5, { dir: -dir });
   }
+  // A drive plan walled far out turns into a mid-range plan (work for a pull-up instead of settling for a deep three).
   refreshHandlerIntent() {
     // while committed, a drive that reaches the rim turns into a finish; a walled-off drive ends early
     const p = this.p, it = this.intent, m = this.m; if (!it) return; const hoop = p.hoop, d = Math.abs(p.x - hoop.x), dir = sgn(hoop.x - p.x) || p.facing;
-    if (it.type === 'drive') { if (p.state === 'stagger' || (p.bodyUpT || 0) > AI.walledAfterS) { this.commitT = 0; } if (it.data.stopAt && d <= it.data.stopAt) { this.commitT = 0; return; } if (it.data.stopAt) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > 0 && Math.abs(q.x - p.x) < (it.data.solo ? AI.soloApproachMinGap - 0.1 : 1.6) && Math.abs(q.z - p.z) < W.laneShare + 0.1 && q.grounded) { this.commitT = 0; return; } } } const toward = p.vx * dir; if ((d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p)) || d <= SH.layupRange - 0.2) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; } }
-    if (it.type === 'post') { const df = m.nearestOpponent(p); const stuck = m.time - (this.postStartT || 0) > AI.postMaxS; if ((!df || Math.abs(df.x - p.x) > 2.2 || stuck) && p.state !== 'gather' && p.state !== 'floater') { this.commitT = 0; return; } this.commitT = Math.max(this.commitT, 0.15); return; }
+    if (it.type === 'drive' && (this.plan === 'mid' || (!this.plan && this.lastPlan === 'mid')) && !it.data.stopAt && p.grounded && !p.pickedUp && d <= AI.soloSpotOther + 0.3 && d > SH.layupRange + 1.2 && (p.state === 'move' || p.state === 'burst') && this.snap) { const c = this.estimateContest(p.x, p.y + p.height + SH.releaseAbove, p.z); if (c < AI.goodLookContest) { this.plan = null; this.lastPlan = null; this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; return; } } // mid-range plan: pull up off the drive
+    if (it.type === 'drive') { if (p.state === 'stagger' || (p.bodyUpT || 0) > AI.walledAfterS) { this.commitT = 0; if (this.plan === 'drive' && d > 6.5 && (AI.stylePlan[p.arch] || {}).mid > 0.1) this.plan = 'mid'; } if (it.data.stopAt && d <= it.data.stopAt) { this.commitT = 0; return; } if (it.data.stopAt) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > 0 && Math.abs(q.x - p.x) < (it.data.solo ? AI.soloApproachMinGap - 0.1 : 1.6) && Math.abs(q.z - p.z) < W.laneShare + 0.1 && q.grounded) { this.commitT = 0; return; } } } const toward = p.vx * dir; if ((d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p)) || d <= SH.layupRange - 0.2) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; } }
+    if (it.type === 'post') {
+      if ((p.state === 'move' || p.state === 'burst') && this.postActPressed) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; return; } // went around him: finish at the rim
+      const df = m.nearestOpponent(p); const stuck = m.time - (this.postStartT || 0) > AI.postMaxS; const busy = p.inState('gather', 'floater', 'pumpfake', 'dropstep', 'upunder');
+      if ((!df || Math.abs(df.x - p.x) > 2.2 || stuck) && !busy) { this.commitT = 0; this.postCdT = m.time + AI.postRetryS; return; } this.commitT = Math.max(this.commitT, 0.15); return;
+    }
     if (it.type === 'move' && it.data.move === 'lane' && this.movePressed && this.commitT < AI.moveCommitS - 0.1) { this.setIntent('drive', AI.driveCommitS + 0.2, { dir, stopAt: 0 }); return; }
     if (it.type === 'move' && (p.state === 'move' || p.state === 'burst') && p.stateT > 0.05 && MOVE_STATES[it.data.move] && this.movePressed) { if (p.state === 'burst') { this.mv = it.data.dir; } if (p.state === 'move' && this.commitT < AI.moveCommitS - 0.15) { this.commitT = 0; if (it.data.move === 'stepback') { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; } else this.setIntent('drive', AI.driveCommitS, { dir }); } }
   }
@@ -3931,38 +4161,51 @@ class PlayerBrain {
     const onBall = tb.onBallDefender === p || (m.perSide === 1);
     const mem = m.memory, memW = P.memory;
     if (onBall) {
+      // anticipation: read the handler's momentum to cover part of the reaction delay (better defenders read more of it)
+      let hx = hq.x + clamp(hq.vx || 0, -9, 9) * clamp(this.delay, 0, 0.45) * (P.anticipation != null ? P.anticipation : 0.6);
+      if (Math.abs(hq.z - p.z) < W.laneShare && (p.x - hq.x) * dir > 0 && (p.x - hx) * dir < DF.contactDist) hx = p.x - dir * DF.contactDist; // a body in the way: the read stops at my chest
       // sag by shooting quality and memory
       let shooterQ = clamp01((h.attrs.sho - 3) / 6); let sag = m.perSide === 1 ? lerp(AI.soloSagMax, AI.sagMin, shooterQ) : lerp(AI.sagMax, AI.sagMin, shooterQ);
-      sag += clamp((speedOf(h) * heightMul(h, HT.speedPerM) - speedOf(p) * heightMul(p, HT.speedPerM)) * 1.5, -0.15, 0.3); // give a quicker handler a cushion
+      sag += clamp((speedOf(h) * heightMul(h, HT.speedPerM) - speedOf(p) * heightMul(p, HT.speedPerM)) * AI.cushionPerSpeed, -0.15, AI.cushionMax); // give a quicker handler a cushion (drop coverage for slow bigs)
       if (mem && memW > 0 && h.controlled) { const tp = mem.zonePct('three'); if (tp >= 0 && tp < AI.coldShooterPct) sag += 0.3 * memW; if (tp > AI.hotShooterPct) sag -= 0.25 * memW; }
-      const hd = Math.abs(hq.x - myHoop.x); if (hd < 3) sag = Math.min(sag, 0.8);
-      let targetX = hq.x + dir * sag; const pickupLine = myHoop.x - dir * (m.perSide === 1 ? AI.pickupDistSolo : AI.pickupDist); if ((targetX - pickupLine) * dir < 0) targetX = pickupLine;
-      if ((hq.vx || 0) * dir > AI.containSpeed && (targetX - p.x) * dir < 0 && Math.abs(hq.x - p.x) < 4.5) targetX = p.x; // contain a drive instead of lunging at it (lunging defenders get blown by)
-      { const holdX = myHoop.x - dir * AI.holdLineDist; if ((targetX - holdX) * dir > 0 && (hq.x - holdX) * dir < 0) targetX = holdX; } // stand your ground at the hold line; the driver has to beat you, not walk you back
+      const hd = Math.abs(hx - myHoop.x); if (hd < 3) sag = Math.min(sag, 0.8);
+      let targetX = hx + dir * sag; const pickupLine = myHoop.x - dir * (m.perSide === 1 ? lerp(AI.pickupDistSoloBig, AI.pickupDistSolo, clamp01((h.attrs.sho - 3.5) / 2)) : AI.pickupDist); if ((targetX - pickupLine) * dir < 0) targetX = pickupLine; // don't meet a non-shooter at the arc
+      if ((hq.vx || 0) * dir > AI.containSpeed && (targetX - p.x) * dir < 0 && Math.abs(hx - p.x) < 4.5) targetX = p.x; // contain a drive instead of lunging at it (lunging defenders get blown by)
+      { const holdX = myHoop.x - dir * AI.holdLineDist; if ((targetX - holdX) * dir > 0 && (hx - holdX) * dir < 0) targetX = holdX; } // stand your ground at the hold line; the driver has to beat you, not walk you back
       if (mem && memW > 0 && h.controlled) { const od = mem.overplayDir(); if (od !== 0) targetX += od * 0.25 * memW; }
+      if (hq.state === 'protect' && Math.abs(hx - p.x) < 1.0 && (p.x - hx) * dir > 0) targetX = p.x; // a big backing me down: hold ground with the body (Strength decides who gives)
       // when the handler is mid-move, disciplined defenders hold instead of chasing the jab
       const inMove = hq.state === 'crossover' || hq.state === 'hesitation';
       if (inMove && !this.biteRolled) { this.biteRolled = true; this.biting = this.rng.next() < clamp(P.bite + PC.biteHanSlope * (h.attrs.han - p.attrs.def), 0.02, 0.9); if (!this.biting) this.freezeT = 0.35; else if (hq.state === 'hesitation') { p.biteT = 0.35; } else if (hq.state === 'crossover') { p.biteT = 0.3; this.lungeDir = sgn(hq.vx) || -dir; this.lungeT = 0.3; } }
       if (!inMove && hq.state !== 'gather' && hq.state !== 'pumpfake') this.biteRolled = false;
       if (this.freezeT > 0) targetX = p.x;
       if ((this.lungeT = (this.lungeT || 0) - this.interval) > 0) targetX = p.x + this.lungeDir * 1.2; // bit on the jab
-      const dist = Math.abs(hq.x - p.x);
-      if ((hq.state === 'gather' || hq.state === 'jumpshot') && dist < 2.4 && dist > 1.05) targetX = hq.x + dir * 1.0; // close out to a hand's length, not into the shooter
+      const dist = Math.abs(hx - p.x);
+      if ((hq.state === 'gather' || hq.state === 'jumpshot' || hq.state === 'stepback') && hq.gType !== 'layup' && hq.gType !== 'dunk' && dist < 2.6 && dist > 1.05) targetX = hx + dir * 1.0; // close out to a hand's length, not into the shooter (a step-back is a shot coming)
+      // beaten: race to the rim in the next lane over (a trailer in the same lane is stuck behind the body) and contest from the side
+      const ahead = (p.x - hx) * dir; let beaten = ahead < 0 && hd < 9 && dist < 6;
+      if (beaten) this.recoverUntil = m.time + AI.recoverHoldS; else if (m.time < this.recoverUntil && ahead < AI.cutInLead && hd < 9) beaten = true;
+      if (beaten && this.freezeT <= 0) targetX = (p.height >= AI.rimRecoverH && hd < AI.rimRecoverDist) ? myHoop.x - dir * AI.rimSpot : hx + dir * AI.recoverAhead; // a big races to the rim, everyone else to the driver's hip
       // contest: react to a jump shot; bite on a gather sometimes
       let jump = false;
-      if (hq.state === 'gather' && !this.biteRolled) { this.biteRolled = true; let bite = P.bite; if (mem && memW > 0 && h.controlled && mem.pumpAbuse() > AI.pumpAbuse) bite *= (1 - 0.8 * memW); this.biting = this.rng.next() < bite; if (this.biting && dist < 1.8) { jump = true; p.biteT = 0.45; } }
-      const underRim = Math.abs(p.x - myHoop.x) < 1.3 && Math.abs(hq.x - myHoop.x) > 2.5;
-      if ((hq.state === 'jumpshot' || hq.state === 'floater') && hq.stateT < 0.2 && dist < 1.7 && this.jumpCd <= 0 && !underRim) jump = true;
-      if ((hq.state === 'layup' || hq.state === 'dunk') && hq.vy > 0.5 && Math.abs(hq.x - myHoop.x) < 2.6 && Math.abs(p.x - myHoop.x) < 2.2 && dist < 1.6 && this.jumpCd <= 0 && (p.attrs.def + p.attrs.jmp >= 9 || p.height >= 2.0 || m.perSide === 1)) jump = true;
+      const finishing = hq.gType === 'layup' || hq.gType === 'dunk' || ((hq.state === 'layup' || hq.state === 'dunk') && hq.vy > 0) || ((hq.vx || 0) * dir > 3 && hq.grounded && hd < SH.layupRange && (hq.state === 'move' || hq.state === 'burst')); // read the drive: at this speed inside layup range, he's going up
+      if (hq.state === 'gather' && !finishing && !this.biteRolled) { this.biteRolled = true; let bite = P.bite; if (mem && memW > 0 && h.controlled && mem.pumpAbuse() > AI.pumpAbuse) bite *= (1 - 0.8 * memW); this.biting = this.rng.next() < bite; if (this.biting && dist < 1.8) { jump = true; p.biteT = 0.45; } }
+      const underRim = Math.abs(p.x - myHoop.x) < 1.3 && hd > 2.5;
+      if ((hq.state === 'jumpshot' || hq.state === 'floater') && hq.stateT < 0.2 && dist < AI.flyCloseout && this.jumpCd <= 0 && !underRim) jump = true;
+      // rim protection: leave the floor as the finisher goes up (a gather seen late is still in time for the good ones)
+      if (finishing && hd < 3.4 && dist < AI.rimJumpDist && this.jumpCd <= 0 && (m.perSide === 1 || p.attrs.def + p.attrs.jmp >= 9 || p.height >= 2.0)) jump = true;
       if (jump && p.grounded && this.jumpCd <= 0) { this.pulse.jump = 0.12 + this.rng.next() * 0.05; this.jumpCd = 0.9; }
       // steal
-      let exposure = 0; const ballSideTowardMe = sgn(hq.ballSide) === sgn(p.x - hq.x); if (ballSideTowardMe) exposure += CONFIG.steal.expSide; if (hq.phase === 'startup') exposure += CONFIG.steal.expStartup; if (hq.pickedUp) exposure += CONFIG.steal.expPickedUp; if (hq.state === 'protect') exposure += CONFIG.steal.expProtect; exposure += HT.stealPerM * (h.height - HT.ref); if (hq.state === 'stagger') exposure *= 2;
-      const ballX = hq.x + hq.ballSide * PC.dribble.sideOffset; const ballInReach = Math.abs(ballX - p.x) < CONFIG.steal.reach + 0.15;
-      if (exposure >= P.discipline + 0.05 && dist < 1.3 && ballInReach && this.stealCd <= 0 && p.grounded && Math.abs(hq.z - p.z) < W.laneShare) { this.pulse.action = 0.05; this.stealCd = (2.8 + this.rng.next() * 1.5) * (1 + 0.35 * (m.perSide - 1)); }
-      const beaten = (p.x - hq.x) * dir < 0 && Math.abs(hq.x - myHoop.x) < 8;
-      if (p.grounded) { const want = laneOf(hq.z); if (want !== laneOf(p.zTarget)) { p.lane = want; p.zTarget = LANES[want]; p.laneT = m.time; } }
+      let exposure = 0; const ballSideTowardMe = sgn(hq.ballSide) === sgn(p.x - hx); if (ballSideTowardMe) exposure += CONFIG.steal.expSide; if (hq.phase === 'startup') exposure += CONFIG.steal.expStartup; if (hq.pickedUp) exposure += CONFIG.steal.expPickedUp; if (hq.state === 'protect') exposure += CONFIG.steal.expProtect; exposure += HT.stealPerM * (h.height - HT.ref); if (hq.state === 'stagger') exposure *= 2;
+      const ballX = hx + hq.ballSide * PC.dribble.sideOffset; const ballInReach = Math.abs(ballX - p.x) < CONFIG.steal.reach + 0.15;
+      if (exposure >= P.discipline + 0.05 && dist < 1.3 && ballInReach && this.stealCd <= 0 && p.grounded && Math.abs(hq.z - p.z) < W.laneShare && !beaten) { this.pulse.action = 0.05; this.stealCd = (2.8 + this.rng.next() * 1.5) * (1 + 0.35 * (m.perSide - 1)); }
+      if (p.grounded) {
+        const hl = laneOf(hq.z); let want = hl;
+        if (beaten) { const cur = laneOf(p.zTarget); want = cur !== hl ? cur : (hl === 1 ? (p.z < 0.5 ? 0 : 2) : 1); } // chase in the next lane, cut back in a body ahead
+        if (want !== laneOf(p.zTarget)) { p.lane = want; p.zTarget = LANES[want]; p.laneT = m.time; }
+      }
       this.setIntent('onball', 0.1, { x: targetX, stance: dist < AI.stanceRange && !beaten, sprint: beaten || dist > 3.5 });
-      this.debug.role = 'on-ball';
+      this.debug.role = beaten ? 'recover' : 'on-ball';
     } else {
       const man = tb.myMan(p) || h; const mq = this.perceived(man); const ballDist = Math.abs(hq.x - mq.x);
       let x, stance = false, sprint = false, z = mq.z;
@@ -4018,13 +4261,23 @@ class PlayerBrain {
         break;
       }
       case 'post': {
-        const pdir = sgn(p.hoop.x - p.x) || p.facing, pd = Math.abs(p.x - p.hoop.x), st = p.state;
-        if (st === 'gather' || st === 'floater' || st === 'jumpshot') { shoot = true; break; } // hold through the hook
+        const pdir = sgn(p.hoop.x - p.x) || p.facing, pd = Math.abs(p.x - p.hoop.x), st = p.state, fin = this.postFinish;
+        if (st === 'gather' || st === 'floater' || st === 'jumpshot') { shoot = fin !== 'fake' || st !== 'gather'; break; } // hold through the hook (a fake lets go early)
+        if (st === 'pumpfake') { mv = pdir; const df = postDefender(p), q = df && this.snap ? this.perceived(df) : null; if (!this.postActPressed && ((q && (!q.grounded || q.biteT > 0)) || p.stateT > 0.18)) { this.pulse.action = 0.03; this.postActPressed = true; } break; } // up-and-under: step through once he bites
+        if (st === 'dropstep' || st === 'upunder') { mv = pdir; break; }
         if (!p.hasBall) { this.commitT = 0; break; }
         down = true; mv = pdir; // back the defender down toward the rim
-        const df = m.nearestOpponent(p);
-        if (df && df.offBalance && st === 'protect' && !this.movePressed && p.moves.spin) { this.pulse.action = 0.03; this.movePressed = true; sprint = true; } // drop step past a defender who lost balance
-        else if (st === 'protect' && (pd <= AI.postShootDist || m.time - (this.postStartT || 0) > AI.postMaxS - 0.6)) shoot = true; // turn into the hook
+        const df = canPost(p), late = m.time - (this.postStartT || 0) > AI.postMaxS - 0.6;
+        const worked = m.time - (this.postStartT || 0) > AI.postWorkS;
+        if (st === 'protect' && df && !fin && (pd <= AI.postShootDist || (worked && pd <= SH.hookRange) || (late && pd <= SH.hookRange + 0.4) || df.offBalance)) {
+          // pick the finish, weighted by how well each one works on this defender (no hook from outside hook range)
+          const oppBite = brainParams(m.teams[df.team]).bite, F = AI.postFinish; const w = { hook: pd <= SH.hookRange ? F.hook * makeProbability(p, 'hook', 'mid', 0, 0.35 * SH.hookContestMul).P : 0, drop: F.drop * dropStepChance(p, df) * (df.offBalance ? 2 : 1), fake: pd <= SH.hookRange ? F.fake * (df.controlled ? 0.5 : oppBite + 0.15) * PG.upUnderBit : 0 };
+          this.postFinish = weightedPick(w, this.rng);
+        }
+        if (this.postFinish === 'hook' && st === 'protect') shoot = true; // turn into the hook
+        else if (this.postFinish === 'drop' && st === 'protect' && !this.postActPressed) { this.pulse.action = 0.03; this.postActPressed = true; } // drop step
+        else if (this.postFinish === 'fake' && st === 'protect' && !this.postFakePressed) { this.pulse.shoot = 0.05; this.postFakePressed = true; } // a quick tap: the gather lets go into a pump fake
+        else if (st === 'protect' && !df && late && pd <= SH.hookRange) shoot = true; // lost the size edge: turn and shoot
         break;
       }
       case 'fade': {
@@ -4036,7 +4289,12 @@ class PlayerBrain {
         if (!p.hasBall && st !== 'jumpshot') { pass = false; this.holdPass = false; this.commitT = 0; }
         break;
       }
-      case 'drive': { mv = it.data.dir * (it.data.solo ? 0.55 : 1); const def = m.nearestOpponent(p); sprint = p.stamina > 30 && (!def || Math.abs(def.x - p.x) > 1.0 || p.state === 'burst') && !it.data.stopAt; if (p.pickedUp && !m.arcade) mv = 0; break; }
+      case 'drive': {
+        mv = it.data.dir * (it.data.solo ? 0.55 : 1); const def = m.nearestOpponent(p); sprint = p.stamina > 30 && (!def || Math.abs(def.x - p.x) > 1.0 || p.state === 'burst') && !it.data.stopAt; if (p.pickedUp && !m.arcade) mv = 0;
+        // no charges: let go of Sprint before running into a defender who is set in the lane ahead
+        if (sprint && def && m.charges && this.snap) { const q = this.perceived(def), ahead = (q.x - p.x) * it.data.dir; if (q.grounded && q.state === 'stance' && Math.abs(q.vx) < DF.chargePlantedVel + 0.5 && ahead > 0 && ahead < AI.chargeSlowDist && Math.abs(q.z - p.z) < W.laneShare + 0.05) sprint = false; }
+        break;
+      }
       case 'hold': { mv = 0; const def = m.nearestOpponent(p); down = !!(def && Math.abs(def.x - p.x) < 1.5 && p.grounded); break; }
       case 'move': {
         const mvn = it.data.move; mv = it.data.dir;
@@ -4059,6 +4317,7 @@ class PlayerBrain {
         if (p.state === 'pass' || p.state === 'lob') { mv = 0; }
         break;
       }
+      case 'clear': { mv = it.data.dir; const def = m.nearestOpponent(p); sprint = !def || Math.abs(def.x - p.x) > 1.5; down = !!(def && Math.abs(def.x - p.x) < 1.1) && !sprint; break; }
       case 'reset': { mv = it.data.dir; const def = m.nearestOpponent(p); if (def && Math.abs(def.x - p.x) < 1.3) down = true; if (Math.abs(p.x - p.hoop.x) > AI.spots.deepTop + 1) mv = 0; break; }
       case 'goto': { const dx = it.data.x - p.x; if (Math.abs(dx) > 0.3) mv = sgn(dx); sprint = Math.abs(dx) > 3.5 || it.data.action === 'cut' || it.data.action === 'roll' || it.data.action === 'run'; if (Math.abs(dx) <= 0.3 && (it.data.action === 'screen' || it.data.action === 'post')) down = true; break; }
       case 'onball': { const dx = it.data.x - p.x; if (Math.abs(dx) > 0.12) mv = clamp(dx / 0.5, -1, 1); down = it.data.stance; sprint = it.data.sprint && Math.abs(dx) > 1.5; if (this.freezeT > 0) { mv = 0; down = true; } break; }
@@ -4075,7 +4334,7 @@ class PlayerBrain {
       default: break;
     }
     // airborne with the ball after a lob or rebound: finish it
-    if (p.hasBall && !p.grounded && (p.state === 'jump' || p.state === 'catch' || p.state === 'fall') && Math.abs(p.x - p.hoop.x) < 1.6 && b.y > RIM_Y - 0.05 && p.vy > -2) { this.pulse.shoot = 0.05; }
+    if (p.hasBall && !p.grounded && (p.state === 'jump' || p.state === 'catch' || p.state === 'fall') && Math.abs(p.x - p.hoop.x) < 1.6 && b.y > RIM_Y - 0.05 && p.vy > -2 && !(m.halfCourt && m.mustClear === p.team)) { this.pulse.shoot = 0.05; }
     if (this.pulse.shoot > 0) shoot = true; if (this.pulse.pass > 0) pass = true; if (this.pulse.jump > 0) jump = true; if (this.pulse.action > 0) action = true; if (this.pulse.sprint > 0) sprint = true;
     I.set('laneUp', this.pulse.laneUp > 0); I.set('laneDown', this.pulse.laneDown > 0);
     if (it && it.type !== 'move' && it.type !== 'pass') { this.movePressed = false; this.passPressed = false; }
@@ -4099,7 +4358,8 @@ function updateRules(m, dt) {
   if (m.contest3) { updateContest3Rules(m, dt); return; }
   if (m.tutorial && m.phase === 'live') { updateLive(m, dt); return; }
   switch (m.phase) {
-    case 'pregame': if (m.phaseT >= RU.pregameBeat) startTipoff(m); break;
+    case 'pregame': if (m.phaseT >= RU.pregameBeat) { if (m.halfCourt) doCheckBall(m, m.rng.int(2)); else startTipoff(m); } break;
+    case 'check': if (m.phaseT >= RU.checkBeat) { goLive(m); m.bus.emit('CHECKED', { team: m.possession }); } break;
     case 'tipoff': updateTipoff(m, dt); break;
     case 'live': updateLive(m, dt); break;
     case 'madebasket': if (m.phaseT >= RU.madeBasketBeat + m.replayHold) doInbound(m); break;
@@ -4160,8 +4420,16 @@ function updateLive(m, dt) {
   // Street Sim: holding a picked-up dribble too long
   if (!m.arcade && b.owner && b.owner.pickedUp && b.owner.pickedUpT > RU.pickedUpTurnoverS && b.owner.grounded && !b.owner.busy) { const h = b.owner; h.stats.to++; m.bus.emit('VIOLATION', { kind: 'travel', team: h.team, player: h }); turnoverTo(m, 1 - h.team, h, 'travel'); return; }
   if (m.tutorial) return;
-  // team stats: possessions
+  // street half court: clear the ball past the arc after a stop; a loose ball past the midcourt line is out
+  if (m.halfCourt) {
+    const hoop = HOOPS[1];
+    if (m.mustClear >= 0 && b.owner && b.owner.team === m.mustClear && Math.abs(b.owner.x - hoop.x) >= W.threeLine + 0.05) { m.mustClear = -1; m.bus.emit('CLEARED', { team: b.owner.team, player: b.owner }); }
+    if (!b.owner && b.mode === 'loose' && b.x < COURT_L / 2 - RU.midlinePad) { const lt = b.lastTouchTeam >= 0 ? b.lastTouchTeam : m.possession; m.bus.emit('VIOLATION', { kind: 'out', team: lt, player: b.lastTouch }); turnoverTo(m, 1 - lt, b.lastTouch, 'out'); return; }
+  }
 }
+// Street half court: shooting before clearing the ball past the arc after a stop is a violation (take it back).
+function mustClearNow(p) { const m = p.match; return m.halfCourt && m.mustClear === p.team && m.phase === 'live'; }
+function clearViolation(m, p) { p.stats.to++; m.bus.emit('VIOLATION', { kind: 'clear', team: p.team, player: p }); turnoverTo(m, 1 - p.team, p, 'take it back'); }
 function periodOver(m) {
   m.clockRunning = false; m.bus.emit('PERIOD_END', { period: m.period, overtime: m.overtime });
   const a = m.teams[0].score, bsc = m.teams[1].score;
@@ -4176,7 +4444,7 @@ function endPeriod(m) {
 }
 function startSecondHalf(m) {
   const d = m.phaseData || {};
-  if (d.ot) { m.bus.emit('OVERTIME', { n: m.overtime }); startTipoff(m); return; }
+  if (d.ot) { m.bus.emit('OVERTIME', { n: m.overtime }); if (m.halfCourt) doCheckBall(m, m.rng.int(2)); else startTipoff(m); return; }
   m.period = 2; m.sidesSwapped = true; m.gameClock = m.format.half || RU.halfLengthDefault; for (const t of m.teams) t.fouls = 0;
   m.pendingInbound = m.tipWinner != null ? 1 - m.tipWinner : m.rng.int(2); m.bus.emit('HALFTIME_OVER', {});
   doInbound(m);
@@ -4195,10 +4463,10 @@ function checkWin(m) {
 
 // --- scoring ---
 function onScore(m, hoopIdx, reason) {
-  const hoop = HOOPS[hoopIdx], b = m.ball, shot = b.shot; const scoringTeam = m.hoopFor(0) === hoop ? 0 : 1;
+  const hoop = HOOPS[hoopIdx], b = m.ball, shot = b.shot; const scoringTeam = m.halfCourt ? (shot ? shot.shooter.team : m.possession) : (m.hoopFor(0) === hoop ? 0 : 1); // half court: one hoop, the shooter's team scores
   if (m.phase !== 'live' && m.phase !== 'freethrow' && m.phase !== 'tipoff') { if (m.practice || m.contest3) { practiceScore(m, hoop, shot); } return; }
   if (m.practice || m.contest3) { practiceScore(m, hoop, shot); return; }
-  let points = 2, scorer = b.lastTouch, clean = false;
+  let points = m.pointBase, scorer = b.lastTouch, clean = false;
   if (shot && !shot.resolved && (!shot.touched || reason === 'goaltend')) { points = shot.points; scorer = shot.shooter; clean = true; }
   const buzzer = m.format.type === 'timed' && m.buzzerPending;
   if (scorer && scorer.team !== scoringTeam) { /* own basket: the points count, no player credit */ scorer = null; }
@@ -4212,7 +4480,7 @@ function onScore(m, hoopIdx, reason) {
   m.clockRunning = false; deadBallBonus(m);
   if (checkWin(m) || (buzzer && m.period >= m.periods && m.teams[0].score !== m.teams[1].score)) { m.buzzerPending = false; finishMatch(m); return; }
   if (buzzer) { m.buzzerPending = false; periodOver(m); return; }
-  m.pendingInbound = 1 - scoringTeam; setPhase(m, 'madebasket', {});
+  m.pendingInbound = m.makeItTakeIt ? scoringTeam : 1 - scoringTeam; setPhase(m, 'madebasket', {}); // make-it-take-it: the scorer keeps the ball
 }
 
 // --- turnovers and inbounds ---
@@ -4222,6 +4490,7 @@ function turnoverTo(m, team, culprit, cause) {
 }
 function doInbound(m) {
   const team = m.pendingInbound >= 0 ? m.pendingInbound : m.rng.int(2); m.pendingInbound = -1; m.replayHold = 0;
+  if (m.halfCourt) { doCheckBall(m, team); return; }
   const hoop = m.hoopFor(1 - team); // the hoop this team defends
   const dir = sgn(COURT_L / 2 - hoop.x); const spotX = hoop.x + dir * 1.2;
   const players = m.teams[team].players; let p = players[0], bd = 99; for (const q of players) { const d = Math.abs(q.x - spotX); if (d < bd && !q.inState('knocked')) { bd = d; p = q; } }
@@ -4231,6 +4500,16 @@ function doInbound(m) {
   m.possession = team; m.shotClock = RU.shotClock; m.inboundHoldT = RU.inboundHold; m.inboundPlayer = p; m.posStartT = m.time;
   m.teams[team].possessions++;
   goLive(m); m.bus.emit('INBOUND', { team, player: p }); m.bus.emit('POSSESSION_CHANGE', { team, player: p, how: 'inbound' });
+}
+
+// Street half court: every possession starts with a check ball at the top, the defender between the ball and the hoop.
+function doCheckBall(m, team) {
+  const hoop = HOOPS[1], dir = sgn(COURT_L / 2 - hoop.x) || -1, hp = m.teams[team].players[0], x = hoop.x + dir * RU.checkDist;
+  const place = (q, qx, face) => { q.x = qx; q.y = 0; q.vx = 0; q.vy = 0; q.grounded = true; q.setState('move'); q.facing = face; q.zTarget = 0.5; q.z = 0.5; q.lane = 1; if (q.brain) { q.brain.intent = null; q.brain.commitT = 0; q.brain.holdShoot = false; q.brain.holdPass = false; } };
+  place(hp, x, -dir); hp.pickedUp = false; for (const q of m.players) if (q !== hp) place(q, q.team === team ? x + dir * 1.5 : x - dir * RU.checkGap, q.team === team ? -dir : dir);
+  freezeBall(m); m.ball.x = hp.x - dir * 0.3; m.ball.y = RU.inboundTossHeight; m.ball.z = hp.z; m.ball.setOwner(hp); hp.dribble.side = -dir;
+  m.possession = team; m.shotClock = RU.shotClock; m.mustClear = -1; m.inboundHoldT = 0; m.inboundPlayer = null; m.posStartT = m.time; m.teams[team].possessions++; m.clockRunning = false;
+  setPhase(m, 'check', {}); m.bus.emit('CHECK', { team, player: hp }); m.bus.emit('POSSESSION_CHANGE', { team, player: hp, how: 'check' });
 }
 
 // --- Street Sim fouls and free throws ---
@@ -4440,9 +4719,9 @@ class Camera {
     springStep(this.zoom, targetZoom, CAM.zoomOmega, dt);
     const zoom = this.zoom.x * (1 + this.punch);
     const ppm = this.H / CAM.viewHeightM * zoom; this.ppm = ppm;
-    const halfW = this.W / 2 / ppm; const minX = WALL_L + halfW, maxX = WALL_R - halfW;
+    const halfW = this.W / 2 / ppm; const minX = m.halfCourt ? Math.max(WALL_L + halfW, COURT_L / 2 - CAM.halfCourtPad + halfW) : WALL_L + halfW, maxX = WALL_R - halfW; // half court: frame the one hoop
     const me = m.controlledPlayer; if (me && !me.hidden && !this.fixed && !focusOverride && !(m.perSide === 1 && !m.contest3)) { const mg = CAM.playerMarginM; const lo = Math.max(b.x - halfW + mg * 0.5, me.x - halfW + mg), hi = Math.min(b.x + halfW - mg * 0.5, me.x + halfW - mg); if (lo <= hi) fx = clamp(fx, lo, hi); } // nudge so your player stays in frame without losing the ball
-    fx = minX > maxX ? COURT_L / 2 : clamp(fx, minX, maxX);
+    fx = minX > maxX ? (m.halfCourt ? maxX : COURT_L / 2) : clamp(fx, minX, maxX);
     springStep(this.x, fx, CAM.omega, dt);
     // hard guarantee: the player you control never leaves the frame, even when the spring lags behind a sprint
     if (me && !me.hidden && !this.fixed && !focusOverride) { const half = this.W / 2 / this.ppm, mg = Math.min(CAM.playerKeepM, half * 0.45); const lo = me.x + mg - half, hi = me.x - mg + half; if (this.x.x < lo) { this.x.x = lo; if (this.x.v < 0) this.x.v = 0; } else if (this.x.x > hi) { this.x.x = hi; if (this.x.v > 0) this.x.v = 0; } }
@@ -4657,11 +4936,13 @@ function drawScoreBug(ctx, m, W_) {
   // center: clock (or the target score), the period, the shot clock
   const timed = m.format.type === 'timed'; const clockTxt = timed ? (m.gameClock < 60 && m.period >= m.periods ? fmtClockTenths(m.gameClock) : fmtClock(m.gameClock)) : ('TO ' + (m.format.target || 21));
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = fontStr((timed ? 30 : 26) * k, true); ctx.fillStyle = UI_GOLD; ctx.fillText(clockTxt, cx, y + 20 * k);
-  const per = m.overtime > 0 ? 'OT' + (m.overtime > 1 ? m.overtime : '') : (timed ? (m.period === 1 ? '1ST HALF' : '2ND HALF') : (m.format.winBy2 ? 'WIN BY 2' : (m.arcade ? 'ARCADE' : 'STREET SIM')));
+  const per = m.overtime > 0 ? 'OT' + (m.overtime > 1 ? m.overtime : '') : (timed ? (m.period === 1 ? '1ST HALF' : '2ND HALF') : (m.halfCourt ? (m.format.winBy2 ? 'HALF · WIN BY 2' : 'HALF COURT') : (m.format.winBy2 ? 'WIN BY 2' : (m.arcade ? 'ARCADE' : 'STREET SIM'))));
   const sc = m.phase === 'live' && m.shotClock < 90 ? Math.max(0, Math.ceil(m.shotClock)) : null;
   ctx.font = fontStr(11 * k, true); ctx.fillStyle = 'rgba(243,240,255,0.75)';
   if (sc !== null) { ctx.textAlign = 'right'; ctx.fillText(per, cx + 6 * k, y + 46 * k); const bw = 26 * k, bh = 18 * k, bx = cx + 12 * k, by = y + 37 * k; ctx.fillStyle = sc <= 4 ? '#C62828' : '#1A1A2A'; ctx.beginPath(); roundRectPath(ctx, bx, by, bw, bh, 4 * k); ctx.fill(); ctx.strokeStyle = sc <= 4 ? '#FF8A80' : 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = sc <= 4 ? '#FFFFFF' : '#FFB347'; ctx.font = fontStr(14 * k, true); ctx.textAlign = 'center'; ctx.fillText(String(sc), bx + bw / 2, by + bh / 2 + 1); }
   else { ctx.textAlign = 'center'; ctx.fillText(per, cx, y + 46 * k); }
+  // street half court: after a stop the ball has to go back past the arc before anyone can score
+  if (m.halfCourt && m.mustClear >= 0 && m.phase === 'live') { const t = m.teams[m.mustClear], col = (t.colors || ['#FF8A2A'])[0], txt = 'CLEAR IT PAST THE ARC', fs = 13 * Math.max(0.8, k); ctx.font = fontStr(fs, true); const tw = ctx.measureText(txt).width + 22, ty = y + h + 20 * k; ctx.fillStyle = 'rgba(8,12,36,0.88)'; ctx.beginPath(); roundRectPath(ctx, cx - tw / 2, ty, tw, fs + 12, (fs + 12) / 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty + (fs + 12) / 2); }
 }
 function pushCallout(m, text, color, big) { m.callouts.push({ text, color: color || '#FF4FA3', t: 0, life: FX_C.calloutMs / 1000 * (big ? 1.3 : 1), big: !!big, tilt: (m.callouts.length % 2 ? 1 : -1) * FX_C.calloutTilt }); if (m.callouts.length > 3) m.callouts.shift(); }
 function drawCallouts(ctx, m, W_, H_, dt) { // stamped text with an ink outline and a drop shadow, popping 0 → 1.2 → 1.0 (§5)
@@ -5488,6 +5769,7 @@ function attachPresentation(m, game) {
   bus.on('BLOCK', e => { au.block(); fx.hitStop(CONFIG.fx.hitStop.block); pushCallout(m, 'REJECTED', CALLOUT.defense); cam.addTrauma(0.45); cam.addPunch(); fx.spawn('impact', m.ball.x, m.ball.y, m.ball.z, 1, '#FFFFFF'); game.input.rumble(0.6, 0.4, 150); world.crowdHype = Math.min(1, world.crowdHype + 0.5); au.crowdSwell(0.5, 0.6); });
   bus.on('GOALTEND', e => { pushCallout(m, 'GOALTEND', CALLOUT.defense); au.whistle(); });
   bus.on('INTERFERENCE', e => { pushCallout(m, 'INTERFERENCE', CALLOUT.defense); au.whistle(); });
+  bus.on('CHARGE', e => { au.whistle(); pushCallout(m, 'CHARGE', CALLOUT.defense, true); cam.addTrauma(0.3); fx.spawn('impact', (e.player.x + e.defender.x) / 2, e.defender.y + e.defender.height * 0.55, e.defender.z, 1, '#FFFFFF'); fx.spawn('puff', e.defender.x, 0.06, e.defender.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); au.stumble(); world.crowdHype = Math.min(1, world.crowdHype + 0.4); au.crowdSwell(0.4, 0.6); });
   bus.on('STEAL', e => { au.noise(0.08, 0.2, { filter: 'bandpass', freq: 1800 }); pushCallout(m, e.intercept ? 'PICKED' : 'STEAL', CALLOUT.defense); fx.spawn('dust', e.player.x, 0.05, e.player.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('SWIPE', e => au.noise(0.05, 0.08, { filter: 'highpass', freq: 4000 }));
   bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
@@ -5495,7 +5777,8 @@ function attachPresentation(m, game) {
   bus.on('HEAT_ON', e => { pushCallout(m, 'ON FIRE', CALLOUT.make, true); au.stinger('fire'); fx.spawn('flame', e.player.x, e.player.y + 1, e.player.z, 16, ['#FF8A2A', '#FFD23F', '#FF4FA3'], { spread: 0.6, spreadY: 1 }); });
   bus.on('SHOVE', e => { au.shove(); cam.addTrauma(0.2); fx.spawn('dust', e.victim.x, 0.3, e.victim.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('KNOCKDOWN', e => { au.stumble(); fx.spawn('star', e.player.x, e.player.headY + 0.3, e.player.z, 3, '#FFD23F'); });
-  bus.on('VIOLATION', e => { au.buzzer(); pushCallout(m, e.kind === 'travel' ? 'TRAVEL' : 'SHOT CLOCK', CALLOUT.call); });
+  bus.on('VIOLATION', e => { au.buzzer(); pushCallout(m, e.kind === 'travel' ? 'TRAVEL' : e.kind === 'clear' ? 'TAKE IT BACK' : e.kind === 'out' ? 'OUT OF BOUNDS' : 'SHOT CLOCK', CALLOUT.call); });
+  bus.on('CHECK', e => { au.bounce(4); }); bus.on('CLEARED', e => { if (e.team === humanTeam) au.ui('tick'); });
   bus.on('FOUL', e => { au.whistle(); pushCallout(m, (e.kind.toUpperCase()) + ' FOUL', CALLOUT.call); });
   bus.on('TIPOFF_TOSS', e => au.whistle());
   bus.on('PERIOD_END', e => { au.buzzer(); if (m.period === 1 && m.periods === 2 && m.overtime === 0) pushCallout(m, 'HALFTIME', CALLOUT.call); });
@@ -5550,7 +5833,7 @@ function calloutScale(t) { const P = CONFIG.fx.calloutPopS, t1 = P * 0.6; if (t 
 // SECTION: REPLAY — a 30 Hz ring buffer of compact snapshots (last 8 s), playback with interpolation,
 // highlight clips for the postgame reel
 // ============================================================================
-const STATE_LIST = ['idle', 'move', 'stance', 'protect', 'celebrate', 'jump', 'fall', 'gather', 'jumpshot', 'floater', 'layup', 'dunk', 'rimhang', 'tipin', 'crossover', 'spin', 'stepback', 'hesitation', 'pumpfake', 'burst', 'swipe', 'pass', 'lob', 'shove', 'stagger', 'stumble', 'knocked', 'catch', 'land', 'tipoff', 'ft'];
+const STATE_LIST = ['idle', 'move', 'stance', 'protect', 'celebrate', 'jump', 'fall', 'gather', 'jumpshot', 'floater', 'layup', 'dunk', 'rimhang', 'tipin', 'crossover', 'spin', 'stepback', 'hesitation', 'pumpfake', 'burst', 'swipe', 'pass', 'lob', 'shove', 'stagger', 'stumble', 'knocked', 'catch', 'land', 'tipoff', 'ft', 'dropstep', 'upunder'];
 const EXPR_LIST = ['neutral', 'focused', 'shocked', 'hyped', 'angry', 'effort', 'tired'];
 const SHOT_TYPES = ['jumper', 'layup', 'dunk', 'hook', 'floater', 'ft', 'tip'];
 const PF = 18; // floats per player
@@ -6043,25 +6326,30 @@ function extrasScreen(game) {
 function confirmScreen(game, text, onYes) { const items = [btn('Yes', 0, 0, 0, 0, () => { game.ui.pop(); onYes(); }), btn('No', 0, 0, 0, 0, () => game.ui.pop())]; column(items, UI_W / 2 - 150, 340, 300, 46, 10); const pb = phoneGrid(game.ui, items, UI_W / 2 - 260, 340, 520, 2, 0, 12); return { widgets: items, overlay: true, name: 'confirm', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 280, 230, 560, pb ? pb - 200 : 240, UI_PANEL2); ctx.font = fontStr(20, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, text, UI_W / 2, 262, 500, 26); } }; }
 function settingsScreen(game) {
   const S = game.save.data.settings; const apply = () => game.applySettings(); const diffs = ['rookie', 'pro', 'allstar', 'legend'], diffL = ['Rookie', 'Pro', 'All-Star', 'Legend'];
-  const items = [
-    sel('Opponent difficulty', 0, 0, 0, 0, diffL, () => diffs.indexOf(S.difficulty), i => { S.difficulty = diffs[i]; }), tgl('Adaptive difficulty', 0, 0, 0, 0, () => S.adaptive, v => { S.adaptive = v; }),
+  const play = [
+    sel('Opponent difficulty', 0, 0, 0, 0, diffL, () => diffs.indexOf(S.difficulty), i => { S.difficulty = diffs[i]; }), tgl('Adaptive difficulty (quick games)', 0, 0, 0, 0, () => S.adaptive, v => { S.adaptive = v; }),
+    tgl('Charges (offensive fouls)', 0, 0, 0, 0, () => S.charges !== false, v => { S.charges = v; }), sel('Career games', 0, 0, 0, 0, ['Full court', 'Street half court'], () => S.careerCourt === 'half' ? 1 : 0, i => { S.careerCourt = i ? 'half' : 'full'; }),
     sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }),
-    sld('Screen shake', 0, 0, 0, 0, 0, 1, 0.1, () => S.shake, v => { S.shake = v; apply(); }), tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }), tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }),
+    sel('Key preset', 0, 0, 0, 0, ['A: WASD + J K L', 'B: Arrows + Z X C'], () => S.keyPreset === 'B' ? 1 : 0, i => { S.keyPreset = i ? 'B' : 'A'; apply(); }), tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }),
+    tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }),
+  ];
+  const feel = [
+    sld('Screen shake', 0, 0, 0, 0, 0, 1, 0.1, () => S.shake, v => { S.shake = v; apply(); }), tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }),
     sld('Master volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.master, v => { S.master = v; apply(); }), sld('SFX volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.sfx, v => { S.sfx = v; apply(); }), sld('Music volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.music, v => { S.music = v; apply(); }),
     sld('Touch size', 0, 0, 0, 0, 0.7, 1.5, 0.1, () => S.touchSize, v => { S.touchSize = v; apply(); }, v => v.toFixed(1) + 'x'), sld('Touch opacity', 0, 0, 0, 0, 0.2, 1, 0.1, () => S.touchOpacity, v => { S.touchOpacity = v; apply(); }), tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }),
-    sel('Key preset', 0, 0, 0, 0, ['A: WASD + J K L', 'B: Arrows + Z X C'], () => S.keyPreset === 'B' ? 1 : 0, i => { S.keyPreset = i ? 'B' : 'A'; apply(); }), tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }),
-    btn('Reset all save data', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase everything, including your career and Hall of Fame?', () => { game.save.reset(); game.applySettings(); game.ui.toastMsg('Save data reset.'); game.ui.clearTo(titleScreen(game)); }))), btn('Back', 0, 0, 0, 0, () => game.ui.pop()),
   ];
-  column(items, 340, 100, 600, 33, 4);
-  return { widgets: items, name: 'settings', onExit() { game.save.save(); game.applySettings(); }, draw(ctx, ui) { ui.panel(ctx, 280, 30, 720, 665); ui.title(ctx, 'SETTINGS', 340, 62, 36); } };
+  const tail = [btn('Reset all save data', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase everything, including your career and Hall of Fame?', () => { game.save.reset(); game.applySettings(); game.ui.toastMsg('Save data reset.'); game.ui.clearTo(titleScreen(game)); }))), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  column(play, 110, 130, 520, 44, 8); column(feel, 650, 130, 520, 44, 8); tail[0].x = 110; tail[0].y = 560; tail[0].w = 520; tail[0].h = 46; tail[1].x = 650; tail[1].y = 560; tail[1].w = 520; tail[1].h = 46;
+  const items = play.concat(feel, tail);
+  return { widgets: items, name: 'settings', onExit() { game.save.save(); game.applySettings(); }, draw(ctx, ui) { ui.panel(ctx, 80, 30, 1120, 620); ui.title(ctx, 'SETTINGS', 110, 72, 36); ui.label(ctx, 'GAMEPLAY', 110, 112, 14, UI_CYAN); ui.label(ctx, 'FEEL, SOUND & TOUCH', 650, 112, 14, UI_CYAN); } };
 }
 function howToScreen(game) {
-  const items = [btn('Play the tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; column(items, 120, 606, 380, 40, 8);
+  const items = [btn('Play the tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; items[0].x = 120; items[1].x = 460; for (const w of items) { w.y = 640; w.w = 320; w.h = 46; } // side by side under the tips
   const rows = [['Action', 'Keys A', 'Keys B', 'Gamepad', 'Touch'], ['Move', 'A / D', '← / →', 'Stick', 'Stick'], ['Jump · block · rebound', 'W or Space', '↑ or Space', 'A', 'JUMP'], ['Defense stance · with the ball: post up (hold)', 'S', '↓', 'LT', 'Pull stick down'], ['Shoot (hold, release at the top) · tap = pump fake', 'J', 'Z', 'X', 'SHOOT'], ['Fadeaway jumper (hold, release at the top)', 'K', 'X', 'B', 'FADE'], ['Dribble move · steal', 'L', 'C', 'Y', 'MOVE'], ['Sprint · tap while dribbling slowly = hesitation', 'Shift', 'Shift', 'RT', 'Push stick past 85%'], ['Pause', 'Esc or P', 'Esc or P', 'Start', 'Pause button']];
   return { widgets: items, name: 'howto', draw(ctx, ui) { ui.panel(ctx, 60, 30, 1160, 670); ui.title(ctx, 'HOW TO PLAY', 120, 66, 36);
       rows.forEach((r, i) => { const y = 116 + i * 27; ctx.font = fontStr(i === 0 ? 15 : 16, i === 0); ctx.fillStyle = i === 0 ? UI_GOLD : UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(r[0], 120, y); ctx.fillText(r[1], 600, y); ctx.fillText(r[2], 720, y); ctx.fillText(r[3], 860, y); ctx.fillText(r[4], 960, y); });
-      const tips = ['Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: hold Stance with the ball next to a smaller defender to back them down, then Shoot for a hook. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall. Getting past one takes a move, a quicker first step or better handles.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.'];
-      ctx.font = fontStr(15, false); ctx.fillStyle = UI_TEXT; ctx.textBaseline = 'top'; let y = 372; for (const t of tips) y += wrapText(ctx, t, 120, y, 1060, 20) * 20 + 6;
+      const tips = ['Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.'];
+      ctx.font = fontStr(15, false); ctx.fillStyle = UI_TEXT; ctx.textBaseline = 'top'; let y = 360; for (const t of tips) y += wrapText(ctx, t, 120, y, 1060, 20) * 20 + 6;
     } };
 }
 function pauseScreen(game) {
@@ -6156,7 +6444,7 @@ function pregameScreen(game, g) {
   const s = game.save.data, c = careerOf(game); const me = meOf(c), opp = c.players[opponentOf(c, g)]; let t = 0;
   const items = [btn('TIP OFF', 470, 600, 220, 54, () => { const opts = careerMatchOpts(c, s, g, false); if (s.settings.colorblind) [opts.teams[0], opts.teams[1]] = colorblindTeams(opts.teams[0], opts.teams[1]); game.startMatch(opts, { kind: 'career' }); }, { primary: true }), btn('Back', 700, 600, 110, 54, () => game.ui.pop())]; phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12);
   const dh = Math.round((me.h - opp.h) / 0.0254), inch = n => n + (n === 1 ? ' inch' : ' inches');
-  const edge = dh >= 2 ? 'You\'re ' + inch(dh) + ' taller: you\'ll contest, block and rebound better, and you can post up. They\'re quicker off the dribble.' : dh <= -2 ? 'They\'re ' + inch(-dh) + ' taller: attack with quickness, keep the dribble low, use fadeaways over the length.' : 'Same size. Skill and hops decide it.';
+  const edge = dh >= 3 ? 'You\'re ' + inch(dh) + ' taller: post up (hold Stance by the block), contest and block at the rim, win the boards. They\'re quicker off the dribble.' : dh >= 2 ? 'You\'re ' + inch(dh) + ' taller: you\'ll contest and rebound a little better. One more inch and you could post up.' : dh <= -3 ? 'They\'re ' + inch(-dh) + ' taller and can post you up: beat them off the dribble, keep it low, and use floaters and fadeaways over the length.' : dh <= -2 ? 'They\'re ' + inch(-dh) + ' taller: attack with quickness, keep the dribble low, use fadeaways over the length.' : 'Same size. Skill and hops decide it.';
   return { widgets: items, name: 'pregame', update(dt) { t += dt; },
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'TALE OF THE TAPE', UI_W / 2 - 200, 56, 40);
@@ -6408,13 +6696,15 @@ function hallOfFameScreen(game) {
 // Every league player you can pick in exhibitions: the original roster pool, plus your career player.
 function extrasPool(game) { const out = []; for (const k in ROSTER) for (const d of ROSTER[k]) out.push({ def: d, club: TEAMS.find(t => k.startsWith(t.id)) || (k.startsWith('rival') ? TEAMS[1] : TEAMS[(out.length) % 8]) }); const c = careerOf(game); if (c) out.unshift({ def: engineDef(c, c.meId), club: clubOf(meOf(c).club), me: true }); return out; }
 function soloTeam(entry, away) { const t = entry.club; const kit = Object.assign({}, t); if (away) kit.colors = [t.colors[1], t.colors[0]]; return Object.assign(kit, { name: entry.def.name, abbr: (entry.def.nick || entry.def.name).toUpperCase().slice(0, 4), personality: archPersonality(entry.def.arch), players: [entry.def] }); }
-const FORMAT_OPTS = [{ label: 'Timed 1:30 halves', f: { type: 'timed', half: 90 } }, { label: 'Timed 2:00 halves', f: { type: 'timed', half: 120 } }, { label: 'Timed 3:00 halves', f: { type: 'timed', half: 180 } }, { label: 'First to 11', f: { type: 'first', target: 11, winBy2: false } }, { label: 'First to 21', f: { type: 'first', target: 21, winBy2: false } }, { label: 'First to 21 · win by 2', f: { type: 'first', target: 21, winBy2: true } }];
+const HALF_SCORING = [{ label: '2s and 3s', v: '2s3s' }, { label: '1s and 2s', v: '1s2s' }];
+const FORMAT_OPTS = [{ label: 'Timed 1:30 halves', f: { type: 'timed', half: 90 } }, { label: 'Timed 2:00 halves', f: { type: 'timed', half: 120 } }, { label: 'Timed 3:00 halves', f: { type: 'timed', half: 180 } }, { label: 'First to 11', f: { type: 'first', target: 11, winBy2: false } }, { label: 'First to 21', f: { type: 'first', target: 21, winBy2: false } }, { label: 'First to 21 · win by 2', f: { type: 'first', target: 21, winBy2: true } }, { label: 'First to 11 · win by 2', f: { type: 'first', target: 11, winBy2: true } }, { label: 'First to 15 · win by 2', f: { type: 'first', target: 15, winBy2: true } }];
 function quickPlayScreen(game) {
   const S = game.save.data.settings; const pool = extrasPool(game); const st = game.quickOpts || (game.quickOpts = { me: 0, opp: 5, diff: DIFF_IDS.indexOf(S.difficulty), court: 0, ruleset: 0, format: 1 }); st.me = Math.min(st.me, pool.length - 1); st.opp = Math.min(st.opp, pool.length - 1); const courts = courtOptions(); let t = 0;
   const label = e => e.def.name + (e.me ? ' (you)' : '');
-  const items = [sel('You play', 0, 0, 0, 0, pool.map(label), () => st.me, i => { st.me = i; if (st.opp === i) st.opp = (i + 1) % pool.length; }), sel('Opponent', 0, 0, 0, 0, pool.map(label), () => st.opp, i => { st.opp = i; if (st.me === i) st.me = (i + 1) % pool.length; }), sel('Difficulty', 0, 0, 0, 0, DIFF_LABELS, () => st.diff, i => { st.diff = i; }), sel('Court', 0, 0, 0, 0, courts.map(c => COURTS[c].short), () => st.court, i => { st.court = i; }), sel('Ruleset', 0, 0, 0, 0, ['Arcade', 'Street Sim'], () => st.ruleset, i => { st.ruleset = i; }), sel('Format', 0, 0, 0, 0, FORMAT_OPTS.map(f => f.label), () => st.format, i => { st.format = i; }),
-    btn('PLAY', 0, 0, 0, 0, () => { let a = soloTeam(pool[st.me], false), b = soloTeam(pool[st.opp], pool[st.me].club === pool[st.opp].club); if (S.colorblind) [a, b] = colorblindTeams(a, b); game.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: DIFF_IDS[st.diff], ruleset: st.ruleset ? 'street' : 'arcade', format: FORMAT_OPTS[st.format].f, court: courts[st.court], seed: (Date.now() % 1000000) >>> 0, controlMode: 'lock', adaptive: S.adaptive }, { kind: 'quick' }); }, { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(items, 60, 100, 600, 44, 8); items[6].y += 12; items[7].y += 12;
+  const items = [sel('You play', 0, 0, 0, 0, pool.map(label), () => st.me, i => { st.me = i; if (st.opp === i) st.opp = (i + 1) % pool.length; }), sel('Opponent', 0, 0, 0, 0, pool.map(label), () => st.opp, i => { st.opp = i; if (st.me === i) st.me = (i + 1) % pool.length; }), sel('Difficulty', 0, 0, 0, 0, DIFF_LABELS, () => st.diff, i => { st.diff = i; }), sel('Court', 0, 0, 0, 0, courts.map(c => COURTS[c].short), () => st.court, i => { st.court = i; }), sel('Ruleset', 0, 0, 0, 0, ['Arcade full court', 'Street Sim', 'Street half court'], () => st.ruleset, i => { st.ruleset = i; if (i === 2 && !FORMAT_OPTS[st.format].f.winBy2) st.format = FORMAT_OPTS.findIndex(f => f.f.winBy2 && f.f.target === 11); }), sel('Format', 0, 0, 0, 0, FORMAT_OPTS.map(f => f.label), () => st.format, i => { st.format = i; }),
+    sel('Half court: scoring', 0, 0, 0, 0, HALF_SCORING.map(h => h.label), () => st.halfScoring || 0, i => { st.halfScoring = i; }), tgl('Half court: make-it-take-it', 0, 0, 0, 0, () => !!st.mitt, v => { st.mitt = v; }),
+    btn('PLAY', 0, 0, 0, 0, () => { let a = soloTeam(pool[st.me], false), b = soloTeam(pool[st.opp], pool[st.me].club === pool[st.opp].club); if (S.colorblind) [a, b] = colorblindTeams(a, b); game.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: DIFF_IDS[st.diff], ruleset: ['arcade', 'street', 'half'][st.ruleset] || 'arcade', half: { scoring: HALF_SCORING[st.halfScoring || 0].v, makeItTakeIt: !!st.mitt }, format: FORMAT_OPTS[st.format].f, court: courts[st.court], seed: (Date.now() % 1000000) >>> 0, controlMode: 'lock', adaptive: S.adaptive }, { kind: 'quick' }); }, { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  column(items, 60, 96, 600, 42, 7); items[8].y += 10; items[9].y += 10;
   return { widgets: items, name: 'quick', update(dt) { t += dt; }, draw(ctx, ui) { ui.panel(ctx, 30, 20, 660, 680); ui.title(ctx, 'QUICK 1V1', 60, 60, 36); ui.panel(ctx, 710, 20, 540, 680); const a = pool[st.me], b = pool[st.opp]; heightScale(ctx, 750, 600, 330, 754, 1236, 'stance'); drawMannequin(ctx, a.def, a.club, 880, 600, 330, 'focused', 1, t, 'stance'); drawMannequin(ctx, b.def, b.club, 1110, 600, 330, 'focused', -1, t + 1, 'stance'); ui.heading(ctx, a.def.name, 880, 70, 20, UI_GOLD, 'center'); ui.heading(ctx, b.def.name, 1110, 70, 20, UI_TEXT, 'center'); ui.label(ctx, ARCHETYPES[a.def.arch] ? ARCHETYPES[a.def.arch].label : '', 880, 94, 13, UI_DIM, 'center'); ui.label(ctx, ARCHETYPES[b.def.arch] ? ARCHETYPES[b.def.arch].label : '', 1110, 94, 13, UI_DIM, 'center'); ovrBadge(ctx, 880, 138, 24, defOvr(a.def)); ovrBadge(ctx, 1110, 138, 24, defOvr(b.def)); ui.heading(ctx, fmtHeight(a.def.height), 880, 640, 18, UI_TEXT, 'center'); ui.heading(ctx, fmtHeight(b.def.height), 1110, 640, 18, UI_TEXT, 'center'); } };
 }
 function tournamentScreen(game) {
@@ -7435,7 +7725,7 @@ function legacyScreen(game) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, tutorialDone: false },
+    settings: { difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', tutorialDone: false },
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -7629,11 +7919,14 @@ function userGame(c) {
   return null;
 }
 function opponentOf(c, g) { return g.h === c.meId ? g.a : g.h; }
+// Career difficulty: the Settings level is the baseline. Opponents get sharper as the career climbs (high school kids
+// make more mistakes than pros), in the playoffs, and when they are better rated than you. Never by the score.
+function careerTierShift(stage, year, myOvr, oppOvr, playoff) { const A = AI.careerShift; const lvl = stage === 'hs' ? A.hs + A.hsPerYear * ((year || 1) - 1) : stage === 'college' ? A.college + A.collegePerYear * ((year || 1) - 1) : A.pro; return clamp(lvl + clamp((oppOvr - myOvr) / A.gapPerTier, -A.gapMax, A.gapMax) + (playoff ? A.playoff : 0), -A.max, A.max); }
 function careerMatchOpts(c, save, g, forSim) {
   const opp = opponentOf(c, g); const sameClub = c.players[opp].club === meOf(c).club;
   const mine = matchTeamDef(c, c.meId, false), theirs = matchTeamDef(c, opp, sameClub); // teammates at the same club: the visitor wears the alternate kit
   const court = 'arena'; // every pro game is in the pro arena, dressed in the home club's colors (§4: venue by level)
-  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: 'arcade', format: { type: 'timed', half: c.gameLength }, court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: forSim ? false : save.settings.adaptive, ballSkin: c.me.cosmetics.ballskin || 0 };
+  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'timed', half: c.gameLength }, court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff), ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band
 }
 
 // ---------------- the fast league model: AI-vs-AI games in a millisecond ----------------
@@ -8120,8 +8413,8 @@ function amMatchOpts(game, c, opp, playoff) {
   let A = { id: 'amme', name: c.name, abbr: a1, colors: mine, pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c)] };
   let B = { id: 'amopp', name: opp.name, abbr: a2, colors: oc, pattern: opp.pattern || 'solid', personality: archPersonality(opp.style), blurb: '', players: [amOppDef(opp)] };
   if (S.colorblind) { const r = colorblindTeams(A, B); A = r[0]; B = r[1]; }
-  const shift = clamp((ovrOf(opp.r, opp.height) - amOvr(c)) / 15, -0.6, 0.6) + (playoff ? 0.2 : 0);
-  return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'arcade', format: { type: 'first', target: stg.target }, court: stg.court, seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: S.adaptive, ballSkin: 0 };
+  const shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(opp.r, opp.height), playoff);
+  return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, ruleset: S.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'first', target: stg.target, winBy2: S.careerCourt === 'half' }, court: stg.court, seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: false, ballSkin: 0 }; // career games never rubber-band
 }
 
 // ---------------- saves from the first 1v1 career build (engine-scale attributes, five styles) ----------------
@@ -8208,7 +8501,7 @@ function tcMatchOptsFor(c, save, g, human) {
   let home = mk(g.home), away = mk(g.away); if (S.colorblind) [home, away] = colorblindTeams(home, away);
   const mine = g.home === c.teamId; const teams = mine ? [home, away] : [away, home]; const meIdx = teams[0].players.findIndex(p => p.isMe);
   const po = c.league.playoffs; const shift = po ? (po.round === 1 ? 0.6 : 0.3) : 0;
-  return { mode, teams, humanTeam: human ? 0 : -1, humanPlayerIndex: Math.max(0, meIdx), difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'arcade', format: { type: 'timed', half: 120 }, court: po ? 'arena' : COURT_ORDER[(c.league.week + (mine ? 0 : 1)) % 4], seed: (Date.now() % 1000000) >>> 0, controlMode: (c.manager && c.manager.active && meIdx < 0) ? 'ball' : 'lock', adaptive: S.adaptive, ballSkin: c.cosmetics.ballskin ? c.ballSkin : 0, teammateDifficulty: 'allstar', benched: meIdx < 0 };
+  return { mode, teams, humanTeam: human ? 0 : -1, humanPlayerIndex: Math.max(0, meIdx), difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'arcade', format: { type: 'timed', half: 120 }, court: po ? 'arena' : COURT_ORDER[(c.league.week + (mine ? 0 : 1)) % 4], seed: (Date.now() % 1000000) >>> 0, controlMode: (c.manager && c.manager.active && meIdx < 0) ? 'ball' : 'lock', adaptive: false, ballSkin: c.cosmetics.ballskin ? c.ballSkin : 0, teammateDifficulty: 'allstar', benched: meIdx < 0 };
 }
 function tcGameGrade(s) { const v = s.pts * 1.0 + s.reb * 1.1 + s.ast * 1.6 + (s.stl + s.blk) * 2 - s.to * 1.5 - Math.max(0, s.fga - s.fgm * 2) * 0.5; return v >= 26 ? 'A+' : v >= 20 ? 'A' : v >= 15 ? 'B+' : v >= 11 ? 'B' : v >= 7 ? 'C' : v >= 3 ? 'D' : 'F'; }
 function tcAfterGame(save, box, userTeamIdx) {
@@ -8559,7 +8852,7 @@ class Game {
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
-    const S = this.save.data.settings; opts.dev = true; this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
+    const S = this.save.data.settings; opts.dev = true; if (opts.charges == null) opts.charges = S.charges !== false; this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;

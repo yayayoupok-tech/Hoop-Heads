@@ -26,17 +26,19 @@ One life, from a 14-year-old freshman to the Hall of Fame vote.
 
 Every opponent is a real engine player with their own ratings and size, so a 7′1″ rim protector and a 5′11″ guard play completely differently.
 
-The main menu also has Quick 1v1 (any two players, any court, any format) and the Hall of Fame. **Extras** holds the classic team league (5v5 or 3v3 with manager mode), a street tournament (an eight-player bracket, first to 11), the 3-Point Contest, Practice (free shooting with a shot chart), the tutorial and the **Art Lab** (every character, expression, pose, hand pose, sneaker colorway, animation clip, venue and the UI kit; also opens directly with `index.html?artlab`).
+The main menu also has Quick 1v1 (any two players, any court, any format, and three rulesets: Arcade full court, Street Sim with fouls, or **Street half court** with a check ball at the top, clearing the ball past the arc after a stop, make-it-take-it, win by 2 and scoring by 1s and 2s or 2s and 3s) and the Hall of Fame. Settings → Career games picks full or half court for the career. **Extras** holds the classic team league (5v5 or 3v3 with manager mode), a street tournament (an eight-player bracket, first to 11), the 3-Point Contest, Practice (free shooting with a shot chart), the tutorial and the **Art Lab** (every character, expression, pose, hand pose, sneaker colorway, animation clip, venue and the UI kit; also opens directly with `index.html?artlab`).
 
 ## Height matters
 
 Height is never a menu option. It changes your ratings in every game: per 10 cm above average you get Strength +6, Defense +3.5, Finishing +3, Hops −1, Handles −4 and Speed −5. It also sets your ceilings: taller players can grow Strength, Defense and Finishing further, and shorter players can grow Speed and Handles further. On top of that the engine models the body:
 
 - **Reach.** Contests, blocks and rebounds come from standing reach (height plus wingspan) plus your jump.
-- **Post game.** A bigger, stronger player can back a smaller one down and finish with a hook over them.
+- **Post game.** At least 3 inches on your man, near the block, holding Stance: back him down (Strength against Strength), turn into a hook (Shoot), take a drop step (Move), or pump fake and step through with an up-and-under (tap Shoot, then Move).
+- **Rim protection.** A defender who leaves the floor in time with a hand at the ball can block a layup, floater, hook or dunk; size, Defense and Hops decide how often. Jump shots are protected for 0.08 s after the release, so blocks on them stay rare. Height also wins box-outs and 50/50 balls (+4% per 10 cm).
+- **Small guards.** Under 6′2″ (1.88 m) you get an 8% quicker first step and more ankle breakers.
 - **Feet.** Taller players are slower and accelerate slower, need longer to gather, carry the ball higher (easier to steal) and turn slower (more ankle breakers).
 
-In headless engine tests with identical ratings, a 2.12 m player beat a 1.82 m player in 42 of 60 games. The big one blocked 4.3 shots a game and the small one stole the ball 7.6 times.
+Height is a trade-off, not a win button. In headless engine tests (Pro bots, 2:00 halves, 60 games) a 2.12 m player and a 1.82 m player built from the same ratings plus the career's height shifts split the games 29–31, at 1.44 and 1.43 points per possession. The big one blocked 2.3 shots a game and out-rebounded the guard 10.8 to 7.2. The guard stole the ball 6 times a game and broke the big one's ankles twice. With identical ratings and no height shifts the guard wins more: the big one took 25 of 60 with all ratings at 6 and 21 of 60 with the dev menu's lockdown ratings (Defense 9 against Handles 5 turns into 8 steals a game).
 
 ## Controls
 
@@ -47,11 +49,13 @@ In headless engine tests with identical ratings, a 2.12 m player beat a 1.82 m p
 | Defense stance (hold). With the ball: post up (hold) | S | ↓ | LT | Pull the stick down |
 | Shoot (hold, release at the top of the jump; tap = pump fake). While posting up: hook | J | Z | X | SHOOT |
 | Fadeaway jumper (hold, release at the top) | K | X | B | FADE |
-| Dribble move / steal | L | C | Y | MOVE |
+| Dribble move / steal. From the post: drop step; after a post pump fake: up-and-under | L | C | Y | MOVE |
 | Sprint (quick tap while dribbling slowly = hesitation) | Shift | Shift | RT | Push the stick past 85% |
 | Pause | Esc or P | Esc or P | Start | Pause button |
 
-Dribble moves: crossover (Move), spin (Sprint + Move), step-back (stick away from the hoop + Move), hesitation (tap Sprint), pump fake (tap Shoot). Dunk by driving hard at the rim and pressing Shoot. Euro-step by flipping the stick during a layup gather. Pausing a career game offers "Sim the rest of the game" (career games always count).
+Dribble moves: crossover (Move), spin (Sprint + Move), step-back (stick away from the hoop + Move), hesitation (tap Sprint), pump fake (tap Shoot). Dunk by driving hard at the rim and pressing Shoot: one-hand, two-hand, tomahawk, windmill or 360, depending on your Hops and height.
+
+**Defense.** A set defender is a wall: running into one just stops you, and sprinting into one that's planted can be a charge (Settings can turn charges off). Getting past takes a move, a read or a quicker first step. Beaten? Race to the rim in the next lane over and jump as they go up. Bots do all of this with the same buttons. Euro-step by flipping the stick during a layup gather. Pausing a career game offers "Sim the rest of the game" (career games always count).
 
 ### How accuracy works
 
@@ -77,6 +81,8 @@ node tests/smoke.js                # the whole game through the UI at 1280×720,
                                    # regression checks, and the phone layout with touch at 844×390 (zero errors allowed)
 node tests/devtools.js             # bot sims (1v1 Pro mirror, Legend vs Pro, 3v3), shot lab, tunneling test
 node tests/balance.js [n]          # a scripted "human" plays real matches: points per possession by strategy vs Pro and Legend
+node tests/stylemix.js [n]         # bots play to their build: post-ups, jumpers, threes and drives by play style
+node tests/heighttest.js [n]       # 2.12 m against 1.82 m, with and without the career's height shifts
 node tests/careersim.js [40]       # whole simulated careers against the career targets
 node tests/perf.js                 # frame cost at phone size in the arena
 node tests/artlab.js <m> <round>   # Art Lab + in-match screenshots → shots/<m>/round-<round>/

@@ -52,6 +52,73 @@ const FIX = path.join(__dirname, 'fixtures');
   await step('regression: odd look values never crash drawing', () => ev(() => { const odd = [{}, { skin: NaN, hair: -3, hairColor: 99 }, { skin: 1e9, hair: 'x', beard: 42, eyes: -1, face: null }, { skin: 2.5, facialHair: 17, iris: 'q', acc: null }]; const cv = document.createElement('canvas'); cv.width = cv.height = 300; const g = cv.getContext('2d'); for (const look of odd) { drawHead(g, 150, 150, 60, look, 'hyped', 1, ['#123456', '#FFFFFF'], 2); portraitOf({ name: 'Odd', look }, ['#123456', '#FFFFFF'], 96); drawMannequin(g, { name: 'Odd', look, height: 1.9, attrs: {} }, { colors: ['#123456', '#FFFFFF'], pattern: 'solid' }, 150, 280, 200, 'focused', 1, 0); } }));
   await step('regression: dunks respect the contest', () => ev(() => { const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: 3, headless: true, humanTeam: -1 }); const p = m.players[0]; const open = makeProbability(p, 'dunk', 'mid', 0, 0).P, smothered = makeProbability(p, 'dunk', 'mid', 0, 0.9).P; if (!(smothered < open - 0.1)) throw new Error('dunk P open ' + open + ' vs contested ' + smothered); }));
   await step('regression: the camera keeps your player in view', async () => { await toMenu(); await D.press(/Quick 1v1/); await ev(() => HH.game.ui.screen.widgets.find(w => w.primary).onPress()); await wait(1200); await ev(() => { const g = HH.game, m = g.match, me = m.controlledPlayer; me.controlled = false; let worst = 0; for (let i = 0; i < 120 * 60; i++) { simStep(m, STEP); if (i % 4 === 3) { g.cam.update(m, 4 * STEP); const x = g.cam.sx(me.x); worst = Math.max(worst, x < 0 ? -x : x > g.W ? x - g.W : 0); } if (m.ended) break; } me.controlled = true; if (worst > 40) throw new Error('player left the frame by ' + worst.toFixed(0) + ' px'); }); await toMenu(); });
+  // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
+  await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
+  await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {
+    const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: 3, headless: true, humanTeam: -1 }); m.phase = 'live'; const h = m.players[0], d = m.players[1]; m.ball.setOwner(h);
+    const dir = h.dirToHoop(); d.x = h.hoop.x - dir * 5; h.x = d.x - dir * 0.6; d.setState('stance'); d.plantT = 0.5; h.setState('move'); h.input.set('sprint', true);
+    if (!isCharge(m, h, d, 8)) throw new Error('a sprint into a set defender should be a charge candidate');
+    h.input.set('sprint', false); if (isCharge(m, h, d, 8)) throw new Error('no charge without Sprint'); h.input.set('sprint', true);
+    d.plantT = 0.05; if (isCharge(m, h, d, 8)) throw new Error('no charge on a defender who was not set'); d.plantT = 0.5;
+    d.x = h.hoop.x - dir * 1.0; if (isCharge(m, h, d, 8)) throw new Error('no charge inside the restricted arc'); d.x = h.hoop.x - dir * 5;
+    m.charges = false; if (isCharge(m, h, d, 8)) throw new Error('the Settings toggle turns charges off'); m.charges = true;
+    let fired = 0; m.bus.on('CHARGE', () => fired++); const to0 = h.stats.to; callCharge(m, h, d); if (!fired || m.phase !== 'violation' || h.stats.to !== to0 + 1 || m.pendingInbound !== d.team) throw new Error('a charge is a turnover to the defense');
+    if (!(CONFIG.defense.soloSlipBase <= 0.15)) throw new Error('straight pushes should rarely slip a set defender');
+  }));
+  await step('gameplay: rim protection blocks at the rim; jumpers stay protected 0.08 s', () => ev(() => {
+    const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: 3, headless: true, humanTeam: -1 }); m.phase = 'live'; const s = m.players[0], d = m.players[1]; const dir = s.dirToHoop();
+    s.x = s.hoop.x - dir * 1.2; s.y = 0.8; d.x = s.x + dir * 0.35; d.y = 0.9; d.grounded = false; d.setState('jump', { tApex: 0.3 }); d.facing = -dir; d.z = s.z;
+    const shot = { shooter: s, type: 'layup', x0: s.x + dir * 0.4, y0: s.y + s.reach - 0.15 }; m.ball.shot = shot; m.ball.mode = 'flight'; let blocked = 0; m.bus.on('BLOCK', () => blocked++); const nx = m.rng.next; m.rng.next = () => 0; rimProtect(m, s, shot); m.rng.next = nx;
+    if (!blocked) throw new Error('a leaping defender with a hand at the ball should be able to block a layup (P ' + (shot.rimBlockP || 0).toFixed(2) + ')');
+    if (CONFIG.block.jumperGraceS !== 0.08) throw new Error('jump shots are protected for 0.08 s');
+  }));
+  await step('gameplay: the post game needs 3 inches (hook, drop step, up-and-under)', () => ev(() => {
+    const big = { name: 'Post Big', nick: 'Post', arch: 'postscorer', height: 2.06, attrs: { sho: 5, fin: 7, han: 5, spd: 5, jmp: 6, def: 6, str: 8 } }, small = { name: 'Small D', nick: 'Small', arch: 'lockdown', height: 1.93, attrs: { sho: 6, fin: 6, han: 6, spd: 6, jmp: 6, def: 6, str: 6 } }, same = Object.assign({}, small, { name: 'Same D', height: 2.03 });
+    const m = mk1v1(big, small); m.phase = 'live'; const p = m.players[0], d = m.players[1]; m.ball.setOwner(p); const dir = p.dirToHoop(); p.x = p.hoop.x - dir * 3.2; d.x = p.x + dir * 0.65; d.z = p.z; p.setState('protect'); d.setState('stance');
+    if (!canPost(p)) throw new Error('a 13 cm edge near the block is a post-up'); startShot(p); if (p.state !== 'gather' || p.sd.type !== 'hook') throw new Error('Shoot from the post is a hook, got ' + p.state + '/' + (p.sd && p.sd.type));
+    p.setState('protect'); p.input.moveX = dir; if (!startMove(p) || p.state !== 'dropstep') throw new Error('Action from the post is a drop step, got ' + p.state);
+    p.setState('pumpfake', { fromPost: true }); p.stateT = 0.1; p.actionBuf = 0.1; stepStateMachine(p, STEP); if (p.state !== 'upunder') throw new Error('Action after a post pump fake is an up-and-under, got ' + p.state);
+    const m2 = mk1v1(big, same); m2.phase = 'live'; const q = m2.players[0], e = m2.players[1]; m2.ball.setOwner(q); q.x = q.hoop.x - q.dirToHoop() * 3.2; e.x = q.x + q.dirToHoop() * 0.65; e.z = q.z; q.setState('protect'); e.setState('stance');
+    if (canPost(q)) throw new Error('3 cm is not enough to post up'); startShot(q); if (q.sd.type === 'hook') throw new Error('no post hook without the size edge');
+    if (CONFIG.shot.hookBase !== 0.55 || CONFIG.shot.hookContestMul !== 0.6) throw new Error('post hook: base 0.55, contest at 60%');
+  }));
+  await step('gameplay: box-outs and 50/50 balls favor height (+0.04 per 10 cm)', () => ev(() => {
+    if (Math.abs(winChanceOfGap(0) - 0.5) > 1e-9 || !(winChanceOfGap(1) > 0.8)) throw new Error('loose-ball favorite curve');
+    if (CONFIG.rebound.heightWinPerDh !== 0.04 || CONFIG.contest.heightBonus !== 0.3) throw new Error('height edges: 0.04 per 10 cm on 50/50s, 0.03 per 10 cm on contests');
+    const tall = { name: 'Tall', nick: 'Tall', height: 2.05, attrs: { sho: 6, fin: 6, han: 6, spd: 6, jmp: 6, def: 6, str: 6 } }, short = { name: 'Short', nick: 'Short', height: 1.85, attrs: { sho: 6, fin: 6, han: 6, spd: 6, jmp: 6, def: 6, str: 6 } };
+    const m = mk1v1(tall, short); m.phase = 'live'; const bx = m.players[0], o = m.players[1]; const hoop = m.players[1].hoop, away = sgn(COURT_L / 2 - hoop.x); bx.x = hoop.x + away * 2; o.x = bx.x + away * 0.7; bx.z = o.z = 0.5; bx.setState('stance');
+    m.ball.shot = { shooter: m.players[1], type: 'jumper', boxTried: null }; m.ball.mode = 'flight'; m.ball.owner = null; const nx = m.rng.next; m.rng.next = () => 0; updateBoxOuts(m); m.rng.next = nx;
+    if (o.boxedOutBy !== bx) throw new Error('a player in stance with an opponent at his back boxes him out');
+  }));
+  await step('gameplay: dunk styles are gated by Hops and height; small guards are quicker', () => ev(() => {
+    const mkP = (h, jmp, moves) => { const m = mk1v1({ name: 'A', nick: 'A', height: h, attrs: { sho: 6, fin: 6, han: 6, spd: 6, jmp, def: 6, str: 6 }, moves }, { name: 'B', nick: 'B', height: 1.93, attrs: { sho: 6, fin: 6, han: 6, spd: 6, jmp: 6, def: 6, str: 6 } }); return m.players[0]; };
+    const all = { crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true };
+    const flyer = dunkStylesFor(mkP(1.9, 9, all)), bigLow = dunkStylesFor(mkP(2.12, 5, all)), noMoves = dunkStylesFor(mkP(1.9, 9, { crossover: true }));
+    if (!(flyer.includes(1) && flyer.includes(2) && flyer.includes(4))) throw new Error('a high flyer has the 360, windmill and tomahawk: ' + flyer);
+    if (bigLow.includes(1) || bigLow.includes(2) || !bigLow.includes(3)) throw new Error('a 2.12 m big with low hops dunks with two hands, no 360 or windmill: ' + bigLow);
+    if (noMoves.includes(1) || noMoves.includes(2)) throw new Error('the 360 and windmill are learned moves');
+    if (DUNK_STYLES.length !== 5) throw new Error('five dunk styles');
+    if (!(CONFIG.height.smallGuard === 1.88 && CONFIG.height.smallFirstStep === 0.08 && CONFIG.height.smallAnkle === 0.05)) throw new Error('small guards: +8% first step, +0.05 ankle breakers below 1.88 m');
+    if (!(CONFIG.shot.fadeContestMul === 0.8 && CONFIG.shot.fadeMakeMul === 0.92)) throw new Error('fadeaway: contest ×0.8, make ×0.92');
+  }));
+  await step('rules: street half court (check ball, clear it, 1s and 2s, make-it-take-it, win by 2)', () => ev(() => {
+    const R = ROSTER.legends; const m = mk1v1(R[0], R[1], { ruleset: 'half', half: { scoring: '1s2s', makeItTakeIt: true }, format: { type: 'first', target: 11, winBy2: true }, seed: 77, dev: true });
+    if (!m.halfCourt || m.hoopFor(0) !== m.hoopFor(1)) throw new Error('one hoop for both');
+    let checks = 0, viol = 0, bad = 0, kept = 0, scored = 0, last = -1, minX = 99; m.bus.on('CHECK', e => { checks++; if (last >= 0) { if (e.team === last) kept++; last = -1; } }); m.bus.on('VIOLATION', e => { if (e.kind === 'clear') viol++; }); m.bus.on('SCORE', e => { scored++; last = e.team; if (e.points !== 1 && e.points !== 2) bad++; });
+    let n = 0; while (!m.ended && n < 120 * 60 * 20) { simStep(m, STEP); n++; for (const p of m.players) minX = Math.min(minX, p.x); }
+    const [a, b] = m.teams.map(t => t.score); if (!m.ended || Math.max(a, b) < 11 || Math.abs(a - b) < 2) throw new Error('first to 11, win by 2: ' + a + '-' + b);
+    if (!checks || bad || kept < scored - 1) throw new Error('checks ' + checks + ', scores ' + scored + ' (bad ' + bad + '), kept the ball ' + kept);
+    if (viol) throw new Error('bots should clear the ball before shooting (' + viol + ' take-it-back violations)');
+    if (minX < COURT_L / 2 - CONFIG.rules.midlinePad - 0.1) throw new Error('players crossed the midcourt line: ' + minX.toFixed(2)); // body separation runs after the clamp: a few cm of give
+    if (m.invariantCount) throw new Error('invariants: ' + Object.values(m.invariantFails).join('; '));
+  }));
+  await step('rules: street half court from Quick Play', async () => { await toMenu(); await ev(() => { HH.game.quickOpts = { me: 0, opp: 5, diff: 1, court: 0, ruleset: 2, format: 7, halfScoring: 1, mitt: true }; }); await D.press(/Quick 1v1/); await ev(() => HH.game.ui.screen.widgets.find(w => w.primary).onPress()); await wait(1500); await ev(() => { const m = HH.game.match; if (!m || !m.halfCourt || m.pointBase !== 1 || !m.makeItTakeIt || !m.format.winBy2) throw new Error('quick play half court options did not reach the match'); }); await shot('32-halfcourt'); await toMenu(); });
+  await step('career: difficulty scales with level and the rating gap, never the score', () => ev(() => {
+    const hs = careerTierShift('hs', 1, 50, 50), col = careerTierShift('college', 2, 60, 60), pro = careerTierShift('pro', 1, 70, 70), po = careerTierShift('pro', 1, 70, 70, true), up = careerTierShift('pro', 1, 60, 75), down = careerTierShift('pro', 1, 75, 60);
+    if (!(hs < col && col < pro && pro < po)) throw new Error('level ramp ' + [hs, col, pro, po].map(v => v.toFixed(2)).join(' < '));
+    if (!(up > pro && down < pro)) throw new Error('rating gap ' + down.toFixed(2) + ' < ' + pro.toFixed(2) + ' < ' + up.toFixed(2));
+    const S = HH.game.save.data.settings; if (S.careerCourt == null && S.careerCourt !== undefined) throw new Error('career court setting');
+  }));
   // the animation rig (M4): every clip, every game state, replays and faces
   await step('rig: every clip gives a valid pose over its whole length', () => ev(() => { const cv = document.createElement('canvas'); cv.width = cv.height = 200; const g = cv.getContext('2d'); const cam = { scale: () => 40, sx: x => 100 + x * 40, sy: y => 190 - y * 40, ppm: 40, W: 0, H: 0 }; let n = 0;
     for (const [clip, dur] of LAB_CLIPS) for (const ci of [0, 5, 11]) for (let k = 0; k <= 12; k++) { const t = dur * 1.4 * k / 12; const { p, ball } = labClipStandIn(LAB_CAST[ci], ci, clip, t); const P = rigPoseFor(p, 1, ball); if (!rigPoseOk(P)) throw new Error(clip + ' bad pose at t=' + t.toFixed(2)); if (P.clip !== p.rigForce) throw new Error(clip + ' fell back to ' + P.clip); drawPlayer(g, cam, p, 1, ball, { colors: LAB_CAST[ci].colors, pattern: 'solid' }, { replay: true }); n++; }

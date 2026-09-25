@@ -79,7 +79,8 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 - 200 ms transitions, and a phone pass: 64 px tap targets, safe areas, nothing overflows, and the camera leaves room for the
   touch controls.
 
-**M7 — 1v1 gameplay and AI** (audit #3, #4, #22, #23, #27)
+**M7 — 1v1 gameplay and AI** (audit #3, #4, #22, #23, #27) *(done: brute force 1.18 PPP vs Pro, reads 1.80 and timing 1.88,
+Legend beats Pro 78%, style mix on target, bigs about 1 block a game; see CHANGES.md)*
 - A set defender stops a straight drive, and brute force drops to ≤ 1.3 PPP.
 - Contests scale with distance and height (+0.03 per dh). Rim protection: bigs get ≥ 1 block per game; jumpers are
   protected for 0.08 s.
@@ -91,6 +92,8 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 - AI plays to its build (post 45% post-ups, shooter 55% jumpers, slasher 60% drives). Difficulty follows career level and
   the rating gap.
 - Harness targets: brute force ≤ 1.3 PPP, timing and reads beat brute force, Legend beats Pro 75–95%.
+- Also done: charges (a Settings toggle), defender recovery lanes, a fixed spin move, box-outs, matchup-aware possession
+  plans, and `tests/stylemix.js` to measure the build mix.
 
 **M8 — Career systems** (audit #14–#19, #24)
 - A week loop: before each game you choose Practice, Rest or Film. Fatigue and injuries (with a toggle), media answers

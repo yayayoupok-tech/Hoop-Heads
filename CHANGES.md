@@ -3,6 +3,83 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## M7 — 1v1 gameplay and AI
+
+The balance harness found three leaks at the start of M7: brute force scored 1.80 points per possession against Pro, a set defender was beaten 2 times in 3 by pushing, and bots had no rim protection (0 blocks). Everything below is in CONFIG with a one-line comment.
+
+Defense: walls, charges, recovery, rim protection
+
+| Value | Spec | Was | Now | Why |
+| --- | --- | --- | --- | --- |
+| `defense.soloSlipBase` (+ `soloSlipMin`, `soloSlipMax`) | a set defender stops a straight drive | 0.35 (clamp 0.08–0.9) | 0.12 (0.04–0.6) | Pushing slipped a set defender about a third of the time, so brute force always got through. Moves beat walls now |
+| `defense.slipDragS`, `slipDragMul` | — | — | 0.35 s at 0.72 × top speed | A slip goes through contact: the defender is still on the hip for a moment |
+| `player.dribbleSpeedMul` | — | — | 0.94 | A dribbler is a little slower than a runner, so a beaten defender can recover |
+| Charges (`defense.charge*`, `rules.charges`) | optional charges | none | first contact at a sprint (faster than your own run × 1.02) into a defender set in stance for 0.12 s, outside the 1.25 m restricted arc: 0.30 + 0.03 × (DEF − 5). A charge is a turnover, a cyan CHARGE callout and the defender hits the floor for 0.65 s. Settings → Charges turns it off | Brute force needs a cost. Bots let go of Sprint 2.4 m before a set defender (`ai.chargeSlowDist`) |
+| Defender anticipation (`ai.difficulties.*.anticipation`) | — | — | Rookie 0.3, Pro 0.6, All-Star 0.8, Legend 1.0 of the reaction delay covered by reading the handler's momentum | Bots aimed at where the handler was 0.26 s ago. The read stops at the defender's chest, so a set defender never "reads" himself out of the lane |
+| Recovery (`ai.recoverAhead`, `recoverHoldS`, `cutInLead`, `contactReaction`, `contactWindow`) | — | a beaten defender chased in the same lane and stood still for 0.4 s after a slip | race for a spot 0.4 m past the handler in the next lane, keep racing at least 0.4 s, cut back in only a full body (0.6 m) ahead. A defender who feels a slip or a contact blow-by reacts in 0.12 s for 0.6 s (touch is quicker than sight) | Defenders ended 3.0 m behind at the gather; now 1–2 m and alongside |
+| Drop coverage and rim recovery (`ai.cushionPerSpeed`, `cushionMax`, `rimRecoverH`, `rimRecoverDist`, `rimSpot`) | bigs contest and block at the rim | cushion 1.5 per unit of speed edge, max 0.3 m | 3.0, max 0.9 m. A beaten defender 2.00 m or taller races to a spot 0.9 m in front of the rim once the driver is inside 5 m | A slow big guarding a quick guard trailed 1–2 m behind and never blocked |
+| Rim protection (`block.rim*`) | ≥ 1 block per game for bigs | blocks only when a hand overlapped a rising ball | as a layup, floater or hook leaves the hand, each leaping defender whose hand is up and within 1.1 m rolls: (0.18 + 0.06 × (DEF − 5) + 0.03 × (JMP − 5) + 1.0 × height edge in m, max 0.55) × closeness × 0.6 from behind × 0.45 for floaters, 0.6 for hooks. Dunks roll the same way at the rim × 0.6 (`rimDunkMul`) | Bots made 0 blocks in 72 rim attacks |
+| `height.blockPerM` | — | 0.8 | 1.0 | A 25 cm edge adds 0.25 to the rim block roll |
+| Rim jump (`ai.rimJumpDist`, `flyCloseout`) | — | jump only when the driver is already rising, within 1.6 m | jump on the gather or a driving read inside layup range, within 1.9 m. Closeouts leave the floor within 2.0 m (was 1.7) | The Pro bot's reaction delay made every rim jump late |
+| `duel.momentum`, `speedBonusPer`, `reach` | — | 2.5, 0.35 per m/s, 0.10 m | 1.0, 0.15 per m/s, 0.25 m | A full-speed dunk beat every block attempt (it was always a poster). A well-timed block now wins about as often as it loses |
+| `contest.heightBonus`, `heightClamp` | +0.03 contest per 10 cm | 0.25/m, ±0.15 | 0.30/m, ±0.20 | as spec |
+| `block.jumperGraceS` | jumpers protected 0.08 s | 0.04 s | 0.08 s | as spec |
+| Spin (`moves.spinBase`, `spinHanSlope`, `spinLeanBonus`, `spinMin`, `spinMax`) | — | a spin into a close defender was walled and the ball exposed | a spin into a defender within 0.9 m gets around him 0.45 + 0.06 × (HAN − DEF) of the time, +0.20 when he's leaning on you. The ball swings to the far side | 30 of 32 Legend turnovers against Pro came mid-spin |
+
+Size: the post game, box-outs, 50/50 balls, small guards, shot types
+
+| Value | Spec | Was | Now | Why |
+| --- | --- | --- | --- | --- |
+| Height shifts ratings | per dh: STR +0.6, DEF +0.35, FIN +0.3, JMP −0.1, HAN −0.4, SPD −0.5 | already in place (`amateur.heightFx`) | unchanged | — |
+| `rebound.heightWinPerDh` | box-outs and 50/50 balls +0.04 per dh | height was a tie-break score (3.0/m): about +0.18 win chance per 10 cm | +0.04 per 10 cm on top of position, timing and Strength | as spec |
+| Box-outs (`rebound.boxOutBase`, `boxOutStr`, `boxOutReach`) | — | `boxedOutBy` was read but never set | a player in stance with an opponent at his back while a shot is up seals him 0.55 + 0.04 × STR edge + 0.04 per 10 cm; a sealed player moves 40% slower | Box-outs didn't exist |
+| Post game (`post.*`) | at least 3″ taller, near the block, holding Down | any size could post; Action from a post was a crossover | 7.6 cm edge within 4.6 m. Back-down; drop step (Action) 0.50 + 0.05 × STR edge + 0.08 per extra 10 cm; up-and-under (pump fake, then Action) 0.85 if he bit, 0.20 if not | as spec |
+| `shot.hookBase`, `hookContestMul` | hook base 0.55, contest at 60% | 0.6, contest in full | 0.55, contest × 0.6 | as spec. Without the size edge, Shoot from the post is a turnaround jumper |
+| `height.postPerM` | — | 2.0 m/s per m | 3.0 | Bigs took 6 s to back down from the arc |
+| Back-down contact | — | needed 1.2 m/s of push; the protect speed and contact kept it at 0.5 | a steady lean counts | Back-downs never happened (the defender only drifted 0.2 m/s) |
+| Small guards (`height.smallGuard`, `smallFirstStep`, `smallAnkle`) | below 1.88 m: +8% first step, +0.05 ankle breakers | — | as spec | — |
+| `shot.fadeContestMul`, `fadeMakeMul` | contest × 0.8, make × 0.92 | 0.55, 0.88 | 0.8, 0.92 | as spec |
+| Dunk styles (`shot.twoHandLift`, `tomahawkJmp`, `windmillJmp`, `windmillMaxH`, `spinDunkJmp`, `spinDunkMaxH`) | five styles gated by Hops and height | the rig picked one-hand, two-hand or tomahawk at random; 360 and windmill by the learned move | one-hand: anyone who can dunk; two-hand: 0.10 m more lift or a 2.00 m frame; tomahawk: Jump 6.5; windmill: the move + Jump 7.0, ≤ 2.12 m; 360: the move + Jump 7.0, ≤ 2.05 m. Picked in play, replayed exactly | as spec |
+
+AI plays to its build (`node tests/stylemix.js`, 16 bot-vs-bot games per style against a neutral 1.93 m opponent, Pro brains)
+
+| Value | Spec | Now | Why |
+| --- | --- | --- | --- |
+| `ai.stylePlan` + `planBoost` 1.7, `planDamp` 0.55, `planDropClock` 5 s | Post 45% post-ups · Shooter 55% jumpers, half threes · Slasher 60% drives | each 1v1 possession a bot plans a post-up, drive, three or mid-range jumper by its build; the plan's option × 1.7 and the other planned kinds × 0.55 until it runs, dropped under 5 s of shot clock. Measured: Post 51% (post scorer 44%, rim protector 57%) · Shooter 57% jumpers, 49% of them threes · Slasher 59% drives | Option weights alone moved nothing: posting on a smaller man or shooting a sharpshooter's three always won the value race |
+| `ai.planMismatch` 2.0, `planMismatchMax` 0.4 | — | a size edge beyond 3″ adds post-up weight (2.0 per m, up to 0.4); being that much smaller adds drive weight | A plan must not stop a 2.12 m player from posting a 1.82 m one |
+| `ai.styleMix` | — | per style, multipliers on post-up, drive, mid-range, three and dribble-move values (fadeaways and step-backs count as jumpers) | Tilts the choices inside a plan |
+| `ai.postFinish` + `postMaxS` 3 → 5 s, `postWorkS` 1.2 s, `postRetryS` 3 s | — | a posting bot picks a hook, drop step or pump fake by how each works on this defender, works at least 1.2 s before finishing from hook range, and waits 3 s before posting again after a dead end | Post-ups ended before the finish; bots re-posted in a loop |
+| `ai.pickupDistSoloBig` | — | non-shooters (Shooting ≤ 3.5) are met at 6.8 m instead of 8.5, in between up to 5.5 | Nobody guards a non-shooting big at the arc |
+| Defender vs a back-down | — | holds ground with the body instead of stepping into the big | The defender used to walk back into the big every step |
+
+Difficulty (`ai.careerShift`): career bots start from the Settings level and shift by level and year (high school −0.45 +0.07 a year, college −0.15 +0.05 a year, pro +0.1, playoffs +0.2) plus the OVR gap (15 OVR = a tier, capped ±0.6), clamped ±1 tier. Pro games had no shift before. Career games never use the score-based Adaptive setting (it was rubber-banding); it stays for quick games.
+
+Street half court (`rules.checkDist` 8.2 m, `checkGap` 1.4 m, `checkBeat` 0.7 s, `midlinePad` 0.3 m; `camera.halfCourtPad` 1.0 m): one hoop; check ball at the top with the defender between the ball and the hoop; after a defensive rebound or steal the ball has to go past the arc (a shot before that is a TAKE IT BACK violation, and a CLEAR IT chip shows under the score bug); make-it-take-it toggle; win by 2; 1s and 2s or 2s and 3s; players stay on the hoop's half, a loose ball past midcourt is out; the camera stops 1 m past midcourt. Quick Play has the ruleset and its options; Settings → Career games picks full or half court for the career (career games keep 2s and 3s so career stats stay comparable).
+
+Balance harness (`node tests/balance.js 12 21`, scripted human vs bots, all 6s at 1.93 m):
+
+| Strategy | vs Pro (M6 → M7) | vs Legend (M6 → M7) |
+| --- | --- | --- |
+| Brute force: sprint + Shoot | 1.80 → 1.18 | 1.91 → 1.24 |
+| Only drives (no moves) | 1.80 → 1.15 | 1.91 → 0.84 |
+| Only threes (average timing) | 1.58 → 1.65 | 1.12 → 1.22 |
+| Perfect-timing jumpers | 2.14 → 1.88 | 1.84 → 1.66 |
+| Reads the defender | 1.83 → 1.80 | 1.67 → 1.45 |
+| Button mash | 0.19 → 0.40 | 0.23 → 0.36 |
+
+Targets: brute force vs Pro ≤ 1.30 ✓ (1.18); timing and reads beat brute force ✓ (1.88, 1.80); Legend beats Pro 75–95% ✓: 78% of 96 games (PPP 1.75 vs 1.35), and 82% and 78% in two separate 120-game runs. The harness now plays 8 Legend-vs-Pro games per cell count (at least 60) instead of 3 (at least 20): at 36 games one draw on this build read 69%.
+
+Blocks by bigs (bot vs bot, Pro, 30 games against a 1.85 m guard): a 2.10 m rim protector 1.17 a game, a 2.08 m big 0.97 a game.
+
+Performance (`node tests/perf.js`, pro arena, 844×390 @2x): guard level 0 median 23.1 ms (M6: 23.8 and 22.2 ms). No measurable cost.
+
+Also in M7:
+- Settings is two columns. The single column overflowed its panel once Charges and Career games were added.
+- The tale of the tape says what the size edge means: a post-up needs 3″.
+- How to play has the new post game and defense tips.
+- Height tests (`node tests/heighttest.js`: 60 Pro-vs-Pro games, 2:00 halves, 2.12 m against 1.82 m). Built from the same ratings plus the career's height shifts, the big one won 29 of 60 (1.44 vs 1.43 PPP). With identical ratings: 25 of 60 at all 6s, and 21 of 60 with the dev menu's lockdown ratings, where Defense 9 against Handles 5 turns into 8 steals a game. The README used to say 42 of 60, from before M7.
+- Dev lint (`scratchpad/swallow.js`, run by the build): it now also flags a `// comment` that hides an `if (...) x = ...` statement. It caught two of my own M7 slips: a comment that switched off the pickup line, and one that switched off the court bounds.
+
 ## M6 — effects and UI kit
 
 New UIKIT, FX2 and key-screen sections. The UI class gains screen transitions and safe-area layout. Menu dialogs now draw over the dimmed screen below them. On a touch screen, a tap just outside a small widget still counts.
