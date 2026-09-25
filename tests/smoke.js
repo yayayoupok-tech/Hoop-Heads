@@ -61,6 +61,7 @@ const FIX = path.join(__dirname, 'fixtures');
   await migrate('save_v3_pro_only.json', async () => { await ev(() => { if (HH.game.save.data.career && HH.game.save.data.career.v === 3) throw new Error('v3 career kept as is'); }); });
   await migrate('save_v4_highschool.json', continues);
   await migrate('save_v4_pro.json', continues);
+  await step('migrated looks use the painted-face model (v2)', () => ev(() => { const d = HH.game.save.data; const bad = []; const walk = (o, path, depth) => { if (!o || typeof o !== 'object' || depth > 7) return; for (const k in o) { const v = o[k]; if (k === 'look' && v && typeof v === 'object') { if (v.v !== 2 || !v.face) bad.push(path + '.look'); } else if (v && typeof v === 'object') walk(v, path + '.' + k, depth + 1); } }; walk(d.c1, 'c1', 0); walk(d.career, 'career', 0); if (bad.length) throw new Error('old looks left: ' + bad.slice(0, 5).join(', ')); }));
   await step('no recovered frame exceptions (desktop)', async () => { const fe = await D.frameErrors(); if (fe.length) throw new Error(fe.join(' | ')); });
 
   // phone: tap to start, the touch buttons show in a match and tapping them is safe
