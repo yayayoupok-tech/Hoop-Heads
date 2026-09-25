@@ -22,7 +22,7 @@ const MOMENTS = [
   const milestone = process.argv[2] || 'reel', round = process.argv[3] || '1', court = process.argv[4] || 'arena', seconds = +(process.argv[5] || 240);
   const out = path.join(ROOT, 'shots', milestone, 'round-' + round); fs.mkdirSync(out, { recursive: true });
   const browser = await launch(); const P = await openPage(browser, { wait: 800 }); const { page, ev } = P;
-  await ev(court => { const g = HH.game; g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 21 }, court, seed: 9, controlMode: 'lock' }, { kind: 'quick' }); for (const p of g.match.players) p.controlled = false; }, court);
+  await ev(court => { const g = HH.game; g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 21 }, court, seed: 9, controlMode: 'lock' }, { kind: 'quick' }); for (const p of g.match.players) p.controlled = false; g.guard.lock = true; }, court);
   await page.waitForTimeout(600);
   const got = new Set(); let n = 0;
   await ev(M => { window.__reelConds = M.map(([name, cond]) => [name, new Function('p', 'return ' + cond)]); window.__reelGot = {}; }, MOMENTS);

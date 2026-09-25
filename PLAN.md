@@ -17,7 +17,7 @@ has no build step. New sections:
 | **ART** | palettes (12 skin tones × base/light/shadow/warm, 14 hair colors, 6 irises), `mixHex`/`rgba`/`ink`, the look model v2 and its migration, `faceParamsFromSeed`, the LRU face cache `getFaceCanvas`, `paintFaceBase`, the 14 hair painters, `drawEyesLive` | `drawHead`, `portraitOf` internals |
 | **BODY** | jersey, shorts, legs, sneakers, mitten hands, shadow sprite, backlight glow; `drawCharacter(ctx, cam, player, alpha, opts)` | `drawPlayer`'s visuals (same call site) |
 | **RIG** | pose nodes (pelvis, chest, head, hands, feet, squash), keyframe clips with easing, 80 ms blending, `poseFor(player, t)`, secondary motion, trails, expression triggers | the IK arm/leg code |
-| **VENUES** | layers L0–L10 with parallax and half-res 30 Hz buffers, the crowd atlas and its reactions, floor bake, hoop, ball, lighting; `renderVenueLayers`, `bakeFloor`, `drawHoop`, `buildCrowdAtlas` | `WorldRenderer` backdrops, `buildFanAtlas` |
+| **VENUE**, **CROWD**, **COURT** (built in M5) | VENUE: the `Venue` class per match (layers L0–L2 and L10 with parallax, one shared half-res `LayerBuffer` at 30 Hz, banners, jumbotron, ribbon, benches, pep band, lighting). CROWD: `fanAtlasFor` (32 fans × 6 poses), `buildSeats`, `CrowdState` reactions, `drawCrowdRows`. COURT: `floorTexture` bake, hoops, `Net12`, ball sprite, shadows, reflections, `FrameGuard` | `WorldRenderer` backdrops, `buildFanAtlas` |
 | **FX2** | dust, sweat, sparks, dunk shockwave, block star, posterizer blur and flashes, confetti, callout pops | parts of `FXSystem` |
 | **UIKIT** | glass panels, gold and navy buttons, swatch selects, trading cards (hex OVR badge, tier frames, foil), transitions, count-ups, charts | ad-hoc panel drawing |
 
@@ -26,7 +26,7 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 
 ## Milestones
 
-**M0 — Audit and setup** *(done in this commit)*
+**M0 — Audit and setup** *(done)*
 - Baseline screenshots at desktop and phone size (`shots/audit/`), `AUDIT.md`, this plan.
 - Tests in `tests/`:
   - `smoke.js`: the full desktop flow, other modes, save migrations, regressions, and phone touch.
@@ -35,7 +35,7 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 - Main menu now has **Extras** (team league, tournament, 3-point, practice, tutorial, Art Lab).
 - Fixed the two regressions the new tests found: odd looks crashing `drawPlayer`, and the camera losing a sprinting player.
 
-**M1 — Art foundation: faces** (audit #2, #20)
+**M1 — Art foundation: faces** (audit #2, #20) *(done)*
 - Look model v2 (`skin 0–11`, `face{…}` params, `hair 0–13`, `hairColor 0–13`, `facialHair 0–5`, `iris 0–5`, `acc{…}`,
   `shoes`, `number`). Old looks are normalized on read (WeakMap-cached) and migrated in the save (v4 → v5).
 - `paintFaceBase` exactly per spec §3.4: Catmull-Rom silhouette, key light, far-side and jaw form shadows, eye sockets,
@@ -46,22 +46,22 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
   blinks every 2.8–5.2 s and pupils that track the ball. Brows are drawn from strokes with the expression table.
 - Three visual rounds against the §1 bar, saved in `shots/m1-faces/round-N/`.
 
-**M2 — Hair and facial hair** (audit #10)
+**M2 — Hair and facial hair** (audit #10) *(done)*
 - All 14 styles from §3.5 with volume outside the skull, the headband, aging gray from 34, and verlet chains so locs and braids sway.
   Three visual rounds.
 
-**M3 — Body and hands** (audit #1)
+**M3 — Body and hands** (audit #1) *(done)*
 - The §3.1 proportions (head 0.57 H, visual height H = real height): jersey with trim, side panel, folds and outlined number;
   shorts with a stripe; tapered legs and socks; brand-less sneakers; mitten hands in six poses; soft shadow; backlight glow.
 - Gameplay hitboxes and reach stay the same. Hands are placed at the real ball, rim and block positions. Three visual rounds.
 
-**M4 — Rig and animation** (audit #21)
+**M4 — Rig and animation** (audit #21) *(done)*
 - The keyframe pose system and every §3.7 clip: idle breathing, run, sprint, slide, dribble with a hand switch, crossover,
   spin, step-back, the jump-shot phases, floater, post hook, fadeaway, layup, five dunks, rim hang, block, steal, box-out,
   stumble, fall and get-up, and six celebrations.
 - Squash and stretch, the head spring, trails on dunks, spins and crossovers, sweat, and the expression-trigger table.
 
-**M5 — Venues, crowd, lighting** (audit #5–#9, #25, #28)
+**M5 — Venues, crowd, lighting** (audit #5–#9, #25, #28) *(done)*
 - High-school gym, college arena, pro arena and blacktop, per §4, with parallax layers and half-res crowd buffers.
 - A 32-fan × 5-pose crowd atlas baked with team colors, with reactions that spread along the stands (stand, "oooh", camera
   flashes, the wave).
