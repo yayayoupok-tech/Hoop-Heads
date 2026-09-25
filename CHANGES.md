@@ -3,6 +3,97 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## M8 — Career systems
+
+Before M8 a season was Play or Sim clicking. M8 adds the week (Practice, Rest or Film before every game, fatigue and injuries), the story (press questions after big games, hype and confidence, the rival's scripted moments, a headlines feed), recruiting (offers across the four tiers, official visits, the rival's recruiting battle, commitment day), hidden potential, the first-ten-minutes story cards, the pro extras (4-year deals, the All-Star 1v1, All-League 1st and 2nd teams, the spec's DPOY), a trophy case and a career timeline. It ends with the career simulator tuned onto the §6.5 targets. Everything below is in CONFIG with a one-line comment.
+
+The week (`CONFIG.week`, both careers)
+
+| Value | Spec | Was | Now | Why |
+| --- | --- | --- | --- | --- |
+| `practiceFocusMul` | Practice: +40% focus XP this week | — | 1.4 × the game's focus share (45% of its XP) | as spec |
+| `drillXp`, `drillSeconds` | 60 s playable drills, 30–120 XP by score | pro only: a 60 s shootout, or a scrimmage to 7 for other foci; 30–84 XP | 30–120 XP. Shooting plays the shootout; Handles and Finishing play "Beat your man" (you attack every possession for 60 s of game clock: points + 2 per ankle-breaker, or + 1 per rim finish); Defense plays "Get stops" (your partner attacks: 1 per stop, + 1 per steal or block) | as spec. The drills run on the half-court rules with a new `drill` match option |
+| `drillGreat` | — | — | full pay at shooting 24, handles 45, finishing 55, defense 14 | About twice what a Pro bot scores (bots average 25, 31 and 7.5 in the 60 s drills, `scratchpad/drillprobe.js`), so an average drill pays about the middle of the range |
+| `simSessionXp` | — | pro: 40 XP a session | 10 XP (× intensity) | A simmed practice is the +40% focus XP plus a small session. Tuned down from 20 with the simulator |
+| Practice and the age curve | teens learn fastest; decline after 30 | the pro screen showed an age multiplier the code never applied | practice XP × min(1, age multiplier) | Teens get the spec's 30–120, not 45–180, and a veteran who plays every drill still declines |
+| `intensity` | — | light / normal / hard: energy 8 / 15 / 26, XP ×0.6 / 1 / 1.5, injury risk 0 / 0.4% / 1.5% | XP ×0.6 / 1 / 1.5; hard adds 6 fatigue and a 1% injury risk | The old pro feature kept on the fatigue scale |
+| `restFatigue` | Rest: fatigue −25 | recovery day: +22 energy | −25; an injury also heals a game faster | as spec |
+| `restPhysio`, `restGym` | — | +4 / +3 energy a week per level | Rest takes off 5 / 3 more fatigue per level | The pro staff and home gym keep a purpose |
+| `filmBonus` | Film: +0.3 DEF and SHO next game | — | +3 career points (0.3 engine) against that opponent; the film room shows how they score (their build's plan), their best and worst ratings, moves and size, and a game plan | as spec |
+| `fatiguePerGame`, `fatigueFreeAt`, `fatigueOt` | +10 a game; above 50, ratings drop (fatigue − 50)% | pro energy: −16 a game, +18 a week; below 60 speed and hops faded up to 12% | +10 a game (+3 after overtime); above 50 every effective rating × (1 − (fatigue − 50)%). No weekly recovery: Rest is how you recover, and a new season starts fresh | as spec. Old pro saves convert (fatigue = 100 − energy) |
+| `injuryBase`, `injuryPerFatigue`, `injuryGames`, `injurySpd` | 0.8% + 0.04% × fatigue per game; 1–3 games; −0.5 SPD; a toggle | 1% (+3% when tired) per game and per session; five types, 1–4 games, 5–8 off two or three ratings | as spec, and Settings → Career injuries (on by default) | as spec |
+| `injuryPhysio` | — | 0.003 | 0.002 per physio level | Scaled to the lower base chance |
+
+The standing plan: if you play or sim without choosing, your last plan runs (Practice is simmed). The hub shows it with an AUTO tag. A careful simulated career practices 63% of weeks, rests 26% and studies film 11%, and gets hurt 3.5 times.
+
+The story (`CONFIG.media`)
+
+| Value | Spec | Now | Why |
+| --- | --- | --- | --- |
+| `humbleConf`, `confidentHype`, `boastLoss`, `trashHype`, `rivalFire` | Humble +1 confidence; Confident +2 hype, −2 if you lose the next game; Trash talk +3 hype and your rival +2 OVR against you next time | as spec. The rival's +2 is on every rating in the next meeting, in played and simmed games | as spec |
+| `confSho`, `confShoMax` | confidence adds ±0.2 SHO | +1 SHO per point of confidence, capped at ±2 (±0.2 engine) | as spec |
+| `hypeMax`, `hypeKeep` | hype adds to the draft score | capped at 10; each season end keeps half | Hype adds 1:1 to the draft score, where one point is 2.6 picks. Uncapped trash talk could lift a player a hundred picks |
+| `confFade`, `confBlowout`, `blowoutFrac` | — | confidence drifts 0.25 back toward 0 every game; losing by more than 40% of the winning score costs 1 | Without these, humble answers stack to a permanent +0.2 |
+| `hypeSalary` | hype adds to salary | +$0.1M per point on your market value | as spec |
+| Press triggers (`bigPts` 35, `upset` 5, `pressGap` 3) | a press question after big games | rival games, finals, titles, eliminations, points records and debuts always; upsets (5 OVR) and 35-point nights (and 1.5 × your average) when there was none in the last 3 games | The first version asked after 40% of games (110 a career). Now about 58 a career, one in four games |
+
+The rival's scripted moments are cards: the first meeting, the recruiting battle, draft night and a finals rematch (high school, college and pro finals). Head-to-head results carry from high school into the pros. The headlines feed (THE DAILY DRIBBLE, 40 items) has results, rival watch, career highs, media quotes, injuries, awards and growth spurts. Career highs are kept for the amateur years too.
+
+Recruiting and potential (`CONFIG.amateur.recruit`, `scoutBand`, `scoutSeen`)
+
+| Value | Spec | Now | Why |
+| --- | --- | --- | --- |
+| Offers (`recruit.offers`) | offers across 4 program tiers | one per tier from the best your résumé earns down (OVR + 2 × titles + 2 × MVPs + half your hype), at least three, plus "skip college" for elite seniors. Each program has a coach, a specialty and facilities | Was three buttons |
+| `recruit.visits` | campus visits | 2 official visits. A visit shows the program's facilities and what its coach develops, and puts you in their jersey | as spec |
+| Recruiting battle | the rival's recruiting battle | the best program has one spot for you or your rival. Pass on it and your rival takes it | as spec |
+| `recruit.facXp`, `recruit.coachXp` | — | college game XP +3% per facilities star above one; the coach adds 5% of each game's XP to his specialty | Programs differ. Tuned down from 5% and 10% with the simulator (OVR at 21 was 71) |
+| `scoutBand`, `scoutSeen` | hidden potential revealed gradually by scouts | ceilings show as a red band about 18 points wide for a freshman that narrows every season (20% known as a freshman, +15% per high school season, +20% per college season); the band always holds the true ceiling; the combine shows everything. Season recaps carry a scouts' line | Ceilings were shown exactly from day one |
+
+Commitment day: a hat for each program on the table; yours lifts onto your head. The first ten minutes: a FIRST DAY card from your coach before the first game, THE WEEK card after it, and a GROWTH SPURT card the first time you grow.
+
+Pro systems
+
+| Value | Spec | Was | Now | Why |
+| --- | --- | --- | --- | --- |
+| `career.contractYears` | renewals in pro years 5, 9 and 13 | offers ran 1–4 random years | every deal runs 4 seasons after the 4-year rookie deal; the contract year shows your market value (OVR, fame and hype) and offers from your club and two others | as spec |
+| `career.allStar1v1` | an All-Star 1v1 event | the 3-point contest only | the four best by a fan vote (MVP score + 0.15 × fame) play a bracket to 11 at mid-season; you play or sim your games; the champion gets the award, the prize and fame. Being voted in is an All-Star selection. The weekend (with the 3-point contest) is an event you can't miss | as spec |
+| All-League teams | 1st and 2nd teams | a first team of 3 | 1st team (top 3) and 2nd team (next 3) by MVP score. The legacy counts 1st teams (old "All-ISO First Team" awards count too) | as spec |
+| DPOY | most steals + blocks among the top 4 | steals + 1.1 × blocks per game + DEF, league-wide | the most steals + blocks among the top four in the standings | as spec |
+| `career.semisBestOf` | — | — | 1 (unchanged) | A setting for longer series. Testing it found a stall: when your series ended first, the other semifinal never finished. Fixed: the round now plays out |
+
+Trophy case: every award from high school to the pros on wooden shelves (cups, MVP balls, plaques, shields, stars, a net for the 3-point contest), with career highs and the legacy meter. Career timeline: OVR by age (high school, college and the pros in their own colors) with every event underneath: the first game, growth spurts, awards, titles, injuries, commitment, the draft, contracts, retirement.
+
+Tuning the career simulator (§6.5; `node tests/careersim.js`; the new `--set path=value` option tries CONFIG values without a rebuild)
+
+| Value | Spec | Was | Now | Why |
+| --- | --- | --- | --- | --- |
+| `career.proMean` | 76 | 78 | 83 | The league of generated veterans, rookies and the aging curve settles near 78.5. The spec's league made the median career too dominant: 1.57 titles and a 43% Hall of Fame |
+| `career.proSd` | 6.5 | 6.5 | 8 | Real stars at the top (the best other player ~88) |
+| `career.prospectMean`, `prospectSd` | — | 69, 4 | 75, 5 | Rookie classes keep the league at strength |
+| `career.mvpWin` | — | 40 (in the formula) | 20 | 11-game records are close to a coin flip, so the MVP went to whoever got the best record. Individual play now counts for more |
+| `amateur.genesOdds` | — | 0.35 | 0.3 | Slightly fewer gifted careers |
+| `amateur.draft.pickRef` | 74 | 90 | 92 | Seven of 40 careers went #1 after M8's college XP |
+
+| Result | Target | M7 build | M8, 40 careers × 3 seeds | M8, 200 careers × 3 seeds |
+| --- | --- | --- | --- | --- |
+| Median OVR at 17 / 21 / 25 | 55–60 / 66–70 / 74–78 | 56 / 69 / 77 | 57 / 69 / 77 · 56 / 69 / 77 · 57 / 70 / 77 | 56 / 69 / 76 (all three) |
+| Peak (median) | ~76–80, declining after 30 | 79 | 79 · 79 · 79 (OVR at 29: 79, at 33: 69) | 78 |
+| Draft picks | spread out | #1 ×3, undrafted ×7 | #1 ×4 / 3 / 2 · undrafted ×6 / 6 / 2 | #1 ×15 / 13 / 8 · undrafted ×25 / 21 / 32 of 200 |
+| Pro titles per career | ~1 | 1.35 | 0.80 · 1.20 · 1.20 | 1.01 · 1.01 · 1.02 |
+| Hall of Fame | 10–20% | 33% | 8% · 15% · 23% | 16% · 16% · 20% |
+| Stuck states | 0 | 0 | 0 | 0 |
+
+Forty careers are a small sample: the Hall of Fame rate moves about ±6 points between seeds. The 200-career runs are the tuning reference. Hall of Famers average 2.8 titles, 2.1 MVPs and 5.2 All-League 1st teams; everyone else 0.6, 0.3 and 1.5 (the three 200-career runs).
+
+Also in M8:
+- The hub's "this week" slot is the PRACTICE / REST / FILM row (on a phone it sits under the matchup, where three 64 px buttons fit), with a fatigue meter and injury line. Both hubs have News, Trophies and Timeline links.
+- The pro hub and the offseason wait for career events (press, rival cards, the All-Star weekend) before moving on.
+- Career earnings: salary, prizes and sponsor money add up in the trophy case and the player page (§6.4). Saves from before M8 count from the season they were loaded.
+- Gameplay is unchanged: `node tests/balance.js 12 21` reproduces the M7 table exactly (brute force 1.18 PPP vs Pro, timing 1.88, reads 1.80; Legend beats Pro in 75 of 96). The drill rules only run inside drills.
+- Tests: the smoke test grew from 68 to 82 steps (the week, injuries, drills, press and hype, rival cards, recruiting, scouting, story cards, awards and contracts, the All-Star 1v1, trophies and the timeline, and every new screen drawn once). Its career flow now answers press questions and walks through the new cards.
+- Bugs fixed on the way: the pro result screen said "Ricky will never let you forget this one" whatever your rival was called; the tale of the tape drew ratings under 40 as bars pointing the wrong way; a simmed high school game could credit you with more points than the final score; the old training screen showed an age multiplier the code never applied.
+- Removed: the pro energy model (saves convert to fatigue), the "Recovery day" focus (now Rest) and the typed injury table.
+
 ## M7 — 1v1 gameplay and AI
 
 The balance harness found three leaks at the start of M7: brute force scored 1.80 points per possession against Pro, a set defender was beaten 2 times in 3 by pushing, and bots had no rim protection (0 blocks). Everything below is in CONFIG with a one-line comment.

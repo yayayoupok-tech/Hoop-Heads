@@ -13,7 +13,8 @@ const FIX = path.join(__dirname, 'fixtures');
   // bots play both sides until the match ends (a full game, fast-forwarded through the real simulation)
   const finishMatch = () => ev(() => { const m = HH.game.match; if (!m) throw new Error('no match'); for (const p of m.players) if (p.controlled) { p.controlled = false; p.input.reset(); } let n = 0; while (!m.ended && n < 120 * 60 * 30) { simStep(m, STEP); n++; } if (!m.ended) throw new Error('match did not end'); return n; });
   const clearEvents = () => ev(() => { const a = HH.game.save.data.c1; if (a) a.events.length = 0; });
-  const drainEvents = async () => { for (let i = 0; i < 8; i++) { const s = await D.screen(); if (s !== 'amevent') return; await D.press(/^(Continue|CONTINUE)$/); } };
+  // career events: season recaps and story cards (Continue), the press room (answer, then Continue), the rival's moments
+  const drainEvents = async () => { for (let i = 0; i < 12; i++) { const s = await D.screen(); if (s === 'press') { await D.press(/^HUMBLE$/); await D.press(/^CONTINUE$/); continue; } if (s !== 'amevent' && s !== 'rivalmoment' && s !== 'commitday') return; await D.press(/^(Continue|CONTINUE)$/); } };
 
   await step('fresh save, title screen', async () => { await ev(() => { localStorage.clear(); HH.game.save = new SaveSystem(); HH.game.ui.clearTo(titleScreen(HH.game)); }); await wait(300); await D.expectScreen('title'); await shot('01-title'); });
   await step('title → main menu (Enter)', async () => { await page.keyboard.press('Enter'); await wait(300); await D.expectScreen('menu'); await shot('02-menu'); });
@@ -27,16 +28,16 @@ const FIX = path.join(__dirname, 'fixtures');
   await step('the week advanced', () => ev(() => { const a = HH.game.save.data.c1; if (!a.league || a.league.games.length < 1) throw new Error('no game recorded'); }));
   await step('standings', async () => { await D.press(/Standings/); await shot('08-standings'); await ev(() => HH.game.ui.pop()); });
   await step('stats & history', async () => { await D.press(/^Stats/); await shot('09-history'); await ev(() => HH.game.ui.pop()); });
-  await step('sim to the season recap', async () => { for (let i = 0; i < 30; i++) { const s = await D.screen(); if (s === 'amevent') break; if (s === 'amresult') { await D.press(/CONTINUE/); continue; } await D.press(/^SIM$/); } await wait(1200); await D.expectScreen('amevent'); await shot('10-recap'); await drainEvents(); });
+  await step('sim to the season recap', async () => { for (let i = 0; i < 80; i++) { const s = await D.screen(); if (s === 'amevent' && await ev(() => { const e = HH.game.save.data.c1.events[0]; return !!(e && e.kind === 'recap'); })) break; if (s === 'amresult') { await D.press(/CONTINUE/); continue; } if (s === 'press') { await D.press(/^HUMBLE$/); await D.press(/^CONTINUE$/); continue; } if (s === 'amevent' || s === 'rivalmoment') { await D.press(/^(Continue|CONTINUE)$/); continue; } await D.press(/^SIM$/); } await wait(1200); await D.expectScreen('amevent'); await shot('10-recap'); await drainEvents(); });
   await step('grew between seasons (model height changes)', () => ev(() => { const a = HH.game.save.data.c1; const log = a.log || []; if (!log.length) throw new Error('no season log'); }));
-  await step('sim to college offers', async () => { await ev(() => { const g = HH.game, a = g.save.data.c1; let guard = 0; while (!a.decision && a.stage === 'hs' && guard++ < 200) { a.events.length = 0; if (!amSimGame(a)) break; } a.events.length = 0; g.ui.clearTo(amHub(g)); if (!a.decision) throw new Error('no decision'); }); await D.press(/CHOOSE YOUR COLLEGE/); await D.expectScreen('amdecision'); await shot('11-offers'); await ev(() => HH.game.ui.screen.widgets.find(w => w.primary).onPress()); await wait(400); await drainEvents(); await D.expectScreen('amhub'); });
+  await step('sim to college offers', async () => { await ev(() => { const g = HH.game, a = g.save.data.c1; let guard = 0; while (!a.decision && a.stage === 'hs' && guard++ < 200) { a.events.length = 0; if (!amSimGame(a)) break; } a.events.length = 0; g.ui.clearTo(amHub(g)); if (!a.decision) throw new Error('no decision'); }); await D.press(/CHOOSE YOUR COLLEGE/); await D.expectScreen('recruit'); await shot('11-offers'); await D.press(/^VISIT$/); await D.expectScreen('visit'); await ev(() => HH.game.ui.pop()); await ev(() => HH.game.ui.screen.widgets.find(w => w.primary).onPress()); await D.press(/^Yes$/); await wait(400); await drainEvents(); await D.expectScreen('amhub'); });
   await step('sim to the draft combine', async () => { await ev(() => { const g = HH.game, a = g.save.data.c1; let guard = 0; while (a.stage !== 'combine' && guard++ < 300) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, true); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; } a.events.length = 0; g.ui.clearTo(amHub(g)); if (a.stage !== 'combine') throw new Error('stage ' + a.stage); }); });
   await step('combine measures you', async () => { await D.press(/DRAFT COMBINE/); await wait(6500); await D.expectScreen('combine'); await shot('12-combine'); });
   await step('draft night', async () => { await D.press(/DRAFT NIGHT/); await wait(7000); await D.expectScreen('draft'); await shot('13-draft'); });
-  await step('pro hub', async () => { await D.press(/START YOUR PRO CAREER/); await wait(400); await D.expectScreen('career'); await shot('14-pro-hub'); });
+  await step('pro hub', async () => { await D.press(/START YOUR PRO CAREER/); await wait(700); await drainEvents(); await D.expectScreen('career'); await shot('14-pro-hub'); });
   await step('pregame → tip off → full pro match', async () => { await D.press(/^PLAY( GAME)?$/); await D.expectScreen('pregame'); await shot('15-pregame'); await D.press(/TIP OFF/); await wait(1500); await shot('16-pro-match'); await finishMatch(); await wait(2500); const s = await D.screen(); if (s !== 'result' && s !== 'postgame') throw new Error('screen ' + s); await shot('17-pro-result'); });
-  await step('back to the pro hub', async () => { for (let i = 0; i < 3; i++) { const s = await D.screen(); if (s === 'career') break; await D.press(/CONTINUE/); } await D.expectScreen('career'); });
-  await step('pause menu in a match', async () => { await D.press(/^PLAY( GAME)?$/); await D.press(/TIP OFF/); await wait(1200); await page.keyboard.press('Escape'); await wait(300); await D.expectScreen('pause'); await shot('18-pause'); await D.press(/Sim the rest/); await wait(1500); for (let i = 0; i < 3; i++) { const s = await D.screen(); if (s === 'career') break; try { await D.press(/CONTINUE/); } catch (e) { break; } } });
+  await step('back to the pro hub', async () => { for (let i = 0; i < 6; i++) { const s = await D.screen(); if (s === 'career') break; if (s === 'press' || s === 'rivalmoment' || s === 'amevent') { await drainEvents(); continue; } await D.press(/CONTINUE/); await wait(300); } await D.expectScreen('career'); });
+  await step('pause menu in a match', async () => { await D.press(/^PLAY( GAME)?$/); await D.press(/TIP OFF/); await wait(1200); await page.keyboard.press('Escape'); await wait(300); await D.expectScreen('pause'); await shot('18-pause'); await D.press(/Sim the rest/); await wait(1500); for (let i = 0; i < 6; i++) { const s = await D.screen(); if (s === 'career') break; if (s === 'press' || s === 'rivalmoment' || s === 'amevent') { await drainEvents(); continue; } try { await D.press(/CONTINUE/); await wait(300); } catch (e) { break; } } });
   // other modes
   const toMenu = () => ev(() => { const g = HH.game; if (g.mode === 'match') g.quitToMenu(); g.ui.clearTo(mainMenu(g)); });
   const runMode = async (label, open, secs) => step(label, async () => { await toMenu(); await wait(200); await open(); await wait(1500); await ev(() => { if (!HH.game.match) throw new Error('no match started'); }); await wait((secs || 1.5) * 1000); await ev(() => { const g = HH.game; if (g.match && !g.match.ended) { for (const p of g.match.players) p.controlled = false; for (let i = 0; i < 120 * 3; i++) simStep(g.match, STEP); } }); await wait(300); await toMenu(); });
@@ -120,6 +121,126 @@ const FIX = path.join(__dirname, 'fixtures');
     const S = HH.game.save.data.settings; if (S.careerCourt == null && S.careerCourt !== undefined) throw new Error('career court setting');
   }));
   // the animation rig (M4): every clip, every game state, replays and faces
+  // the career week (M8): practice, rest and film; fatigue and injuries; the 60 s drills
+  await step('career week: rest −25, film +3 DEF/SHO for that game, practice ×1.4 focus XP, fatigue past 50 costs ratings', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Week Test', look: PRESET_LOOKS[1], number: 4, style: 'slasher', seed: 77 }); c.events.length = 0;
+    const g = amNext(c); const base = wkEff(c.r, c.height, c, g.opp.id);
+    c.fatigue = 60; c.injury = { name: 'Sprained ankle', games: 2 }; const r = amRest(c); if (!r || r.after !== 35 || c.injury.games !== 1) throw new Error('rest: ' + JSON.stringify(r) + ' injury ' + JSON.stringify(c.injury));
+    if (amFilm(c) !== false) throw new Error('a second plan in the same week was allowed');
+    c.wk = null; wkFill(c); c.injury = null; c.fatigue = 0; if (!amFilm(c)) throw new Error('film refused'); const film = wkEff(c.r, c.height, c, g.opp.id), other = wkEff(c.r, c.height, c, 'someone else');
+    if (Math.abs(film.def - base.def - WK.filmBonus) > 0.01 || Math.abs(film.sho - base.sho - WK.filmBonus) > 0.01) throw new Error('film bonus ' + (film.def - base.def));
+    if (Math.abs(other.def - base.def) > 0.01) throw new Error('film helped against another opponent');
+    c.wk = null; wkFill(c); c.fatigue = 70; const tired = wkEff(c.r, c.height, c, g.opp.id); if (Math.abs(tired.spd - base.spd * 0.8) > 0.6) throw new Error('fatigue 70 should cut 20%: ' + base.spd + ' → ' + tired.spd);
+    const r1 = {}, x1 = {}, r2 = {}, x2 = {}; for (const k of RATING_KEYS) { r1[k] = r2[k] = 50; x1[k] = x2[k] = 0; } const caps = {}; for (const k of RATING_KEYS) caps[k] = 99; const st = { pts: 12, reb: 4, stl: 1, blk: 1, fgm: 6, tpm: 0, layM: 3 };
+    const a = developFromGame(r1, x1, caps, { sho: 1 }, 16, st, true, false, 1), b = developFromGame(r2, x2, caps, { sho: 1 }, 16, st, true, false, WK.practiceFocusMul);
+    const focusA = a.pool * CR.xpGame.focusShare, focusB = b.add.sho - (a.add.sho - focusA); if (Math.abs(focusB / focusA - WK.practiceFocusMul) > 0.01) throw new Error('practice focus XP ×' + (focusB / focusA).toFixed(2));
+    c.fatigue = 20; c.wk = null; wkFill(c); const out = wkAfterGame(c, new RNG(5), {}); if (c.fatigue !== 20 + WK.fatiguePerGame) throw new Error('a game should add ' + WK.fatiguePerGame + ' fatigue: ' + c.fatigue);
+    if (c.wk.done) throw new Error('the week did not reset after the game');
+  }));
+  await step('career week: injuries follow 0.8% + 0.04% × fatigue, heal in 1–3 games, and the Settings toggle turns them off', () => ev(() => {
+    const B = { fatigue: 50, injury: null }; let hurt = 0; const n = 20000; const rng = new RNG(11); for (let i = 0; i < n; i++) { B.fatigue = 50; B.injury = null; wkAfterGame(B, rng, {}); if (B.injury) { hurt++; if (!(B.injury.games >= 1 && B.injury.games <= 3)) throw new Error('games ' + B.injury.games); } }
+    const want = WK.injuryBase + WK.injuryPerFatigue * 50, got = hurt / n; if (Math.abs(got - want) > 0.006) throw new Error('injury rate ' + got.toFixed(4) + ' vs ' + want);
+    const S = HH.game.save.data.settings, was = S.injuries; S.injuries = false; let any = 0; for (let i = 0; i < 3000; i++) { B.fatigue = 100; B.injury = null; wkAfterGame(B, rng, {}); if (B.injury) any++; } S.injuries = was; if (any) throw new Error('injuries with the toggle off: ' + any);
+    const e0 = effRatings({ sho: 60, fin: 60, han: 60, spd: 60, jmp: 60, def: 60, str: 60 }, 1.93), e1 = wkEff({ sho: 60, fin: 60, han: 60, spd: 60, jmp: 60, def: 60, str: 60 }, 1.93, { fatigue: 0, injury: { name: 'x', games: 1 } }); if (Math.abs(e0.spd - e1.spd - WK.injurySpd) > 0.01) throw new Error('injury should cost ' + WK.injurySpd + ' SPD');
+  }));
+  await step('career week: playing without a plan runs the standing plan; old pro saves turn energy into fatigue', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Plan Test', look: PRESET_LOOKS[2], number: 5, style: 'lockdown', seed: 88 }); c.events.length = 0; c.plan = 'rest'; c.fatigue = 30;
+    const r = amSimGame(c); if (!r || r.wk.plan !== 'rest') throw new Error('standing plan did not run: ' + (r && r.wk.plan)); if (c.fatigue !== 5 + WK.fatiguePerGame) throw new Error('fatigue after rest + game: ' + c.fatigue);
+    const p = testProLeague(3, defaultSave()); p.me.energy = 70; delete p.me.fatigue; p.me.trained = true; p.me.injury = { name: 'Jammed finger', games: 2, hit: { sho: 8 } }; repairCareer(p);
+    if (p.me.fatigue !== 30 || p.me.energy != null || p.me.wk.done !== 'practice' || p.me.injury.hit) throw new Error('migration: ' + JSON.stringify({ f: p.me.fatigue, e: p.me.energy, wk: p.me.wk, inj: p.me.injury }));
+    const g = userGame(p); p.me.wk = null; p.me.plan = 'film'; const rec = simUserGame({ career: p, settings: HH.game.save.data.settings }); if (!rec || rec.wk.plan !== 'film') throw new Error('pro standing plan did not run');
+  }));
+  await step('career drills: 60 s of game clock, one side attacks every possession, scores map to 30–120 XP', () => ev(() => {
+    for (const focus of ['handles', 'defense']) { const kind = DRILL_FOCUS[focus]; const m = new Match({ mode: '1v1', teams: [Object.assign({}, TEAMS[2], { players: [ROSTER.legends[0]] }), Object.assign({}, TEAMS[5], { players: [ROSTER.nephews[1]] })], humanTeam: -1, teamDifficulties: ['pro', 'pro'], ruleset: 'half', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'timed', half: 60 }, drill: { kind, focus, attack: kind === 'defense' ? 1 : 0, seconds: 60 }, seed: 4, court: 'gym', headless: true });
+      let checksWrong = 0; m.bus.on('POSSESSION_CHANGE', e => { if (e.how === 'check' && e.team !== m.drill.attack) checksWrong++; }); let n = 0; while (!m.ended && n++ < 120 * 300) simStep(m, STEP);
+      if (!m.ended) throw new Error(focus + ' drill never ended'); if (checksWrong) throw new Error(focus + ': ' + checksWrong + ' checks went to the wrong side'); if (m.overtime) throw new Error('drill went to overtime'); if (m.drill.poss < 6) throw new Error(focus + ': only ' + m.drill.poss + ' possessions');
+      if (kind === 'defense' && m.teams[0].score > 0) throw new Error('the defender scored in a defense drill'); }
+    if (Math.round(drillXpFor('handles', 0)) !== WK.drillXp[0] || Math.round(drillXpFor('handles', 999)) !== WK.drillXp[1]) throw new Error('drill XP range');
+  }));
+  // the story (M8): the press room, hype and confidence, the rival's moments, headlines
+  await step('story: press answers move confidence and hype; trash talk fires up the rival; hype lifts the draft score and salary', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Press Test', look: PRESET_LOOKS[5], number: 9, style: 'sharpshooter', seed: 99 }); c.events.length = 0;
+    const P = { kind: 'press', q: 'x', x: { name: c.name, won: true, opp: 'Somebody Else', rivalName: c.rival.name } };
+    pressAnswer(c, P, 'humble'); if (c.confidence !== MD.humbleConf) throw new Error('humble → confidence ' + c.confidence);
+    c.confidence = 0; const s0 = wkEff(c.r, c.height, c).sho; c.confidence = 3; const s1 = wkEff(c.r, c.height, c).sho; c.confidence = -3; const s2 = wkEff(c.r, c.height, c).sho; c.confidence = 0; if (Math.abs(s1 - s0 - MD.confShoMax) > 0.01 || Math.abs(s0 - s2 - MD.confShoMax) > 0.01) throw new Error('confidence → SHO ' + (s1 - s0) + ' / ' + (s2 - s0));
+    const d0 = amDraftScore(c); pressAnswer(c, P, 'confident'); if (c.hype !== MD.confidentHype || !c.boast) throw new Error('confident → hype ' + c.hype); if (Math.abs(amDraftScore(c) - d0 - MD.confidentHype) > 0.01) throw new Error('hype not in the draft score');
+    mdAfterGame(c, false, 10, 15); if (c.hype !== 0) throw new Error('a loss after a confident answer should cost ' + MD.boastLoss + ' hype: ' + c.hype);
+    pressAnswer(c, P, 'trash'); if (c.hype !== MD.trashHype || c.rivalFire !== MD.rivalFire) throw new Error('trash → hype ' + c.hype + ' fire ' + c.rivalFire);
+    const base = amOppDef(c.rival, 0), hot = amOppDef(c.rival, c.rivalFire); for (const k of RATING_KEYS) if (Math.abs(hot.attrs[k] - base.attrs[k] - MD.rivalFire / 10) > 0.011 && hot.attrs[k] < 10) throw new Error('rival fire on ' + k);
+    const p = testProLeague(8, defaultSave()); const me = meOf(p); const v0 = marketValue(p, me); p.me.hype = 5; if (Math.abs(marketValue(p, me) - v0 - 5 * MD.hypeSalary * 1e6) > 20000) throw new Error('hype salary');
+  }));
+  await step('story: rivals, finals, records and debuts get press questions; routine games wait out the gap', () => ev(() => {
+    const B = {}; mdFill(B); const base = { name: 'A', won: true, us: 15, them: 9, opp: 'Someone Else', recs: [] };
+    if (!pressFor(B, Object.assign({}, base, { rival: true }))) throw new Error('rival game: no press'); if (pressFor(B, Object.assign({}, base, { upsetWin: true }))) throw new Error('upset right after a press should wait');
+    B.pressGap = 0; if (!pressFor(B, Object.assign({}, base, { upsetWin: true }))) throw new Error('upset: no press'); B.pressGap = 3; if (pressFor(B, base)) throw new Error('a routine game got a press question');
+    if (!pressFor(B, Object.assign({}, base, { recs: [{ k: 'pts', v: 22 }] }))) throw new Error('points record: no press'); if (!pressFor(B, Object.assign({}, base, { final: true, playoff: true }))) throw new Error('final: no press');
+  }));
+  await step('story: the rival\'s first meeting and finals rematch cards; draft night; headlines for results, records and the rival', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Rival Test', look: PRESET_LOOKS[6], number: 12, style: 'playmaker', seed: 1234 }); c.events.length = 0; let first = 0, n = 0;
+    while (n++ < 12 && c.stage === 'hs' && c.season === 1) { for (const e of c.events) if (e.kind === 'rival' && e.moment === 'first') first++; c.events.length = 0; if (!amSimGame(c)) break; }
+    if (first !== 1) throw new Error('first-meeting cards: ' + first); const kinds = new Set(c.news.map(x => x.k)); for (const k of ['result', 'rival']) if (!kinds.has(k)) throw new Error('no ' + k + ' headlines: ' + [...kinds].join(','));
+    c.league.playoffs = { round: 2, seeds: [], pending: 'rival', other: null, champion: null }; c.events.length = 0; amRivalMoments(c); if (!c.events.some(e => e.moment === 'final')) throw new Error('no finals rematch card');
+    const p = testProLeague(5, defaultSave()); if (!p.rivalId || !p.events.some(e => e.kind === 'rival' && e.moment === 'draft')) throw new Error('no draft-night rival card');
+    const R = { pts: 10 }; const got = checkRecords(R, { pts: 14, reb: 2 }, 3); if (!got.length || got[0].k !== 'pts' || R.pts !== 14) throw new Error('records');
+  }));
+  // recruiting and scouting (M8)
+  await step('recruiting: offers across tiers, visits reveal a program, the rival takes the contested spot if you pass; commitment day', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Recruit Test', look: PRESET_LOOKS[7], number: 3, style: 'postscorer', seed: 4321 }); let n = 0;
+    while (!c.decision && c.stage === 'hs' && n++ < 200) { c.events.length = 0; amSimGame(c); }
+    const d = c.decision; if (!d || d.kind !== 'college') throw new Error('no college decision'); const offers = d.offers.filter(o => !o.draft); if (offers.length < 3) throw new Error('offers ' + offers.length);
+    if (!c.events.some(e => e.kind === 'rival' && e.moment === 'recruit')) throw new Error('no recruiting battle card'); if (!offers[0].contested) throw new Error('no contested program');
+    const tiers = offers.map(o => o.tier); for (let i = 1; i < tiers.length; i++) if (tiers[i] > tiers[i - 1]) throw new Error('tiers not best-first: ' + tiers);
+    if (amVisit(c, d.offers.indexOf(offers[1])) !== offers[1] || !offers[1].visited || d.visits !== RCT.visits - 1) throw new Error('visit'); amVisit(c, d.offers.indexOf(offers[2])); if (amVisit(c, d.offers.indexOf(offers[0]))) throw new Error('a third visit was allowed');
+    amChooseCollege(c, offers[1]); if (c.stage !== 'college' || c.college !== offers[1].name || !c.program || c.program.fac !== offers[1].fac) throw new Error('commit: ' + c.stage + ' ' + c.college);
+    if (c.rival.college !== offers[0].name) throw new Error('the rival should take the spot you passed on: ' + c.rival.college);
+    const cd = c.events.find(e => e.kind === 'commit'); if (!cd || cd.offers.length !== offers.length || cd.chosen !== 1) throw new Error('commitment day event');
+  }));
+  await step('scouting: ceilings show as a band that holds the true ceiling and narrows every season; the combine shows everything', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Scout Test', look: PRESET_LOOKS[8], number: 2, style: 'lockdown', seed: 55 }); let w0 = 0, prev = 99;
+    for (let yr = 1; yr <= 4; yr++) { c.stage = 'hs'; c.stageYear = yr; const b = amCapBand(c); let wsum = 0; for (const k of RATING_KEYS) { if (!(b[k].lo <= c.caps[k] && c.caps[k] <= b[k].hi)) throw new Error('band misses the ceiling on ' + k); wsum += b[k].hi - b[k].lo; } if (wsum > prev + 0.01) throw new Error('band grew in year ' + yr); prev = wsum; if (yr === 1) w0 = wsum; }
+    if (!(prev < w0)) throw new Error('band never narrowed'); c.stage = 'combine'; if (amScoutSeen(c) !== 1) throw new Error('the combine should reveal everything');
+  }));
+  await step('story cards: first day, the week after game one, the first growth spurt', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Story Test', look: PRESET_LOOKS[9], number: 8, style: 'slasher', seed: 606 });
+    if (!c.events.some(e => e.kind === 'story' && e.title === 'FIRST DAY')) throw new Error('no first-day card'); c.events.length = 0; amSimGame(c); if (!c.events.some(e => e.kind === 'story' && e.title === 'THE WEEK')) throw new Error('no week card');
+    const g1 = amStoryGrowth(c, { from: 1.80, to: 1.85 }), g2 = amStoryGrowth(c, { from: 1.85, to: 1.88 }); if (!g1 || g1.kind !== 'growth' || g2) throw new Error('growth card should come once');
+  }));
+  // pro systems (M8): awards, contracts, the All-Star 1v1, the trophy case and the timeline
+  await step('pro: All-League 1st and 2nd teams, DPOY among the top four, 4-year deals (renewals in years 5, 9, 13)', () => ev(() => {
+    const save = defaultSave(); const c = testProLeague(21, save); save.career = c; let n = 0; while (c.phase !== 'offseason' && n++ < 80) { c.events.length = 0; simUserGame(save); }
+    const aw = c.history[0]; if (!aw || aw.allLeague.length !== 3 || aw.allLeague2.length !== 3) throw new Error('all-league teams'); const top4 = standingsSorted(c).slice(0, 4); if (!top4.includes(aw.dpoy)) throw new Error('DPOY not from the top four');
+    const sb = id => c.stats[id].stl + c.stats[id].blk; for (const id of top4) if (sb(id) > sb(aw.dpoy)) throw new Error('DPOY does not have the most steals + blocks among the top four');
+    if (c.me.contract.years !== CR.rookieYears) throw new Error('rookie deal ' + c.me.contract.years); offseasonProgression(c); offseasonMoves(c); c.me.contract.years = 1; const offers = offseasonContract(c); if (!offers || offers.some(o => o.years !== CR.contractYears)) throw new Error('offers must run ' + CR.contractYears + ' years');
+    acceptContract(c, 0); if (c.me.contract.years !== CR.contractYears) throw new Error('signed years'); if (!c.timeline.some(e => e.kind === 'contract')) throw new Error('no contract on the timeline');
+    if (!(c.me.earned > 0) || c.me.earned < c.me.careerStats.g * 1000) throw new Error('career earnings not tracked: ' + c.me.earned);
+  }));
+  await step('pro: the All-Star 1v1 is a four-player bracket to 11; you play or sim your games; the champion gets the award', () => ev(() => {
+    const save = defaultSave(); const c = testProLeague(33, save); save.career = c; const me = meOf(c); for (const k of RATING_KEYS) me.r[k] = 99; let n = 0;
+    while (!c.allStar && n++ < 30) { c.events.length = 0; simUserGame(save); } const A = c.allStar; if (!A || !A.one) throw new Error('no All-Star weekend'); if (!A.invited1 || !A.one.field.includes(c.meId)) throw new Error('a 99-rated player should be voted in');
+    if (!c.events.some(e => e.kind === 'allstar')) throw new Error('no All-Star event'); const g = allStar1v1Next(c); if (!g) throw new Error('no game for you'); allStar1v1Result(c, true, 11, 6); const g2 = allStar1v1Next(c); if (!A.one.final || !g2 || g2 !== A.one.final) throw new Error('the final did not come');
+    allStar1v1Result(c, true, 11, 8); if (A.one.champion !== c.meId || !c.me.awards.some(a => a.name === 'All-Star 1v1 champion')) throw new Error('champion award'); if (A.one.games.some(x => !x.w) || !(A.one.final.ws === 11)) throw new Error('bracket incomplete');
+  }));
+  await step('legacy: the trophy case lists awards from every level; the timeline has events and OVR by age', () => ev(() => {
+    const save = defaultSave(); const a = amCreate(save, { name: 'Legacy Test', look: PRESET_LOOKS[10], number: 11, style: 'slasher', seed: 2468 }); a.awards.push('Season 1: High school champion', 'Season 1: League MVP'); a.log.push({ season: 1, age: 14, stage: 'hs', ovr: 50 });
+    const tr = trophiesOf(a); if (!tr.some(x => x.kind === 'title' && x.level === 'hs') || !tr.some(x => x.kind === 'mvp')) throw new Error('amateur trophies: ' + JSON.stringify(tr));
+    const c = testProLeague(44, save); c.me.awards.push({ s: 1, name: 'Champion' }, { s: 1, name: '3-Point Contest champion' }, { s: 1, name: 'Scoring Champion' }, { s: 1, name: 'Earned trait: Glove' }); const pt = trophiesOf(c);
+    if (pt.find(x => x.label === '3-Point Contest champion').kind !== 'threept' || pt.find(x => x.label === 'Scoring Champion').kind !== 'plaque' || pt.find(x => x.label === 'ISO League champion').kind !== 'title' || pt.some(x => /trait/.test(x.label))) throw new Error('pro trophy kinds');
+    const tl = timelineOf(c); if (!tl.some(e => e.kind === 'draft')) throw new Error('no draft on the timeline'); const pts = ovrByAge(c); if (!pts.length || !pts[pts.length - 1].now) throw new Error('ovr by age');
+    const cv = document.createElement('canvas'); cv.width = 200; cv.height = 200; const g = cv.getContext('2d'); for (const k of ['title', 'mvp', 'fmvp', 'allleague1', 'allleague2', 'dpoy', 'roy', 'allstar', 'allstar1v1', 'threept', 'plaque']) for (const lv of ['hs', 'college', 'pro']) drawTrophy(g, k, 100, 180, 50, lv);
+  }));
+  await step('career screens draw: practice, film, press, rival card, news, recruiting, visit, commitment day, All-Star weekend, trophies, timeline', async () => {
+    await ev(() => { const g = HH.game; g.save = new SaveSystem(); g.save.data = defaultSave(); const a = amCreate(g.save.data, { name: 'Screen Test', look: PRESET_LOOKS[11], number: 14, style: 'playmaker', seed: 1357 }); a.events.length = 0; g.ui.clearTo(amHub(g)); });
+    const open = async (f, name) => { await ev(f); await wait(350); const s = await D.screen(); if (name && s !== name) throw new Error('expected ' + name + ', got ' + s); };
+    await open(() => HH.game.ui.push(practiceScreen(HH.game)), 'practice'); await open(() => HH.game.ui.push(filmRoomScreen(HH.game)), 'film'); await open(() => HH.game.ui.push(headlinesScreen(HH.game)), 'news');
+    await open(() => HH.game.ui.push(trophyCaseScreen(HH.game)), 'trophies'); await open(() => HH.game.ui.push(timelineScreen(HH.game)), 'timeline');
+    await open(() => { const g = HH.game, a = g.save.data.c1; g.ui.clearTo(amHub(g)); a.events.push({ kind: 'press', q: 'Test question?', x: { name: a.name, won: true, us: 15, them: 9, opp: 'Someone Else' } }); }, null); await wait(400); if (await D.screen() !== 'press') throw new Error('no press screen'); await D.press(/^CONFIDENT$/); await D.press(/^CONTINUE$/);
+    await open(() => { const g = HH.game, a = g.save.data.c1; a.events.push(rivalCard('first', 'FIRST MEETING', ['a', 'b'])); }, null); await wait(400); if (await D.screen() !== 'rivalmoment') throw new Error('no rival card'); await D.press(/^CONTINUE$/);
+    await open(() => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; a.stage = 'hs'; a.stageYear = 4; amStartRecruiting(a, amRng(a)); a.events.length = 0; g.ui.clearTo(amHub(g)); g.ui.push(amDecisionScreen(g)); }, 'recruit'); await D.press(/^VISIT$/); await D.expectScreen('visit');
+    await open(() => { const g = HH.game, a = g.save.data.c1; amChooseCollege(a, a.decision.offers[0]); a.events = a.events.filter(e => e.kind === 'commit'); g.ui.clearTo(amHub(g)); }, null); await wait(2400); if (await D.screen() !== 'commitday') throw new Error('no commitment day'); await D.press(/^CONTINUE$/);
+    await open(() => { const g = HH.game; const c = testProLeague(77, g.save.data); g.save.data.c1.handedOff = true; for (const k of RATING_KEYS) meOf(c).r[k] = 99; c.events.length = 0; let n = 0; while (!c.allStar && n++ < 30) { c.events.length = 0; simUserGame(g.save.data); } c.events = c.events.filter(e => e.kind === 'allstar'); g.ui.clearTo(careerHub(g)); }, null); await wait(500); if (await D.screen() !== 'allstarweekend') throw new Error('no All-Star weekend: ' + await D.screen());
+    await ev(() => { const g = HH.game, c = g.save.data.career; c.events.length = 0; g.ui.clearTo(careerHub(g)); g.ui.push(trophyCaseScreen(g)); }); await wait(300); await ev(() => HH.game.ui.push(timelineScreen(HH.game))); await wait(300);
+    const fe = await D.frameErrors(); if (fe.length) throw new Error(fe.join(' | '));
+  });
   await step('rig: every clip gives a valid pose over its whole length', () => ev(() => { const cv = document.createElement('canvas'); cv.width = cv.height = 200; const g = cv.getContext('2d'); const cam = { scale: () => 40, sx: x => 100 + x * 40, sy: y => 190 - y * 40, ppm: 40, W: 0, H: 0 }; let n = 0;
     for (const [clip, dur] of LAB_CLIPS) for (const ci of [0, 5, 11]) for (let k = 0; k <= 12; k++) { const t = dur * 1.4 * k / 12; const { p, ball } = labClipStandIn(LAB_CAST[ci], ci, clip, t); const P = rigPoseFor(p, 1, ball); if (!rigPoseOk(P)) throw new Error(clip + ' bad pose at t=' + t.toFixed(2)); if (P.clip !== p.rigForce) throw new Error(clip + ' fell back to ' + P.clip); drawPlayer(g, cam, p, 1, ball, { colors: LAB_CAST[ci].colors, pattern: 'solid' }, { replay: true }); n++; }
     if (n < LAB_CLIPS.length * 39) throw new Error('only ' + n + ' poses'); }));
@@ -173,8 +294,8 @@ const FIX = path.join(__dirname, 'fixtures');
   await pstep('64 px tap targets: main menu', async () => { await M.ev(() => HH.game.ui.clearTo(mainMenu(HH.game))); await M.page.waitForTimeout(300); await tapCheck('menu'); });
   await pstep('64 px tap targets: create (every tab)', async () => { await M.ev(() => HH.game.ui.push(createPlayerScreen(HH.game))); await M.page.waitForTimeout(300); for (let tab = 0; tab < 3; tab++) { await M.ev(tab => { const s = HH.game.ui.screen; s.widgets[tab].onPress(); }, tab); await tapCheck('create tab ' + tab); } });
   await pstep('64 px tap targets: genes, hub, recap', async () => { await M.ev(() => { const g = HH.game; const b = g.ui.screen.widgets.find(w => /START HIGH SCHOOL/.test(w.label || '')); b.onPress(); }); await M.page.waitForTimeout(700); if (await M.screen() !== 'amevent') throw new Error('no genes reveal'); await tapCheck('genes');
-    await M.ev(() => { const g = HH.game; const s = g.ui.screen; s.onBack(); }); await M.page.waitForTimeout(400); if (await M.screen() !== 'amhub') throw new Error('not the hub'); await tapCheck('hub');
-    await M.ev(() => { const g = HH.game, c = g.save.data.c1; let n = 0; while (n++ < 60 && !c.events.length) { if (c.decision) break; HH.amSimGame(c); } g.ui.clearTo(amHub(g)); }); await M.page.waitForTimeout(600); if (await M.screen() !== 'amevent') throw new Error('no recap'); await tapCheck('recap'); });
+    for (let i = 0; i < 6; i++) { const nm = await M.screen(); if (nm === 'amhub') break; if (nm === 'amevent' || nm === 'rivalmoment') await tapCheck(nm + ' ' + i); await M.ev(() => { const s = HH.game.ui.screen; if (s.onBack) s.onBack(); else HH.game.ui.pop(); }); await M.page.waitForTimeout(400); } if (await M.screen() !== 'amhub') throw new Error('not the hub'); await tapCheck('hub');
+    await M.ev(() => { const g = HH.game, c = g.save.data.c1; let n = 0; c.events.length = 0; while (n++ < 60 && !c.events.some(e => e.kind === 'recap')) { if (c.decision) break; c.events.length = 0; HH.amSimGame(c); } c.events = c.events.filter(e => e.kind === 'recap'); g.ui.clearTo(amHub(g)); }); await M.page.waitForTimeout(600); if (await M.screen() !== 'amevent') throw new Error('no recap'); await tapCheck('recap'); });
   await pstep('no recovered frame exceptions (phone)', async () => { const fe = await M.frameErrors(); if (fe.length) throw new Error(fe.join(' | ')); });
 
   const notes = new Set([...D.notes, ...M.notes]); if (notes.size) console.log('notes: ' + [...notes].join('; '));

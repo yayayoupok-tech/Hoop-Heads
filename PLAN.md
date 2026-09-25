@@ -95,7 +95,9 @@ Legend beats Pro 78%, style mix on target, bigs about 1 block a game; see CHANGE
 - Also done: charges (a Settings toggle), defender recovery lanes, a fixed spin move, box-outs, matchup-aware possession
   plans, and `tests/stylemix.js` to measure the build mix.
 
-**M8 — Career systems** (audit #14–#19, #24)
+**M8 — Career systems** (audit #14–#19, #24) *(done: the week, fatigue and injuries, the press room, the rival's moments, headlines,
+recruiting with visits and commitment day, hidden potential, 4-year deals, the All-Star 1v1, the trophy case and timeline;
+the simulator hits every §6.5 target over 3 × 200 careers: OVR 56/69/76, peak 78, 1.01 titles, Hall of Fame 16–20%)*
 - A week loop: before each game you choose Practice, Rest or Film. Fatigue and injuries (with a toggle), media answers
   that move hype and confidence, and the rival's scripted moments.
 - Recruiting visits and commitment day. Combine measurements feed the draft score.
