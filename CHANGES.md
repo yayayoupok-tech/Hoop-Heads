@@ -3,6 +3,44 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## M6 — effects and UI kit
+
+New UIKIT, FX2 and key-screen sections. The UI class gains screen transitions and safe-area layout. Menu dialogs now draw over the dimmed screen below them. On a touch screen, a tap just outside a small widget still counts.
+
+§5 effects:
+
+| Value | Spec | Now | Why |
+| --- | --- | --- | --- |
+| Landing dust (`CONFIG.fx.dustPerLanding`, `dustS`, `dustAlpha`) | 8 beige puffs, α 0.6 → 0 over 0.4 s, drifting outward | as spec. Each puff starts 0.10–0.17 m across and grows ×2.4. They split left and right at 1.0–2.6 m/s with drag | The old dust was 6 white dots |
+| Sweat | blue-white teardrops flung backward with gravity | as spec: a drawn teardrop pointing back along its path. It still spawns at 2 drops/s below 40% stamina (M4) | — |
+| Rim clank (`sparkPerClank`, `sparkS`) | 10 orange sparks with gravity, 0.3 s | as spec, drawn as streaks along their velocity | Was 8 round sparks living 0.25–0.45 s |
+| Dunk shockwave (`shockM`, `shockS`, `shockAlpha`) | ring to 1.2 m in 0.25 s, α 0.6 → 0; backboard shake, net snap, 70 ms hit-stop, 6% punch | as spec. The ring is centered on the rim. The shake, snap, hit-stop and punch already matched | The old ring grew for 0.45 s to 1.8 m. The extra dunk sparks were removed |
+| Block (`impactM`, `impactS`) | 90 ms hit-stop, a white impact star at the ball, "REJECTED" | as spec: an 8-point white star, 0.55 m radius, opening over its first 35%, 0.25 s in all. REJECTED is now cyan | The old block showed a pink ring |
+| Posterizer (`blurS`, `blurCopies`) | 40% slow motion for 0.35 s, a radial blur of 3 scaled translucent copies, crowd flashes | as spec: copies at ×1.025 / ×1.05 / ×1.075, α 0.22 / 0.15 / 0.10, around the rim. The poster card now waits for the slow motion to end | The card used to freeze the game at once, so the 0.35 s of slow motion ran out unseen |
+| Win confetti (`confettiCount`, `confettiFall`, `confettiFlutterHz`) | 120 pieces in the winner's colors, with rotation and flutter | as spec, for whoever wins. Pieces fall at up to 1.4 m/s, sway at 1.8 Hz and tumble; each is 0.10–0.17 m | It used to fire only for a human win, in that team's colors plus gold and white |
+| Callouts (`calloutPopS`) | stamped text with an ink outline and a drop shadow; pops 0 → 1.2 → 1.0 in 0.25 s, tilted ±4°; gold for makes, cyan for defense, pink for ankles | as spec. It reaches 1.2 at 60% of the pop. Rule calls (travel, fouls, halftime, final) are white | Colors used to be mixed: pink blocks, lime steals, gold ankles |
+
+§6 UI:
+
+| Value | Spec | Now | Why |
+| --- | --- | --- | --- |
+| Panels (`ART.uiPanel`, `uiPanelHi`, `uiRadius`) | navy glass rgba(10,14,40,0.85), radius 14, 2 px inner highlight at 0.08 | as spec, with a soft drop and a faint top sheen | Was rgba(8,14,48,0.78) at radius 10 with a 22% white border |
+| Buttons (`uiBtnH`, `uiBtnR`) | primary: gold gradient, dark text, 52 px; secondary: navy with a cyan outline | as spec. The focused button gets a gold (primary: white) outline and a glow, and grows 2%. A pressed button shrinks to 96% for 110 ms (`uiPressMs`). New screens use 52 px primaries | Was orange primaries and blue secondaries |
+| Type | display face at 900 for headers, system sans for body | as spec (`FONT_BODY`) | Body text used the condensed display face at weight 400 |
+| Selects | swatches instead of words | skin, hair color and eyes show color chips; hairstyle and facial hair show painted faces. Icons paint at most 2 per frame (`ART.iconBudget`) | Painting 14 faces at once caused a hitch |
+| Trading card (`ART.cardTiers`, `foilPeriod`) | portrait in the top 60%, a name band, a hexagon OVR badge top-left, height and style chips, a tier frame (bronze < 60, silver 60–74, gold 75–84, diamond 85+), foil on gold and diamond | as spec. Cards bake into an LRU of 16 (`cardCacheN`); the foil sheen is drawn live and crosses every 3.2 s | — |
+| Motion (`uiTransMs`, `uiSlidePx`, `uiFlipMs`, `uiCountMs`) | slide and fade in 200 ms, flips 350 ms, count-ups 600 ms, respect Reduce Motion | as spec. Screens slide 56 design px; dialogs fade and scale up 3%. Reduce Motion switches screens instantly and shows final numbers | — |
+| Menu backdrop (`uiBeamHz`) | — | an arena at night, baked once per screen size: far crowd, lights, a lit floor, a vignette. Three spotlights sweep at 0.07 Hz | Replaces six gradient beams rebuilt every frame |
+| Height charts (`ART.crownStand`, `crownStance`) | — | the crown sits at 1.023 × height standing and 0.99 × in a stance (measured on the M3 body) | The old factors (1.12, 1.08) fit the pre-M3 body. Rulers read about 10% too high |
+| Score bug | team-color panels with mini portraits and the score; the clock and shot clock in the center | as spec, 600 × 62 at the top center. It scales by min(1, width / 1100). The possession ball sits under the side with the ball; the shot clock turns red at 4 | — |
+| Jumbotron (`ART.jumboGap`) | 6.8 m high | hangs at least 10 px below the score bug | At 6.8 m it sat behind the score bug at midcourt |
+| Phones: tap targets (`tapH`, `phoneGrid`) | at least 64 px | the key screens switch to phone layouts with 64 CSS px rows: main menu, create (three tabs), genes, hub, recap, draft, retirement, pause, pregame, results, confirm. The smoke test checks these | — |
+| Phones: thumb controls | — | smallest button 64 px across (it was 80), with translucent dark fills and white labels, inside the safe area. The pause button is 48 px drawn and 68 px to tap. No key hints on a touch screen | Round 3 of M5 showed the controls covering the players |
+
+Performance (`node tests/perf.js 240`, pro arena, 844×390 @2x, software raster): guard level 0 median 23.8 ms and 22.2 ms in two runs (M5: 23.0 ms). Runs vary by ±3–4 ms, and the guard levels even swap order between runs. The new HUD costs 1.6 ms of that, measured with forced flushes: score bug 0.6–0.8 ms, thumb controls 0.6–0.9 ms.
+
+Key screens: the title face-off (spotlight, bouncing logo), create with a turning model and swatches, the genes reveal as a doctor's chart (a growing silhouette, a ruler, a dashed ghost with a ±1″ band), the hub laid out as in §6 for high school, college and the pros, the season recap (count-ups, OVR by season, before and after heights), draft night (stage, podium, card flip), retirement (the jersey rises to the rafters, then the verdict) and the pro season review. The Art Lab has a new UI kit view.
+
 ## M5 — venues, crowd, lighting
 
 New VENUE, CROWD and COURT sections. Career games use the venue for their level: high school games in the gym, college games in the new college arena, and every pro game in the pro arena, dressed in the home club's colors. The blacktop hosts exhibitions. The rooftop and beach stay as exhibition courts with their original backdrops, but get the new floor lighting, hoops, net, ball, shadows and reflections.

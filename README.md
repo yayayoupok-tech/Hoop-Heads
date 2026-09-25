@@ -26,7 +26,7 @@ One life, from a 14-year-old freshman to the Hall of Fame vote.
 
 Every opponent is a real engine player with their own ratings and size, so a 7′1″ rim protector and a 5′11″ guard play completely differently.
 
-The main menu also has Quick 1v1 (any two players, any court, any format) and the Hall of Fame. **Extras** holds the classic team league (5v5 or 3v3 with manager mode), a street tournament (an eight-player bracket, first to 11), the 3-Point Contest, Practice (free shooting with a shot chart), the tutorial and the **Art Lab** (every character, expression, pose, hand pose, sneaker colorway, animation clip and venue; also opens directly with `index.html?artlab`).
+The main menu also has Quick 1v1 (any two players, any court, any format) and the Hall of Fame. **Extras** holds the classic team league (5v5 or 3v3 with manager mode), a street tournament (an eight-player bracket, first to 11), the 3-Point Contest, Practice (free shooting with a shot chart), the tutorial and the **Art Lab** (every character, expression, pose, hand pose, sneaker colorway, animation clip, venue and the UI kit; also opens directly with `index.html?artlab`).
 
 ## Height matters
 

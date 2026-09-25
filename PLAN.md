@@ -18,8 +18,9 @@ has no build step. New sections:
 | **BODY** | jersey, shorts, legs, sneakers, mitten hands, shadow sprite, backlight glow; `drawCharacter(ctx, cam, player, alpha, opts)` | `drawPlayer`'s visuals (same call site) |
 | **RIG** | pose nodes (pelvis, chest, head, hands, feet, squash), keyframe clips with easing, 80 ms blending, `poseFor(player, t)`, secondary motion, trails, expression triggers | the IK arm/leg code |
 | **VENUE**, **CROWD**, **COURT** (built in M5) | VENUE: the `Venue` class per match (layers L0–L2 and L10 with parallax, one shared half-res `LayerBuffer` at 30 Hz, banners, jumbotron, ribbon, benches, pep band, lighting). CROWD: `fanAtlasFor` (32 fans × 6 poses), `buildSeats`, `CrowdState` reactions, `drawCrowdRows`. COURT: `floorTexture` bake, hoops, `Net12`, ball sprite, shadows, reflections, `FrameGuard` | `WorldRenderer` backdrops, `buildFanAtlas` |
-| **FX2** | dust, sweat, sparks, dunk shockwave, block star, posterizer blur and flashes, confetti, callout pops | parts of `FXSystem` |
-| **UIKIT** | glass panels, gold and navy buttons, swatch selects, trading cards (hex OVR badge, tier frames, foil), transitions, count-ups, charts | ad-hoc panel drawing |
+| **FX2** (built in M6) | the §5 painters: dust puffs, sweat teardrops, the block impact star, the posterizer's radial blur, the callout pop and colors; new particle kinds in `FXSystem` (spark streaks, dunk shockwave, fluttering confetti) | parts of `FXSystem` |
+| **UIKIT** (built in M6) | glass panels, gold and navy buttons, swatch selects, chips, the hexagon OVR badge, trading cards (tier frames, foil, card back), the menu backdrop, count-ups and flips, `tapH`/`phoneGrid` for 64 px phone targets; transitions live in the `UI` class | ad-hoc panel drawing |
+| **UI part 6** (built in M6) | the key screens: title face-off, create, genes chart, the hub, season recap, draft night, retirement | the old versions in UI parts 1–4 |
 
 Rules for every renderer: clamp every index, default every missing field, guard NaN, and never throw. The frame loop now
 recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the tests fail on it.
@@ -70,7 +71,7 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 - The performance guard measures real frame intervals and sheds cost in the specified order: crowd rate, reflections, then glow.
   Three visual rounds.
 
-**M6 — FX and UI** (audit #11–#13, #16–#20, #26, #29, #30)
+**M6 — FX and UI** (audit #11–#13, #16–#20, #26, #29, #30) *(done)*
 - The §5 effects table.
 - UIKIT screens: title faceoff, create screen with a turning model and swatches, the genes reveal chart, a hub with your
   animated model on a platform with a height ruler, trading cards, season recap with count-ups and an OVR chart, draft
