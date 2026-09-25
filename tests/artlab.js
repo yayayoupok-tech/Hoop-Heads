@@ -13,6 +13,7 @@ const { ROOT, launch, openPage } = require('./lib');
     await ev(v => HH.game.ui.screen.setView(v), v);
     if (v === 1) { for (const ch of (process.env.LAB_CHARS || '0,3,7,11').split(',').map(Number)) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-faces250-p' + (ch + 1)); } }
     else if (v === 3) { for (const ch of [0, 9]) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-hair-p' + (ch + 1)); } }
+    else if (views[v] === 'Clips') { const n = await ev(() => labClipPages()); for (let pg = 0; pg < n; pg++) { await ev(q => HH.game.ui.screen.setPage(q), pg); await shot('lab-' + v + '-clips-p' + (pg + 1)); } }
     else await shot('lab-' + v + '-' + views[v].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''));
   }
   // in-match frames: a quick 1v1 in each venue, frozen mid-play

@@ -124,12 +124,11 @@ const CONFIG = {
       lowWindowMul: 0.8,       // tired perfect-window multiplier
     },
     headRatio: 0.38,           // head diameter as a fraction of body height (bobblehead)
-    neckSpring: { k: 220, damp: 16, gain: 0.010, max: 0.14 }, // head wobble spring: stiffness, damping, accel gain, max offset (m)
     dribble: {
       cycleWalk: 0.45,         // dribble bounce period while walking (s)
       cycleSprint: 0.35,       // dribble bounce period while sprinting (s)
       cycleIdle: 0.62,         // dribble bounce period while standing (s)
-      handHeight: 0.95,        // ball height at the top of the dribble (m)
+      handHeight: 0.48,        // ball height at the top of the dribble (m): waist height on the big-head body (was 0.95, which bounced the ball into the face)
       sideOffset: 0.36,        // ball horizontal offset from the body center (m)
     },
   },
@@ -332,7 +331,7 @@ const CONFIG = {
   },
   steal: {
     reach: 0.9,                // swipe reach box length in front of the defender (m)
-    boxLow: 0.3,               // reach box bottom (m)
+    boxLow: 0.2,               // reach box bottom (m); lowered with the dribble so the ball is still out of reach for the same share of each bounce
     boxHigh: 1.3,              // reach box top (m)
     base: 0.27,                // base success
     ratingSlope: 0.05,         // per point of (Defense − Handling)
@@ -1398,7 +1397,8 @@ Object.assign(ART, {
   wristW: 0.02,              // wristband half-length along the arm (H); like the palm ellipse, 0.03 × 0.02 H are half sizes
   wristH: 0.03,              // wristband half-height across the wrist (H)
   farDim: 0.12,              // far hand and far shoe are this much darker
-  handRest: [0.24, 0.30],    // resting hand position (±x, y) in H
+  handRest: [0.20, 0.30],    // front hand at rest (x, y) in H (the §3.7 idle clip)
+  handRestB: [-0.18, 0.31],  // back hand at rest (x, y) in H
   chestW: 0.34,              // jersey width at the chest (H)
   waistW: 0.30,              // jersey width at the waist (H)
   shortsW: 0.30,             // shorts width at the waist (H), flaring to hemW
@@ -1421,51 +1421,13 @@ function radialSprite(col, a) { const c = document.createElement('canvas'); c.wi
 function shadowSprite() { return _shadowSprite || (_shadowSprite = radialSprite('#000000', ART.shadowAlpha)); }
 function glowSprite() { return _glowSprite || (_glowSprite = radialSprite(ART.glow, 1)); }
 
-// --- poses: every node in body units (H), +y up ---
-function restPose() { return { pelvis: { x: 0, y: 0.24, r: 0 }, chest: { x: 0, y: 0.36, r: 0 }, head: { x: 0, y: ART.headCenter, r: 0 }, handF: { x: ART.handRest[0], y: ART.handRest[1], pose: 'relaxed', r: 0.15 }, handB: { x: -ART.handRest[0], y: ART.handRest[1] + 0.01, pose: 'relaxed', r: 0.15 }, footF: { x: 0.07, y: 0, r: 0 }, footB: { x: -0.07, y: 0, r: 0 }, sx: 1, sy: 1, tilt: 0, lean: 0, stride: 0, hemFlutter: 0 }; }
+// --- poses: every node in body units (H), +y up. The RIG section animates them. ---
+// The §3.7 idle: rot turns the whole body about (px, py) (positive tips it backward), lean turns the upper body about the
+// pelvis, turn is a spin about the vertical axis, sx/sy squash about the feet.
+function restPose() { return { pelvis: { x: 0, y: 0.24, r: 0 }, chest: { x: 0, y: 0.36, r: 0 }, head: { x: 0, y: ART.headCenter, r: 0 }, handF: { x: ART.handRest[0], y: ART.handRest[1], pose: 'relaxed', r: 0.15 }, handB: { x: ART.handRestB[0], y: ART.handRestB[1], pose: 'relaxed', r: 0.15 }, footF: { x: 0.07, y: 0, r: 0 }, footB: { x: -0.07, y: 0, r: 0 }, sx: 1, sy: 1, rot: 0, px: 0, py: 0, lean: 0, turn: 0, hemFlutter: 0 }; }
 // Ball position in the player's body units (H), or null.
 function ballLocal(p, ball, alpha) { if (!ball) return null; const bx = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha), by = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha); const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha); const H = p.height || 1.9; return { x: (bx - x) * (p.facing < 0 ? -1 : 1) / H, y: (by - y) / H }; }
-// A simple procedural pose from the game state (the keyframe rig in the RIG section refines it when present).
-function poseFromState(p, alpha, ball) {
-  const P = restPose(); const a = p.anim || {}; const st = p.state; const H = p.height || 1.9; const t = (p.match && p.match.time) || (performance.now() / 1000);
-  const sp = Math.abs(p.vx || 0), grounded = p.grounded !== false, f = p.facing < 0 ? -1 : 1; const reachH = (p.reach || H * 1.33) / H;
-  const breathe = Math.sin(t * TAU * 0.9); P.chest.y += 0.004 * breathe; P.head.y += 0.006 * breathe;
-  if (grounded && sp > 0.4 && (st === 'move' || st === 'burst' || st === 'catch' || st === 'land')) { // run / sprint
-    const ph = a.legPhase || 0, sprint = sp > (PC.runSpeed || 6) * 0.95, stride = sprint ? 0.13 : 0.10; P.stride = stride;
-    P.footF.x = 0.02 + Math.cos(ph) * stride; P.footF.y = Math.max(0, Math.sin(ph)) * 0.05; P.footB.x = -0.02 + Math.cos(ph + Math.PI) * stride; P.footB.y = Math.max(0, Math.sin(ph + Math.PI)) * 0.05;
-    const bounce = Math.abs(Math.sin(ph)) * 0.015; P.pelvis.y += bounce; P.chest.y += bounce; P.head.y += bounce; P.lean = (sprint ? 12 : 6) * Math.PI / 180 * Math.sign(p.vx * f || 1);
-    P.handF.x = 0.16 - Math.cos(ph) * 0.08; P.handF.y = 0.30 + Math.sin(ph) * 0.04; P.handB.x = -0.14 - Math.cos(ph + Math.PI) * 0.08; P.handB.y = 0.31 + Math.sin(ph + Math.PI) * 0.04; if (sprint) { P.handF.pose = P.handB.pose = 'fist'; }
-    P.hemFlutter = Math.sin(ph * 2) * 0.01;
-  }
-  const stance = a.defStance || st === 'stance'; if (stance && !p.hasBall) { P.pelvis.y = 0.21; P.chest.y = 0.33; P.head.y = ART.headCenter - 0.025; P.lean = 8 * Math.PI / 180; P.footF.x = 0.13; P.footB.x = -0.13; if (sp > 0.3) { const ph = a.legPhase || 0; P.footF.x += Math.sin(ph) * 0.03; P.footB.x -= Math.sin(ph) * 0.03; P.pelvis.y += Math.abs(Math.sin(ph)) * 0.01; } P.handF = { x: 0.28, y: 0.33, pose: 'open', r: -0.4 }; P.handB = { x: -0.26, y: 0.35, pose: 'open', r: 0.4 }; }
-  if (st === 'protect') { P.pelvis.y = 0.22; P.lean = -6 * Math.PI / 180; P.footF.x = 0.1; P.footB.x = -0.12; P.handB = { x: -0.1, y: 0.4, pose: 'open', r: 0.6 }; } // post up: back into the defender, off hand as a bar
-  if (!grounded) { const tuck = st === 'dunk' || st === 'layup' ? 0.07 : 0.035; P.footF.x = 0.06; P.footF.y = tuck; P.footB.x = -0.05; P.footB.y = tuck * 0.7; if (st === 'jumpshot' || st === 'floater') { P.footF.x = 0.03; P.footB.x = -0.03; } }
-  // hands follow the ball
-  const bl = ballLocal(p, ball, alpha); const hasBall = !!(ball && ball.owner === p && bl);
-  if (hasBall) {
-    const br = BALL.radius / H, top = bl.y + br * 1.05;
-    if (st === 'jumpshot' || st === 'floater' || (st === 'pumpfake' && bl.y > 0.7)) { P.handF = { x: bl.x - br * 0.35, y: bl.y - br - ART.palmRy * 0.35, pose: 'open', r: -1.35 }; P.handB = { x: bl.x - br - ART.palmRx * 0.45, y: bl.y + br * 0.1, pose: 'open', r: -1.5 }; if (st === 'jumpshot') P.head.r = -0.08; } // set point: shooting hand under the ball, guide hand on the side
-    else if (st === 'gather' || st === 'pumpfake' || st === 'ft') { P.handF = { x: bl.x + br + ART.palmRx * 0.3, y: bl.y, pose: 'cupped', r: -1.7 }; P.handB = { x: bl.x - br - ART.palmRx * 0.3, y: bl.y + 0.01, pose: 'cupped', r: 1.6 }; } // both hands on the sides of the ball
-    else if (st === 'dunk' || st === 'tipin') { P.handF = { x: bl.x - br * 0.3, y: bl.y + br * 0.85, pose: 'cupped', r: 0.5 }; P.handB = { x: -0.22, y: Math.min(bl.y - 0.2, 0.95), pose: 'open', r: -0.9 }; } // palm over the top of the ball, off hand trailing
-    else if (st === 'layup') { P.handF = { x: bl.x - br * 0.2, y: bl.y - br - ART.palmRy * 0.3, pose: 'open', r: -1.3 }; P.handB = { x: -0.2, y: Math.min(bl.y - 0.25, 0.9), pose: 'open', r: -0.6 }; } // finger roll from under the ball
-    else if (st === 'protect') { P.handF = { x: bl.x, y: Math.max(top, 0.26), pose: 'cupped', r: 0 }; }
-    else if (grounded && !p.pickedUp) { P.handF = { x: bl.x, y: Math.max(top, 0.27), pose: 'cupped', r: 0.2 }; } // the dribble: the hand rides the top of the bounce
-    else { P.handF = { x: bl.x + 0.03, y: bl.y, pose: 'cupped', r: -0.2 }; P.handB = { x: bl.x - 0.06, y: bl.y, pose: 'cupped', r: 0.4 }; }
-  }
-  // defense and air actions
-  const contesting = !hasBall && !grounded && (st === 'jump' || st === 'fall');
-  if (contesting) { P.handF = { x: 0.1, y: reachH - ART.palmRx, pose: 'open', r: -1.35 }; P.handB = { x: -0.06, y: reachH - ART.palmRx - 0.07, pose: 'open', r: -1.5 }; P.head.r = -0.1; } // both hands straight up at full reach
-  if (st === 'swipe') { const ph = typeof phaseOf === 'function' ? phaseOf(p) : 'active'; const u = ph === 'active' ? 1 : ph === 'startup' ? 0.3 : 0.6; P.handF = { x: 0.25 + 0.15 * u, y: 0.45 - 0.2 * u, pose: 'open', r: -0.2 }; P.lean = 0.12; }
-  if (st === 'shove') { P.handF = { x: 0.34, y: 0.4, pose: 'open', r: -1.2 }; P.handB = { x: 0.3, y: 0.36, pose: 'open', r: -1.2 }; P.lean = 0.15; }
-  if (st === 'celebrate') { const w = Math.sin((p.stateT || 0) * 14); P.handF = { x: 0.31, y: 1.0 + 0.04 * w, pose: 'fist', r: -1.45 }; P.handB = { x: -0.33, y: 1.0 - 0.04 * w, pose: 'fist', r: -1.7 }; P.sy = 1.02; } // both fists pumping beside the head
-  if (st === 'rimhang' && p.hoop) { const rimY = (RIM_Y - (lerp(p.py, p.y, alpha))) / H; const rimX = (p.hoop.x - lerp(p.px, p.x, alpha)) * f / H; P.handF = { x: rimX - 0.03, y: rimY, pose: 'fist', r: -1.5 }; P.handB = { x: rimX - 0.12, y: rimY - 0.01, pose: 'fist', r: -1.5 }; P.footF.y = 0.08; P.footB.y = 0.06; }
-  if (st === 'stumble' || st === 'knocked') { const k = st === 'knocked' || (p.sd && p.sd.sit && p.stateT > 0.35) ? 1.35 : 0.35 * Math.sin(Math.min(1, (p.stateT || 0) / 0.7) * Math.PI); P.tilt = k * Math.min(1, (p.stateT || 0) / 0.25); P.handF = { x: 0.3, y: 0.46, pose: 'open', r: 0 }; P.handB = { x: -0.26, y: 0.5, pose: 'open', r: 0 }; }
-  if (p.callingForBall && !hasBall && grounded) P.handF = { x: 0.14, y: reachH - 0.05, pose: 'open', r: -1.4 };
-  P.sy *= a.squash || 1; P.sx /= Math.sqrt(a.squash || 1);
-  P.head.x += (a.headX || 0) * 1.4 / H; P.head.y += (a.headY || 0) / H;
-  return P;
-}
-function poseFor(p, alpha, ball) { return (typeof rigPoseFor === 'function') ? rigPoseFor(p, alpha, ball) : poseFromState(p, alpha, ball); }
+function poseFor(p, alpha, ball) { return rigPoseFor(p, alpha, ball); }
 
 // --- the kit ---
 function lumGap(a, b) { return Math.abs(luminance(a) - luminance(b)); }
@@ -1531,9 +1493,9 @@ function drawSneaker(ctx, foot, far, lw, kit, stepT) {
   ctx.strokeStyle = out; ctx.lineWidth = lw; ctx.stroke(up); ctx.strokeStyle = ink(kit.sole === ART.midsole ? '#8A8A96' : kit.sole); ctx.stroke(sole);
   ctx.restore();
 }
-function drawLeg(ctx, T, hip, foot, far, lw, kit, sleeve, hemY) {
+function drawLeg(ctx, T, hip, foot, far, lw, kit, sleeve, hemY, drop) {
   ctx.save(); ctx.beginPath(); ctx.rect(-3, (hemY == null ? -ART.hem : hemY) - 0.002, 6, 4); ctx.clip(); // legs start under the shorts hem
-  const top = { x: hip.x, y: -ART.hem - 0.01 }, ank = { x: foot.x, y: -(foot.y + 0.05) }; const skin = far ? shadeHex(T.base, -0.15) : T.base; const out = ink(T.shadow);
+  const top = { x: hip.x, y: -(ART.hem + (drop || 0)) - 0.01 }, ank = { x: foot.x, y: -(foot.y + 0.05) }; const skin = far ? shadeHex(T.base, -0.15) : T.base; const out = ink(T.shadow);
   const dx = ank.x - top.x, dy = ank.y - top.y, d = Math.hypot(dx, dy) || 1e-6, nx = -dy / d, ny = dx / d; const w0 = ART.thighW / 2, w1 = ART.ankleW / 2; const bend = 0.012 * Math.sign(dx || 1);
   const leg = new Path2D(); leg.moveTo(top.x + nx * w0, top.y + ny * w0); leg.quadraticCurveTo((top.x + ank.x) / 2 + nx * (w0 + w1) / 2 + bend, (top.y + ank.y) / 2 + ny * (w0 + w1) / 2, ank.x + nx * w1, ank.y + ny * w1); leg.lineTo(ank.x - nx * w1, ank.y - ny * w1); leg.quadraticCurveTo((top.x + ank.x) / 2 - nx * (w0 + w1) / 2 + bend, (top.y + ank.y) / 2 - ny * (w0 + w1) / 2, top.x - nx * w0, top.y - ny * w0); leg.closePath();
   const lg = ctx.createLinearGradient(top.x - nx * w0, top.y - ny * w0, top.x + nx * w0, top.y + ny * w0); lg.addColorStop(0, shadeHex(skin, -0.14)); lg.addColorStop(0.5, skin); lg.addColorStop(1, shadeHex(skin, 0.06)); ctx.fillStyle = lg; ctx.fill(leg);
@@ -1545,8 +1507,8 @@ function drawLeg(ctx, T, hip, foot, far, lw, kit, sleeve, hemY) {
   ctx.restore(); ctx.strokeStyle = out; ctx.lineWidth = lw; ctx.stroke(leg); ctx.restore();
 }
 function drawShorts(ctx, P, lw, kit, T) {
-  const pel = P.pelvis, top = -ART.waist, hem = -ART.hem + P.hemFlutter, w0 = ART.shortsW / 2, w1 = ART.hemW / 2; const lf = P.footF, lb = P.footB;
-  const legSplit = -0.18, fx = clamp(lf.x * 0.35, -0.06, 0.08), bx = clamp(lb.x * 0.35, -0.08, 0.06);
+  const pel = P.pelvis, dy = pel.y - 0.24, top = -(ART.waist + dy), hem = -(ART.hem + dy) + P.hemFlutter, w0 = ART.shortsW / 2, w1 = ART.hemW / 2; const lf = P.footF, lb = P.footB;
+  const legSplit = -(0.18 + dy), fx = clamp(lf.x * 0.35, -0.06, 0.08), bx = clamp(lb.x * 0.35, -0.08, 0.06);
   const sh = new Path2D(); sh.moveTo(pel.x - w0, top); sh.lineTo(pel.x + w0, top); sh.lineTo(pel.x + w1 + fx * 0.6, hem); sh.lineTo(pel.x + 0.02 + fx * 0.4, hem + 0.004); sh.quadraticCurveTo(pel.x + 0.005, legSplit + 0.01, pel.x - 0.02 + bx * 0.4, hem + 0.004); sh.lineTo(pel.x - w1 + bx * 0.6, hem); sh.closePath();
   const g = ctx.createLinearGradient(0, top, 0, hem); g.addColorStop(0, shadeHex(kit.shorts, 0.08)); g.addColorStop(1, shadeHex(kit.shorts, -0.14)); ctx.fillStyle = g; ctx.fill(sh);
   ctx.save(); ctx.clip(sh);
@@ -1580,27 +1542,33 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   opts = opts || {}; const a = p.anim || (p.anim = {}); const H = p.height > 0.5 ? p.height : 1.9; const f = p.facing < 0 ? -1 : 1;
   const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
   const s = cam.scale(z), k = s * H, ox = cam.sx(x), oy = cam.sy(y, z); if (!isFinite(ox) || !isFinite(oy) || !(k > 2)) return;
-  const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); P._f = f; const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k);
+  const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k);
+  // a turn (spin move, 360 dunk) narrows the body side-on and shows the other side halfway round; the head narrows less
+  let fv = f, ts = 1, hs = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -f; ts = Math.max(ART.turnMin, Math.abs(cs)); hs = Math.max(ART.headTurnMin, Math.abs(cs)) / ts; } P._f = fv;
   if (!opts.reflection) {
     const floorY = cam.sy(0, z), hgt = Math.max(0, y), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1);
-    ctx.globalAlpha = fade; ctx.drawImage(shadowSprite(), ox - 0.45 * k * sc / 2 * 2, floorY - 0.08 * k * sc, 0.45 * k * sc * 2, 0.16 * k * sc); ctx.globalAlpha = 1; // soft floor shadow
+    ctx.globalAlpha = fade; ctx.drawImage(shadowSprite(), ox - 0.45 * k * sc, floorY - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); ctx.globalAlpha = 1; // soft floor shadow
     if (p.controlled && !opts.replay) { ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, floorY + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; }
     if (opts.glow) { ctx.globalAlpha = ART.glowAlpha; ctx.globalCompositeOperation = 'lighter'; const gs = 0.9 * k; ctx.drawImage(glowSprite(), ox - gs / 2, oy - 0.36 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
     if (p.onFire > 0) { ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = 'lighter'; const gs = 1.1 * k; ctx.drawImage(radialFire(), ox - gs / 2, oy - 0.5 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+    drawTrail(ctx, cam, p, (team && team.colors && team.colors[0]) || '#F3F0FF', rigNow(p, alpha));
   }
-  ctx.save(); ctx.translate(ox, oy); if (P.tilt) ctx.rotate(P.tilt * f); ctx.scale(P.sx, P.sy); ctx.scale(f * k, k); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  // lean: the upper body leans around the pelvis
-  const lean = P.lean || 0;
+  ctx.save(); ctx.translate(ox, oy); ctx.scale(fv * k * ts, k); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (P.rot) { ctx.translate(P.px, -P.py); ctx.rotate(-P.rot); ctx.translate(-P.px, P.py); } // falls tip backward about the feet; a rim hang swings under the hands
+  ctx.scale(P.sx, P.sy); // squash and stretch about the feet
+  const dy = P.pelvis.y - 0.24, hemY = -(ART.hem + dy) + P.hemFlutter; // crouching lowers the shorts
   const hipF = { x: P.pelvis.x + ART.legGap, y: P.pelvis.y }, hipB = { x: P.pelvis.x - ART.legGap, y: P.pelvis.y };
   drawHand(ctx, T, P.handB, true, lw, kit, L.acc.wristband);
-  drawLeg(ctx, T, hipB, P.footB, true, lw, kit, false, -ART.hem + P.hemFlutter); drawSneaker(ctx, P.footB, true, lw, kit);
+  drawLeg(ctx, T, hipB, P.footB, true, lw, kit, false, hemY, dy); drawSneaker(ctx, P.footB, true, lw, kit);
   drawShorts(ctx, P, lw, kit, T);
-  drawLeg(ctx, T, hipF, P.footF, false, lw, kit, L.acc.sleeve, -ART.hem + P.hemFlutter); drawSneaker(ctx, P.footF, false, lw, kit);
-  ctx.save(); ctx.translate(P.pelvis.x, -P.pelvis.y); ctx.rotate(lean); ctx.translate(-P.pelvis.x, P.pelvis.y);
+  drawLeg(ctx, T, hipF, P.footF, false, lw, kit, L.acc.sleeve, hemY, dy); drawSneaker(ctx, P.footF, false, lw, kit);
+  ctx.save(); ctx.translate(P.pelvis.x, -P.pelvis.y); ctx.rotate(P.lean || 0); ctx.translate(-P.pelvis.x, P.pelvis.y); // the upper body leans about the pelvis
   drawJersey(ctx, P, lw, kit, L.number != null ? L.number : (p.look && p.look.number));
-  // the head: cached painted face, live eyes and brows, strands (the head sits on the collar, no neck)
-  const hx = P.head.x, hy = -P.head.y; let lookX = 1, lookY = 0; const bl = ballLocal(p, ball, alpha); if (bl && !opts.reflection) { const dx = (bl.x - P.head.x) * H, dy = (bl.y - P.head.y) * H; const d = Math.hypot(dx, dy); if (d < ART.lookRange && d > 0.05) { const n = Math.max(d, 1.2); lookX = dx / n; lookY = -dy / n; } }
-  drawFace(ctx, L, hx, hy, ART.headWidth, 1, (a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k, sim: opts.reflection ? null : a, vx: p.vx, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
+  // the head: cached painted face, live eyes and brows, strands (it sits on the collar; there is no neck). Pupils follow the ball.
+  const hx = P.head.x, hy = -P.head.y; let lookX = 1, lookY = 0; const bl = ballLocal(p, ball, alpha);
+  if (bl && !opts.reflection) { const dx = (bl.x * f * fv - P.head.x) * H, dh = (bl.y - P.head.y) * H, d = Math.hypot(dx, dh); if (d < ART.lookRange && d > 0.05) { const n = Math.max(d, 1.2); lookX = dx / n; lookY = -dh / n; } }
+  if (hs !== 1) { ctx.translate(hx, 0); ctx.scale(hs, 1); ctx.translate(-hx, 0); }
+  drawFace(ctx, L, hx, hy, ART.headWidth, 1, (a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k * ts * hs, sim: opts.reflection ? null : a, vx: (p.vx || 0) * fv, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
   ctx.restore();
   drawHand(ctx, T, P.handF, false, lw, kit, L.acc.wristband);
   ctx.restore();
@@ -1611,9 +1579,334 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
     if (p.controlled) { const bob = Math.sin(performance.now() / 250) * 0.015 * k; const vx0 = ox, vy0 = topY - k * 0.02 + bob; ctx.fillStyle = '#FFD23F'; ctx.beginPath(); ctx.moveTo(vx0, vy0); ctx.lineTo(vx0 - k * 0.055, vy0 - k * 0.075); ctx.lineTo(vx0 + k * 0.055, vy0 - k * 0.075); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#1E1633'; ctx.lineWidth = Math.max(1.2, k * 0.006); ctx.stroke(); }
     if (p.callingForBall && !p.hasBall) { const bx = ox + f * k * 0.2, by = topY; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(bx, by, k * 0.06, 0, TAU); ctx.fill(); ctx.strokeStyle = '#1E1633'; ctx.lineWidth = Math.max(1.2, k * 0.006); ctx.stroke(); ctx.fillStyle = '#1E1633'; ctx.font = fontStr(k * 0.09, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', bx, by + 1); }
   }
-  if (p.hand) { p.hand.x = x + P.handF.x * H * f; p.hand.y = y + P.handF.y * H; }
+  if (p.hand) { p.hand.x = x + P.handF.x * H * fv * ts; p.hand.y = y + P.handF.y * H; }
 }
 let _fireSprite = null; function radialFire() { return _fireSprite || (_fireSprite = radialSprite('#FF8A2A', 0.7)); }
+
+// ============================================================================
+// SECTION: RIG — keyframed clips for every body action (§3.7), cross-faded over 80 ms and chosen by a small state
+// machine from the game state (poseFor). Visual only: it reads the simulation and never changes it. Hands that hold
+// the ball, grab the rim or contest a shot are pinned to the real gameplay positions, so the picture matches the physics.
+// Body units throughout: 1 = the player's height H, origin at the feet, +x = the way the player faces, +y up.
+// ============================================================================
+Object.assign(ART, {
+  blendS: 0.08,              // clip cross-fade (s), ease-in-out
+  runPeriod: 0.36,           // run cycle period at run speed (s)
+  runPeriodMax: 0.72,        // slowest step cycle when walking (s)
+  runStride: 0.10,           // run foot stride (±H)
+  sprintStride: 0.13,        // sprint foot stride (±H)
+  footLift: 0.05,            // foot lift during the swing (H)
+  runBounce: 0.015,          // pelvis bounce at twice the stride frequency (H)
+  runLean: 6,                // run lean (degrees)
+  sprintLean: 12,            // sprint lean (degrees)
+  breatheHz: 0.9,            // idle breathing rate (Hz)
+  bobbleK: 120,              // head bobble spring stiffness (1/s²)
+  bobbleDamp: 12,            // head bobble damping (1/s)
+  bobbleMax: 0.04,           // head bobble clamp (±H)
+  bobbleAccMax: 40,          // root acceleration fed to the bobble is clamped to this (m/s²)
+  dribblePump: 0.05,         // the dribble hand pushes the ball down this far from the top of the bounce (H)
+  turnMin: 0.42,             // narrowest body width halfway through a turn (spin, 360 dunk)
+  headTurnMin: 0.8,          // narrowest head width halfway through a turn
+  trail: [0.25, 0.15, 0.08], // motion-trail ghost opacities, newest first
+  trailStep: 0.035,          // seconds between motion-trail samples
+  sweatBelow: 0.4,           // sweat drops when stamina is below this fraction
+  sweatRate: 2,              // sweat drops per second
+  tiredBelow: 0.3,           // the tired face below this stamina fraction
+  hangSwing: 8,              // rim-hang pendulum amplitude (degrees)
+  hangHz: 1.4,               // rim-hang pendulum rate (Hz)
+  openShot: 0.4,             // a miss with less contest than this counts as an open shot (angry face)
+  flexHand: [0.33, 0.78],    // flex celebration fists (±x, y); the spec's (±0.22, 0.75) sits behind the 0.5 H wide head
+  wagHand: [0.32, 0.84],     // finger-wag hand; the spec's (0.18, 0.8) sits on the cheek
+});
+const DEG = Math.PI / 180;
+const RIG_NODES = ['pelvis', 'chest', 'head', 'handF', 'handB', 'footF', 'footB'];
+const RIG_SCALARS = ['sx', 'sy', 'rot', 'px', 'py', 'lean', 'turn', 'hemFlutter'];
+const RIG_CELEBS = ['flex', 'chestPound', 'pointSky', 'shimmy', 'fingerWag', 'airplane'];
+const EASE = { io: u => u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u), in: u => u * u, out: u => 1 - (1 - u) * (1 - u), lin: u => u };
+
+// --- pose helpers ---
+function clonePose(P) { const Q = Object.assign({}, P); for (const n of RIG_NODES) Q[n] = Object.assign({}, P[n]); return Q; }
+function wrapAngle(a) { a %= TAU; return a > Math.PI ? a - TAU : a < -Math.PI ? a + TAU : a; }
+function blendPose(A, B, w) {
+  const Q = clonePose(B);
+  for (const n of RIG_NODES) { const a = A[n], b = B[n], q = Q[n]; if (!a) continue; q.x = lerp(a.x, b.x, w); q.y = lerp(a.y, b.y, w); q.r = lerp(a.r || 0, b.r || 0, w); if (w < 0.5 && a.pose) q.pose = a.pose; }
+  for (const k of RIG_SCALARS) { const va = A[k] != null ? A[k] : B[k]; if (k === 'turn') { const ta = wrapAngle(va || 0), tb = wrapAngle(B.turn || 0); Q.turn = ta + wrapAngle(tb - ta) * w; } else Q[k] = lerp(va, B[k], w); }
+  return Q;
+}
+// Keyframes: [{ t, e, ...pose fields }] with t in seconds. A field a key leaves out comes from the base pose;
+// e names the ease into that key (io by default).
+function evalKeys(base, keys, t) {
+  const P = clonePose(base); let i = 0; while (i < keys.length - 1 && t >= keys[i + 1].t) i++;
+  const A = keys[i], B = keys[Math.min(i + 1, keys.length - 1)]; const u = B === A || t <= A.t ? 0 : (EASE[B.e] || EASE.io)(clamp((t - A.t) / (B.t - A.t), 0, 1));
+  for (const n of RIG_NODES) {
+    const ka = A[n], kb = B[n]; if (!ka && !kb) continue; const b0 = base[n], q = P[n];
+    for (const fl of ['x', 'y', 'r']) { const va = ka && ka[fl] != null ? ka[fl] : (b0[fl] || 0), vb = kb && kb[fl] != null ? kb[fl] : (b0[fl] || 0); q[fl] = va + (vb - va) * u; }
+    const pa = (ka && ka.pose) || b0.pose, pb = (kb && kb.pose) || b0.pose; if (pa || pb) q.pose = u < 0.5 ? pa : pb;
+  }
+  for (const k of RIG_SCALARS) { if (A[k] == null && B[k] == null) continue; const va = A[k] != null ? A[k] : base[k], vb = B[k] != null ? B[k] : base[k]; P[k] = va + (vb - va) * u; }
+  return P;
+}
+const rigHand = (x, y, pose, r) => ({ x, y, pose: pose || 'relaxed', r: r || 0 });
+
+// --- grips: hands on the ball. The ball is drawn over the hands, so every grip leaves part of the hand showing. ---
+function gripUnder(bl, br) { return rigHand(bl.x - br * 0.35, bl.y - br - ART.palmRy * 0.35, 'open', -1.35); }     // shooting hand under the ball
+function gripGuide(bl, br) { return rigHand(bl.x - br - ART.palmRx * 0.45, bl.y + br * 0.1, 'open', -1.5); }        // guide hand on its side
+function gripOver(bl, br) { return rigHand(bl.x - br * 0.3, bl.y + br * 0.85, 'cupped', 0.5); }                    // palm over the top
+function gripBehind(bl, br) { return rigHand(bl.x - br * 0.8, bl.y + br * 0.35, 'cupped', -0.9); }                 // one-hand carry, palm behind the ball
+function gripSides(P, bl, br) { P.handF = rigHand(bl.x + br + ART.palmRx * 0.3, bl.y, 'cupped', -1.7); P.handB = rigHand(bl.x - br - ART.palmRx * 0.3, bl.y + 0.01, 'cupped', 1.6); }
+// The dribble: the hand rides the top of the real bounce, pushes the ball down by the pump distance, then waits for it.
+function gripDribble(P, c, follow) {
+  const bl = c.bl, br = c.br, k = c.st === 'hesitation' ? 0.5 : 1; const apexTop = (2 * BALL.radius + (PC.dribble.handHeight - BALL.radius) * k) / c.H;
+  const ballTop = bl.y + br, top = follow ? ballTop : Math.max(ballTop, apexTop - ART.dribblePump);
+  const h = rigHand(bl.x - 0.005, top + ART.palmRy * 0.55, 'open', 0.35); if (bl.x >= -0.02) P.handF = h; else P.handB = h;
+}
+// Holding the ball in a locomotion clip: dribble it, or both hands on it once the dribble is picked up.
+function gripCarry(P, c, follow) { if (!c.holding) return; if (c.dribbling) gripDribble(P, c, follow); else gripSides(P, c.bl, c.br); }
+
+// --- the clip context: everything a clip reads, gathered once per frame ---
+function rigNow(p, alpha) { return p.rigTime != null ? p.rigTime : (p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : performance.now() / 1000); }
+function rigContext(p, alpha, ball, now) {
+  const a = p.anim || (p.anim = {}), H = p.height > 0.5 ? p.height : 1.9, f = p.facing < 0 ? -1 : 1;
+  const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
+  const bl = ballLocal(p, ball, alpha), holding = !!(ball && ball.owner === p && bl), sd = p.sd || {}, hoop = p.hoop;
+  const rim = hoop && isFinite(hoop.x) ? { x: (hoop.x - f * W.rimInnerRadius * 0.8 - x) * f / H, y: (RIM_Y - y) / H } : null;
+  return { p, a, H, f, x, y, z, st: p.state || 'move', sd, T: p.stateT || 0, now, sp: Math.abs(p.vx || 0), vxf: (p.vx || 0) * f, vy: p.vy || 0, grounded: p.grounded !== false,
+    holding, bl, br: BALL.radius / H, reachH: (p.reach || H * 1.33) / H, rim, ball, loose: !!(ball && !ball.owner && bl), dribbling: holding && p.grounded !== false && !p.pickedUp,
+    airT: p.airT != null ? p.airT : (p.stateT || 0) };
+}
+function idleBase(c) { const P = restPose(), b = Math.sin(c.now * TAU * ART.breatheHz); P.chest.y += 0.004 * b; P.head.y += 0.006 * b; return P; }
+
+// --- the clips ---
+const RIG_CLIPS = {
+  idle(c) { const P = idleBase(c); gripCarry(P, c); return P; },
+  run(c) { return runPose(c, false); },
+  sprint(c) { return runPose(c, true); },
+  burstCross(c, t) { const P = runPose(c, true); P.lean = lerp(14, ART.sprintLean, clamp(t / 0.25, 0, 1)) * DEG; return P; },
+  slide(c) {
+    const P = idleBase(c); P.pelvis.y = 0.21; P.chest.y -= 0.03; P.head.y -= 0.03; P.lean = 8 * DEG; P.footF.x = 0.13; P.footB.x = -0.13;
+    P.handF = rigHand(0.28, 0.33, 'open', -0.5); P.handB = rigHand(-0.26, 0.35, 'open', 0.5);
+    if (c.sp > 0.3) { const s = Math.sin(c.a.runPh || 0), lead = c.vxf >= 0 ? 1 : -1; const L = lead > 0 ? P.footF : P.footB, R = lead > 0 ? P.footB : P.footF; // a slide step: the lead foot reaches, then the trail foot closes
+      L.x += lead * 0.03 * Math.max(0, s); L.y = 0.015 * Math.max(0, s); R.x += lead * 0.03 * Math.max(0, -s); R.y = 0.015 * Math.max(0, -s); const bob = 0.01 * Math.abs(s); P.pelvis.y += bob; P.chest.y += bob; P.head.y += bob; }
+    gripCarry(P, c); return P;
+  },
+  protect(c) { // post-up and protect dribble: hips low, back into the defender, the off hand as a bar
+    const P = idleBase(c); P.pelvis.y = 0.22; P.chest.y -= 0.02; P.head.y -= 0.02; P.lean = -6 * DEG; P.footF.x = 0.1; P.footB.x = -0.12; P.pelvis.x = -0.015;
+    const ballFront = c.bl ? c.bl.x >= 0 : true; if (ballFront) P.handB = rigHand(-0.27, 0.42, 'open', 0.9); else P.handF = rigHand(0.27, 0.42, 'open', -0.9);
+    gripCarry(P, c); return P;
+  },
+  boxout(c) { const P = idleBase(c); P.pelvis.y = 0.22; P.pelvis.x = -0.03; P.chest.y -= 0.02; P.head.y -= 0.02; P.lean = -6 * DEG; P.footF.x = 0.12; P.footB.x = -0.12; P.handF = rigHand(0.30, 0.40, 'open', -0.6); P.handB = rigHand(-0.30, 0.40, 'open', 0.6); return P; },
+  crossover(c, t) { // the jab the wrong way, then the plant and burst
+    const P = evalKeys(idleBase(c), [{ t: 0 }, { t: 0.1, lean: -10 * DEG, pelvis: { y: 0.22 }, footF: { x: 0.02 }, footB: { x: -0.15 } }, { t: 0.16, lean: 14 * DEG, sx: 1.06, sy: 0.94, pelvis: { y: 0.21 }, footF: { x: 0.15 }, footB: { x: -0.1 } }, { t: 0.24, lean: 14 * DEG, pelvis: { y: 0.22 }, footF: { x: 0.12 }, footB: { x: -0.12 } }], t);
+    gripCarry(P, c, true); return P;
+  },
+  spin(c, t) { // a full turn: the body narrows as it turns side-on and shows the other side halfway through
+    const u = clamp(t / 0.35, 0, 1), P = idleBase(c); P.turn = u * TAU; const nf = Math.min(Math.abs(u - 0.25), Math.abs(u - 0.75)); const sq = Math.max(0, 1 - nf / 0.1); P.sy = 1 - 0.08 * sq; P.sx = 1 + 0.04 * sq;
+    P.footF.x = 0.06; P.footB.x = -0.06 - 0.06 * Math.sin(u * Math.PI); P.footB.y = 0.03 * Math.sin(u * Math.PI); P.pelvis.y = 0.23; P.lean = 5 * DEG;
+    P.handB = rigHand(-0.26, 0.42, 'open', 0.6); gripCarry(P, c, true); return P;
+  },
+  stepback(c, t) { // a hop back with a lean away; the off hand comes in to gather
+    const P = evalKeys(idleBase(c), [{ t: 0 }, { t: 0.06, pelvis: { y: 0.22 }, sx: 1.04, sy: 0.96 }, { t: 0.16, lean: -10 * DEG, pelvis: { y: 0.26 }, footF: { x: 0.1, y: 0.05 }, footB: { x: -0.04, y: 0.07 } }, { t: 0.26, lean: -10 * DEG, pelvis: { y: 0.22 }, footF: { x: 0.12 }, footB: { x: -0.12 }, sx: 1.06, sy: 0.94 }, { t: 0.41, lean: -4 * DEG }], t);
+    P.handB = rigHand(0.06, 0.40, 'cupped', -0.8); gripCarry(P, c, true); return P;
+  },
+  hesitation(c, t) { const P = idleBase(c); P.lean = -4 * DEG; P.head.r = -0.05; P.footF.x = 0.08; P.footB.x = -0.08; P.handB = rigHand(-0.2, 0.36, 'open', 0.3); P.handF = rigHand(0.24, 0.34, 'open', -0.3); gripCarry(P, c, true); return P; },
+  shotGather(c, t) { // the dip before the jump: squash, knees bend, both hands bring the ball up
+    const g = (c.sd.gatherMs || 120) / 1000, u = EASE.out(clamp(t / g, 0, 1)), P = idleBase(c); P.sx = lerp(1, 1.08, u); P.sy = lerp(1, 0.92, u); P.pelvis.y -= 0.02 * u; P.footF.x = 0.09; P.footB.x = -0.07; P.head.r = -0.04 * u;
+    if (c.holding) gripSides(P, c.bl, c.br); else { P.handF = rigHand(0.08, 0.40, 'cupped', -1.2); P.handB = rigHand(0.02, 0.42, 'cupped', 1.2); } return P;
+  },
+  layupGather(c, t) { // a two-step gather
+    const g = (c.sd.gatherMs || 150) / 1000, u = clamp(t / g, 0, 1), P = idleBase(c); const s1 = Math.sin(Math.min(1, u * 2) * Math.PI), s2 = Math.sin(Math.max(0, u * 2 - 1) * Math.PI);
+    P.footF.x = 0.07 + 0.08 * Math.min(1, u * 2); P.footF.y = 0.035 * s1; P.footB.x = -0.07 + 0.14 * Math.max(0, u * 2 - 1); P.footB.y = 0.035 * s2; P.lean = 8 * DEG; P.pelvis.y = 0.23;
+    if (c.holding) gripSides(P, c.bl, c.br); return P;
+  },
+  pumpfake(c, t) { const P = idleBase(c), up = Math.sin(clamp(t / 0.32, 0, 1) * Math.PI); P.pelvis.y += 0.012 * up; P.chest.y += 0.012 * up; P.head.y += 0.012 * up; P.head.r = -0.06 * up; P.footF.x = 0.09; P.footB.x = -0.07; if (c.holding) gripSides(P, c.bl, c.br); return P; },
+  jumpshot(c, t) {
+    const P = idleBase(c); P.footF = { x: 0.03, y: 0.03, r: 0 }; P.footB = { x: -0.03, y: 0.02, r: 0 }; P.head.r = -5 * DEG; if (c.sd.fade) P.lean = -15 * DEG;
+    if (c.holding) { P.handF = gripUnder(c.bl, c.br); P.handB = gripGuide(c.bl, c.br); return P; }
+    const rt = c.sd.relT != null ? Math.max(0, t - c.sd.relT) : 0.2; // after the release: flick 40° forward in 60 ms, hold the follow-through 0.25 s, then drop
+    const flick = EASE.out(clamp(rt / 0.06, 0, 1)), drop = EASE.io(clamp((rt - 0.31) / 0.25, 0, 1));
+    P.handF = rigHand(lerp(0.04, 0.10, flick), lerp(1.08, 1.14, flick), 'open', -1.35 + 40 * DEG * flick); P.handB = rigHand(-0.02, lerp(1.08, 1.02, flick), 'open', -1.5);
+    if (drop > 0) { P.handF = blendHand(P.handF, rigHand(0.2, 0.34, 'relaxed', 0.15), drop); P.handB = blendHand(P.handB, rigHand(-0.18, 0.36, 'relaxed', 0.15), drop); }
+    return P;
+  },
+  floater(c, t) { // a one-hand scoop with a high arc
+    const P = idleBase(c); P.footF = { x: 0.06, y: 0.05, r: 0 }; P.footB = { x: -0.04, y: 0.02, r: 0 }; P.lean = 4 * DEG; P.handB = rigHand(0.02, 0.55, 'open', -0.4);
+    if (c.holding) { const g = gripUnder(c.bl, c.br); g.r = -1.9; P.handF = g; return P; }
+    const rt = c.sd.relT != null ? Math.max(0, t - c.sd.relT) : 0.2, u = EASE.out(clamp(rt / 0.08, 0, 1)); P.handF = rigHand(lerp(0.08, 0.16, u), lerp(0.98, 1.1, u), 'open', lerp(-1.9, -1.2, u)); return P;
+  },
+  hook(c, t) { // body turned side-on, the far hand arcs the ball over the head, the near hand shields
+    const P = idleBase(c); P.turn = 0.5; P.lean = -8 * DEG; P.head.r = -0.08; P.footF = { x: 0.05, y: 0.06, r: 0 }; P.footB = { x: -0.05, y: 0.02, r: 0 }; P.handF = rigHand(0.12, 0.75, 'open', -1.4);
+    if (c.holding) { P.handB = gripUnder(c.bl, c.br); return P; }
+    const rt = c.sd.relT != null ? Math.max(0, t - c.sd.relT) : 0.2, u = EASE.out(clamp(rt / 0.1, 0, 1)); P.handB = rigHand(lerp(0.06, 0.10, u), lerp(1.08, 1.15, u), 'open', lerp(-1.4, -0.8, u)); return P;
+  },
+  layup(c, t) { // the lead hand extends while the opposite knee lifts
+    const P = idleBase(c); P.footB = { x: 0.08, y: 0.1, r: -0.3 }; P.footF = { x: -0.03, y: 0.02, r: 0 }; P.lean = 6 * DEG; P.handB = rigHand(-0.14, 0.5, 'open', 0.3); P.head.r = -0.08;
+    if (c.holding) { P.handF = gripUnder(c.bl, c.br); P.handF.r = -1.3; return P; }
+    const rt = c.sd.relT != null ? Math.max(0, t - c.sd.relT) : 0.2, drop = EASE.io(clamp((rt - 0.2) / 0.25, 0, 1)); P.handF = blendHand(rigHand(0.22, 1.1, 'open', -1.3), rigHand(0.2, 0.36, 'relaxed', 0.15), drop); return P;
+  },
+  dunk(c, t) {
+    const v = c.a.dunkVar || 'onehand', u = clamp(t / 0.35, 0, 1), P = idleBase(c); P.footF = { x: 0.08, y: 0.09, r: -0.2 }; P.footB = { x: -0.04, y: 0.05, r: 0 }; P.sy = lerp(1, 1.04, u); P.head.r = -0.1;
+    if (v === 'tomahawk') P.lean = lerp(-10, 10, EASE.in(u)) * DEG; // arched back, then snapped forward
+    if (v === 'spin360') P.turn = c.a.spinAngle || u * TAU;
+    if (!c.holding) { P.handF = rigHand(0.12, c.reachH - 0.05, 'open', -1.4); P.handB = rigHand(-0.1, 0.95, 'open', -1.2); return P; }
+    const bl = c.bl, br = c.br;
+    if (v === 'twohand') gripSides(P, bl, br);
+    else if (v === 'tomahawk') { P.handF = gripOver(bl, br); P.handF.r = lerp(0.9, 0.3, u); P.handB = rigHand(0.22, 0.7, 'open', -0.5); }
+    else { P.handF = gripBehind(bl, br); P.handB = rigHand(-0.16, 0.62, 'open', 0.4); }
+    return P;
+  },
+  rimhang(c, t) { // hands on the rim, the body swings under them like a pendulum with the legs tucked
+    const P = idleBase(c); const r = c.rim || { x: 0.2, y: c.reachH - 0.08 }; P.handF = rigHand(r.x - 0.02, r.y + 0.01, 'fist', -1.5); P.handB = rigHand(r.x - 0.11, r.y, 'fist', -1.5);
+    P.footF = { x: 0.06, y: 0.08, r: -0.2 }; P.footB = { x: -0.03, y: 0.06, r: 0 }; P.px = r.x - 0.06; P.py = r.y; P.rot = ART.hangSwing * DEG * Math.sin(t * TAU * ART.hangHz);
+    const st = 1 - EASE.out(clamp(t / 0.15, 0, 1)); P.sy = 1 + 0.08 * st; P.sx = 1 - 0.03 * st; return P; // the 1.08 stretch at the slam
+  },
+  block(c) { const P = idleBase(c); P.handF = rigHand(0.1, c.reachH - ART.palmRx, 'open', -1.4); P.handB = rigHand(-0.05, 0.9, 'open', -1.2); P.footF = { x: 0.04, y: 0.03, r: 0 }; P.footB = { x: -0.04, y: 0.02, r: 0 }; P.head.r = -0.1; return P; },
+  air(c) { // jumping or falling: the ball overhead, reaching for a loose ball, or arms out
+    const P = idleBase(c); P.footF = { x: 0.05, y: 0.03, r: 0 }; P.footB = { x: -0.04, y: 0.015, r: 0 };
+    if (c.holding) { gripSides(P, c.bl, c.br); return P; }
+    if (c.loose && c.bl.y > 0.6) { const d = Math.hypot(c.bl.x, c.bl.y - 0.44), R = c.reachH - 0.44, k = d > R ? R / d : 1; P.handF = rigHand(c.bl.x * k, 0.44 + (c.bl.y - 0.44) * k - c.br * 0.5, 'open', -1.3); P.handB = rigHand(-0.04, c.reachH - 0.14, 'open', -1.4); P.head.r = -0.08; return P; }
+    P.handF = rigHand(0.24, 0.5, 'open', -0.6); P.handB = rigHand(-0.22, 0.52, 'open', 0.6); return P;
+  },
+  tip(c) { const P = RIG_CLIPS.block(c); if (c.holding) P.handF = gripUnder(c.bl, c.br); P.handB = rigHand(-0.04, c.reachH - 0.1, 'open', -1.4); return P; },
+  swipe(c, t) { return evalKeys(idleBase(c), [{ t: 0 }, { t: 0.07, handF: rigHand(0.25, 0.45, 'open', -0.2), lean: 6 * DEG, footF: { x: 0.1 } }, { t: 0.19, handF: rigHand(0.40, 0.25, 'open', 0.4), lean: 12 * DEG, footF: { x: 0.14 }, pelvis: { y: 0.22 } }, { t: 0.47 }], t); },
+  shove(c, t) { return evalKeys(idleBase(c), [{ t: 0 }, { t: 0.1, handF: rigHand(0.22, 0.4, 'open', -1.3), handB: rigHand(0.18, 0.36, 'open', -1.3), lean: -4 * DEG }, { t: 0.2, handF: rigHand(0.36, 0.42, 'open', -1.4), handB: rigHand(0.32, 0.38, 'open', -1.4), lean: 14 * DEG, footF: { x: 0.14 } }, { t: 0.55 }], t); },
+  pass(c, t) { const P = idleBase(c); P.footF.x = 0.1; if (c.holding) { gripSides(P, c.bl, c.br); return P; } const u = EASE.out(clamp((t - 0.08) / 0.08, 0, 1)), back = EASE.io(clamp((t - 0.16) / 0.12, 0, 1)); P.handF = blendHand(rigHand(lerp(0.2, 0.34, u), 0.44, 'open', -1.4), rigHand(0.2, 0.3, 'relaxed', 0.15), back); P.handB = blendHand(rigHand(lerp(0.16, 0.3, u), 0.4, 'open', -1.4), rigHand(-0.18, 0.31, 'relaxed', 0.15), back); P.lean = 6 * DEG * u * (1 - back); return P; },
+  lob(c, t) { const P = idleBase(c); P.footF.x = 0.1; if (c.holding) { gripSides(P, c.bl, c.br); return P; } const u = EASE.out(clamp((t - 0.15) / 0.1, 0, 1)), back = EASE.io(clamp((t - 0.25) / 0.12, 0, 1)); P.handF = blendHand(rigHand(0.18, lerp(0.7, 1.0, u), 'open', -1.3), rigHand(0.2, 0.3, 'relaxed', 0.15), back); P.handB = blendHand(rigHand(0.1, lerp(0.66, 0.95, u), 'open', -1.3), rigHand(-0.18, 0.31, 'relaxed', 0.15), back); return P; },
+  catch(c) { const P = idleBase(c); if (c.holding) { gripSides(P, c.bl, c.br); return P; } P.handF = rigHand(0.3, 0.45, 'open', -0.8); P.handB = rigHand(0.24, 0.42, 'open', -0.8); return P; },
+  land(c, t) { // the landing squash (a jump shot lands a little softer), knees bend, then back up
+    const soft = c.a.landSoft, u = 1 - EASE.out(clamp(t / 0.09, 0, 1)), k = 1 - EASE.io(clamp((t - 0.05) / 0.07, 0, 1)); const P = idleBase(c);
+    P.sy = 1 - (soft ? 0.12 : 0.15) * u; P.sx = 1 + (soft ? 0.1 : 0.12) * u; P.pelvis.y -= 0.03 * k; P.chest.y -= 0.03 * k; P.head.y -= 0.03 * k; P.footF.x = 0.1; P.footB.x = -0.09; gripCarry(P, c); return P;
+  },
+  stagger(c, t) { const P = idleBase(c), u = Math.sin(clamp(t / 0.15, 0, 1) * Math.PI); P.rot = 8 * DEG * u; P.handF = rigHand(0.26, 0.42, 'open', -0.3); P.handB = rigHand(-0.24, 0.44, 'open', 0.3); gripCarry(P, c); return P; },
+  stumble(c, t) { return evalKeys(idleBase(c), [{ t: 0 }, { t: 0.12, rot: 20 * DEG, handF: rigHand(0.3, 0.46, 'open', -0.2), handB: rigHand(-0.26, 0.5, 'open', 0.2), footF: { x: 0.12, y: 0.04 } }, { t: 0.35, rot: 20 * DEG, handF: rigHand(0.3, 0.46, 'open', -0.2), handB: rigHand(-0.26, 0.5, 'open', 0.2) }, { t: 0.7 }], t); },
+  fall(c, t) { // knocked down or sat down by an ankle-breaker: tip over, bounce, lie there, get up in 0.6 s
+    const D = Math.max(0.9, (c.sd.ms || 900) / 1000), lie = { rot: 80 * DEG, handF: rigHand(0.26, 0.6, 'open', -0.6), handB: rigHand(-0.2, 0.62, 'open', 0.4), footF: { x: 0.1, y: 0.06 }, footB: { x: 0.02, y: 0.02 } };
+    return evalKeys(idleBase(c), [{ t: 0 }, Object.assign({ t: 0.25, e: 'in' }, lie), Object.assign({}, lie, { t: 0.33, rot: 70 * DEG, e: 'out' }), Object.assign({}, lie, { t: 0.42, e: 'in' }), Object.assign({}, lie, { t: Math.max(0.43, D - 0.6) }), { t: Math.max(0.44, D) }], t);
+  },
+  celebrate(c, t) {
+    const v = c.a.celeb || 'flex', P = idleBase(c);
+    if (v === 'flex') { P.handF = rigHand(ART.flexHand[0], ART.flexHand[1], 'fist', -1.6); P.handB = rigHand(-ART.flexHand[0], ART.flexHand[1], 'fist', -1.6); P.sx = 1.04; P.sy = 0.98; }
+    else if (v === 'chestPound') { const tap = Math.max(0, Math.sin(clamp(t / 0.5, 0, 1) * Math.PI * 4)); P.handF = rigHand(lerp(0.15, 0.05, tap), lerp(0.42, 0.36, tap), 'fist', -0.2); P.handB = rigHand(-0.2, 0.34, 'relaxed', 0.15); }
+    else if (v === 'pointSky') { P.handF = rigHand(0.04, 1.25, 'point', -Math.PI / 2); P.head.r = -0.15; P.handB = rigHand(-0.2, 0.34, 'relaxed', 0.15); }
+    else if (v === 'shimmy') { const s = 0.03 * Math.sin(t * TAU * 6); P.chest.x += s; P.head.x += s * 0.6; P.handF = rigHand(0.2 + s, 0.4, 'fist', -0.4); P.handB = rigHand(-0.2 + s, 0.4, 'fist', 0.4); }
+    else if (v === 'fingerWag') { P.handF = rigHand(ART.wagHand[0], ART.wagHand[1], 'point', -Math.PI / 2 + 15 * DEG * Math.sin(t * TAU * 4)); P.head.r = 0.04 * Math.sin(t * TAU * 2); }
+    else { const s = Math.sin(t * TAU * 1.2); P.handF = rigHand(0.4, 0.55, 'open', 0); P.handB = rigHand(-0.4, 0.55, 'open', Math.PI); P.rot = -10 * DEG * s; if (c.sp > 0.3) { const J = runPose(c, false); P.footF = J.footF; P.footB = J.footB; } } // airplane
+    return P;
+  },
+};
+function blendHand(A, B, w) { return rigHand(lerp(A.x, B.x, w), lerp(A.y, B.y, w), w < 0.5 ? A.pose : B.pose, lerp(A.r || 0, B.r || 0, w)); }
+// Run and sprint (§3.7): stride and step rate scale with speed; the feet swing forward in the air and push back on the floor.
+function runPose(c, sprint) {
+  const P = idleBase(c), back = c.vxf < -0.3, ph = (back ? -1 : 1) * (c.a.runPh || 0), k = sprint ? 1 : clamp(c.sp / PC.runSpeed, 0.45, 1);
+  const stride = (sprint ? ART.sprintStride : ART.runStride) * k, lift = ART.footLift * (0.6 + 0.4 * k), cf = Math.cos(ph), sf = Math.sin(ph);
+  P.footF.x = 0.02 + cf * stride; P.footF.y = Math.max(0, -sf) * lift; P.footB.x = -0.02 - cf * stride; P.footB.y = Math.max(0, sf) * lift;
+  P.footF.r = -0.3 * Math.max(0, -sf) * Math.max(0, -cf); P.footB.r = -0.3 * Math.max(0, sf) * Math.max(0, cf); // toe-off
+  const bob = ART.runBounce * Math.abs(sf); P.pelvis.y += bob; P.chest.y += bob; P.head.y += bob; P.lean = (back ? -0.5 : 1) * (sprint ? ART.sprintLean : ART.runLean) * k * DEG;
+  const sw = sprint ? 0.1 : 0.08, pose = sprint ? 'fist' : 'relaxed'; P.handF = rigHand(0.16 - sw * cf, 0.30 - 0.04 * cf, pose, 0.2); P.handB = rigHand(-0.14 + sw * cf, 0.31 + 0.04 * cf, pose, 0.2);
+  P.hemFlutter = 0.01 * sf; gripCarry(P, c); return P;
+}
+
+// --- the state machine: game state → clip ---
+function rigSelect(c) {
+  const p = c.p, st = c.st, sd = c.sd, T = c.T; if (p.rigForce && RIG_CLIPS[p.rigForce]) return [p.rigForce, T]; // the Art Lab shows any clip
+  switch (st) {
+    case 'crossover': case 'spin': case 'stepback': case 'hesitation': case 'swipe': case 'shove': case 'pass': case 'lob': case 'pumpfake': case 'celebrate': case 'rimhang': case 'stagger': case 'land': case 'protect': return [st, T];
+    case 'burst': return [sd.kind === 'crossover' ? 'burstCross' : 'sprint', T];
+    case 'gather': return [sd.type === 'layup' || sd.type === 'dunk' ? 'layupGather' : 'shotGather', T];
+    case 'jumpshot': return ['jumpshot', T];
+    case 'floater': return [sd.type === 'hook' ? 'hook' : 'floater', T];
+    case 'layup': return ['layup', T];
+    case 'dunk': return ['dunk', T];
+    case 'tipin': return ['tip', T];
+    case 'catch': return [c.grounded ? 'catch' : 'air', T];
+    case 'stumble': return [sd.sit ? 'fall' : 'stumble', T];
+    case 'knocked': return ['fall', T];
+    case 'jump': case 'fall': return [!c.holding && rigContesting(c) ? 'block' : 'air', T];
+    default: break; // idle, move, stance, tipoff
+  }
+  if (!c.grounded) return ['air', T];
+  if (rigBoxingOut(c)) return ['boxout', T];
+  if ((p.anim && p.anim.defStance) || st === 'stance') return ['slide', T];
+  if (c.sp > 0.4) return [c.sp > PC.runSpeed * 0.95 ? 'sprint' : 'run', T];
+  return ['idle', T];
+}
+function rigContesting(c) { const m = c.p.match; if (!m || !m.ball) return false; const b = m.ball, h = b.owner; if (h && h.team !== c.p.team) return true; return !!(b.shot && !b.owner && b.shot.shooter && b.shot.shooter.team !== c.p.team && b.mode === 'flight'); }
+function rigBoxingOut(c) { // the rebound battle: a shot in the air, near its hoop, with an opponent close by
+  const m = c.p.match; if (!m || !m.ball || c.holding) return false; const b = m.ball, s = b.shot; if (!s || b.owner || b.mode !== 'flight' || !s.shooter || !s.shooter.hoop) return false;
+  if (Math.abs(c.x - s.shooter.hoop.x) > 3.5) return false; return m.players.some(o => o !== c.p && o.team !== c.p.team && Math.abs(o.x - c.x) < 1.4 && Math.abs(o.z - c.p.z) < 0.4);
+}
+// Picks made when a clip starts: which celebration, which dunk, how soft the landing. Seeded from the player's own
+// stats so a replay of the same play picks the same one; never from the match RNG, so gameplay can't change.
+function rigEnter(c, name) {
+  const a = c.a, p = c.p, s = p.stats || {}; const seed = hashString((p.name || '') + '|' + name + '|' + ((s.pts || 0) + 7 * (s.fga || 0) + 13 * (s.dunkA || 0) + 17 * (s.blk || 0)));
+  if (name === 'celebrate') a.celeb = RIG_CELEBS.includes(a.forceVar) ? a.forceVar : RIG_CELEBS[seed % RIG_CELEBS.length];
+  else if (name === 'dunk') { const st = c.sd.style | 0; a.dunkVar = a.forceVar || (st === 1 ? 'spin360' : st === 2 ? 'windmill' : ['onehand', 'twohand', 'tomahawk'][seed % 3]); }
+  else if (name === 'land') a.landSoft = a.rigClip === 'jumpshot' || a.rigClip === 'floater' || a.rigClip === 'hook';
+}
+// Squash and stretch in the air (§3.7): 0.9 y / 1.08 x for 60 ms after takeoff, 1.05 y around the apex.
+const RIG_AIR = { air: 1, block: 1, jumpshot: 1, floater: 1, hook: 1, layup: 1, dunk: 1, tip: 1 };
+function rigAirSquash(P, c, name) {
+  if (!RIG_AIR[name] || c.grounded) return; const t0 = c.airT;
+  if (t0 < 0.06) { const u = 1 - t0 / 0.06; P.sx *= 1 + 0.08 * u; P.sy *= 1 - 0.1 * u; } else P.sy *= 1 + 0.05 * Math.max(0, 1 - Math.abs(c.vy) / 2);
+}
+// Motion trails (§3.7): recent poses on dunks, spins and crossovers, drawn as fading team-color ghosts.
+const RIG_TRAIL = { dunk: 1, spin: 1, crossover: 1, burstCross: 1 };
+function rigTrail(c, name, P) {
+  const a = c.a, tr = a.trail || (a.trail = []); if (tr.length && c.now < tr[tr.length - 1].t) tr.length = 0; // a replay restarted
+  if (RIG_TRAIL[name]) { if (!tr.length || c.now - tr[tr.length - 1].t >= ART.trailStep) { tr.push({ t: c.now, x: c.x, y: c.y, z: c.z, f: c.f, P: clonePose(P) }); if (tr.length > 4) tr.shift(); } }
+  else if (tr.length && c.now - tr[tr.length - 1].t > ART.trailStep * 3) tr.length = 0;
+}
+function rigPoseOk(P) { return isFinite(P.head.x + P.head.y + P.chest.y + P.pelvis.x + P.pelvis.y + P.handF.x + P.handF.y + P.handB.x + P.handB.y + P.footF.x + P.footF.y + P.footB.x + P.footB.y + P.sx + P.sy + P.rot + P.px + P.py + P.lean + P.turn + P.hemFlutter); }
+
+// The body pose for this frame: the clip for the current state, cross-faded from the last pose when the clip changes,
+// plus the head bobble. Never throws: a bad clip or bad data falls back to the rest pose.
+function rigPoseFor(p, alpha, ball) {
+  const a = p.anim || (p.anim = {}), now = rigNow(p, alpha); let c, name = 'idle', t = 0, P;
+  try {
+    c = rigContext(p, alpha, ball, now); [name, t] = rigSelect(c);
+    if (a.rigClip !== name) { rigEnter(c, name); if (a.rigLast && a.rigClip) { a.rigFrom = a.rigLast; a.rigFrom0 = now; } a.rigClip = name; }
+    P = (RIG_CLIPS[name] || RIG_CLIPS.idle)(c, t); rigAirSquash(P, c, name);
+    if (a.rigFrom) { const w = (now - a.rigFrom0) / ART.blendS; if (!(w >= 0 && w < 1)) a.rigFrom = null; else P = blendPose(a.rigFrom, P, EASE.io(w)); }
+    if (!rigPoseOk(P)) throw new Error('bad pose');
+    rigTrail(c, name, P);
+  } catch (e) { P = restPose(); a.rigFrom = null; }
+  a.rigLast = P; const Q = clonePose(P); Q.head.x += a.bobX || 0; Q.head.y += a.bobY || 0; Q.clip = name; return Q;
+}
+
+// --- per-step animation state (runs on the sim clock, so replays match): head bobble, run phase, faces ---
+function rigUpdate(p, m, dt) {
+  const a = p.anim, H = p.height > 0.5 ? p.height : 1.9, f = p.facing < 0 ? -1 : 1, AM = ART.bobbleAccMax;
+  const ax = clamp((p.vx - p.prevVx) / dt, -AM, AM) * f / H, ay = clamp((p.vy - p.prevVy) / dt, -AM, AM) / H, K = ART.bobbleK, D = ART.bobbleDamp, M = ART.bobbleMax;
+  a.bobVX = (a.bobVX || 0) + (-K * (a.bobX || 0) - D * (a.bobVX || 0) - ax) * dt; a.bobX = clamp((a.bobX || 0) + a.bobVX * dt, -M, M); // the head lags the body's acceleration
+  a.bobVY = (a.bobVY || 0) + (-K * (a.bobY || 0) - D * (a.bobVY || 0) - ay) * dt; a.bobY = clamp((a.bobY || 0) + a.bobVY * dt, -M, M);
+  const sp = Math.abs(p.vx), per = ART.runPeriod * clamp(PC.runSpeed / Math.max(sp, 0.01), 1, ART.runPeriodMax / ART.runPeriod); if (p.grounded && sp > 0.3) a.runPh = ((a.runPh || 0) + dt * TAU / per) % (TAU * 64);
+  rigExpression(p, m, dt);
+}
+// Faces (§3.7 triggers): a reaction (hyped, shocked, angry) plays for its time; otherwise the face follows what the player
+// is doing: effort while shooting, dunking or contesting, tired when low on stamina, focused on defense, else neutral.
+function setExpr(p, e, s) { if (p && p.anim) { p.anim.expr = e; p.anim.exprT = s; } }
+function rigEffort(p, m) {
+  const st = p.state, sd = p.sd || {}; if ((st === 'jumpshot' || st === 'floater' || st === 'layup' || st === 'tipin') && !sd.released) return true;
+  if (st === 'dunk' || st === 'gather') return true; return st === 'jump' && !p.hasBall && !!(m && m.ball && m.ball.owner && m.ball.owner.team !== p.team);
+}
+function rigExpression(p, m, dt) {
+  const a = p.anim; if (a.exprT > 0) a.exprT -= dt; const act = rigEffort(p, m); if (act && !a.effortOn) a.exprT = 0; a.effortOn = act; if (a.exprT > 0) return;
+  const h = m && m.ball && m.ball.owner; a.expr = act ? 'effort' : p.stamina < ART.tiredBelow * PC.stamina.max ? 'tired' : (a.defStance || (h && h.team !== p.team)) ? 'focused' : 'neutral';
+}
+
+// --- motion-trail ghosts: simple team-color silhouettes of recent poses ---
+function drawTrail(ctx, cam, p, col, now) {
+  const tr = p.anim && p.anim.trail; if (!tr || tr.length < 2) return; const H = p.height > 0.5 ? p.height : 1.9; let n = 0;
+  for (let i = tr.length - 1; i >= 0 && n < ART.trail.length; i--) { const s = tr[i]; if (now - s.t < 0.012) continue; drawGhost(ctx, cam, s, H, col, ART.trail[n]); n++; }
+}
+function drawGhost(ctx, cam, s, H, col, al) {
+  const k = cam.scale(s.z) * H, ox = cam.sx(s.x), oy = cam.sy(s.y, s.z), P = s.P; if (!isFinite(ox + oy) || !(k > 2)) return; let fv = s.f, ts = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -fv; ts = Math.max(ART.turnMin, Math.abs(cs)); }
+  ctx.save(); ctx.globalAlpha = al; ctx.fillStyle = col; ctx.translate(ox, oy); ctx.scale(fv * k * ts, k); if (P.rot) { ctx.translate(P.px, -P.py); ctx.rotate(-P.rot); ctx.translate(-P.px, P.py); } ctx.scale(P.sx, P.sy);
+  ctx.beginPath(); for (const h of [P.handF, P.handB]) { ctx.moveTo(h.x + ART.palmRx, -h.y); ctx.ellipse(h.x, -h.y, ART.palmRx, ART.palmRy, 0, 0, TAU); } for (const ft of [P.footF, P.footB]) { ctx.moveTo(ft.x + 0.12, -ft.y - 0.035); ctx.ellipse(ft.x + 0.02, -ft.y - 0.035, 0.1, 0.035, 0, 0, TAU); }
+  ctx.rect(P.pelvis.x - 0.15, -(ART.hem + P.pelvis.y - 0.24), 0.3, ART.hem - 0.035); ctx.fill();
+  ctx.translate(P.pelvis.x, -P.pelvis.y); ctx.rotate(P.lean || 0); ctx.translate(-P.pelvis.x, P.pelvis.y);
+  ctx.beginPath(); ctx.moveTo(P.chest.x - 0.17, -ART.collar); ctx.lineTo(P.chest.x + 0.17, -ART.collar); ctx.lineTo(P.pelvis.x + 0.16, -ART.hem - (P.pelvis.y - 0.24)); ctx.lineTo(P.pelvis.x - 0.16, -ART.hem - (P.pelvis.y - 0.24)); ctx.closePath();
+  ctx.moveTo(P.head.x + ART.headWidth / 2, -P.head.y); ctx.ellipse(P.head.x, -P.head.y, ART.headWidth / 2, 0.285, 0, 0, TAU); ctx.fill(); ctx.restore();
+}
 
 // ============================================================================
 // SECTION: INPUT — every device maps into one InputState; bots write the same struct
@@ -2185,7 +2478,7 @@ class Player {
     this.lastMove = ''; this.lastMoveT = -9; this.shoveCd = 0; this.blowByT = 0; this.passThroughT = 0; this.stepbackT = -9; this.pickedUp = false; this.pickedUpT = 0; this.reDribbleT = 0;
     this.dribble = { phase: 0, side: 1, y: 0.9, cross: 0, bounced: false };
     this.hand = { x: 0, y: 0 }; this.beaten = 0; this.offBalanceT = 0; this.biteT = 0; this.celebrateT = 0; this.screenFightT = 0; this.boxedOutBy = null; this.lastTouchT = -9;
-    this.anim = { headX: 0, headV: 0, headY: 0, headVY: 0, lean: 0, legPhase: 0, squash: 1, expr: 'focused', exprT: 0, armL: { x: 0, y: 0 }, armR: { x: 0, y: 0 }, dunkStyle: 0, spinAngle: 0 };
+    this.anim = { bobX: 0, bobVX: 0, bobY: 0, bobVY: 0, runPh: 0, squash: 1, expr: 'neutral', exprT: 0, armL: { x: 0, y: 0 }, armR: { x: 0, y: 0 }, dunkStyle: 0, spinAngle: 0 };
     this.stats = makeStats(); this.lastAx = 0; this.prevVx = 0; this.prevVy = 0; this.catchT = -9; this.lastCatchFrom = null;
     this.ftMode = false; this.tipoff = false; this.hintUsed = {};
   }
@@ -2644,7 +2937,7 @@ function updateDribble(p, dt) {
     else if (st === 'rimhang') { hx = p.hoop.x; hy = RIM_Y - 0.2; }
     else if (st === 'pass' || st === 'lob') { hx = p.x + p.facing * 0.3; hy = p.y + p.height * 0.6; }
     else if (st === 'jump' || st === 'fall' || st === 'catch') { hx = p.x + p.facing * 0.2; hy = p.y + p.height * 0.7 + (p.sd.hadBall ? 0.2 : 0); if (p.state === 'catch' || !p.grounded) hy = p.y + p.reach - 0.35; }
-    else if (p.pickedUp) { hx = p.x + p.facing * 0.25; hy = p.y + p.height * 0.5; }
+    else if (p.pickedUp) { hx = p.x + p.facing * 0.25; hy = p.y + p.height * 0.36; } // held at the chest (the jersey number) of the big-head body
     else if (st === 'stumble' || st === 'knocked' || st === 'stagger') { hx = p.x; hy = p.y + p.height * 0.4; }
     b.x = hx; b.y = hy; b.z = p.z; b.vx = p.vx; b.vy = p.vy; d.phase = 0;
   }
@@ -2839,7 +3132,7 @@ function launchShotJump(p) {
   else if (sd.type === 'dunk') {
     p.zTarget = 0.5; const targetX = hoop.x - dir * 0.25; const vx = clamp((targetX - p.x) / tApex, -PC.sprintSpeed * 1.4, PC.sprintSpeed * 1.4); p.vx = vx;
     p.setState('dunk', { style: pickDunkStyle(p), dueled: false, slammed: false, wasAir: true, tApex, approach: Math.abs(sd.vx0) });
-    p.anim.expr = 'hyped'; p.anim.exprT = 1.5; m.bus.emit('DUNK_START', { player: p });
+    m.bus.emit('DUNK_START', { player: p });
   }
   p.facing = dir; m.bus.emit('JUMP', { player: p });
 }
@@ -2847,7 +3140,7 @@ function launchShotJump(p) {
 // --- release: roll first, then make the physics honor the roll ---
 const _launch = [0, 0, 0];
 function releaseShot(p, err, forced) {
-  const m = p.match, sd = p.sd, b = m.ball, hoop = p.hoop; if (sd.released) return; sd.released = true;
+  const m = p.match, sd = p.sd, b = m.ball, hoop = p.hoop; if (sd.released) return; sd.released = true; sd.relT = p.stateT; // relT: when the ball left the hand (the rig times the follow-through from it)
   if (b.owner !== p) return;
   const type = sd.type; const dir = sgn(hoop.x - p.x) || p.facing; p.facing = dir;
   let x0 = b.x, y0 = b.y; if (type === 'jumper' || type === 'ft' || type === 'floater') { x0 = p.x + dir * 0.12; y0 = p.y + p.height + SH.releaseAbove; }
@@ -4053,10 +4346,14 @@ function setupMatchEvents(m) {
   bus.on('CATCH', e => { if (m.controlMode === 'ball' && e.player.team === m.humanTeam) setControlled(m, e.player); });
   bus.on('REBOUND', e => { if (m.controlMode === 'ball' && e.player.team === m.humanTeam) setControlled(m, e.player); });
   bus.on('INBOUND', e => { if (m.controlMode === 'ball' && e.team === m.humanTeam) setControlled(m, e.player); else if (m.controlMode === 'ball') updateControl(m, 'possession'); });
-  // celebration and expressions
-  bus.on('SCORE', e => { if (e.player && e.player.grounded && !e.practice) { e.player.setState('celebrate'); e.player.anim.expr = 'hyped'; e.player.anim.exprT = 1.2; } if (!e.practice) for (const p of m.teams[1 - e.team].players) { p.anim.expr = 'focused'; } });
-  bus.on('ANKLE_BREAK', e => { e.victim.anim.expr = 'shocked'; e.victim.anim.exprT = 1.5; });
-  bus.on('BLOCK', e => { e.player.anim.expr = 'hyped'; e.player.anim.exprT = 1; e.shooter.anim.expr = 'shocked'; e.shooter.anim.exprT = 1; });
+  // celebrations and faces (§3.7 expression triggers; the RIG section falls back to effort, tired, focused or neutral)
+  bus.on('SCORE', e => { if (e.practice || !e.player) return; if (e.player.grounded) e.player.setState('celebrate'); setExpr(e.player, 'hyped', 1.5); });
+  bus.on('ANKLE_BREAK', e => setExpr(e.victim, 'shocked', 1.2));
+  bus.on('POSTERIZE', e => { setExpr(e.victim, 'shocked', 1.2); setExpr(e.player, 'hyped', 1.5); });
+  bus.on('BLOCK', e => { setExpr(e.player, 'hyped', 1.5); setExpr(e.shooter, 'shocked', 1.2); });
+  bus.on('STEAL', e => { setExpr(e.player, 'hyped', 1.5); setExpr(e.victim, 'shocked', 1.2); });
+  bus.on('MISS', e => { if (e.reason !== 'block' && e.shot && e.shot.contest < ART.openShot) setExpr(e.shooter, 'angry', 1); }); // missed an open look
+  bus.on('FINAL', e => { const t = m.teams[e.winner]; if (t) for (const p of t.players) setExpr(p, 'hyped', 1.5); });
   // highlight scoring for the postgame reel
   m.highlights = [];
   const hl = (score, label, player) => { if (!m.replay) return; m.replay.markHighlight(score, label, player); };
@@ -4215,21 +4512,16 @@ class Net {
   }
 }
 
-// --- procedural bobblehead animation (visual state only; runs on the sim clock so replays match) ---
+// --- per-step animation state (visual only; runs on the sim clock so replays match). The RIG section does the head
+// bobble, run phase and faces; this keeps the squash, spin angle, stamina bar timer and defensive stance flag. ---
 function updateAnim(m, dt) {
-  const NS = PC.neckSpring;
   for (let i = 0; i < m.players.length; i++) {
-    const p = m.players[i], a = p.anim; const ax = (p.vx - p.prevVx) / dt, ay = (p.vy - p.prevVy) / dt;
-    // head on a spring-damper neck driven by acceleration
-    const fx = -NS.k * a.headX - NS.damp * a.headV - clamp(ax, -60, 60) * NS.gain * 10; a.headV += fx * dt; a.headX = clamp(a.headX + a.headV * dt, -NS.max, NS.max);
-    const fy = -NS.k * a.headY - NS.damp * a.headVY - clamp(ay, -80, 80) * NS.gain * 6; a.headVY += fy * dt; a.headY = clamp(a.headY + a.headVY * dt, -NS.max, NS.max);
-    a.lean = approach(a.lean, clamp(p.vx / PC.sprintSpeed, -1, 1) * 0.18 + (p.state === 'stance' ? 0 : 0), dt * 3);
-    const sp = Math.abs(p.vx); a.legPhase += dt * (p.grounded ? (1.5 + sp * 1.1) : 0.5) * Math.PI;
+    const p = m.players[i], a = p.anim;
     a.squash = approach(a.squash, 1, dt * 6);
-    if (a.exprT > 0) { a.exprT -= dt; if (a.exprT <= 0) a.expr = 'focused'; }
     if (p.state === 'dunk' && p.sd.style === 1) a.spinAngle += dt * 12; else if (p.state === 'spin') a.spinAngle = (p.stateT / (FR.spin.active / 1000 + 0.08)) * TAU; else a.spinAngle = 0;
     if (p.stamina !== a.lastStamina) { a.staminaShowT = 0.6; a.lastStamina = p.stamina; } else a.staminaShowT = Math.max(0, (a.staminaShowT || 0) - dt);
     const h = m.ball.owner; a.defStance = !!(h && h.team !== p.team && p.grounded && Math.abs(h.x - p.x) < DF.autoStanceRange && (p.state === 'move' || p.state === 'stance' || p.state === 'idle')); a.bodyUpT = Math.max(0, (a.bodyUpT || 0) - dt);
+    rigUpdate(p, m, dt);
   }
 }
 
@@ -4552,12 +4844,16 @@ class FXSystem {
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 4);
     if (this.posterT > 0) this.posterT -= dt;
     // On Fire flame trail
+    if (m) for (const p of m.players) { // sweat (§3.7): drops flung off a tired player at 2 per second below 40% stamina
+      const a = p.anim; if (!a || p.hidden || !(p.stamina < ART.sweatBelow * PC.stamina.max)) continue; a.sweatAcc = (a.sweatAcc || 0) + dt * ART.sweatRate;
+      while (a.sweatAcc >= 1) { a.sweatAcc -= 1; this.spawn('sweat', p.x - p.facing * 0.08 * p.height, p.y + p.height * 0.95, p.z, 1, '#CFEFFF', { dir: p.facing, spread: 0.3 * p.height }); }
+    }
     if (m) { this.trailT += dt; const fire = m.ball.owner && m.ball.owner.onFire > 0 || (m.ball.shot && m.ball.shot.shooter.onFire > 0 && m.ball.mode === 'flight'); if (fire && this.trailT > 0.04) { this.trailT = 0; this.spawn('flame', m.ball.x, m.ball.y, m.ball.z, 2, ['#FF8A2A', '#FF4FA3', '#FFD23F'], { spread: 0.15 }); } for (const p of m.players) if (p.onFire > 0 && this.trailT === 0) this.spawn('flame', p.x, p.y + 0.2, p.z, 1, ['#FF8A2A', '#FFD23F'], { spread: 0.4 }); }
   }
   draw(ctx, cam) {
     const P = this.pool;
     for (let i = 0; i < P.count; i++) { const p = P.items[i]; const s = cam.scale(p.z); const sx = cam.sx(p.x), sy = cam.sy(p.y, p.z); const a = clamp01(p.life / p.max); ctx.globalAlpha = p.kind === 'ring' ? a * 0.8 : Math.min(1, a * 1.5);
-      if (p.kind === 'ring') { ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(2, s * 0.05 * a); ctx.beginPath(); ctx.ellipse(sx, sy, p.size * s, p.size * s * 0.45, 0, 0, TAU); ctx.stroke(); }
+      if (p.kind === 'ring') { ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(2, s * 0.05 * a); ctx.beginPath(); ctx.ellipse(sx, sy, Math.max(0.1, p.size * s), Math.max(0.1, p.size * s * 0.45), 0, 0, TAU); ctx.stroke(); }
       else if (p.kind === 'confetti') { ctx.fillStyle = p.color; ctx.save(); ctx.translate(sx, sy); ctx.rotate(p.rot); ctx.fillRect(-p.size * s / 2, -p.size * s / 4, p.size * s, p.size * s / 2); ctx.restore(); }
       else if (p.kind === 'star') { ctx.fillStyle = p.color; ctx.font = fontStr(p.size * s * 2.2, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', sx, sy); }
       else { ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(sx, sy, Math.max(1, p.size * s * (p.kind === 'dust' ? (1.6 - a * 0.6) : a)), 0, TAU); ctx.fill(); }
@@ -4576,7 +4872,7 @@ function attachPresentation(m, game) {
   bus.on('BOARD_HIT', e => au.board()); bus.on('WALL_HIT', e => au.wall());
   bus.on('BONK', e => { au.bonk(); pushCallout(m, 'BONK', '#FFD23F'); fx.spawn('star', e.player.x, e.player.headY + 0.3, e.player.z, 4, '#FFD23F'); e.player.anim.expr = 'shocked'; e.player.anim.exprT = 1; });
   bus.on('CATCH', e => au.catchBall()); bus.on('PASS', e => au.noise(0.05, 0.1, { filter: 'bandpass', freq: 2500 }));
-  bus.on('MOVE', e => { au.squeak(); fx.spawn('dust', e.player.x, 0.05, e.player.z, 3, 'rgba(243,240,255,0.5)'); if (Math.random() < 0.5) fx.spawn('sweat', e.player.x, e.player.headY, e.player.z, 2, '#8BE3FF', { dir: e.player.facing }); });
+  bus.on('MOVE', e => { au.squeak(); fx.spawn('dust', e.player.x, 0.05, e.player.z, 3, 'rgba(243,240,255,0.5)'); });
   bus.on('LAND', e => { fx.spawn('dust', e.player.x, 0.05, e.player.z, CONFIG.fx.dustPerLanding, 'rgba(243,240,255,0.55)', { spread: 0.4 }); if (e.speed > 4) au.noise(0.05, 0.12, { filter: 'lowpass', freq: 500 }); });
   bus.on('BUMP', e => { au.noise(0.06, 0.2, { filter: 'lowpass', freq: 700 }); cam.addTrauma(0.1); });
   bus.on('BLOW_BY', e => { if (Math.random() < 0.6) au.squeak(); });
@@ -4620,8 +4916,9 @@ function attachPresentation(m, game) {
 // highlight clips for the postgame reel
 // ============================================================================
 const STATE_LIST = ['idle', 'move', 'stance', 'protect', 'celebrate', 'jump', 'fall', 'gather', 'jumpshot', 'floater', 'layup', 'dunk', 'rimhang', 'tipin', 'crossover', 'spin', 'stepback', 'hesitation', 'pumpfake', 'burst', 'swipe', 'pass', 'lob', 'shove', 'stagger', 'stumble', 'knocked', 'catch', 'land', 'tipoff', 'ft'];
-const EXPR_LIST = ['focused', 'shocked', 'hyped'];
-const PF = 14; // floats per player
+const EXPR_LIST = ['neutral', 'focused', 'shocked', 'hyped', 'angry', 'effort', 'tired'];
+const SHOT_TYPES = ['jumper', 'layup', 'dunk', 'hook', 'floater', 'ft', 'tip'];
+const PF = 18; // floats per player
 const BF = 6;  // floats for the ball
 class ReplayRecorder {
   constructor(m) {
@@ -4630,7 +4927,8 @@ class ReplayRecorder {
   maybeRecord() { if (this.m.stepCount % this.every === 0) this.record(); }
   record() {
     const m = this.m; this.head = (this.head + 1) % this.n; this.count = Math.min(this.count + 1, this.n); let o = this.head * this.stride; const B = this.buf;
-    for (let i = 0; i < m.players.length; i++) { const p = m.players[i], a = p.anim; B[o++] = p.x; B[o++] = p.y; B[o++] = p.z; B[o++] = p.facing; B[o++] = STATE_LIST.indexOf(p.state); B[o++] = p.stateT; B[o++] = a.squash; B[o++] = a.headX; B[o++] = a.headY; B[o++] = a.legPhase; B[o++] = EXPR_LIST.indexOf(a.expr); B[o++] = p.hasBall ? 1 : 0; B[o++] = p.onFire > 0 ? 1 : 0; B[o++] = p.sd && p.sd.style ? p.sd.style : 0; }
+    for (let i = 0; i < m.players.length; i++) { const p = m.players[i], a = p.anim; B[o++] = p.x; B[o++] = p.y; B[o++] = p.z; B[o++] = p.facing; B[o++] = STATE_LIST.indexOf(p.state); B[o++] = p.stateT; B[o++] = a.squash; B[o++] = a.bobX || 0; B[o++] = a.bobY || 0; B[o++] = a.runPh || 0; B[o++] = EXPR_LIST.indexOf(a.expr); B[o++] = p.hasBall ? 1 : 0; B[o++] = p.onFire > 0 ? 1 : 0; const sd = p.sd || {}; B[o++] = sd.style || 0;
+      B[o++] = (sd.released ? 1 : 0) | (sd.fade ? 2 : 0) | (sd.kind === 'crossover' ? 4 : 0) | (sd.sit ? 8 : 0); B[o++] = SHOT_TYPES.indexOf(sd.type); B[o++] = sd.relT != null ? sd.relT : -1; B[o++] = sd.gatherMs || sd.ms || 0; } // the state data the rig reads
     const b = m.ball; B[o++] = b.x; B[o++] = b.y; B[o++] = b.z; B[o++] = b.spin; B[o++] = b.owner ? 1 : 0; B[o++] = m.time;
     B[o++] = m.teams[0].score; B[o++] = m.teams[1].score; B[o++] = m.gameClock; B[o++] = m.shotClock;
   }
@@ -4652,8 +4950,11 @@ class ReplayRecorder {
   // Fill the ghosts from frame index f (fractional) of a clip.
   applyFrame(clip, f) {
     this.ensureGhosts(); const i0 = clamp(Math.floor(f), 0, clip.count - 1), i1 = clamp(i0 + 1, 0, clip.count - 1), t = clamp01(f - i0); const B = clip.frames, s = clip.stride; let o0 = i0 * s, o1 = i1 * s; const gb = this.ghostBall; gb.owner = null;
-    for (let i = 0; i < this.ghosts.length; i++) { const g = this.ghosts[i]; g.px = g.x = lerp(B[o0], B[o1], t); g.py = g.y = lerp(B[o0 + 1], B[o1 + 1], t); g.pz = g.z = lerp(B[o0 + 2], B[o1 + 2], t); g.facing = B[o0 + 3]; g.state = STATE_LIST[B[o0 + 4] | 0] || 'move'; g.stateT = B[o0 + 5]; g.anim.squash = B[o0 + 6]; g.anim.headX = B[o0 + 7]; g.anim.headY = B[o0 + 8]; g.anim.legPhase = B[o0 + 9]; g.anim.expr = EXPR_LIST[B[o0 + 10] | 0] || 'focused'; if (B[o0 + 11] > 0.5) gb.owner = g; g.onFire = B[o0 + 12] > 0.5 ? 1 : 0; g.sd = { style: B[o0 + 13] | 0 }; g.grounded = g.y <= 0.001; o0 += PF; o1 += PF; }
+    for (let i = 0; i < this.ghosts.length; i++) { const g = this.ghosts[i]; g.px = g.x = lerp(B[o0], B[o1], t); g.py = g.y = lerp(B[o0 + 1], B[o1 + 1], t); g.pz = g.z = lerp(B[o0 + 2], B[o1 + 2], t); g.facing = B[o0 + 3]; g.state = STATE_LIST[B[o0 + 4] | 0] || 'move'; const same = B[o0 + 4] === B[o1 + 4]; g.stateT = same ? lerp(B[o0 + 5], B[o1 + 5], t) : B[o0 + 5]; g.anim.squash = B[o0 + 6]; g.anim.bobX = B[o0 + 7]; g.anim.bobY = B[o0 + 8]; g.anim.runPh = lerp(B[o0 + 9], B[o1 + 9], t); g.anim.expr = EXPR_LIST[B[o0 + 10] | 0] || 'neutral'; if (B[o0 + 11] > 0.5) gb.owner = g; g.onFire = B[o0 + 12] > 0.5 ? 1 : 0;
+      const fl = B[o0 + 14] | 0, ms = B[o0 + 17]; g.sd = { style: B[o0 + 13] | 0, released: !!(fl & 1), fade: !!(fl & 2), kind: fl & 4 ? 'crossover' : undefined, sit: !!(fl & 8), type: SHOT_TYPES[B[o0 + 15] | 0], relT: B[o0 + 16] >= 0 ? B[o0 + 16] : undefined, gatherMs: ms || undefined, ms: ms || undefined };
+      g.grounded = g.y <= 0.001; g.vx = (B[o1] - B[o0]) * CONFIG.replay.hz; g.vy = (B[o1 + 1] - B[o0 + 1]) * CONFIG.replay.hz; g.airT = g.grounded ? 0 : g.stateT; o0 += PF; o1 += PF; }
     gb.px = gb.x = lerp(B[o0], B[o1], t); gb.py = gb.y = lerp(B[o0 + 1], B[o1 + 1], t); gb.pz = gb.z = lerp(B[o0 + 2], B[o1 + 2], t); gb.spin = B[o0 + 3]; gb.held = B[o0 + 4] > 0.5;
+    const tRec = lerp(B[o0 + 5], B[o1 + 5], t); for (const g of this.ghosts) g.rigTime = tRec; // ghosts animate on the recorded clock
     return { score0: B[o0 + 6], score1: B[o0 + 7], clock: B[o0 + 8], shot: B[o0 + 9], time: B[o0 + 5] };
   }
 }
@@ -4799,7 +5100,7 @@ function drawTeamCard(ctx, team, x, y, w, h, selected, roster) {
 // A standing mannequin of a player for menus: the real in-game renderer with a fake camera. Same size = same scale,
 // so two players drawn with the same size show their true height difference.
 function drawMannequin(ctx, def, teamDef, x, y, size, expr, facing, t, pose) {
-  const p = { anim: { headX: Math.sin((t || 0) * 2) * 0.01, headV: 0, headY: 0, headVY: 0, lean: 0, legPhase: 0, squash: 1, expr: expr || 'focused', exprT: 0, defStance: pose === 'stance' }, look: Object.assign({ number: 0 }, def.look), height: def.height, facing: facing || 1, state: pose === 'stance' ? 'stance' : 'move', sd: {}, grounded: true, vx: 0, vy: 0, x: 0, y: 0, z: 0.5, px: 0, py: 0, pz: 0.5, hasBall: false, reach: def.height * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs || {}, inState() { return false; } };
+  const p = { anim: { bobX: 0, bobY: 0, runPh: 0, squash: 1, expr: expr || 'focused', exprT: 0, defStance: pose === 'stance' }, look: Object.assign({ number: 0 }, def.look), height: def.height, facing: facing || 1, state: pose === 'stance' ? 'stance' : 'move', sd: {}, grounded: true, vx: 0, vy: 0, x: 0, y: 0, z: 0.5, px: 0, py: 0, pz: 0.5, hasBall: false, reach: def.height * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs || {}, inState() { return false; } };
   const s = size / 2.4; const cam = { scale: () => s, sx: wx => x + wx * s, sy: (wy, z) => y - wy * s, ppm: s, W: 0, H: 0 };
   drawPlayer(ctx, cam, p, 1, null, { colors: teamDef.colors, pattern: teamDef.pattern }, { replay: true });
 }
@@ -5743,7 +6044,7 @@ const LAB_CAST = [
 const LAB_EXPRS = ['neutral', 'hyped', 'shocked', 'angry'];                                      // the phone-size grid
 const LAB_EXPRS_ALL = ['neutral', 'focused', 'hyped', 'shocked', 'tired', 'angry', 'effort'];   // the 250 px sheet
 const LAB_POSES = ['idle', 'run', 'dribble', 'jumpshot', 'dunk', 'defense', 'block', 'celebrate'];
-const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd', 'Venues', 'Body'];
+const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd', 'Venues', 'Body', 'Clips'];
 const LAB_HAIR_NAMES = ['Buzz', 'Taper fade', 'High top', 'Afro', 'Curly top', 'Twists', 'Locs', 'Cornrows', 'Box braids', 'Bun', 'Side part', 'Mohawk', 'Long', 'Bald'];
 const LAB_FACIAL_NAMES = ['None', 'Stubble', 'Mustache', 'Goatee', 'Chin strap', 'Full beard'];
 
@@ -5758,9 +6059,9 @@ function labStandIn(c, i, pose, facing, t) {
   const def = labDef(c, i); const air = pose === 'jumpshot' || pose === 'dunk' || pose === 'block';
   const st = { idle: 'move', run: 'move', dribble: 'move', jumpshot: 'jumpshot', dunk: 'dunk', defense: 'stance', block: 'jump', celebrate: 'celebrate' }[pose] || 'move';
   const y = pose === 'jumpshot' ? 0.45 : pose === 'dunk' ? 0.85 : pose === 'block' ? 0.6 : 0;
-  const p = { name: def.name, def, anim: { headX: Math.sin(t * 2) * 0.01, headV: 0, headY: 0, headVY: 0, lean: pose === 'run' ? 0.12 : 0, legPhase: pose === 'run' ? t * 9 : 0, squash: 1, expr: pose === 'dunk' || pose === 'block' ? 'effort' : pose === 'celebrate' ? 'hyped' : pose === 'defense' ? 'focused' : 'neutral', exprT: 0, defStance: pose === 'defense', bodyUpT: 0, spinAngle: 0 },
+  const p = { name: def.name, def, anim: { bobX: 0, bobY: 0, runPh: pose === 'run' ? t * 9 : 0, squash: 1, expr: pose === 'dunk' || pose === 'block' ? 'effort' : pose === 'celebrate' ? 'hyped' : pose === 'defense' ? 'focused' : 'neutral', exprT: 0, defStance: pose === 'defense', bodyUpT: 0, spinAngle: 0 },
     look: def.look, height: c.h, facing, state: st, stateT: pose === 'celebrate' ? 0.3 + (t % 1) : 0.25, sd: { style: 0, tApex: 0.33 }, grounded: !air, vx: pose === 'run' ? facing * 5 : 0, vy: air ? 0.5 : 0, x: 0, y, z: 0.5, px: 0, py: y, pz: 0.5,
-    reach: c.h * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs, moves: {}, traits: {}, inState(...n) { return n.includes(this.state); } };
+    reach: c.h * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs, moves: {}, traits: {}, inState(...n) { return n.includes(this.state); }, rigForce: pose === 'block' ? 'block' : undefined };
   let ball = null;
   if (pose === 'dribble' || pose === 'jumpshot' || pose === 'dunk') {
     const bx = pose === 'dribble' ? facing * 0.32 : facing * 0.15, by = pose === 'dribble' ? 0.35 + Math.abs(Math.sin(t * 5)) * 0.55 : pose === 'jumpshot' ? y + c.h + 0.1 : y + p.reach - 0.1;
@@ -5803,20 +6104,20 @@ function labVenueShot(courtId, W, H) {
 
 // --- the screen ---
 function artLabScreen(game) {
-  const st = game.labOpts || (game.labOpts = { view: 0, ch: 0 }); let t = 0;
+  const st = game.labOpts || (game.labOpts = { view: 0, ch: 0, page: 0 }); let t = 0; const CLIPS = 7; // the Clips view index
   const items = [
     sel('View', 40, 12, 380, 40, LAB_VIEWS, () => st.view, i => { st.view = i; }),
-    btn('◀ Player', 440, 12, 150, 40, () => { st.ch = (st.ch + LAB_CAST.length - 1) % LAB_CAST.length; }),
-    btn('Player ▶', 600, 12, 150, 40, () => { st.ch = (st.ch + 1) % LAB_CAST.length; }),
+    btn('◀ Player', 440, 12, 150, 40, () => { if (st.view === CLIPS) st.page = ((st.page | 0) + labClipPages() - 1) % labClipPages(); else st.ch = (st.ch + LAB_CAST.length - 1) % LAB_CAST.length; }),
+    btn('Player ▶', 600, 12, 150, 40, () => { if (st.view === CLIPS) st.page = ((st.page | 0) + 1) % labClipPages(); else st.ch = (st.ch + 1) % LAB_CAST.length; }),
     btn('Back', 1120, 12, 130, 40, () => game.ui.pop()),
   ];
-  const scr = { widgets: items, name: 'artlab', update(dt) { t += dt; items[1].hidden = items[2].hidden = st.view !== 1; },
-    setView(i) { st.view = clamp(i | 0, 0, LAB_VIEWS.length - 1); }, setChar(i) { st.ch = ((i | 0) % LAB_CAST.length + LAB_CAST.length) % LAB_CAST.length; },
+  const scr = { widgets: items, name: 'artlab', update(dt) { t += dt; items[1].hidden = items[2].hidden = st.view !== 1 && st.view !== CLIPS; items[1].label = st.view === CLIPS ? '◀ Page' : '◀ Player'; items[2].label = st.view === CLIPS ? 'Page ▶' : 'Player ▶'; },
+    setView(i) { st.view = clamp(i | 0, 0, LAB_VIEWS.length - 1); }, setChar(i) { st.ch = ((i | 0) % LAB_CAST.length + LAB_CAST.length) % LAB_CAST.length; }, setPage(i) { st.page = clamp(i | 0, 0, labClipPages() - 1); },
     onBack() { game.ui.pop(); },
     draw(ctx, ui) {
       ctx.fillStyle = '#0A0E26'; ctx.fillRect(0, 0, UI_W, UI_H);
       ui.heading(ctx, 'ART LAB', 1090, 32, 22, UI_GOLD, 'right');
-      try { [labViewFacesSmall, labViewFacesLarge, labViewPoses, labViewHair, labViewCrowd, labViewVenues, labViewBody][st.view](ctx, ui, st, t); } catch (e) { labFail(e); }
+      try { [labViewFacesSmall, labViewFacesLarge, labViewPoses, labViewHair, labViewCrowd, labViewVenues, labViewBody, labViewClips][st.view](ctx, ui, st, t); } catch (e) { labFail(e); }
     } };
   return scr;
 }
@@ -5879,6 +6180,77 @@ function labViewBody(ctx, ui, st, t) {
     try { ctx.save(); ctx.translate(90 + j * 240, 600); ctx.scale(ks, ks); drawSneaker(ctx, { x: 0, y: 0 }, j === 4, Math.max(ART.bodyLine, 1 / ks), kit); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); }
     labCaption(ctx, c.colors[0] + ' / ' + c.colors[1] + (j === 4 ? ' · far' : ''), 90 + j * 240 + 60, 625, 11, UI_TEXT);
   });
+}
+// --- clip filmstrips (M4): every rig clip sampled across its length, one clip per row, a page at a time ---
+const LAB_CLIPS = [
+  ['idle', 1.2], ['run', 0.45], ['sprint', 0.36], ['slide', 0.6], ['protect', 1.2], ['boxout', 1.0],
+  ['crossover', 0.24], ['burstCross', 0.25], ['spin', 0.45], ['stepback', 0.41], ['hesitation', 0.35], ['pumpfake', 0.38],
+  ['shotGather', 0.12], ['jumpshot', 0.62], ['fadeaway', 0.62], ['floater', 0.56], ['hook', 0.56], ['land', 0.12],
+  ['layupGather', 0.15], ['layup', 0.64], ['dunk:onehand', 0.5], ['dunk:twohand', 0.5], ['dunk:tomahawk', 0.5], ['dunk:windmill', 0.5],
+  ['dunk:spin360', 0.5], ['rimhang', 0.7], ['block', 0.6], ['air', 0.6], ['tip', 0.56], ['swipe', 0.47],
+  ['shove', 0.55], ['pass', 0.23], ['lob', 0.3], ['catch', 0.08], ['stagger', 0.15], ['stumble', 0.7],
+  ['fall', 1.1], ['celebrate:flex', 0.8], ['celebrate:chestPound', 0.8], ['celebrate:pointSky', 0.8], ['celebrate:shimmy', 0.5], ['celebrate:fingerWag', 0.5],
+  ['celebrate:airplane', 0.8],
+];
+const LAB_CLIP_ROWS = 4, LAB_CLIP_FRAMES = 8;
+function labClipPages() { return Math.ceil(LAB_CLIPS.length / LAB_CLIP_ROWS); }
+const LAB_CLIP_STATE = { idle: 'move', run: 'move', sprint: 'move', slide: 'stance', protect: 'protect', boxout: 'move', crossover: 'crossover', burstCross: 'burst', spin: 'spin', stepback: 'stepback', hesitation: 'hesitation', pumpfake: 'pumpfake', shotGather: 'gather', jumpshot: 'jumpshot', fadeaway: 'jumpshot', floater: 'floater', hook: 'floater', land: 'land', layupGather: 'gather', layup: 'layup', dunk: 'dunk', rimhang: 'rimhang', block: 'jump', air: 'jump', tip: 'tipin', swipe: 'swipe', shove: 'shove', pass: 'pass', lob: 'lob', catch: 'catch', stagger: 'stagger', stumble: 'stumble', fall: 'knocked', celebrate: 'celebrate' };
+const LAB_CLIP_AIR = { jumpshot: 0.3, fadeaway: 0.3, floater: 0.28, hook: 0.28, layup: 0.32, dunk: 0.36, block: 0.3, air: 0.3, tip: 0.28 }; // apex time of the lab's jump arc (s)
+const LAB_CLIP_RELEASE = { jumpshot: 0.3, fadeaway: 0.3, floater: 0.22, hook: 0.22, layup: 0.26, tip: 0.22 };        // when the ball leaves the hand (s)
+// A stand-in player in the middle of a clip, with the ball where the game would hold it at that moment.
+function labClipStandIn(c, i, clip, t) {
+  const [name, vr] = clip.split(':'), def = labDef(c, i), H = c.h, reach = H * CONFIG.player.reachMul, G = CONFIG.world.gravity || 9.81;
+  const apex = LAB_CLIP_AIR[name]; const v0 = apex ? G * apex : 0; const y = name === 'rimhang' ? RIM_Y - reach + 0.15 : 0; // air clips are drawn with the feet on the row line so rows don't overlap
+  const rel = LAB_CLIP_RELEASE[name], released = rel != null && t >= rel;
+  const vx = name === 'run' ? PC.runSpeed * 0.8 : name === 'sprint' || name === 'burstCross' ? PC.sprintSpeed : name === 'slide' ? 2.5 : vr === 'airplane' ? 3 : 0;
+  const expr = { celebrate: 'hyped', rimhang: 'hyped', stumble: 'shocked', fall: 'shocked', stagger: 'shocked', slide: 'focused', boxout: 'focused', swipe: 'focused', protect: 'focused' }[name] || (apex || name === 'shotGather' || name === 'layupGather' ? 'effort' : 'neutral');
+  const sd = { type: name === 'layupGather' || name === 'layup' ? 'layup' : name === 'hook' ? 'hook' : name === 'floater' ? 'floater' : 'jumper', fade: name === 'fadeaway', released, relT: released ? rel : undefined, gatherMs: name === 'layupGather' ? 150 : 120,
+    kind: name === 'burstCross' ? 'crossover' : undefined, ms: name === 'fall' ? 1100 : name === 'stumble' ? 700 : undefined, sit: name === 'fall', style: vr === 'spin360' ? 1 : vr === 'windmill' ? 2 : 0 };
+  const p = { name: def.name, def, look: def.look, height: H, facing: 1, state: LAB_CLIP_STATE[name] || 'move', stateT: t, sd, grounded: !apex && name !== 'rimhang', vx, vy: apex ? v0 - G * t : 0, x: 0, y, z: 0.5, px: 0, py: y, pz: 0.5, reach, airT: apex ? t : 0,
+    anim: { bobX: 0, bobY: 0, runPh: t / (name === 'sprint' ? ART.runPeriod : 0.45) * TAU, squash: 1, expr, exprT: 0, defStance: name === 'slide', spinAngle: vr === 'spin360' ? clamp(t / 0.5, 0, 1) * TAU : 0, forceVar: vr },
+    rigForce: name === 'fadeaway' ? 'jumpshot' : name, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs, moves: {}, traits: {}, pickedUp: false, inState(...n) { return n.includes(this.state); } };
+  if (name === 'rimhang') p.hoop = { x: 0.2 * H + W.rimInnerRadius * 0.8 };
+  const ball = labBallFor(p, name, vr, t); p.hasBall = !!ball; return { p, ball };
+}
+// The held-ball positions from the game's own formulas (MECHANICS: updateDribble and the held-ball table).
+function labBallFor(p, name, vr, t) {
+  const H = p.height, R = BALL.radius, D = PC.dribble; let bx = null, by = null;
+  const bounce = (cyc, k) => { const ph = t / cyc; return R + (D.handHeight - R) * Math.abs(Math.sin((ph - Math.floor(ph)) * Math.PI)) * (k || 1); };
+  switch (name) {
+    case 'idle': case 'run': case 'sprint': case 'burstCross': case 'spin': case 'stepback': case 'land': bx = D.sideOffset; by = bounce(name === 'idle' ? D.cycleIdle : name === 'sprint' || name === 'burstCross' ? D.cycleSprint : D.cycleWalk); break;
+    case 'protect': bx = -D.sideOffset; by = bounce(D.cycleIdle); break;
+    case 'hesitation': bx = D.sideOffset * 0.6; by = bounce(D.cycleIdle, 0.5); break;
+    case 'crossover': bx = lerp(-D.sideOffset, D.sideOffset, easeInOutQuad(clamp((t - 0.06) / 0.12, 0, 1))); by = Math.min(bounce(D.cycleWalk), R + 0.35); break;
+    case 'shotGather': case 'layupGather': { const u = clamp(t / (name === 'layupGather' ? 0.15 : 0.12), 0, 1); by = lerp(H * 0.55, H, u); bx = lerp(0.28, 0.12, u); break; }
+    case 'pumpfake': by = t > 0.06 && t < 0.26 ? H * 0.95 : H * 0.7; bx = 0.15; break;
+    case 'jumpshot': case 'fadeaway': case 'floater': if (!p.sd.released) { bx = 0.12; by = H + CONFIG.shot.releaseAbove * 0.7; } break;
+    case 'hook': if (!p.sd.released) { bx = 0.25; by = p.reach - 0.12; } break;
+    case 'layup': case 'tip': if (!p.sd.released) { bx = 0.4; by = p.reach - 0.15; } break;
+    case 'dunk': { const u = clamp(t / 0.35, 0, 1); bx = lerp(0.2, 0.45, u); by = lerp(H * 0.8, p.reach - 0.05, u); if (vr === 'spin360') bx = Math.sin(p.anim.spinAngle) * 0.35; if (vr === 'windmill') { const a = u * Math.PI * 1.8; bx = Math.cos(a) * 0.4; by = H * 0.6 + Math.sin(a) * 0.9 + 0.3; if (u > 0.9) { bx = 0.45; by = p.reach - 0.05; } } break; }
+    case 'pass': if (t < 0.08) { bx = 0.3; by = H * 0.6; } break;
+    case 'lob': if (t < 0.15) { bx = 0.3; by = H * 0.6; } break;
+    case 'catch': if (t > 0.05) { bx = 0.3; by = H * 0.55; } break;
+    case 'air': bx = null; break;
+  }
+  if (bx == null) return null; by += p.y; return { owner: p, x: bx, y: by, px: bx, py: by, z: 0.5, pz: 0.5, spin: 0 };
+}
+function labDrawClipFigure(ctx, c, i, x, yFloor, ppm, clip, t) {
+  try {
+    const { p, ball } = labClipStandIn(c, i, clip, t); const lift = p.y; const cam = { scale: () => ppm, sx: wx => x + wx * ppm, sy: (wy, z) => yFloor - (wy - lift) * ppm, ppm, W: 0, H: 0 };
+    if (p.hoop) { const hx = p.hoop.x; ctx.strokeStyle = '#FF8A2A'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cam.sx(hx - W.rimInnerRadius), cam.sy(RIM_Y)); ctx.lineTo(cam.sx(hx + W.rimInnerRadius), cam.sy(RIM_Y)); ctx.stroke(); } // the rim
+    drawPlayer(ctx, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true });
+    if (ball) { const r = BALL.radius * ppm * 1.15; ctx.fillStyle = '#E8742C'; ctx.beginPath(); ctx.arc(cam.sx(ball.x), cam.sy(ball.y), r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke(); }
+  } catch (e) { labFail(e); }
+}
+function labViewClips(ctx, ui, st, t) {
+  const page = clamp(st.page | 0, 0, labClipPages() - 1), c = LAB_CAST[5], ppm = 42;
+  labCaption(ctx, 'Clips · page ' + (page + 1) + ' / ' + labClipPages() + ' · ' + LAB_CLIP_FRAMES + ' frames spread across each clip', 1100, 76, 13, UI_TEXT, 'right');
+  for (let r = 0; r < LAB_CLIP_ROWS; r++) {
+    const k = page * LAB_CLIP_ROWS + r; if (k >= LAB_CLIPS.length) break; const [clip, dur] = LAB_CLIPS[k], yF = 230 + r * 140;
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.moveTo(150, yF); ctx.lineTo(1260, yF); ctx.stroke();
+    labCaption(ctx, clip.replace(':', ' · '), 20, yF - 44, 13, UI_TEXT, 'left'); labCaption(ctx, Math.round(dur * 1000) + ' ms', 20, yF - 26, 11, UI_DIM, 'left');
+    for (let j = 0; j < LAB_CLIP_FRAMES; j++) labDrawClipFigure(ctx, c, 5, 205 + j * 144, yF, ppm, clip, dur * j / (LAB_CLIP_FRAMES - 1));
+  }
 }
 
 // ============================================================================
@@ -7043,7 +7415,7 @@ class Game {
     try { const ctx = this.ctx; if (ctx.reset) ctx.reset(); ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0; } catch (e2) {}
   }
   frameBody(now) {
-    const dt = Math.min((now - this.last) / 1000 || 0, CONFIG.sim.maxFrameDt); this.last = now; const t0 = performance.now();
+    const dt = clamp((now - this.last) / 1000 || 0, 0, CONFIG.sim.maxFrameDt); this.last = now; /* never negative: a clock that steps back must not run the sim or FX backward */ const t0 = performance.now();
     this.input.pollGamepad(); this.audio.updateBeat(); PRINT.build(this.ctx);
     const ctx = this.ctx, W_ = this.W, H_ = this.H;
     if (this.portrait) { this.drawRotate(ctx, W_, H_); return; }

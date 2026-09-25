@@ -113,6 +113,7 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 node tests/check-syntax.js         # node --check on the extracted script
 node tests/smoke.js                # desktop flow + modes + migrations + regressions + phone touch (0 errors allowed)
 node tests/artlab.js <m> <round>   # art milestones: Art Lab + in-match frames → shots/<m>/round-<n>/
+node tests/reel.js <m> <round> [court]   # animation milestones: the first frame of each key move in a live bot match
 node tests/devtools.js             # runSims (1v1 Pro mirror, Legend vs Pro, 3v3), shotLab, tunnelTest
 node tests/balance.js [n]          # scripted human: PPP by strategy vs Pro and Legend
 node tests/careersim.js 40         # 40 simulated careers vs the §6.5 targets
