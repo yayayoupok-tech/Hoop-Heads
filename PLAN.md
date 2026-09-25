@@ -31,7 +31,7 @@ recovers from an exception (M0) and records it in `window.HH_ERRORS`, and the te
 - Tests in `tests/`:
   - `smoke.js`: the full desktop flow, other modes, save migrations, regressions, and phone touch.
   - `devtools.js`, `balance.js` (the scripted human), `careersim.js` (40 careers), `perf.js`, `artlab.js`, `shots.js`, `check-syntax.js`.
-- The Art Lab (Extras → Art Lab, or `?artlab`): faces at phone size and 250 px, poses, hair, crowd atlas, venues.
+- The Art Lab (Extras → Art Lab, or `?artlab`): faces at phone size and 250 px, poses, hair, crowd atlas, venues, and (from M3) a body close-up with the six hand poses and sneaker colorways.
 - Main menu now has **Extras** (team league, tournament, 3-point, practice, tutorial, Art Lab).
 - Fixed the two regressions the new tests found: odd looks crashing `drawPlayer`, and the camera losing a sprinting player.
 
