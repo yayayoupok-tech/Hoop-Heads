@@ -1,0 +1,19 @@
+{
+  "name": "hoop-heads",
+  "private": true,
+  "description": "Hoop Heads, a single-file browser basketball game. The game is index.html (no build step); this file only runs the dev tests.",
+  "scripts": {
+    "test": "node tests/check-syntax.js && node tests/smoke.js && node tests/devtools.js --quick",
+    "check": "node tests/check-syntax.js",
+    "smoke": "node tests/smoke.js",
+    "devtools": "node tests/devtools.js",
+    "balance": "node tests/balance.js",
+    "career": "node tests/careersim.js 40",
+    "perf": "node tests/perf.js",
+    "artlab": "node tests/artlab.js",
+    "shots": "node tests/shots.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  }
+}

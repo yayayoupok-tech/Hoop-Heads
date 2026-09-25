@@ -1,6 +1,16 @@
 # Changes to the spec's starting numbers
 
-The design spec gives starting values and asks for every change to be logged here with the reason.
+The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
+without a spec value are listed per milestone too.
+
+## M0 — audit and setup
+
+| Value | Spec | Now | Why |
+| --- | --- | --- | --- |
+| `CONFIG.camera.playerKeepM` (new) | — | 0.9 m | The camera spring could lag a sprinting player out of the frame (the new smoke test caught a 47 px overshoot). After the spring, the camera is now clamped so your player's center stays at least this far inside the edge. |
+| `CONFIG.harness.*` (new) | — | see CONFIG | The scripted human for the balance harness: 0.18 s reaction, release-timing spread per strategy (12 ms for the "perfect timing" script, 50 ms for average, 90 ms for mashing), 45% bite on a gather, and 25% swipe chance per opening. |
+
+## Earlier (the merged 1v1 career)
 
 | Value | Spec | Now | Why |
 | --- | --- | --- | --- |

@@ -26,7 +26,7 @@ One life, from a 14-year-old freshman to the Hall of Fame vote.
 
 Every opponent is a real engine player with their own ratings and size, so a 7′1″ rim protector and a 5′11″ guard play completely differently.
 
-Extras on the main menu: Quick 1v1 (any two players, any court, any format), a street tournament (an eight-player bracket, first to 11), the 3-Point Contest, Practice (free shooting with a shot chart), the tutorial, and the Hall of Fame.
+The main menu also has Quick 1v1 (any two players, any court, any format) and the Hall of Fame. **Extras** holds the classic team league (5v5 or 3v3 with manager mode), a street tournament (an eight-player bracket, first to 11), the 3-Point Contest, Practice (free shooting with a shot chart), the tutorial and the **Art Lab** (every character, expression, pose and venue on one screen; also opens directly with `index.html?artlab`).
 
 ## Height matters
 
@@ -66,3 +66,21 @@ Everything is exposed on `window.HH` for scripting: `HH.simulateMatch(...)`, `HH
 ## Tech
 
 Vanilla JavaScript (ES2020+), Canvas 2D and Web Audio. All art is drawn in code and all sound is synthesized. Every tuning number lives in the `CONFIG` object at the top of the file. Gameplay randomness comes from a seeded RNG, so any match can be reproduced from its seed, and the career has its own seeded stream. Your games run on the full engine. AI-vs-AI league games use a fast statistical model fitted by least squares to 4,000 headless engine games, so standings and stat lines match what the engine produces. A rating is the engine attribute × 10, from high school to retirement. Saves live in `localStorage` under `hoopheads.save.v1` (schema version 4). A career from the first high-school build carries over with its ratings, height and history. Careers from older builds (the team career and the first pro-only 1v1 career) can't continue, so their name and face prefill a new player. If storage is missing or corrupted, the game still runs.
+
+## Tests
+
+The game has no build step and no dependencies. The tests use Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`, or a global install):
+
+```
+node tests/check-syntax.js         # node --check on the game's script
+node tests/smoke.js                # the whole game through the UI at 1280×720, other modes, old-save migrations,
+                                   # regression checks, and the phone layout with touch at 844×390 (zero errors allowed)
+node tests/devtools.js             # bot sims (1v1 Pro mirror, Legend vs Pro, 3v3), shot lab, tunneling test
+node tests/balance.js [n]          # a scripted "human" plays real matches: points per possession by strategy vs Pro and Legend
+node tests/careersim.js [40]       # whole simulated careers against the career targets
+node tests/perf.js                 # frame cost at phone size in the arena
+node tests/artlab.js <m> <round>   # Art Lab + in-match screenshots → shots/<m>/round-<round>/
+node tests/shots.js <dir>          # a screenshot of every screen (the audit and before/after gallery)
+```
+
+`AUDIT.md` is the baseline audit, `PLAN.md` the milestone plan, and `CHANGES.md` logs every tuned number.

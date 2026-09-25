@@ -520,6 +520,7 @@ const CONFIG = {
     fadeMinSho: 4.5,           // bots only fade away with at least this Shooting (engine scale)
   },
   camera: {
+    playerKeepM: 0.9,          // the player you control always stays at least this far inside the frame edge (m)
     wBall: 0.6,                // focus weight: ball
     wPlayer: 0.25,             // focus weight: controlled player
     wHoop: 0.15,               // focus weight: attacked hoop
@@ -754,6 +755,22 @@ const CONFIG = {
   tutorial: {
     stepTimeoutS: 45,          // a tutorial step auto-advances after this (s)
   },
+  harness: {                   // the balance harness: a scripted "human" presses buttons in real matches (tests/balance.js)
+    reaction: 0.18,            // the scripted human sees the world this late (s), like a real player's reaction time
+    sigma: { brute: 0.07, spam: 0.09, drives: 0.06, threes: 0.05, sniper: 0.012, reader: 0.022 }, // release-timing spread per strategy (s)
+    mashEvery: 0.2,            // a button masher hits a random button about this often (s)
+    threeSpot: 0.35,           // shooters set up this far outside the arc (m)
+    openDist: 1.7,             // a defender farther than this counts as open for the scripted shooters (m)
+    postEdge: 0.076,           // the reader posts up when at least this much taller (3 inches, m)
+    postTime: 2.6,             // longest back-down before the reader gives up the post (s)
+    moveEvery: 0.9,            // the reader waits this long between dribble moves (s)
+    defGap: 1.05,              // the scripted defender stays this far between the ball and the rim (m)
+    bite: 0.45,                // chance the scripted defender leaves its feet on a gather (pump fakes fool it)
+    stealTry: 0.25,            // chance per opening that the scripted defender swipes
+    stealEvery: 2.5,           // minimum time between swipes (s)
+    gamesPerCell: 12,          // default games per strategy and difficulty
+    maxSteps: 120 * 60 * 25,   // safety cap on a harness game (steps; 25 minutes of game time)
+  },
 };
 
 // ============================================================================
@@ -839,7 +856,7 @@ function softmaxPick(scores, n, temperature, rng) {
 // Weighted choice from an object of {key: weight}.
 function weightedPick(weights, rng) { let sum = 0; for (const k in weights) sum += weights[k]; let r = rng.next() * sum; let last = null; for (const k in weights) { last = k; r -= weights[k]; if (r <= 0) return k; } return last; }
 
-function hexToRgb(hex) { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function hexToRgb(hex) { if (typeof hex !== 'string' || hex[0] !== '#') return [128, 128, 128]; if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]; const n = parseInt(hex.slice(1, 7), 16); if (!isFinite(n)) return [128, 128, 128]; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; } // never throws: bad input paints gray
 function rgbToHex(r, g, b) { return '#' + ((1 << 24) | (clamp(r | 0, 0, 255) << 16) | (clamp(g | 0, 0, 255) << 8) | clamp(b | 0, 0, 255)).toString(16).slice(1); }
 function mixHex(a, b, t) { const A = hexToRgb(a), B = hexToRgb(b); return rgbToHex(lerp(A[0], B[0], t), lerp(A[1], B[1], t), lerp(A[2], B[2], t)); }
 function shadeHex(hex, amt) { return amt >= 0 ? mixHex(hex, '#ffffff', amt) : mixHex(hex, '#000000', -amt); }
@@ -3363,6 +3380,8 @@ class Camera {
     const me = m.controlledPlayer; if (me && !me.hidden && !this.fixed && !focusOverride && !(m.perSide === 1 && !m.contest3)) { const mg = CAM.playerMarginM; const lo = Math.max(b.x - halfW + mg * 0.5, me.x - halfW + mg), hi = Math.min(b.x + halfW - mg * 0.5, me.x + halfW - mg); if (lo <= hi) fx = clamp(fx, lo, hi); } // nudge so your player stays in frame without losing the ball
     fx = minX > maxX ? COURT_L / 2 : clamp(fx, minX, maxX);
     springStep(this.x, fx, CAM.omega, dt);
+    // hard guarantee: the player you control never leaves the frame, even when the spring lags behind a sprint
+    if (me && !me.hidden && !this.fixed && !focusOverride) { const half = this.W / 2 / this.ppm, mg = Math.min(CAM.playerKeepM, half * 0.45); const lo = me.x + mg - half, hi = me.x - mg + half; if (this.x.x < lo) { this.x.x = lo; if (this.x.v < 0) this.x.v = 0; } else if (this.x.x > hi) { this.x.x = hi; if (this.x.v > 0) this.x.v = 0; } }
     springStep(this.y, CAM.baseY + (this.zoom.x - 1) * CAM.zoomYGain, CAM.omega, dt);
     this.trauma = Math.max(0, this.trauma - CAM.shakeDecay * dt); this.punch = approach(this.punch, 0, CAM.punchDecay * dt * Math.max(0.02, this.punch));
     const t2 = this.trauma * this.trauma * (this.reduceMotion ? 0 : this.shakeSetting);
@@ -3812,7 +3831,7 @@ function portraitOf(def, teamColors, size) {
 function drawPlayer(ctx, cam, p, alpha, ball, team, opts) {
   opts = opts || {}; const a = p.anim; const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha), z = lerp(p.pz, p.z, alpha);
   const s = cam.scale(z), h = p.height, f = p.facing, ox = cam.sx(x), oy = cam.sy(y, z); const st = p.state; const look = p.look;
-  const jersey = team.colors[0], trim = team.colors[1], skin = SKIN_TONES[look.skin % SKIN_TONES.length]; const skinDark = shadeHex(skin, -0.25), skinOutline = shadeHex(skin, -0.6), jerseyOutline = shadeHex(jersey, -0.55);
+  const jersey = team.colors[0], trim = team.colors[1], skin = SKIN_TONES[_lookIx(look.skin, SKIN_TONES.length)]; const skinDark = shadeHex(skin, -0.25), skinOutline = shadeHex(skin, -0.6), jerseyOutline = shadeHex(jersey, -0.55);
   const lw = Math.max(1.2, 0.028 * s); const sqY = a.squash, sqX = 1 / Math.sqrt(a.squash);
   const knocked = st === 'knocked' || (st === 'stumble' && p.sd.sit && p.stateT > 0.35);
   const tilt = knocked ? f * 1.35 * clamp01(p.stateT / 0.25) : (st === 'stumble' ? f * 0.35 * Math.sin(Math.min(1, p.stateT / 0.7) * Math.PI) : a.lean * 0.6);
@@ -4313,7 +4332,7 @@ function mainMenu(game) {
   const items = [];
   if (any) items.push(btn('CONTINUE CAREER', 0, 0, 0, 0, () => game.ui.replace(c ? careerHub(game) : amHub(game)), { primary: true, sub: c ? 'pro · season ' + c.season : am.stage === 'combine' ? 'draft combine' : amStageLabel(am) }));
   items.push(btn(any ? 'New career' : 'START YOUR CAREER', 0, 0, 0, 0, () => { if (any) game.ui.push(confirmScreen(game, 'Start over? Your current career ends.', () => { s.career = null; s.c1 = null; game.save.save(); game.ui.replace(createPlayerScreen(game)); })); else game.ui.replace(createPlayerScreen(game)); }, any ? {} : { primary: true }));
-  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Team league (classic)', 0, 0, 0, 0, () => game.ui.push(s.teamCareer ? tcHub(game) : tcCreateScreen(game)), { sub: s.teamCareer ? 'season ' + (s.teamCareer.season || 1) : '5v5 / 3v3' }), btn('Street tournament', 0, 0, 0, 0, () => game.ui.push(tournamentScreen(game))), btn('3-Point Contest', 0, 0, 0, 0, () => game.ui.push(threePointScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(practiceScreen(game))), btn('Tutorial', 0, 0, 0, 0, () => game.startTutorial()), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))));
+  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Extras', 0, 0, 0, 0, () => game.ui.push(extrasScreen(game)), { sub: 'team league · modes · art lab' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))));
   column(items, 70, 120, 380, 44, 8); items[0].h = 54; for (let i = 1; i < items.length; i++) items[i].y += 10;
   return { widgets: items, name: 'menu', update(dt) { t += dt; }, onBack() { game.ui.replace(titleScreen(game)); },
     draw(ctx, ui) {
@@ -4333,6 +4352,13 @@ function mainMenu(game) {
         let y = 130; for (const l of lines) { y += wrapText(ctx, l, 530, y, 680, 24) * 24 + 16; }
         const a = ROSTER.ballers[0], b = ROSTER.vandals[0]; drawMannequin(ctx, a, TEAMS[1], 760, 640, 300, 'focused', 1, t); drawMannequin(ctx, b, TEAMS[4], 1010, 640, 300, 'hyped', -1, t); }
     } };
+}
+// Extras: the classic team league, the other modes and the Art Lab.
+function extrasScreen(game) {
+  const s = game.save.data;
+  const items = [btn('Team league (classic)', 0, 0, 0, 0, () => game.ui.push(s.teamCareer ? tcHub(game) : tcCreateScreen(game)), { sub: s.teamCareer ? 'season ' + (s.teamCareer.season || 1) : '5v5 / 3v3' }), btn('Street tournament', 0, 0, 0, 0, () => game.ui.push(tournamentScreen(game))), btn('3-Point Contest', 0, 0, 0, 0, () => game.ui.push(threePointScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(practiceScreen(game))), btn('Tutorial', 0, 0, 0, 0, () => game.startTutorial()), btn('Art Lab', 0, 0, 0, 0, () => game.ui.push(artLabScreen(game)), { sub: 'character sheet' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  column(items, UI_W / 2 - 220, 150, 440, 52, 12);
+  return { widgets: items, name: 'extras', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 300, 70, 600, 600); ui.title(ctx, 'EXTRAS', UI_W / 2 - 250, 112, 40); } };
 }
 function confirmScreen(game, text, onYes) { const items = [btn('Yes', 0, 0, 0, 0, () => { game.ui.pop(); onYes(); }), btn('No', 0, 0, 0, 0, () => game.ui.pop())]; column(items, UI_W / 2 - 150, 340, 300, 46, 10); return { widgets: items, overlay: true, name: 'confirm', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 280, 230, 560, 240, UI_PANEL2); ctx.font = fontStr(20, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, text, UI_W / 2, 262, 500, 26); } }; }
 function settingsScreen(game) {
@@ -5194,6 +5220,155 @@ function tcStrategyScreen(game) {
   return { widgets: items, name: 'strategy', draw(ctx, ui) { ui.panel(ctx, 30, 20, 680, 680); ui.title(ctx, 'GAME PLAN', 60, 60, 36); ui.label(ctx, 'These bend how your bot teammates pick shots, drives, passes and how hard they play.', 60, 470, 13); } };
 }
 function tcTeamOverall(t) { const r = fullRoster(t.id); return r.reduce((a, p) => a + RATING_KEYS.reduce((s, k) => s + p.attrs[k], 0), 0) / r.length; }
+
+// ============================================================================
+// SECTION: ART LAB — the character sheet (every skin tone, hairstyle and facial hair; four expressions; both facings;
+// phone size and 250 px), key poses, the crowd atlas and venue previews. Extras → Art Lab, or open index.html?artlab.
+// tests/artlab.js screenshots every view for the visual rounds in shots/<milestone>/round-N/.
+// ============================================================================
+// Twelve invented players that together cover every skin tone, facial hair style and most hairstyles (the Hair view shows all).
+const LAB_CAST = [
+  { name: 'Theo Marsh',    h: 1.78, age: 17, look: { skin: 0,  hair: 10, hairColor: 5,  facialHair: 0, iris: 4, acc: { headband: true } }, colors: ['#2E6FD8', '#F3F0FF'] },
+  { name: 'Dario Quint',   h: 1.83, age: 24, look: { skin: 1,  hair: 1,  hairColor: 1,  facialHair: 1, iris: 2 }, colors: ['#B8322D', '#F3F0FF'] },
+  { name: 'Kenji Arata',   h: 1.80, age: 21, look: { skin: 2,  hair: 11, hairColor: 0,  facialHair: 0, iris: 0 }, colors: ['#1E1633', '#FFD23F'] },
+  { name: 'Mateo Varga',   h: 1.88, age: 27, look: { skin: 3,  hair: 12, hairColor: 3,  facialHair: 3, iris: 2 }, colors: ['#2E8B57', '#FFD23F'] },
+  { name: 'Samir Haddad',  h: 1.91, age: 30, look: { skin: 4,  hair: 9,  hairColor: 1,  facialHair: 4, iris: 1 }, colors: ['#6A3FB5', '#F3F0FF'] },
+  { name: 'Ravi Menon',    h: 1.95, age: 23, look: { skin: 5,  hair: 0,  hairColor: 0,  facialHair: 2, iris: 1 }, colors: ['#FF8A2A', '#1E1633'] },
+  { name: 'Luis Batiste',  h: 1.97, age: 37, look: { skin: 6,  hair: 13, hairColor: 13, facialHair: 5, iris: 0 }, colors: ['#0FA3A3', '#1E1633'] },
+  { name: 'Andre Oduya',   h: 2.00, age: 19, look: { skin: 7,  hair: 2,  hairColor: 0,  facialHair: 0, iris: 0 }, colors: ['#E24C8A', '#1E1633'] },
+  { name: 'Marcus Fenwick', h: 2.03, age: 26, look: { skin: 8, hair: 6,  hairColor: 1,  facialHair: 1, iris: 0 }, colors: ['#F3F0FF', '#2E6FD8'] },
+  { name: 'Jalen Ashby',   h: 2.06, age: 22, look: { skin: 9,  hair: 3,  hairColor: 0,  facialHair: 3, iris: 1 }, colors: ['#FFD23F', '#1E1633'] },
+  { name: 'Kobi Mensah',   h: 2.10, age: 29, look: { skin: 10, hair: 7,  hairColor: 0,  facialHair: 5, iris: 0 }, colors: ['#7A1F2B', '#FFD23F'] },
+  { name: 'Obi Nwankwo',   h: 2.16, age: 33, look: { skin: 11, hair: 4,  hairColor: 0,  facialHair: 2, iris: 1, acc: { earring: true } }, colors: ['#3A3F4A', '#5EE0FF'] },
+];
+const LAB_EXPRS = ['neutral', 'hyped', 'shocked', 'angry'];                                      // the phone-size grid
+const LAB_EXPRS_ALL = ['neutral', 'focused', 'hyped', 'shocked', 'tired', 'angry', 'effort'];   // the 250 px sheet
+const LAB_POSES = ['idle', 'run', 'dribble', 'jumpshot', 'dunk', 'defense', 'block', 'celebrate'];
+const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd', 'Venues'];
+const LAB_HAIR_NAMES = ['Buzz', 'Taper fade', 'High top', 'Afro', 'Curly top', 'Twists', 'Locs', 'Cornrows', 'Box braids', 'Bun', 'Side part', 'Mohawk', 'Long', 'Bald'];
+const LAB_FACIAL_NAMES = ['None', 'Stubble', 'Mustache', 'Goatee', 'Chin strap', 'Full beard'];
+
+// --- adapters: how the lab draws a head and a full figure with the current painters ---
+// The lab cast is written in the new look model; the current painter reads the older fields, so map the closest match.
+function labOldLook(l, number) {
+  const skinMap = [0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7], hairMap = [0, 0, 2, 1, 6, 6, 3, 8, 8, 4, 7, 5, 3, 9], colMap = [0, 1, 2, 2, 3, 3, 4, 4, 5, 6, 8, 9, 7, 7], facMap = [0, 4, 3, 1, 1, 2], irisMap = [0, 0, 4, 2, 1, 3];
+  const ix = (a, v) => a[_lookIx(v, a.length)];
+  return { skin: ix(skinMap, l.skin), hair: ix(hairMap, l.hair), hairColor: ix(colMap, l.hairColor), beard: ix(facMap, l.facialHair), eyes: ix(irisMap, l.iris), headband: !!(l.acc && l.acc.headband), sleeves: !!(l.acc && l.acc.sleeve), headScale: 1, number: number == null ? 0 : number, shoes: null };
+}
+function labOldExpr(e) { return e === 'hyped' || e === 'effort' ? 'hyped' : e === 'shocked' ? 'shocked' : 'focused'; }
+function labDef(c, i) { return { name: c.name, nick: c.name.split(' ')[0], arch: 'slasher', height: c.h, age: c.age, attrs: { sho: 6, fin: 6, han: 6, spd: 6, jmp: 6, def: 6, str: 6 }, look: labOldLook(c.look, (i * 7 + 3) % 60), labLook: c.look }; }
+// Head centered at (cx, cy), headH px tall (crown to chin).
+function labDrawHead(ctx, c, cx, cy, headH, facing, expr, t) {
+  try { const R = headH / 2.12; drawHead(ctx, cx, cy, R, labOldLook(c.look, 0), labOldExpr(expr), facing, c.colors, Math.max(1, R * 0.055)); } catch (e) { labFail(e); }
+}
+// A stand-in player in one of the lab poses, drawn by the in-game figure painter with a camera of pxPerM px per meter.
+function labStandIn(c, i, pose, facing, t) {
+  const def = labDef(c, i); const air = pose === 'jumpshot' || pose === 'dunk' || pose === 'block';
+  const st = { idle: 'move', run: 'move', dribble: 'move', jumpshot: 'jumpshot', dunk: 'dunk', defense: 'stance', block: 'jump', celebrate: 'celebrate' }[pose] || 'move';
+  const y = pose === 'jumpshot' ? 0.45 : pose === 'dunk' ? 0.85 : pose === 'block' ? 0.6 : 0;
+  const p = { name: def.name, def, anim: { headX: Math.sin(t * 2) * 0.01, headV: 0, headY: 0, headVY: 0, lean: pose === 'run' ? 0.12 : 0, legPhase: pose === 'run' ? t * 9 : 0, squash: 1, expr: labOldExpr(pose === 'dunk' ? 'effort' : pose === 'celebrate' ? 'hyped' : 'focused'), exprT: 0, defStance: pose === 'defense', bodyUpT: 0, spinAngle: 0 },
+    look: def.look, height: c.h, facing, state: st, stateT: pose === 'celebrate' ? 0.3 + (t % 1) : 0.25, sd: { style: 0, tApex: 0.33 }, grounded: !air, vx: pose === 'run' ? facing * 5 : 0, vy: air ? 0.5 : 0, x: 0, y, z: 0.5, px: 0, py: y, pz: 0.5,
+    reach: c.h * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs, moves: {}, traits: {}, inState(...n) { return n.includes(this.state); } };
+  let ball = null;
+  if (pose === 'dribble' || pose === 'jumpshot' || pose === 'dunk') {
+    const bx = pose === 'dribble' ? facing * 0.32 : facing * 0.15, by = pose === 'dribble' ? 0.35 + Math.abs(Math.sin(t * 5)) * 0.55 : pose === 'jumpshot' ? y + c.h + 0.1 : y + p.reach - 0.1;
+    ball = { owner: p, x: bx, y: by, px: bx, py: by, pz: 0.5, z: 0.5, spin: 0 }; p.hasBall = true;
+  } else p.hasBall = false;
+  return { p, ball, def };
+}
+function labDrawFigure(ctx, c, i, x, yFloor, pxPerM, facing, pose, t) {
+  try {
+    const { p, ball } = labStandIn(c, i, pose, facing, t);
+    const cam = { scale: () => pxPerM, sx: wx => x + wx * pxPerM, sy: (wy, z) => yFloor - wy * pxPerM, ppm: pxPerM, W: 0, H: 0 };
+    drawPlayer(ctx, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true });
+    if (ball) { const r = BALL.radius * pxPerM * 1.15; ctx.fillStyle = '#E8742C'; ctx.beginPath(); ctx.arc(cam.sx(ball.x), cam.sy(ball.y), r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke(); }
+  } catch (e) { labFail(e); }
+}
+let _labFails = 0;
+function labFail(e) { if (_labFails++ < 3) console.warn('[art lab] draw failed:', e && e.message); }
+
+// --- venue previews: a real match scene rendered offscreen by the same scene painter the game uses ---
+const _labVenueCache = {};
+function labVenueIds() { return ['gym', 'arena', 'blacktop', 'rooftop']; }
+function labVenueShot(courtId, W, H) {
+  const key = courtId + W + 'x' + H; if (_labVenueCache[key]) return _labVenueCache[key];
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
+  try {
+    const a = LAB_CAST[3], b = LAB_CAST[9];
+    const tA = Object.assign({}, TEAMS[0], { id: 'labA', name: a.name, abbr: 'LBA', colors: a.colors, pattern: 'solid', players: [labDef(a, 3)] });
+    const tB = Object.assign({}, TEAMS[1], { id: 'labB', name: b.name, abbr: 'LBB', colors: b.colors, pattern: 'solid', players: [labDef(b, 9)] });
+    const m = new Match({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, court: courtId, seed: 11, format: { type: 'first', target: 21 } });
+    const off = m.players[0], dfd = m.players[1], hoop = off.hoop, dir = sgn(hoop.x - COURT_L / 2);
+    m.phase = 'live'; off.x = hoop.x - dir * 6.2; dfd.x = off.x + dir * 1.2; off.facing = dir; dfd.facing = -dir; dfd.setState('stance');
+    for (const p of m.players) { p.px = p.x; p.y = 0; p.py = 0; p.grounded = true; p.tipoff = false; }
+    m.giveBall(off, true); off.setState('move'); updateDribble(off, 0.1); m.ball.px = m.ball.x; m.ball.py = m.ball.y;
+    const cam = new Camera(); cam.resize(W, H); cam.snapTo((off.x + hoop.x) / 2); for (let k = 0; k < 90; k++) cam.update(m, 1 / 60);
+    const world = new WorldRenderer(); world.update(0.5, m);
+    drawMatchScene(ctx, { cam, world, fx: null, W, H, degraded: false, rp: null }, m, 1);
+  } catch (e) { labFail(e); ctx.fillStyle = '#300'; ctx.fillRect(0, 0, W, H); }
+  _labVenueCache[key] = cv; return cv;
+}
+
+// --- the screen ---
+function artLabScreen(game) {
+  const st = game.labOpts || (game.labOpts = { view: 0, ch: 0 }); let t = 0;
+  const items = [
+    sel('View', 40, 12, 380, 40, LAB_VIEWS, () => st.view, i => { st.view = i; }),
+    btn('◀ Player', 440, 12, 150, 40, () => { st.ch = (st.ch + LAB_CAST.length - 1) % LAB_CAST.length; }),
+    btn('Player ▶', 600, 12, 150, 40, () => { st.ch = (st.ch + 1) % LAB_CAST.length; }),
+    btn('Back', 1120, 12, 130, 40, () => game.ui.pop()),
+  ];
+  const scr = { widgets: items, name: 'artlab', update(dt) { t += dt; items[1].hidden = items[2].hidden = st.view !== 1; },
+    setView(i) { st.view = clamp(i | 0, 0, LAB_VIEWS.length - 1); }, setChar(i) { st.ch = ((i | 0) % LAB_CAST.length + LAB_CAST.length) % LAB_CAST.length; },
+    onBack() { game.ui.pop(); },
+    draw(ctx, ui) {
+      ctx.fillStyle = '#0A0E26'; ctx.fillRect(0, 0, UI_W, UI_H);
+      ui.heading(ctx, 'ART LAB', 1090, 32, 22, UI_GOLD, 'right');
+      try { [labViewFacesSmall, labViewFacesLarge, labViewPoses, labViewHair, labViewCrowd, labViewVenues][st.view](ctx, ui, st, t); } catch (e) { labFail(e); }
+    } };
+  return scr;
+}
+function labCaption(ctx, text, x, y, size, color, align) { ctx.font = fontStr(size || 12, false); ctx.fillStyle = color || UI_DIM; ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y); }
+function labViewFacesSmall(ctx, ui, st, t) {
+  // left: 12 players × 4 expressions × both facings, heads 40 px tall (phone size)
+  const x0 = 70, y0 = 96, cw = 54, rh = 50;
+  LAB_EXPRS.forEach((e, k) => { labCaption(ctx, e, x0 + (k * 2 + 0.5) * cw + cw / 2 - 27, 76, 11); });
+  LAB_CAST.forEach((c, i) => {
+    const y = y0 + i * rh + rh / 2; labCaption(ctx, String(i + 1), x0 - 22, y, 12, UI_TEXT);
+    for (let k = 0; k < 4; k++) for (let f = 0; f < 2; f++) labDrawHead(ctx, c, x0 + (k * 2 + f) * cw + cw / 2, y, 40, f ? -1 : 1, LAB_EXPRS[k], t);
+  });
+  // right: the same players as full figures at phone scale (head ≈ 40 px), sorted by height so true height shows
+  const ppm = 36, bx = 560; labCaption(ctx, 'Full figures at phone scale · true heights · 36 px per meter', 900, 76, 12, UI_DIM);
+  LAB_CAST.forEach((c, i) => { const col = i % 6, row = Math.floor(i / 6); const x = bx + col * 115 + 40, yF = 330 + row * 300; labDrawFigure(ctx, c, i, x, yF, ppm, 1, 'idle', t); labCaption(ctx, (i + 1) + ' · ' + c.name.split(' ')[0] + ' · ' + fmtHeight(c.h), x, yF + 18, 11, UI_TEXT); });
+}
+function labViewFacesLarge(ctx, ui, st, t) {
+  const c = LAB_CAST[st.ch]; labCaption(ctx, (st.ch + 1) + ' / 12 · ' + c.name + ' · ' + fmtHeight(c.h) + ' · age ' + c.age + ' · skin ' + c.look.skin + ' · hair ' + LAB_HAIR_NAMES[c.look.hair] + ' · ' + LAB_FACIAL_NAMES[c.look.facialHair], 960, 32, 13, UI_TEXT);
+  const slots = LAB_EXPRS_ALL.map(e => ({ e, f: 1 })).concat([{ e: 'neutral', f: -1 }]);
+  slots.forEach((s, k) => { const col = k % 4, row = Math.floor(k / 4); const cx = 170 + col * 310, cy = 215 + row * 318; labDrawHead(ctx, c, cx, cy, 250, s.f, s.e, t); labCaption(ctx, s.e + (s.f < 0 ? ' · facing left' : ''), cx, cy + 150, 13, UI_TEXT); });
+}
+function labViewPoses(ctx, ui, st, t) {
+  const cast = [LAB_CAST[0], LAB_CAST[5], LAB_CAST[11]], idx = [0, 5, 11]; const ppm = 78;
+  LAB_POSES.forEach((p, k) => labCaption(ctx, p, 110 + k * 150, 76, 12, UI_TEXT));
+  cast.forEach((c, r) => { const yF = 290 + r * 210; ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.moveTo(30, yF); ctx.lineTo(1250, yF); ctx.stroke(); labCaption(ctx, c.name.split(' ')[0] + ' ' + fmtHeight(c.h), 40, yF - 185, 11, UI_DIM, 'left');
+    LAB_POSES.forEach((p, k) => labDrawFigure(ctx, c, idx[r], 110 + k * 150, yF, ppm, 1, p, t)); });
+}
+function labViewHair(ctx, ui, st, t) {
+  const base = LAB_CAST[st.ch];
+  for (let s = 0; s < 14; s++) for (let f = 0; f < 2; f++) { const c = { name: base.name, h: base.h, age: 24, look: Object.assign({}, base.look, { hair: s, facialHair: 0, hairColor: s === 13 ? 0 : [0, 1, 2, 0, 1, 0, 1, 0, 0, 2, 3, 0, 5, 0][s] }), colors: base.colors }; const cx = 60 + s * 86, cy = 130 + f * 120; labDrawHead(ctx, c, cx, cy, 80, f ? -1 : 1, 'neutral', t); if (!f) labCaption(ctx, LAB_HAIR_NAMES[s], cx, 72, 11, UI_TEXT); }
+  labCaption(ctx, 'Hair colors', 60, 300, 12, UI_DIM, 'left');
+  for (let k = 0; k < 14; k++) { const c = { name: base.name, h: base.h, age: 24, look: Object.assign({}, base.look, { hair: 3, hairColor: k, facialHair: 0 }), colors: base.colors }; labDrawHead(ctx, c, 60 + k * 86, 380, 80, 1, 'neutral', t); }
+  labCaption(ctx, 'Facial hair (age 28) and aging (ages 16 / 28 / 36 / 42)', 60, 480, 12, UI_DIM, 'left');
+  for (let k = 0; k < 6; k++) { const c = { name: base.name, h: base.h, age: 28, look: Object.assign({}, base.look, { hair: 1, hairColor: 1, facialHair: k }), colors: base.colors }; labDrawHead(ctx, c, 60 + k * 110, 580, 90, 1, 'neutral', t); labCaption(ctx, LAB_FACIAL_NAMES[k], 60 + k * 110, 645, 11, UI_TEXT); }
+  [16, 28, 36, 42].forEach((age, k) => { const c = { name: base.name, h: base.h, age, look: Object.assign({}, base.look, { hair: 10, hairColor: 2, facialHair: 5 }), colors: base.colors }; labDrawHead(ctx, c, 760 + k * 120, 580, 90, 1, 'neutral', t); labCaption(ctx, 'age ' + age, 760 + k * 120, 645, 11, UI_TEXT); });
+}
+function labViewCrowd(ctx, ui, st, t) {
+  const A = _fanAtlas || buildFanAtlas(); const sc = Math.min(1200 / A.canvas.width, 560 / A.canvas.height);
+  ctx.drawImage(A.canvas, 40, 90, A.canvas.width * sc, A.canvas.height * sc);
+  labCaption(ctx, 'Crowd atlas · ' + A.n + ' fans · ' + (A.canvas.height / A.h) + ' rows (poses × depth shades) · ' + A.w + '×' + A.h + ' cells', 640, 675, 13, UI_TEXT);
+}
+function labViewVenues(ctx, ui, st, t) {
+  labVenueIds().forEach((id, k) => { const col = k % 2, row = Math.floor(k / 2); const x = 30 + col * 620, y = 70 + row * 322; const img = labVenueShot(id, 1280, 720); ctx.drawImage(img, x, y, 600, 338); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, 600, 338); labCaption(ctx, (COURTS[id] ? COURTS[id].name || id : id), x + 8, y + 14, 13, UI_GOLD, 'left'); });
+}
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION — versioned localStorage save with migration, and the pro half of the 1v1 career:
@@ -6118,6 +6293,146 @@ class PerfMonitor {
 }
 
 // ============================================================================
+// SECTION: BALANCE HARNESS — a scripted "human" presses buttons on the controlled player's InputState in a real match
+// (the bots see a human: they adapt to it), with a human reaction delay and release-timing noise. Each strategy is
+// scored in points per possession against a bot difficulty. tests/balance.js prints the table; the dev menu runs it too.
+// ============================================================================
+const HN = CONFIG.harness;
+const HARNESS_STRATEGIES = ['brute', 'spam', 'drives', 'threes', 'sniper', 'reader'];
+const HARNESS_LABELS = { brute: 'Brute force: sprint + Shoot at the rim', spam: 'Button mash', drives: 'Only drives (no moves)', threes: 'Only threes (average timing)', sniper: 'Perfect-timing jumpers', reader: 'Reads the defender, mixes moves' };
+class ScriptedHuman {
+  constructor(m, p, strategy, seed) {
+    this.m = m; this.p = p; this.strategy = strategy; this.rng = new RNG((seed * 2654435761) >>> 0 || 1);
+    this.sigma = HN.sigma[strategy] != null ? HN.sigma[strategy] : 0.05; this.cd = { move: 0, jump: 0, steal: 0, mash: 0, fake: 0, hold: 0 };
+    this.shot = null; this.releaseAt = -1; this.plan = null; this.planT = 0; this.bit = false; this.mash = null;
+  }
+  // the world as a human sees it: a fraction of a second late
+  seen(pl) { const s = this.m.perception.get(HN.reaction); return s.players[this.m.players.indexOf(pl)]; }
+  step(dt) {
+    const m = this.m, p = this.p, I = p.input, b = m.ball; for (const k in this.cd) this.cd[k] -= dt; this.planT -= dt;
+    const o = { mv: 0, down: false, sprint: false, shoot: false, pass: false, jump: false, action: false };
+    if ((m.phase === 'live' || m.phase === 'freethrow') && !p.hidden) {
+      if (b.owner === p || this.shot) this.offense(o, dt);
+      else if (b.owner && b.owner.team !== p.team) this.defense(o, dt);
+      else this.loose(o, dt);
+    } else { this.shot = null; this.plan = null; }
+    I.moveX = clamp(o.mv, -1, 1); I.set('down', o.down); I.set('sprint', o.sprint); I.set('shoot', o.shoot); I.set('pass', o.pass); I.set('jump', o.jump); I.set('action', o.action);
+  }
+  // start a shot: hold the button through the gather, release at the planned moment
+  fire(o, kind, sigma) { this.shot = { kind, btn: kind === 'fade' ? 'pass' : 'shoot', sigma: sigma == null ? this.sigma : sigma, t: 0 }; this.releaseAt = -1; o[this.shot.btn] = true; }
+  finishShot(o, dt) {
+    const p = this.p, st = p.state, s = this.shot; s.t += dt;
+    if (st === 'gather') { o[s.btn] = true; return true; }
+    if (st === 'jumpshot' || st === 'floater') {
+      if (this.releaseAt < 0) { const early = p.arch === 'sharpshooter' ? SH.quickReleaseEarlyMs / 1000 : 0; this.releaseAt = Math.max(0.02, (p.sd.tApex || 0.3) - early - AI.releaseLatencyS + this.rng.gauss() * s.sigma); if (s.kind === 'mash') this.releaseAt = this.rng.range(0.02, 0.7); }
+      o[s.btn] = p.stateT < this.releaseAt; if (!o[s.btn]) this.shot = null; return true;
+    }
+    if (st === 'layup' || st === 'dunk' || st === 'rimhang' || st === 'tipin') { this.shot = null; return true; }
+    if (s.t > 0.05) { this.shot = null; return false; } // the press didn't start a shot (pump fake or blocked input)
+    o[s.btn] = true; return true;
+  }
+  offense(o, dt) {
+    const m = this.m, p = this.p; if (this.shot && this.finishShot(o, dt)) return; if (m.ball.owner !== p) return;
+    const hoop = p.hoop, dir = sgn(hoop.x - p.x) || p.facing, d = Math.abs(p.x - hoop.x), def = m.nearestOpponent(p), q = this.seen(def);
+    const dd = Math.abs(q.x - p.x), between = (q.x - p.x) * dir > -0.25, clock = m.shotClock; const rim = d <= SH.layupRange - 0.15;
+    const S = this.strategy;
+    if (S === 'brute') { o.mv = dir; o.sprint = true; if (d <= SH.dunkRange + 0.1 || (clock < 2 && d < SH.heaveRange)) this.fire(o, 'rim'); return; }
+    if (S === 'drives') { o.mv = dir; if (rim || (clock < 2 && d < SH.zoneDeep)) this.fire(o, 'rim'); return; }
+    if (S === 'spam') {
+      o.mv = this.rng.next() < 0.75 ? dir : -dir;
+      if (this.cd.mash <= 0) { this.cd.mash = this.rng.range(HN.mashEvery * 0.5, HN.mashEvery * 1.5); this.mash = ['shoot', 'action', 'sprint', 'jump', 'pass'][Math.floor(this.rng.next() * 5)]; this.cd.hold = this.rng.range(0.03, 0.5); }
+      if (this.mash && this.cd.hold > 0) { if (this.mash === 'shoot' || this.mash === 'pass') { this.fire(o, 'mash', 0.2); this.shot.btn = this.mash; o.shoot = this.mash === 'shoot'; o.pass = this.mash === 'pass'; } else o[this.mash] = true; }
+      return;
+    }
+    if (S === 'threes') {
+      const want = SH.zoneThree + HN.threeSpot; if (d > want + 0.35) o.mv = dir; else if (d < want - 0.35) o.mv = -dir;
+      else if (Math.abs(p.vx) < 1.2 || clock < 3) this.fire(o, 'jumper');
+      return;
+    }
+    if (S === 'sniper') {
+      const want = SH.zoneThree + HN.threeSpot, open = dd >= HN.openDist || !between;
+      if (open && d <= SH.zoneDeep && d >= SH.layupRange + 1) { if (Math.abs(p.vx) < 1.5) { this.fire(o, 'jumper'); return; } o.mv = 0; return; }
+      if (clock < 2.5 && d < SH.zoneDeep + 1) { this.fire(o, 'jumper'); return; }
+      if (this.plan === 'afterStep' && this.planT > 0) { if (p.state === 'move' || p.state === 'protect') { this.fire(o, 'jumper'); this.plan = null; } return; }
+      if (dd < HN.openDist && between && this.cd.move <= 0 && p.moves.stepback && d < SH.zoneDeep - MV.stepbackDist) { o.mv = -dir; o.action = true; this.cd.move = 0.9; this.plan = 'afterStep'; this.planT = 0.8; return; }
+      if (d > want + 0.35) o.mv = dir; else if (d < want - 1.5) o.mv = -dir;
+      return;
+    }
+    // reader: post up when bigger, attack a beaten or biting defender, shoot when open, beat a set defender with a move
+    const edge = p.height - def.height; const qOff = q.state === 'stumble' || q.state === 'knocked' || q.state === 'stagger' || q.state === 'land' || !q.grounded || q.biteT > 0 || !between;
+    if (this.plan && this.planT > 0) {
+      if (this.plan === 'drive') { o.mv = dir; o.sprint = true; if (rim || (d <= SH.dunkRange && canDunk(p))) { this.fire(o, 'rim'); this.plan = null; } return; }
+      if (this.plan === 'shoot' && (p.state === 'move' || p.state === 'protect')) { this.fire(o, 'jumper'); this.plan = null; return; }
+      if (this.plan === 'post') { o.down = true; o.mv = dir; if (d <= SH.hookRange - 0.5) { this.fire(o, 'hook'); this.plan = null; } return; }
+      if (this.plan === 'fake') { if (!q.grounded || q.biteT > 0) { this.plan = 'drive'; this.planT = 1.2; } return; }
+      return;
+    }
+    if (edge >= HN.postEdge && d < SH.hookRange + 2.5 && d > SH.layupRange) { this.plan = 'post'; this.planT = HN.postTime; o.down = true; o.mv = dir; return; }
+    if (qOff && d < SH.zoneThree + 2) { this.plan = 'drive'; this.planT = 1.4; o.mv = dir; o.sprint = true; return; }
+    if (rim) { this.fire(o, 'rim'); return; }
+    if (dd >= HN.openDist && d <= SH.zoneDeep - 0.2 && Math.abs(p.vx) < 2) { this.fire(o, 'jumper'); return; }
+    if (clock < 2.5) { if (d < SH.zoneDeep + 1) this.fire(o, 'jumper'); else { o.mv = dir; o.sprint = true; } return; }
+    if (dd < HN.openDist && between && this.cd.move <= 0) {
+      this.cd.move = HN.moveEvery; const r = this.rng.next();
+      if (Math.abs(q.vx) > 1.0 && q.vx * dir < 0) { o.mv = dir; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; } // closing hard: cross him and go
+      if (r < 0.3 && p.moves.stepback && d > SH.layupRange + 1.5 && d < SH.zoneDeep - MV.stepbackDist) { o.mv = -dir; o.action = true; this.plan = 'shoot'; this.planT = 0.9; return; }
+      if (r < 0.5 && this.cd.fake <= 0) { o.shoot = true; this.cd.fake = 2.5; this.plan = 'fake'; this.planT = 0.45; return; } // pump fake, drive if he leaves his feet
+      if (r < 0.75 && p.moves.spin && d < SH.zoneThree) { o.mv = dir; o.sprint = true; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; }
+      o.mv = dir; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; // crossover
+    }
+    if (d > SH.zoneThree + 0.8) o.mv = dir; else o.mv = 0;
+  }
+  defense(o, dt) {
+    const m = this.m, p = this.p, h = m.ball.owner, q = this.seen(h), myHoop = p.ownHoop; const dir = sgn(myHoop.x - q.x) || 1; const dist = Math.abs(q.x - p.x);
+    let tx = q.x + dir * HN.defGap; if (Math.abs(q.x - myHoop.x) < HN.defGap + 0.3) tx = myHoop.x - dir * 0.25;
+    const dx = tx - p.x; if (Math.abs(dx) > 0.12) o.mv = clamp(dx / 0.5, -1, 1); o.down = dist < 2.6; o.sprint = Math.abs(dx) > 2.5;
+    if (q.state !== 'gather') this.bit = false;
+    if (this.cd.jump <= 0 && p.grounded) {
+      if ((q.state === 'jumpshot' || q.state === 'floater') && q.stateT < 0.25 && dist < 1.9) { o.jump = true; this.cd.jump = 0.9; }
+      else if (q.state === 'gather' && dist < 1.7 && !this.bit) { this.bit = true; if (this.rng.next() < HN.bite) { o.jump = true; this.cd.jump = 0.9; } }
+      else if ((q.state === 'layup' || q.state === 'dunk') && dist < 1.7) { o.jump = true; this.cd.jump = 0.9; }
+    }
+    if (!o.jump && dist < 1.25 && this.cd.steal <= 0 && q.grounded && sgn(q.ballSide) === sgn(p.x - q.x) && this.rng.next() < HN.stealTry) { o.action = true; this.cd.steal = HN.stealEvery; }
+  }
+  loose(o, dt) {
+    const m = this.m, p = this.p, b = m.ball; const x = b.x + b.vx * 0.3; const dx = x - p.x;
+    if (Math.abs(dx) > 0.15) o.mv = clamp(dx / 0.5, -1, 1); o.sprint = Math.abs(dx) > 1.5;
+    if (p.grounded && this.cd.jump <= 0 && Math.abs(b.x - p.x) < 0.9 && b.y > p.reach - 0.3 && b.y < p.reach + 1.0 && b.vy < 0 && (b.rimTouched || b.boardTouched || !b.shot)) { o.jump = true; this.cd.jump = 0.8; }
+  }
+}
+function harnessDef(name, height, attrs, arch, look) { return { name, nick: name.split(' ')[0], arch: arch || 'slasher', height, attrs: Object.assign({ sho: 6, fin: 6, han: 6, spd: 6, jmp: 6, def: 6, str: 6 }, attrs || {}), look: look || { skin: 3, hair: 0, hairColor: 0, headScale: 1, number: 1 } }; }
+// One harness game: the scripted human (team 0) against a bot at a difficulty. Returns the human's and the bot's box.
+function harnessGame(o) {
+  const human = o.human || harnessDef('Scripted Human', 1.93), bot = o.bot || harnessDef('Mirror Bot', human.height, human.attrs, human.arch);
+  const tA = Object.assign({}, TEAMS[0], { id: 'hvA', name: 'Human', abbr: 'HUM', players: [human] }), tB = Object.assign({}, TEAMS[1], { id: 'hvB', name: 'Bot', abbr: 'BOT', players: [bot] });
+  const m = new Match({ mode: '1v1', teams: [tA, tB], humanTeam: 0, humanPlayerIndex: 0, difficulty: o.difficulty || 'pro', ruleset: o.ruleset || 'arcade', format: o.format || { type: 'first', target: 21 }, court: 'arena', seed: o.seed || 1, controlMode: 'lock', dev: true });
+  const sh = new ScriptedHuman(m, m.human, o.strategy || 'reader', o.seed || 1); let steps = 0; const max = HN.maxSteps;
+  while (!m.ended && steps < max) { sh.step(STEP); simStep(m, STEP); steps++; }
+  const box = boxScore(m, steps); box.timedOut = !m.ended; return box;
+}
+// The table: every strategy × difficulty, n games each.
+function runBalanceHarness(o) {
+  o = Object.assign({ n: HN.gamesPerCell, strategies: HARNESS_STRATEGIES, difficulties: ['pro', 'legend'], seed: 1, target: 21 }, o || {}); const rows = [];
+  for (const diff of o.difficulties) for (const strat of o.strategies) {
+    const r = { strategy: strat, difficulty: diff, games: 0, wins: 0, pts: 0, poss: 0, botPts: 0, botPoss: 0, fga: 0, fgm: 0, rimA: 0, midA: 0, threeA: 0, hookA: 0, blk: 0, botBlk: 0, stl: 0, to: 0, timeouts: 0, invariant: 0 };
+    for (let i = 0; i < o.n; i++) {
+      const b = harnessGame({ strategy: strat, difficulty: diff, seed: (o.seed + i * 7919 + HARNESS_STRATEGIES.indexOf(strat) * 131) >>> 0, format: { type: 'first', target: o.target } });
+      const h = b.teams[0], bt = b.teams[1], hp = h.players[0], bp = bt.players[0];
+      r.games++; if (b.winner === 0) r.wins++; r.pts += h.score; r.poss += h.possessions; r.botPts += bt.score; r.botPoss += bt.possessions; r.fga += hp.fga; r.fgm += hp.fgm;
+      r.rimA += (hp.layA || 0) + (hp.dunkA || 0); r.midA += hp.midA || 0; r.threeA += (hp.threeA || 0) + (hp.deepA || 0) + (hp.heaveA || 0); r.hookA += hp.hookA || 0; r.blk += hp.blk; r.botBlk += bp.blk; r.stl += hp.stl; r.to += hp.to; if (b.timedOut) r.timeouts++; r.invariant += b.invariantFails;
+      if (o.onProgress) o.onProgress(rows.length, i);
+    }
+    r.ppp = r.poss ? r.pts / r.poss : 0; r.botPPP = r.botPoss ? r.botPts / r.botPoss : 0; rows.push(r);
+  }
+  return rows;
+}
+function formatHarnessTable(rows) {
+  const L = ['strategy                                   vs       games  win%  PPP   botPPP  FG%   rim/mid/3/hook per game   blk  opp-blk  stl  TO'];
+  for (const r of rows) { const g = r.games || 1; L.push((HARNESS_LABELS[r.strategy] || r.strategy).padEnd(42) + ' ' + r.difficulty.padEnd(7) + ' ' + String(r.games).padStart(5) + '  ' + String(Math.round(100 * r.wins / g)).padStart(4) + '  ' + r.ppp.toFixed(2) + '  ' + r.botPPP.toFixed(2).padStart(6) + '  ' + String(Math.round(r.fga ? 100 * r.fgm / r.fga : 0)).padStart(3) + '   ' + [r.rimA, r.midA, r.threeA, r.hookA].map(v => (v / g).toFixed(1)).join('/').padEnd(22) + '  ' + (r.blk / g).toFixed(1) + '  ' + (r.botBlk / g).toFixed(1).padStart(6) + '  ' + (r.stl / g).toFixed(1) + '  ' + (r.to / g).toFixed(1) + (r.timeouts ? '  timeouts ' + r.timeouts : '') + (r.invariant ? '  invariant fails ' + r.invariant : '')); }
+  return L;
+}
+
+// ============================================================================
 // SECTION: BOOT / MAIN LOOP — fixed-step 120 Hz simulation with an accumulator, interpolated rendering,
 // hit-stop and slow-mo on the presentation clock, match lifecycle, tutorial, replays, posters
 // ============================================================================
@@ -6134,6 +6449,29 @@ const TUTORIAL_STEPS = [
   { text: 'That\'s 1v1. Beat your man with reads, not mashing. Have fun!', check: (g, f) => f.t > 3, done: true },
 ];
 
+// The match scene (venue, floor, reflections, hoops, players, ball, FX, vignette). env = { cam, world, fx, W, H, degraded, rp, racks }.
+function drawMatchScene(ctx, env, m, alpha) {
+  const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop; const rp = env.rp;
+  world.drawBackdrop(ctx, cam, court, m); world.drawFloor(ctx, cam, court, m.courtId);
+  const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball;
+  const order = players.filter(p => !p.hidden).slice().sort((a, b) => a.z - b.z);
+  const drawAll = (reflection) => {
+    const o = { replay: !!rp, reflection }; let ballDrawn = false;
+    for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { world.drawBall(ctx, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } drawPlayer(ctx, cam, p, alpha, ball, m.teams[p.team], o); if (ball.owner === p) { world.drawBall(ctx, cam, ball, alpha, m.ball.skin, p.onFire > 0, o); ballDrawn = true; } }
+    if (!ballDrawn) world.drawBall(ctx, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && m.ball.shot.shooter.onFire > 0), o);
+  };
+  // reflections in the floor
+  if (!env.degraded) { const band = world.floorBand(cam); ctx.save(); ctx.beginPath(); ctx.rect(0, band.top, env.W, band.bottom - band.top); ctx.clip(); ctx.translate(0, band.top * 2); ctx.scale(1, -1); ctx.globalAlpha = 0.22; for (const h of HOOPS) world.drawHoopBack(ctx, cam, h, court); drawAll(true); HOOPS.forEach((h, i) => world.drawHoopFront(ctx, cam, h, court, i, null)); ctx.restore(); ctx.globalAlpha = 1; }
+  world.drawGloss(ctx, cam);
+  for (const h of HOOPS) world.drawHoopBack(ctx, cam, h, court);
+  drawAll(false);
+  HOOPS.forEach((h, i) => world.drawHoopFront(ctx, cam, h, court, i, m));
+  if (env.racks) env.racks();
+  if (env.fx) env.fx.draw(ctx, cam);
+  // soft vignette
+  const vg = ctx.createRadialGradient(env.W / 2, env.H / 2, env.H * 0.45, env.W / 2, env.H / 2, env.H * 1.05); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.35)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, env.W, env.H);
+}
+
 class Game {
   constructor() {
     this.canvas = document.getElementById('game'); this.ctx = this.canvas.getContext('2d'); this.W = 1280; this.H = 720; this.dpr = 1;
@@ -6145,9 +6483,9 @@ class Game {
     window.addEventListener('blur', () => this.autoPause());
     const unlock = () => { this.audio.unlock(); if (this.audio.ok && !this.audio.crowd && this.mode === 'match') this.audio.startCrowd(); }; window.addEventListener('pointerdown', unlock, { passive: true }); window.addEventListener('keydown', unlock); window.addEventListener('touchend', unlock, { passive: true });
     try { if (document.fonts && document.fonts.load) document.fonts.load('900 40px "Big Shoulders Display"').catch(() => {}); } catch (e) {}
-    this.ui.push(titleScreen(this)); this.input.grabFocus(); window.addEventListener('load', () => this.input.grabFocus());
+    this.ui.push(titleScreen(this)); if (/[?&]artlab\b/.test(location.search)) this.ui.push(artLabScreen(this)); this.input.grabFocus(); window.addEventListener('load', () => this.input.grabFocus());
     if (this.save.corrupted) this.ui.toastMsg('Save data was corrupted and has been reset.');
-    window.HH = { game: this, CONFIG, simulateMatch, runSims, shotLab, tunnelTest, formatSimTable, aggregateSims, Match, TEAMS, ROSTER, createCareerFromAmateur, amCreate, amSimGame, testProLeague, simUserGame, careerAfterGame, doTraining, strengthOf, simBox, legacyOf };
+    window.HH = { game: this, artLabScreen, LAB_CAST, drawMatchScene, runBalanceHarness, formatHarnessTable, harnessGame, HARNESS_STRATEGIES, CONFIG, simulateMatch, runSims, shotLab, tunnelTest, formatSimTable, aggregateSims, Match, TEAMS, ROSTER, createCareerFromAmateur, amCreate, amSimGame, testProLeague, simUserGame, careerAfterGame, doTraining, strengthOf, simBox, legacyOf };
   }
   applySettings() {
     const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; this.input.setPreset(S.keyPreset); const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.computeLayout(this.W, this.H);
@@ -6180,11 +6518,21 @@ class Game {
   nextReel() { const r = this.reel; if (!r) return; r.i++; if (r.i >= r.plays.length) { this.reel = null; this.replayPlayer = null; this.openPostgameAgain(); return; } this.playReplay(r.plays[r.i], () => this.nextReel()); }
   openPostgameAgain() { this.postgameOpened = false; this.openPostgame(); }
   // ---- main loop ----
+  // Renderers must never throw. If one does anyway, the frame is dropped, the canvas state is reset, the error is recorded
+  // once in window.HH_ERRORS (the tests fail on it) and the loop keeps running instead of freezing the game.
   frame(now) {
+    try { this.frameBody(now); } catch (e) { this.frameError(e); }
+    requestAnimationFrame(n => this.frame(n));
+  }
+  frameError(e) {
+    const k = String(e && e.message || e); const list = window.HH_ERRORS || (window.HH_ERRORS = []); if (!list.includes(k)) { list.push(k); console.warn('[frame] recovered from an exception:', k, String(e && e.stack || '').split('\n')[1] || ''); }
+    try { const ctx = this.ctx; if (ctx.reset) ctx.reset(); ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0; } catch (e2) {}
+  }
+  frameBody(now) {
     const dt = Math.min((now - this.last) / 1000 || 0, CONFIG.sim.maxFrameDt); this.last = now; const t0 = performance.now();
     this.input.pollGamepad(); this.audio.updateBeat(); PRINT.build(this.ctx);
     const ctx = this.ctx, W_ = this.W, H_ = this.H;
-    if (this.portrait) { this.drawRotate(ctx, W_, H_); requestAnimationFrame(n => this.frame(n)); return; }
+    if (this.portrait) { this.drawRotate(ctx, W_, H_); return; }
     if (this.input.consumeDev()) { if (this.ui.screen && this.ui.screen.name === 'dev') this.ui.pop(); else { if (this.mode === 'match') this.paused = true; this.ui.push(devScreen(this)); } }
     if (this.input.consumeF('F1')) this.overlays.f1 = !this.overlays.f1; if (this.input.consumeF('F2')) this.overlays.f2 = !this.overlays.f2; if (this.input.consumeF('F3')) this.overlays.f3 = !this.overlays.f3;
     if (this.mode === 'match' && this.match) this.matchFrame(dt); else { this.input.consumePause(); this.ui.update(dt, this.input); this.ui.draw(ctx, W_, H_); }
@@ -6192,7 +6540,6 @@ class Game {
     if (this.save.data.settings.showFps) this.perf.draw(ctx, W_, H_);
     this.perf.push(performance.now() - t0 + 0.0001);
     if (this.perf.degraded && this.fx.budget !== CONFIG.fx.reducedBudget) this.fx.budget = CONFIG.fx.reducedBudget;
-    requestAnimationFrame(n => this.frame(n));
   }
   matchFrame(dt) {
     const m = this.match, ctx = this.ctx, W_ = this.W, H_ = this.H, fx = this.fx;
@@ -6239,27 +6586,7 @@ class Game {
     if (step.check(this, T.f) || T.stepT > CONFIG.tutorial.stepTimeoutS) { if (step.done) { m.ended = true; return; } T.step++; T.stepT = 0; T.f.t = 0; this.audio.ui('coin'); }
   }
   // ---- rendering ----
-  renderScene(ctx, m, alpha) {
-    const cam = this.cam, court = COURTS[m.courtId] || COURTS.blacktop; const rp = this.replayPlayer;
-    this.world.drawBackdrop(ctx, cam, court, m); this.world.drawFloor(ctx, cam, court, m.courtId);
-    const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball;
-    const order = players.filter(p => !p.hidden).slice().sort((a, b) => a.z - b.z);
-    const drawAll = (reflection) => {
-      const o = { replay: !!rp, reflection }; let ballDrawn = false;
-      for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { this.world.drawBall(ctx, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } drawPlayer(ctx, cam, p, alpha, ball, m.teams[p.team], o); if (ball.owner === p) { this.world.drawBall(ctx, cam, ball, alpha, m.ball.skin, p.onFire > 0, o); ballDrawn = true; } }
-      if (!ballDrawn) this.world.drawBall(ctx, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && m.ball.shot.shooter.onFire > 0), o);
-    };
-    // reflections in the floor
-    if (!this.perf.degraded) { const band = this.world.floorBand(cam); ctx.save(); ctx.beginPath(); ctx.rect(0, band.top, this.W, band.bottom - band.top); ctx.clip(); ctx.translate(0, band.top * 2); ctx.scale(1, -1); ctx.globalAlpha = 0.22; for (const h of HOOPS) this.world.drawHoopBack(ctx, cam, h, court); drawAll(true); HOOPS.forEach((h, i) => this.world.drawHoopFront(ctx, cam, h, court, i, null)); ctx.restore(); ctx.globalAlpha = 1; }
-    this.world.drawGloss(ctx, cam);
-    for (const h of HOOPS) this.world.drawHoopBack(ctx, cam, h, court);
-    drawAll(false);
-    HOOPS.forEach((h, i) => this.world.drawHoopFront(ctx, cam, h, court, i, m));
-    if (m.contest3) this.drawRacks(ctx, cam, m);
-    this.fx.draw(ctx, cam);
-    // soft vignette
-    const vg = ctx.createRadialGradient(this.W / 2, this.H / 2, this.H * 0.45, this.W / 2, this.H / 2, this.H * 1.05); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.35)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, this.W, this.H);
-  }
+  renderScene(ctx, m, alpha) { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, degraded: this.perf.degraded, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null }, m, alpha); }
   drawRacks(ctx, cam, m) { const c = m.contest3; c.racks.forEach((r, i) => { const s = cam.scale(r.z); const x = cam.sx(r.x), y = cam.sy(0, r.z); const used = i < c.rack ? CONFIG.contest3.ballsPerRack : (i === c.rack ? c.ball : 0); inkShape(ctx, cc => cc.rect(x - s * 0.3, y - s * 0.55, s * 0.6, s * 0.55), i === c.rack ? '#FFD23F' : '#F3F0FF', INK, 2); for (let k = 0; k < CONFIG.contest3.ballsPerRack; k++) { const bx = x - s * 0.24 + k * s * 0.12, by = y - s * 0.62; ctx.fillStyle = k < used ? 'rgba(20,12,40,0.2)' : (k === 4 ? '#FF4FA3' : '#FF8A2A'); ctx.beginPath(); ctx.arc(bx, by, s * 0.05, 0, TAU); ctx.fill(); } }); }
   drawHUD(ctx, m, alpha, dt) {
     const W_ = this.W, H_ = this.H, cam = this.cam, S = this.save.data.settings, rp = this.replayPlayer;
