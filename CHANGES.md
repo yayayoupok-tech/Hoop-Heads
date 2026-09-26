@@ -3,6 +3,77 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L11 — Running back on defense: bodies only block in real contact (playtest pass, milestone 11)
+
+The playtest: in a 1v1 in Legends View, a defender who starts 1.6 m behind a ball handler standing still and sprints
+toward his own hoop for 3 s never gets past without jumping; the handler's back is a wall, and he shoves the handler
+forward.
+
+What changed (MECHANICS, `resolveBodies`)
+- Bodies block each other only in real contact:
+  - the ball handler against a defender between him and the hoop (the drive into a square defender, face-ups, post-ups
+    and back-downs, charges);
+  - box-outs and rebound positioning while a shot is live (the ball in flight or loose after a shot, before anyone
+    has it);
+  - a set screener in the team modes (a teammate of the handler standing still).
+- Everything else passes through: transition, running back on defense, off-ball movement, and a defender recovering
+  from behind the handler. A handler is never body-blocked from behind, and a defender who is not between the handler
+  and the hoop can always run past him.
+- While passing through, both players keep at least 90% of their speed (`defense.passThroughSpeedMul` 0.9) and the
+  faster one is drawn behind the other (`drawBehindUntil`, read by the overlap order). A pair that started passing
+  through finishes before contact can start again, so a defender who runs through the handler and comes out in front
+  doesn't pop.
+
+New constants (CONFIG.defense)
+
+| Constant | Value | What it does |
+| --- | --- | --- |
+| `passThroughSpeedMul` | 0.9 | speed kept while passing through another body |
+| `passThroughHoldS` | 0.06 s | how long the slowdown and the draw-behind outlast the overlap |
+
+The measurement (`l11/runback.js`: Legends View, the defender 1.6 m behind a handler standing still, sprinting 3 s
+toward his hoop, never jumping)
+
+| | L10 | L11 |
+| --- | --- | --- |
+| defender moved | 1.54 m | 8.5 m (to the wall) |
+| handler shoved | 0.69 m | 0.00 m |
+| defender's center past the handler | never | 0.47 s (target ≤ 0.6 s) |
+| defender clear of the handler | never | 0.66 s |
+| speed kept while overlapping | — | 90% |
+| jumped | no | no |
+
+Also fixed in passing: the build's swallowed-code lint missed a `//` comment followed by an `if (…) x *= …` (a
+compound assignment); it now catches it (it had hidden the L9 speed-shoes multiplier for one build).
+
+Screenshots: `shots/l11/` (the run-back 0.42 s and 0.71 s into the sprint, before and after, desktop and phone) and
+`shots/l11/round-final/` (Art Lab).
+
+Tests
+- Smoke 94 of 94 (new step: the run-back above — past at 0.46 s, 90% of speed kept, the handler pushed 0.00 m; a
+  handler backing into a defender behind him moves freely, 1.52 m in 0.5 s; the wall in front still holds at the 0.75 m
+  contact distance). Modes 13 of 13, old saves 16 of 16, dev tools all OK, phone audit: no errors.
+- The gate (`tests/gate.js`: runSims 1v1 Pro mirror 300 games both ways round, Legend vs Pro 200 games, the harness 12
+  games per cell):
+
+  | Legends View | L10 | L11 | Target |
+  | --- | --- | --- | --- |
+  | Pro mirror PPP | 1.44 | 1.45 | 0.90–1.25 ✗ (L19) |
+  | Pro mirror: team A wins | 50% | 53% | 45–55% ✓ |
+  | (the side attacking right) | 56% | 56% | — |
+  | Legend beats Pro | 77% | 82% | 75–95% ✓ |
+  | PPP Legend vs Pro | 1.56 / 1.28 | 1.58 / 1.25 | — |
+  | Harness vs Pro: brute force | 0.98 | 1.11 | ≤ 1.30 ✓ |
+  | Harness vs Pro: perfect timing | 2.07 | 2.18 | beats brute force ✓ |
+  | Harness vs Pro: reads | 1.62 | 1.78 | — |
+
+  Classic: mirror PPP 1.62 (L10 1.65), team A 53%, Legend beats Pro 77% (82%), brute force 1.04 (1.28), timing 2.16.
+- The balance harness (`balance.js 12 21`, Classic): brute force vs Pro 1.04 PPP ✓ (L10 1.28), timing/reads 2.16 ✓,
+  Legend beats Pro 79% ✓ (84%).
+- The career simulator (`careersim.js 40`): OVR at 17/21/25 57/69/77 ✓, peak 79 ✓, titles 0.80 per career ✓, Hall of
+  Fame 8% ✗ (10–20%; 13% at 200 careers since M8, unchanged), no stuck careers ✓.
+- `perf.js` (844×390 @2x, the pro arena, Pixel): guard level 0 median 22.6 ms, p95 33.2 ms; 4× CPU 114.8 ms (L10: 19.0 / 28.5 ms, 81.9 ms).
+
 ## L10 — Performance, the phone pass, the gallery (graphics overhaul, milestone 10)
 
 Performance

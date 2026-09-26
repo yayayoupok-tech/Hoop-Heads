@@ -146,6 +146,19 @@ a 6 px lip and a squash-overshoot press; the select wall's bobbling, grinning he
 portraits, a bigger shot-clock pill; pop-in transitions and a team-color wipe into matches. Pixel mode: menus and the
 HUD in a UI layer at 2× internal resolution, notched panels, pixel-font headings on a 6-color ramp, 7×11 score digits.)* **L9 — Optional arcade extras** *(done: a super meter from makes, blocks and steals; Action + Shoot fires a Fireball, a Freeze or a Mega jump; speed shoes, big head and sticky ball power-ups every 20–30 s; Legends View arcade 1v1 only, quick games by default, Settings → Arcade extras.)* **L10 — Performance, phone, before/after gallery, final report** *(done: phones paint Pixel characters at 2× (the phone scene 22.0 → 16.7 ms in the profile); a phone smoke check; `shots/before-after-legends/`: the pre-L1 build, Smooth and Pixel side by side from one script, `tests/gallery.js`.)*
 
+## Playtest pass (L11–L19)
+
+Playtest fixes and graphics, each verified with a measurement before and after (spec: `SPEC_L11.md` in the working
+notes; the rules of the Legends pass still hold: one index.html, renderers never throw, a commit per milestone, smoke
+and Art Lab before every commit).
+
+**L11 — Running back on defense** *(done: bodies block only in real contact — the handler against a defender between
+him and the hoop, box-outs and rebounds, set screens; everything else passes through at 90% speed, the passer drawn
+behind. A defender 1.6 m behind a standing handler now gets past in 0.47 s without jumping; before, never.)*
+**L12 — Traveling and double dribble.** **L13 — True-size players on an 18 m court.** **L14 — Symmetric front-facing
+faces.** **L15 — Pixel mode for the players only.** **L16 — Stop the 1v1 blob.** **L17 — Players read against the
+crowd.** **L18 — Phone layout.** **L19 — Balance the Legends mirror.**
+
 ## Testing every milestone
 
 ```

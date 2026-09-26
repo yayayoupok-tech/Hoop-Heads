@@ -357,6 +357,8 @@ const CONFIG = {
     bumpMinSpeed: 1.2,         // the handler must be driving at least this fast to bump or blow by (m/s)
     separate: 8,               // body separation push speed (m/s)
     offBallSeparation: 0.45,   // off-ball bodies only brush past each other (fraction of the separation push)
+    passThroughSpeedMul: 0.9,  // L11: outside real contact bodies pass through each other; the one passing keeps at least this share of its speed
+    passThroughHoldS: 0.06,    // ...the slowdown and the draw-behind last this long after the bodies stop overlapping (s)
   },
   moves: {
     jabSpeed: 3.2,             // crossover jab speed the other way (m/s)
@@ -2210,7 +2212,8 @@ function overlapOrder(m, players, alpha) {
   for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
     const a = ps[i], b = ps[j], A = head(a), B = head(b); const ox = (A.w + B.w) / 2 - Math.abs(A.x - B.x), oy = (A.h + B.h) / 2 - Math.abs(A.y - B.y);
     if (!(ox > ART.overlapShare * Math.min(A.w, B.w) && oy > 0)) continue;
-    const off = m.possession, far = off != null && a.team !== b.team ? (a.team === off ? b : a) : (a.z < b.z ? a : b); tgt.set(far, 1);
+    const pa = (a.drawBehindUntil || 0) > (m.time || 0), pb = (b.drawBehindUntil || 0) > (m.time || 0); // L11: a player passing through another is drawn behind
+    const off = m.possession, far = pa !== pb ? (pa ? a : b) : off != null && a.team !== b.team ? (a.team === off ? b : a) : (a.z < b.z ? a : b); tgt.set(far, 1);
   }
   for (const p of ps) { const t = tgt.get(p) || 0; p._depth = (p._depth || 0) + (t - (p._depth || 0)) * k; if (p._depth < 0.002 && !t) p._depth = 0; }
   return ps.slice().sort((a, b) => (b._depth || 0) - (a._depth || 0) || a.z - b.z);
@@ -3361,7 +3364,7 @@ function phaseOf(p) {
 function maxSpeedOf(p, sprint) {
   let s = (sprint ? PC.sprintSpeed : PC.runSpeed) * speedOf(p) * heightMul(p, HT.speedPerM);
   if (p.tired) s *= PC.stamina.lowSpeedMul; if (p.onFire > 0) s *= CONFIG.arcade.heat.fireSpeedMul;
-  if (p.screenFightT > 0) s *= 0.4; if (p.ex && p.ex.speedT > 0) s *= CONFIG.extras.speedMul; // L9 speed shoes
+  if (p.screenFightT > 0) s *= 0.4; if (p.passSlowUntil > p.match.time) s *= DF.passThroughSpeedMul; /* L11: passing through a body */ if (p.ex && p.ex.speedT > 0) s *= CONFIG.extras.speedMul; // L9 speed shoes
   if (p.boxedOutBy) s *= (1 - CONFIG.rebound.boxOutSlow);
   if (Math.abs(p.z - p.zTarget) > 0.04) s *= W.laneChangeSpeedMul;
   if (p.hasBall && p.grounded && !p.pickedUp) s *= PC.dribbleSpeedMul;
@@ -4327,15 +4330,17 @@ function callCharge(m, h, d) {
   turnoverTo(m, d.team, h, 'charge');
 }
 function resolveBodies(m, dt) {
-  const A = m.teams[0].players, B = m.teams[1].players, h = m.ball.owner;
+  const A = m.teams[0].players, B = m.teams[1].players, h = m.ball.owner, bl = m.ball;
+  const rebound = !!bl.shot && !h && (bl.mode === 'flight' || bl.mode === 'loose'); // L11: box-outs and rebound positioning are contact
   // beating a defender through another lane counts as a blow-by (help defense reacts to it)
   if (h && h.grounded && Math.abs(h.vx) > DF.bumpMinSpeed) { const dir = sgn(h.vx); const ops = m.opponentsOf(h); for (let i = 0; i < ops.length; i++) { const d = ops[i]; if (d.hidden || Math.abs(d.z - h.z) < W.laneShare) continue; const wasAhead = (d.x - h.px) * dir > 0, nowBehind = (d.x - h.x) * dir <= 0; if (wasAhead && nowBehind && Math.abs(d.z - h.z) < 0.75 && m.time - d.lastBeatT > 1.0) { d.lastBeatT = m.time; d.beaten = 0.8; m.bus.emit('BLOW_BY', { player: h, defender: d, lane: true }); } } }
   for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) {
     const a = A[i], b = B[j]; if (a.hidden || b.hidden) continue; if (Math.abs(a.z - b.z) > W.laneShare) continue;
     if (a.y > 0.4 || b.y > 0.4) continue; if (a.inState('rimhang') || b.inState('rimhang')) continue;
-    const dx = b.x - a.x; const overlap = DF.contactDist - Math.abs(dx); if (overlap <= 0) continue;
+    const dx = b.x - a.x; const overlap = DF.contactDist - Math.abs(dx); if (overlap <= 0) { if (a._ghost === b) a._ghost = null; if (b._ghost === a) b._ghost = null; continue; }
     const dir = sgn(dx) || 1; // from a toward b
     const handler = a === h ? a : (b === h ? b : null); const def = handler === a ? b : a;
+    if (!bodyContact(m, a, b, handler, def, rebound)) { passThrough(m, a, b); continue; } // L11: everything else passes through
     if (handler && handler.grounded && handler.bodyUpT > 0 && Math.abs(handler.vx) < LX(0.2)) handler.bodyUpT = 0;
     if (handler && handler.grounded && (handler.state === 'move' || handler.state === 'burst' || handler.state === 'spin' || handler.state === 'protect' || handler.state === 'gather') && handler.passThroughT <= 0) {
       const backingDown = handler.state === 'protect' && def.state === 'stance' && handler.input.moveX * sgn(def.x - handler.x) > 0.3; // a back-down is a steady lean, not a charge
@@ -4375,6 +4380,20 @@ function resolveBodies(m, dt) {
     if (h) { const screener = (a.team === h.team && a !== h) ? a : ((b.team === h.team && b !== h) ? b : null); if (screener && screener.grounded && Math.abs(screener.vx) < 1) { const d = screener === a ? b : a; const asg = m.teams[h.team].brain.assign.get(screener); const onBall = m.teams[d.team].brain.onBallDefender === d; if (asg && asg.action === 'screen' && onBall && d.screenFightT <= 0 && !d.sd.switched) { d.screenFightT = CONFIG.ai.screenFightS; m.bus.emit('SCREEN', { screener, defender: d }); } } }
   }
 }
+
+// L11: bodies block each other only in real contact: the ball handler against a defender between him and the hoop (the
+// wall, face-ups, post-ups and back-downs; never from behind), box-outs and rebound positioning while a shot is live,
+// and a set screener in the team modes. Transition, running back, off-ball movement and recovering from behind pass
+// through. A pair that started passing through finishes before contact can start again, so nobody pops out.
+function bodyContact(m, a, b, handler, def, rebound) {
+  if (a._ghost === b || b._ghost === a) return false;
+  if (handler) return (def.x - handler.x) * (handler.hoop.x - handler.x) > 0;
+  if (rebound) return true;
+  const h = m.ball.owner; if (m.perSide > 1 && h) { const scr = a.team === h.team ? a : b; return scr.grounded && Math.abs(scr.vx) < LX(1); }
+  return false;
+}
+// Passing through: both keep at least DF.passThroughSpeedMul of their speed (see maxSpeedOf) and the faster one is drawn behind.
+function passThrough(m, a, b) { a._ghost = b; b._ghost = a; const t = m.time + DF.passThroughHoldS; a.passSlowUntil = b.passSlowUntil = t; (Math.abs(a.vx) >= Math.abs(b.vx) ? a : b).drawBehindUntil = t; }
 
 // --- lanes (pseudo-depth): 1v1 everybody sits at 0.5; team modes follow spacing and matchups ---
 function updateLanes(m) {

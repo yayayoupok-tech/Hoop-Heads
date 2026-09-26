@@ -152,6 +152,21 @@ const FIX = path.join(__dirname, 'fixtures');
       { const run = ex => { const m = new Match(Object.assign(opts(), { humanTeam: -1, headless: true, layout: 'legends', seed: 11, extras: ex })); let n = 0; while (!m.ended && n++ < 120 * 600) simStep(m, STEP); return m.teams[0].score + '-' + m.teams[1].score + '@' + m.time.toFixed(2); };
         const a = run(true), b = run(true); if (a !== b) throw new Error('extras are not deterministic: ' + a + ' vs ' + b); const plain = run(false), none = run(undefined); if (plain !== none) throw new Error('extras off changed the game'); } });
   });
+  await step('bodies (L11): a defender behind a standing handler runs past without jumping within 0.6 s at 90% speed; no body-block from behind; the wall still holds', async () => {
+    const r = await ev(() => { const mk = () => { const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: -1, headless: true, difficulty: 'pro', ruleset: 'arcade', layout: 'legends', format: { type: 'first', target: 21 }, court: 'legends', seed: 5 }); let n = 0; while (m.phase !== 'live' && n++ < 120 * 20) simStep(m, STEP); const h = m.players[0], d = m.players[1]; h.controlled = d.controlled = true; const dir = sgn(h.hoop.x - COURT_L / 2) || 1;
+        for (const q of [h, d]) { q.y = 0; q.vx = q.vy = 0; q.grounded = true; q.z = q.zTarget = 0.5; q.facing = dir; q.setState('idle', {}); q.input.reset(); } h.x = COURT_L / 2; m.giveBall(h, true); return { m, h, d, dir }; };
+      const out = {};
+      { const { m, h, d, dir } = mk(); d.x = h.x - dir * 1.6; const hx = h.x; let past = -1, top = 0, low = 99; for (let s = 0; s < 120; s++) { d.input.moveX = dir; d.input.set('sprint', true); simStep(m, STEP); if (!d.grounded) return 'the defender left the floor'; const over = Math.abs(d.x - h.x) < DF.contactDist; if (!over && past < 0) top = Math.max(top, Math.abs(d.vx)); if (over && top) low = Math.min(low, Math.abs(d.vx)); if (past < 0 && (d.x - h.x) * dir > 0) past = (s + 1) * STEP; }
+        out.past = past; out.kept = low / top; out.pushed = Math.abs(h.x - hx); }
+      { const { m, h, d, dir } = mk(); d.x = h.x - dir * 1.0; const hx = h.x; for (let s = 0; s < 60; s++) { h.input.moveX = -dir; simStep(m, STEP); } out.backedInto = Math.abs(h.x - hx); } // the handler backs into a defender behind him
+      { const { m, h, d, dir } = mk(); d.x = h.x + dir * 1.1; d.setState('stance', {}); let minGap = 9; for (let s = 0; s < 90; s++) { h.input.moveX = dir; d.input.moveX = 0; d.input.set('down', true); simStep(m, STEP); minGap = Math.min(minGap, (d.x - h.x) * dir); } out.wallGap = minGap; }
+      return out; });
+    if (typeof r === 'string') throw new Error(r);
+    if (!(r.past > 0 && r.past <= 0.6)) throw new Error('the defender got past at ' + r.past + ' s'); if (!(r.kept >= 0.89)) throw new Error('kept ' + r.kept.toFixed(2) + ' of his speed passing through');
+    if (r.pushed > 0.05) throw new Error('the handler was pushed ' + r.pushed.toFixed(2) + ' m'); if (!(r.backedInto > 0.3)) throw new Error('a defender behind body-blocked the handler: moved ' + r.backedInto.toFixed(2) + ' m');
+    if (!(r.wallGap > 0.5)) throw new Error('the handler walked through a set defender in front: gap ' + r.wallGap.toFixed(2));
+    console.log('     L11: past at ' + r.past.toFixed(2) + ' s, speed kept ' + (100 * r.kept).toFixed(0) + '%, handler pushed ' + r.pushed.toFixed(2) + ' m; backing out moved ' + r.backedInto.toFixed(2) + ' m; wall gap ' + r.wallGap.toFixed(2) + ' m');
+  });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
   await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {
