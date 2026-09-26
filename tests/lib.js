@@ -37,6 +37,7 @@ async function openPage(browser, opts = {}) {
 function runner(title) {
   const r = { title, ok: 0, fail: 0, lines: [] };
   r.step = async (name, fn, pageApi) => {
+    if (process.env.ONLY && !new RegExp(process.env.ONLY).test(name)) return true; // ONLY=<regex> runs just the matching steps
     const before = pageApi ? pageApi.errors.length : 0; let err = null;
     try { await fn(); } catch (e) { err = e; }
     const newErr = pageApi ? pageApi.errors.slice(before) : [];

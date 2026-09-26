@@ -3,6 +3,84 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L12 — Traveling and double dribble, every ruleset (playtest pass, milestone 12)
+
+The playtest: the human jumps with the ball, stays in the air, lands still holding it, dribbles on and keeps the ball
+with no call; `reDribblePenaltyS` let Arcade re-dribble half a second after landing.
+
+What changed (every ruleset: Arcade, Street Sim and the street half court)
+- **Travel:** jumping with the ball commits you to a shot or a pass before you land. Landing with it is a TRAVEL: a
+  whistle, the "TRAVEL" callout and the ball to the other team at once (the possession arrow flips at the whistle;
+  the inbound follows after the usual beat). The Arcade re-dribble exception is gone. A player who jumps *without* the
+  ball and catches it in the air (a rebound, a lob) lands with a live dribble.
+- **Picked-up dribble** (after a pump fake from a standstill, slower than 1.0 m/s scaled with the court; a fake on the
+  move keeps the dribble, and so does the post fake, so the up-and-under stays a legal step-through):
+  - you may pivot: holding the stick for less than 0.12 s only turns you around;
+  - past that you walk at 45% of your run speed, and walking more than 0.3 m is a TRAVEL (being pushed doesn't count);
+  - a dribble move (Action) is a DOUBLE DRIBBLE (turnover);
+  - holding the ball 5 s while a defender is within 1.8 m (scaled like any player gap) is a turnover ("5 SECONDS").
+  - A hint chip says so while it applies: "Dribble picked up: shoot · fade · pivot only".
+- The Street Sim rule "a picked-up dribble held 3 s is a turnover" is replaced by the 5-second closely guarded rule.
+- Practice, the tutorial and the 3-point contest call nothing (nobody to give the ball to); there a dribble move just
+  brings the dribble back.
+- **Bots follow the same rules:** they never jump with the ball (shots and passes leave the floor on their own), never
+  walk or dribble a picked-up ball, and a picked-up bot looks to shoot or pass (its shot value ×1.4).
+- A dead ball dropping on a head after a violation whistle is no longer a BONK (a stray ball in any other phase still is).
+- Fix: `clearFaceCache()` now also forgets the face warm-up queue, so a later match re-warms every expression (the
+  L2 warm-up smoke step failed when an earlier step had already warmed the same look).
+
+Constants (CONFIG.rules): removed `pickedUpTurnoverS` (3 s) and `reDribblePenaltyS` (0.5 s); added:
+
+| Constant | Value | What it does |
+| --- | --- | --- |
+| `travelDist` | 0.3 m | walking a picked-up ball further than this is a TRAVEL |
+| `pivotS` | 0.12 s | stick time that only pivots |
+| `pickedUpWalkMul` | 0.45 | walking speed with a picked-up ball (share of run speed) |
+| `standstillFake` | 1.0 m/s (scaled) | a pump fake from slower than this picks up the dribble |
+| `heldBallS` | 5 s | held while closely guarded → turnover |
+| `closeGuardDist` | 1.8 m (scaled) | closely guarded |
+
+Tests: the smoke test's phone stick-drag step now waits for live play first (the button taps before it include Jump
+with the ball, which is a TRAVEL now, so the drag used to land in the dead-ball pause). The smoke runner takes
+`ONLY=<regex>` to run just the matching steps.
+
+**The measurement** (`l12/travel.js` in the working notes: a scripted human in Arcade, then 30 bot games):
+
+| | L10 | L12 |
+| --- | --- | --- |
+| jump with the ball and land holding it | 0.42 s in the air, no call, then dribbled on 2.15 m | TRAVEL 0.000 s after landing, possession to the other team at the whistle |
+| pump fake from a standstill, then walk | no call | TRAVEL |
+| pump fake from a standstill, then a dribble move | no call | DOUBLE DRIBBLE |
+| picked-up ball held while guarded | no call | 5 SECONDS (at 7.7 s, 5 s after the pickup) |
+| bot travels per game | 0 | 0 |
+| bot double dribbles / held balls per game | — | 0 / 0.07 |
+| possessions per bot game (first to 21) | 36.3 | 27.7 |
+
+**The gate** (`node tests/gate.js`, 300 mirror games, 200 Legend-vs-Pro, harness 12 per cell; L11 → L12):
+
+| | Legends | Classic |
+| --- | --- | --- |
+| Pro mirror PPP | 1.45 → 1.47 | 1.62 → 1.64 |
+| Pro mirror: team A wins | 53% → 53% ✓ | 53% → 50% |
+| the side attacking right | 56% → 43% | 52% → 56% |
+| Legend beats Pro | 82% → 78% ✓ | 77% → 81% |
+| PPP Legend / Pro | 1.58 / 1.25 → 1.60 / 1.28 | 1.70 / 1.34 → 1.79 / 1.35 |
+| harness vs Pro / vs Legend: brute | 1.11 / 1.13 → 1.08 / 1.22 ✓ | 1.04 / 1.18 → 1.24 / 1.26 |
+| spam | 0.41 / 0.26 → 0.38 / 0.23 | 0.24 / 0.24 → 0.37 / 0.12 |
+| drives | 1.46 / 1.42 → 1.44 / 1.42 | 1.38 / 1.00 → 1.53 / 0.90 |
+| threes | 1.44 / 1.00 → 1.53 / 1.00 | 1.47 / 1.25 → 1.60 / 1.15 |
+| sniper (timing) | 2.18 / 1.54 → 1.86 / 1.71 | 2.16 / 1.50 → 2.05 / 1.62 |
+| reader | 1.78 / 1.42 → 1.65 / 1.20 | 1.95 / 1.27 → 1.82 / 1.07 |
+
+Mirror PPP is still above the 0.90–1.25 target; that is L19's job. The Pro mirror moved 1.45 → 1.47, inside the noise
+of 300 games; a 16-game Legend mirror went 1.44 → 1.51 with more made mid-range jumpers (a picked-up bot now looks to
+shoot rather than hold).
+
+Balance harness (Classic, 12 per cell): brute force vs Pro 1.24 ✓ (≤ 1.30; L11 1.04), perfect timing 2.05 ✓, Legend
+beats Pro 79% (1.78 vs 1.35 PPP). Career simulator (40 careers): OVR at 17/21/25 57/69/77 ✓, peak 79 ✓, titles 0.80 ✓,
+Hall of Fame 8% ✗ (10–20%; unchanged since L11), stuck 0 ✓. Perf at 844×390 @2x in the pro arena: median 21.9 ms, p95
+31.4 ms (L11 22.6 / 33.2); at 4× CPU 114.7 ms (L11 114.8). Smoke 95/95 (desktop and phone).
+
 ## L11 — Running back on defense: bodies only block in real contact (playtest pass, milestone 11)
 
 The playtest: in a 1v1 in Legends View, a defender who starts 1.6 m behind a ball handler standing still and sprints

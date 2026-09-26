@@ -507,8 +507,12 @@ const CONFIG = {
     ftBeat: 0.8,               // beat between free throws (s)
     maxNonLive: 8,             // every non-Live state is forced back to Live after this (s)
     replayHoldMax: 12,         // holding Pass can extend a dead ball at most this long (s)
-    pickedUpTurnoverS: 3,      // Street Sim: holding a picked-up dribble this long is a turnover
-    reDribblePenaltyS: 0.5,    // Arcade: re-dribble allowed after this penalty
+    travelDist: 0.3,           // L12, every ruleset: a player whose dribble is picked up may pivot, but moving more than this is a TRAVEL (m)
+    pivotS: 0.12,              // ...holding the stick this long only turns him around (the pivot); after that he walks...
+    pickedUpWalkMul: 0.45,     // ...at this share of his run speed
+    standstillFake: 1.0,       // a pump fake from slower than this picks up the dribble (m/s, scaled with the court); a fake on the move keeps it
+    heldBallS: 5,              // holding a picked-up ball this long while closely guarded is a turnover (s)
+    closeGuardDist: 1.8,       // ...closely guarded: a defender within this (m; scales like any gap between two players)
     bonusTeamFouls: 5,         // Street Sim bonus after this many team fouls in a half
     ftShots: { two: 2, three: 3 }, // free throws for shooting fouls
     inboundTossHeight: 0.9,    // inbound ball appears at this height in the receiver's hands (m)
@@ -1782,7 +1786,7 @@ function getFaceCanvas(L, expr, age, bucket, team, force) {
   _faceCache.set(key, entry); const cap = faceCacheCap(); while (_faceCache.size > cap) _faceCache.delete(_faceCache.keys().next().value);
   _facePaintMs += performance.now() - t0; return entry;
 }
-function clearFaceCache() { _faceCache.clear(); }
+function clearFaceCache() { _faceCache.clear(); _faceWarmed.clear(); _faceWarmQ.length = 0; } // the warm-up forgets too, so the next match re-warms
 // §9 warm-up: the first time a live player's face is drawn at a size, every expression of it is queued and painted one per
 // frame inside the paint budget, so the first dunk, yell or laugh of a match never paints on the spot.
 const _faceWarmQ = [], _faceWarmed = new Set();
@@ -2561,7 +2565,7 @@ function rigUpdate(p, m, dt) {
 // §4 head bonk: a loose or passed ball (not the player's own, not a pass to them) that crosses the drawn head bonks it:
 // a BONK! callout, a hard head-spring kick, shocked eyes and a small star orbit. Visual only; the ball is untouched.
 function rigBonk(p, m, a) {
-  const b = m && m.ball; if (!b || b.owner || a.bonkCD > 0 || !m.callouts) return; const sp = Math.hypot(b.vx || 0, b.vy || 0); if (sp < ART.bonkSpeed) return;
+  const b = m && m.ball; if (!b || b.owner || a.bonkCD > 0 || !m.callouts || m.phase === 'violation') return; /* a dead ball after a whistle is no BONK */ const sp = Math.hypot(b.vx || 0, b.vy || 0); if (sp < ART.bonkSpeed) return;
   if (b.pass && (b.pass.to === p || b.pass.from === p)) return; if (b.lastTouch === p && m.time - (b.lastContactT || -9) < 0.4) return; if (b.shot && b.shot.shooter === p && m.time - b.shot.t < 0.6) return;
   const DH = drawHeightOf(p), f = p.facing < 0 ? -1 : 1, hx = p.x, hy = p.y + ((p.anim && p.anim.lift) || 0) + ART.headCenter * DH, r = ART.headWidth * DH * 0.42;
   if (!p.grounded || (m._bonkT != null && m.time - m._bonkT < ART.bonkGap)) return; // a grounded player, one bonk per 12 s per match
@@ -2949,11 +2953,11 @@ const LAYOUT_SCALED = {
     'defense.squareMaxVel', 'defense.autoSquareMaxVel', 'defense.bodyUpSpeed', 'defense.bodyUpPush', 'defense.chargePlantedVel', 'defense.chargeRestrictedR', 'defense.bumpKnockback', 'defense.bumpMinSpeed', 'defense.separate',
     'moves.jabSpeed', 'moves.spinSpeed', 'moves.stepbackDist', 'moves.hesiMaxSpeed', 'ankle.wrongWayVel', 'steal.popSpeed',
     'pass.chestSpeed', 'pass.bounceSpeed', 'pass.maxLead', 'pass.alleyRange', 'pass.accuracyNoise', 'rebound.putbackRange', 'rebound.boxOutReach',
-    'post.range', 'post.dropSpeed', 'post.upUnderSpeed', 'arcade.shove.push',
+    'post.range', 'post.dropSpeed', 'post.upUnderSpeed', 'arcade.shove.push', 'rules.standstillFake',
     'ai.helpTriggerDist', 'ai.containSpeed', 'ai.holdLineDist', 'ai.lobMinDist', 'ai.postShootDist', 'ai.recoverAhead', 'ai.cushionMax', 'ai.rimRecoverDist', 'ai.rimSpot', 'ai.cutInLead'],
   ih: ['duel.speedBonusPer'],                                                   // per m/s: the scaled approach speed earns the same bonus
   g: ['contest.proxNear', 'contest.posNear', 'defense.squareRange', 'defense.autoStanceRange', 'moves.spinRange', 'ankle.range', 'steal.nearRange',
-    'pass.overheadRange', 'pass.autoBounceMin', 'pass.autoBounceEnd', 'post.defRange', 'arcade.shove.range', 'rules.inboundDist', 'rules.checkGap',
+    'pass.overheadRange', 'pass.autoBounceMin', 'pass.autoBounceEnd', 'post.defRange', 'arcade.shove.range', 'rules.inboundDist', 'rules.checkGap', 'rules.closeGuardDist',
     'ai.sagMin', 'ai.sagMax', 'ai.soloSagMax', 'ai.stanceRange', 'ai.openThreshold', 'ai.offBallSagBase', 'ai.soloApproachMinGap', 'ai.flyCloseout', 'ai.rimJumpDist', 'ai.chargeSlowDist',
     'harness.openDist', 'harness.defGap'],
   // reaches that end at the other player's ball: the whole span from body center to the ball scales as a gap (LP), less
@@ -3432,8 +3436,9 @@ function updatePlayer(p, dt) {
   mirrorLane(p, dt);
   const dz = p.zTarget - p.z; const maxDz = dt / W.laneEaseS; p.z += clamp(dz, -maxDz, maxDz);
   // picked-up dribble rules
-  if (p.hasBall && p.pickedUp) { p.pickedUpT += dt; if (m.arcade && p.pickedUpT > CONFIG.rules.reDribblePenaltyS && Math.abs(I.moveX) > 0.2 && FREE_STATES[p.state]) { p.pickedUp = false; p.dribble.side = p.facing; } }
-  else p.pickedUpT = 0;
+  // L12: a picked-up dribble stays picked up (no re-dribble in any ruleset); walking with it counts toward a travel, a pivot doesn't
+  if (p.hasBall && p.pickedUp) { p.pickedUpT += dt; const walking = p.grounded && Math.abs(I.moveX) > 0.2 && FREE_STATES[p.state]; p.pivotHoldT = walking ? (p.pivotHoldT || 0) + dt : 0; if (walking) p.pivotDist = (p.pivotDist || 0) + Math.abs(p.vx) * dt; }
+  else { p.pickedUpT = 0; p.pivotDist = 0; p.pivotHoldT = 0; p.heldT = 0; }
   stepStateMachine(p, dt);
   integrateBody(p, dt);
   updateFacing(p);
@@ -3466,12 +3471,13 @@ function stepStateMachine(p, dt) {
           if (p.actionBuf > 0) { p.actionBuf = 0; if (startDefensiveAction(p)) break; }
         }
       } else if (p.grounded && p.pickedUp && hasBall) {
+        if (p.actionBuf > 0) { if (ballViolation(m, p, 'double dribble')) { p.actionBuf = 0; break; } p.pickedUp = false; } // L12: a dribble move needs a dribble (practice and the tutorial just give the dribble back)
         if (p.shootBuf > 0) { p.shootBuf = 0; startShot(p); break; }
         if (p.passBuf > 0 && m.teammatesOf(p).length > 1) { p.passBuf = 0; startPass(p, I.holdPass >= CONFIG.pass.lobHoldMs / 1000); break; }
         if (p.passBuf > 0) { p.passBuf = 0; startShot(p, 'fade'); break; }
       }
       // jump (block jump on defense, plain jump with the ball, rebound jump)
-      if (p.jumpBuf > 0 && (p.grounded || p.coyote > 0) && !(p.pickedUp && hasBall && !m.arcade)) { p.jumpBuf = 0; doJump(p, 1, 'jump'); }
+      if (p.jumpBuf > 0 && (p.grounded || p.coyote > 0)) { p.jumpBuf = 0; doJump(p, 1, 'jump'); } // (L12: jumping with the ball commits to a shot or a pass before landing)
       // lob catch: auto-jump when an alley-oop lob is arriving
       if (p.grounded && ball.pass && ball.pass.to === p && ball.pass.type === 'lob' && ball.mode === 'flight') { const dxb = Math.abs(ball.x - p.x); const tHit = ball.vy < 0 ? (ball.y - (p.y + p.reach)) / -ball.vy : 9; if (dxb < LX(1.4) && ball.vy < 0 && tHit < 0.42) doJump(p, 1, 'jump'); }
       break;
@@ -3487,7 +3493,7 @@ function stepStateMachine(p, dt) {
       const ms = p.stateT * 1000, g = sd.gatherMs;
       if (sd.type === 'layup' || sd.type === 'dunk') { if (I.moveX !== 0 && sd.moveX0 !== 0 && sgn(I.moveX) !== sgn(sd.moveX0) && p.moves.euro) sd.euro = true; }
       const releasedEarly = sd.btn === 'pass' ? (I.passR || !I.pass) : (I.shootR || !I.shoot);
-      if (releasedEarly && ms < g && sd.type !== 'ft') { p.setState('pumpfake', { fromPost: sd.type === 'hook' }); m.bus.emit('PUMP_FAKE', { player: p, post: sd.type === 'hook' }); break; }
+      if (releasedEarly && ms < g && sd.type !== 'ft') { const still = sd.type !== 'hook' && Math.abs(sd.vx0 || 0) < RU.standstillFake; p.setState('pumpfake', { fromPost: sd.type === 'hook' }); if (still && p.hasBall) { p.pickedUp = true; p.pickedUpT = 0; p.pivotDist = 0; } m.bus.emit('PUMP_FAKE', { player: p, post: sd.type === 'hook', pickedUp: still }); break; } // L12: a fake from a standstill picks up the dribble
       if (ms >= g) launchShotJump(p);
       break;
     }
@@ -3608,8 +3614,9 @@ function doJump(p, mul, state) {
   return true;
 }
 function land(p) {
-  const m = p.match; p.setState('land'); p.anim.squash = 1.2; p.airT = 0;
-  if (p.hasBall) { p.pickedUp = true; p.pickedUpT = 0; }
+  const m = p.match, jumpedWithIt = !!(p.sd && p.sd.hadBall); p.setState('land'); p.anim.squash = 1.2; p.airT = 0;
+  if (p.hasBall && jumpedWithIt && ballViolation(m, p, 'travel')) { m.bus.emit('LAND', { player: p, speed: -p.prevVy }); return; } // L12: jumped with it, landed with it
+  if (p.hasBall) p.pickedUp = false; // caught in the air (a rebound, a lob): a live dribble
   m.bus.emit('LAND', { player: p, speed: -p.prevVy });
 }
 function nearRimForTip(p) { const b = p.match.ball; return Math.abs(p.x - p.hoop.x) < LX(1.6) && b.y > RIM_Y - 0.3; }
@@ -3655,7 +3662,7 @@ function integrateBody(p, dt) {
     case 'ft': target = 0; break;
     default: control = false;
   }
-  if (p.pickedUp && p.hasBall && p.grounded && (st === 'move' || st === 'protect')) target = 0;
+  if (p.pickedUp && p.hasBall && p.grounded && (st === 'move' || st === 'protect')) target = (p.pivotHoldT || 0) > RU.pivotS ? I.moveX * maxSpeedOf(p, false) * RU.pickedUpWalkMul : 0; // L12: pivot first, then a walk (a travel past RU.travelDist)
   if (p.grounded) {
     if (control) {
       if (target !== 0 && sgn(target) === sgn(p.vx) && Math.abs(p.vx) > Math.abs(target)) p.vx = approach(p.vx, target, PC.friction * dt);
@@ -4413,7 +4420,7 @@ function updateBall(m, dt) {
   const c = m.contact; clearContact(c);
   ballStep(b, dt, c, _heads, n);
   b.flightT += dt;
-  if (c.head >= 0) { const p = m.players[c.head]; b.lastTouch = p; b.lastTouchTeam = p.team; p.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } if (b.pass) { b.pass = null; b.mode = 'loose'; } m.bus.emit('BONK', { player: p, impact: c.impact }); }
+  if (c.head >= 0) { const p = m.players[c.head]; b.lastTouch = p; b.lastTouchTeam = p.team; p.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } if (b.pass) { b.pass = null; b.mode = 'loose'; } if (m.phase !== 'violation') m.bus.emit('BONK', { player: p, impact: c.impact }); } // (a dead ball bouncing off a head is no BONK)
   if (c.scored >= 0) onScore(m, c.scored, 'shot');
   if (c.rim) { b.rimTouched = true; b.lastContactT = m.time; m.bus.emit('RIM_HIT', { impact: c.impact, x: b.x, y: b.y }); if (b.pass) { b.pass = null; b.mode = 'loose'; } }
   if (c.board) { b.boardTouched = true; m.bus.emit('BOARD_HIT', { impact: c.impact, x: b.x, y: b.y }); if (b.pass) { b.pass = null; b.mode = 'loose'; } }
@@ -4703,7 +4710,7 @@ class PlayerBrain {
     if (p.state === 'gather' && this.intent && this.intent.type === 'move' && this.intent.data && this.intent.data.move === 'pumpfake') { this.commitT = Math.max(this.commitT, 0.1); return; }
     if (p.inState('gather', 'jumpshot', 'floater', 'layup', 'dunk', 'rimhang', 'tipin')) { if (this.intent && (this.intent.type === 'fade' || this.intent.type === 'post')) { this.commitT = Math.max(this.commitT, 0.3); return; } if (!this.intent || this.intent.type !== 'shoot') { this.setIntent('shoot', 1.0); this.holdShoot = p.state === 'gather' || p.state === 'jumpshot' || p.state === 'floater'; } this.commitT = Math.max(this.commitT, 0.3); return; }
     if (MOVE_STATES[p.state] || p.state === 'burst' || p.state === 'pass' || p.state === 'lob') { this.commitT = Math.max(this.commitT, 0.1); this.refreshHandlerIntent(); return; }
-    if (!p.grounded || p.state === 'catch' || p.state === 'land' || (m.time - p.lastTouchT) < 0.1 || (p.pickedUp && m.arcade && p.pickedUpT < CONFIG.rules.reDribblePenaltyS && m.shotClock > 3)) { this.setIntent('hold', 0.12); return; }
+    if (!p.grounded || p.state === 'catch' || p.state === 'land' || (m.time - p.lastTouchT) < 0.1) { this.setIntent('hold', 0.12); return; }
     if (m.halfCourt && m.mustClear === p.team && d < W.threeLine + 0.4) { if (!this.intent || this.intent.type !== 'clear') this.setIntent('clear', 0.2, { dir: sgn(COURT_L / 2 - hoop.x) }); else this.commitT = 0.2; return; } // half court: take it back past the arc first (toward the top, even from behind the rim)
     if (this.commitT > 0 && this.intent && this.intent.type !== 'idle') { this.refreshHandlerIntent(); return; }
     const ops = m.opponentsOf(p); let def = null, defDist = 99, defQ = null;
@@ -4719,7 +4726,7 @@ class PlayerBrain {
     const J = this.jumperEV(p, d, contest); let shootEV = J.ev * (J.pts === 3 ? (1 + AI.personalityEVMul * (pr.threeRate - 0.5)) : 1);
     if (d < SH.floaterRange && d > SH.layupRange && Math.abs(p.vx) > SH.floaterMinSpeed) shootEV = Math.max(shootEV, makeProbability(p, 'floater', 'mid', 0, contest).P * 2);
     if (d <= SH.layupRange) shootEV = Math.max(shootEV, makeProbability(p, 'layup', 'mid', 0, contest).P * 2 * (1 - helpRisk * 0.5) * (walled ? 1.3 : 1));
-    if (p.pickedUp && !m.arcade) shootEV *= 1.2;
+    if (p.pickedUp) shootEV *= 1.4; // L12: a picked-up dribble can only shoot or pass
     if (p.attrs.sho <= 3 && d > SH.layupRange + LX(1.5)) shootEV *= 0.35; // bigs don't live outside
     if (d > SH.heaveRange) shootEV = 0; if (d > SH.zoneDeep && contest > 0.3) shootEV *= 0.3; if (contest > AI.goodLookContest && d > SH.layupRange) shootEV *= 0.55; else if (contest < 0.3 && d > SH.layupRange) shootEV *= 1.3; if (J.P < AI.minShotP && d > SH.layupRange && sc >= 3) shootEV = -50; if (d > SH.zoneDeep && sc >= 4 && shootEV > 0) shootEV *= AI.deepShotMul; shootEV *= 1 + pressure * 1.5; if (sc < AI.shotClockPanicS) shootEV += 5;
     if (sc < AI.planDropClock) this.plan = null; const pl = k => !this.plan ? 1 : (this.plan === k ? AI.planBoost : AI.planDamp); // the possession plan
@@ -4727,7 +4734,7 @@ class PlayerBrain {
     const sizeEdge = !!def && p.height - def.height >= PG.minEdge - 1e-6; if (this.plan === 'post' && !sizeEdge && def) this.plan = 'drive'; // no size on him: attack instead
     _evNames[n] = 'shoot'; _evScores[n] = shootEV; _evData[n++] = null;
     // drive
-    if (!p.pickedUp || (m.arcade && p.pickedUpT > CONFIG.rules.reDribblePenaltyS)) {
+    if (!p.pickedUp) {
       const finishP = (canDunk(p) ? 0.9 : 0.78) * (SH.ratingBase + SH.ratingSlope * p.attrs.fin);
       const defWrongWay = defQ && defQ.vx * dir < -LX(1.5); const defFar = !def || defDist > LP(4.0);
       let laneOpen = defFar ? 1 : (defOff ? 0.95 : (defWrongWay ? 0.8 : (m.perSide === 1 ? lerp(defSquare ? AI.soloLaneSquare : AI.soloLaneSoft, 0.95, this.driveEMA) : lerp(defSquare ? 0.1 : 0.2, 0.85, this.driveEMA))));
@@ -4967,7 +4974,7 @@ class PlayerBrain {
         break;
       }
       case 'drive': {
-        mv = it.data.dir * (it.data.solo ? 0.55 : 1); const def = m.nearestOpponent(p); sprint = p.stamina > 30 && (!def || Math.abs(def.x - p.x) > LP(1.0) || p.state === 'burst') && !it.data.stopAt; if (p.pickedUp && !m.arcade) mv = 0;
+        mv = it.data.dir * (it.data.solo ? 0.55 : 1); const def = m.nearestOpponent(p); sprint = p.stamina > 30 && (!def || Math.abs(def.x - p.x) > LP(1.0) || p.state === 'burst') && !it.data.stopAt; if (p.pickedUp) mv = 0;
         // no charges: let go of Sprint before running into a defender who is set in the lane ahead
         if (sprint && def && m.charges && this.snap) { const q = this.perceived(def), ahead = (q.x - p.x) * it.data.dir; if (q.grounded && q.state === 'stance' && Math.abs(q.vx) < DF.chargePlantedVel + LX(0.5) && ahead > 0 && ahead < AI.chargeSlowDist && Math.abs(q.z - p.z) < W.laneShare + 0.05) sprint = false; }
         break;
@@ -5017,6 +5024,8 @@ class PlayerBrain {
     if (it && it.type !== 'move' && it.type !== 'pass') { this.movePressed = false; this.passPressed = false; }
     if (it && it.type !== 'pass' && it.type !== 'fade') this.holdPass = false;
     if (this.commitT <= 0) { this.movePressed = false; this.passPressed = false; }
+    if (p.hasBall) jump = false; // L12: bots never jump with the ball (shots and passes leave the floor on their own)
+    if (p.hasBall && p.pickedUp) { mv = 0; action = false; } // ...and never walk or dribble a picked-up ball
     I.moveX = clamp(mv, -1, 1); I.set('down', down); I.set('sprint', sprint); I.set('shoot', shoot); I.set('pass', pass); I.set('jump', jump); I.set('action', action);
   }
 }
@@ -5094,8 +5103,11 @@ function updateLive(m, dt) {
     const shotUp = b.shot && !b.shot.resolved && b.mode === 'flight' && b.flightT < 4;
     if (!shotUp) { const h = b.owner || b.lastTouch; m.shotClock = 0; m.bus.emit('VIOLATION', { kind: 'shot clock', team: m.possession, player: h }); if (h && h.team === m.possession) h.stats.to++; turnoverTo(m, 1 - m.possession, h, 'shot clock'); return; }
   }
-  // Street Sim: holding a picked-up dribble too long
-  if (!m.arcade && b.owner && b.owner.pickedUp && b.owner.pickedUpT > RU.pickedUpTurnoverS && b.owner.grounded && !b.owner.busy) { const h = b.owner; h.stats.to++; m.bus.emit('VIOLATION', { kind: 'travel', team: h.team, player: h }); turnoverTo(m, 1 - h.team, h, 'travel'); return; }
+  // L12 (every ruleset): a picked-up dribble may pivot, not walk; held 5 s while closely guarded it's a turnover
+  { const h = b.owner; if (h && h.pickedUp && h.grounded) {
+    if ((h.pivotDist || 0) > RU.travelDist && ballViolation(m, h, 'travel')) return;
+    const d = m.nearestOpponent(h); if (d && !d.hidden && Math.abs(d.x - h.x) < RU.closeGuardDist) h.heldT = (h.heldT || 0) + dt; else h.heldT = 0;
+    if (h.heldT > RU.heldBallS && ballViolation(m, h, 'held ball')) return; } }
   if (m.tutorial) return;
   // street half court: clear the ball past the arc after a stop; a loose ball past the midcourt line is out
   if (m.halfCourt) {
@@ -5107,6 +5119,12 @@ function updateLive(m, dt) {
 }
 // Street half court: shooting before clearing the ball past the arc after a stop is a violation (take it back).
 function mustClearNow(p) { const m = p.match; return m.halfCourt && m.mustClear === p.team && m.phase === 'live'; }
+// L12: traveling, double dribble and the held ball: a whistle, the call, the ball to the other team. Not in practice, the
+// tutorial or the 3-point contest (nobody to give it to).
+function ballViolation(m, p, kind) {
+  if (m.phase !== 'live' || m.practice || m.tutorial || m.contest3) return false;
+  p.stats.to++; m.bus.emit('VIOLATION', { kind, team: p.team, player: p }); turnoverTo(m, 1 - p.team, p, kind); return true;
+}
 function clearViolation(m, p) { p.stats.to++; m.bus.emit('VIOLATION', { kind: 'clear', team: p.team, player: p }); turnoverTo(m, 1 - p.team, p, 'take it back'); }
 function periodOver(m) {
   m.clockRunning = false; m.bus.emit('PERIOD_END', { period: m.period, overtime: m.overtime });
@@ -5165,7 +5183,7 @@ function onScore(m, hoopIdx, reason) {
 // --- turnovers and inbounds ---
 function turnoverTo(m, team, culprit, cause) {
   if (m.phase !== 'live') return; m.clockRunning = false; freezeBall(m); deadBallBonus(m);
-  m.pendingInbound = m.drill ? m.drill.attack : team; m.bus.emit('TURNOVER', { player: culprit, cause, dead: true }); setPhase(m, 'violation', { cause });
+  m.pendingInbound = m.drill ? m.drill.attack : team; m.possession = m.pendingInbound; m.bus.emit('TURNOVER', { player: culprit, cause, dead: true }); setPhase(m, 'violation', { cause }); // (L12: the arrow flips at the whistle, not at the inbound)
 }
 function doInbound(m) {
   const team = m.pendingInbound >= 0 ? m.pendingInbound : m.rng.int(2); m.pendingInbound = -1; m.replayHold = 0;
@@ -5818,6 +5836,7 @@ function drawHints(ctx, m, input, W_, H_, offense) {
   const add = (key, label, count) => { const a = clamp01(1 - (counts[count] || 0) / N); if (a > 0.02) items.push({ text: L[key] + ' ' + label, a }); };
   if (offense) { add('move', 'Move', 'move'); add('shoot', 'Hold to shoot · tap to fake', 'shoot'); if (m.perSide > 1) add('pass', 'Pass · hold for lob', 'pass'); else add('pass', 'Fadeaway (hold)', 'pass'); add('action', 'Dribble move', 'action'); add('down', m.perSide === 1 ? 'Post up · shoot = hook' : 'Protect', 'down'); add('sprint', 'Sprint', 'sprint'); }
   else { add('move', 'Move', 'move'); add('down', 'Stance (hold)', 'down'); add('jump', 'Block', 'jump'); add('action', 'Steal', 'action'); if (m.perSide > 1) add('pass', 'Switch', 'pass'); }
+  { const me = m.controlledPlayer; if (me && me.hasBall && me.pickedUp && !m.practice && !m.contest3) items.unshift({ text: 'Dribble picked up: ' + L.shoot + ' shoot · ' + L.pass + ' fade · ' + L.move + ' pivot only', a: 1 }); } // L12
   if (m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax) items.unshift({ text: L.action + ' + ' + L.shoot + '  SUPER!', a: 1 }); // L9: the full meter's combo
   if (!items.length || input.lastDevice === 'touch' || (input.touch && input.touch.visible)) return; ctx.font = fontStr(15, false); /* no key hints on a touch screen: the touch buttons are labeled */ ctx.textBaseline = 'middle'; const pads = items.map(it => ctx.measureText(it.text).width + 22); const total = pads.reduce((a, b) => a + b, 0) + (items.length - 1) * 8; let x = W_ / 2 - total / 2; const y = input.lastDevice === 'touch' ? 102 : H_ - 26; // on touch the bottom belongs to the thumbs: hints go under the score bug
   items.forEach((it, i) => { ctx.globalAlpha = it.a * 0.9; ctx.fillStyle = 'rgba(8,12,40,0.7)'; ctx.beginPath(); roundRectPath(ctx, x, y - 13, pads[i], 26, 13); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = '#F3F0FF'; ctx.textAlign = 'left'; ctx.fillText(it.text, x + 11, y + 1); x += pads[i] + 8; }); ctx.globalAlpha = 1;
@@ -6986,7 +7005,7 @@ function attachPresentation(m, game) {
   bus.on('HEAT_ON', e => { pushCallout(m, 'ON FIRE', CALLOUT.make, true); au.stinger('fire'); fx.spawn('flame', e.player.x, e.player.y + 1, e.player.z, 16, ['#FF8A2A', '#FFD23F', '#FF4FA3'], { spread: 0.6, spreadY: 1 }); });
   bus.on('SHOVE', e => { au.shove(); cam.addTrauma(0.2); fx.spawn('dust', e.victim.x, 0.3, e.victim.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('KNOCKDOWN', e => { au.stumble(); fx.spawn('star', e.player.x, e.player.y + drawHeightOf(e.player) + 0.1, e.player.z, 3, '#FFD23F'); });
-  bus.on('VIOLATION', e => { au.buzzer(); pushCallout(m, e.kind === 'travel' ? 'TRAVEL' : e.kind === 'clear' ? 'TAKE IT BACK' : e.kind === 'out' ? 'OUT OF BOUNDS' : 'SHOT CLOCK', CALLOUT.call); });
+  bus.on('VIOLATION', e => { const ref = e.kind === 'travel' || e.kind === 'double dribble' || e.kind === 'held ball'; if (ref) au.whistle(); else au.buzzer(); pushCallout(m, e.kind === 'travel' ? 'TRAVEL' : e.kind === 'double dribble' ? 'DOUBLE DRIBBLE' : e.kind === 'held ball' ? '5 SECONDS' : e.kind === 'clear' ? 'TAKE IT BACK' : e.kind === 'out' ? 'OUT OF BOUNDS' : 'SHOT CLOCK', CALLOUT.call); });
   bus.on('DRILL_STOP', e => { au.whistle(); pushCallout(m, m.drill && m.drill.attack === humanTeam ? 'CHECK IT BACK' : 'STOP', m.drill && m.drill.attack === humanTeam ? CALLOUT.call : CALLOUT.defense); });
   bus.on('CHECK', e => { au.bounce(4); }); bus.on('CLEARED', e => { if (e.team === humanTeam) au.ui('tick'); });
   bus.on('FOUL', e => { au.whistle(); pushCallout(m, (e.kind.toUpperCase()) + ' FOUL', CALLOUT.call); });
