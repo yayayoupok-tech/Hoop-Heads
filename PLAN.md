@@ -136,8 +136,11 @@ number, near-black body lines, a contact shadow, §3.11 overlap order; signature
 runs that tilt and flap, front-flip and card-thin spin dunks, rim-hang kicks and a bending rim, knockdowns with orbiting
 stars, the BONK!, jump-and-clap, air guitar and laugh celebrations, idle weight shifts and crowd glances.)* **L6 — The Legends Arena** *(done: a bright blue bowl with warm light cones, big invented banners, bobblehead fans,
 the LED board and glowing scorer's table, honey maple with team keys, 1.15× backboards; the default court in Legends
-View. Career venues get a brighter, more saturated grade in Legends View.)* **L7 — Pixel mode**
-(internal resolution, pixelized sprites, dithered backgrounds). **L8 — Chunky UI**, the select wall, the pixel font and
+View. Career venues get a brighter, more saturated grade in Legends View.)* **L7 — Pixel mode** *(done: Settings →
+Graphics, Pixel by default; the scene renders at 240-ish rows and blits at a whole-number scale; a per-venue 32-color
+palette with camera-anchored Bayer dither; characters pixelized from a 3× paint with a per-character palette, a 1-px ink
+outline and selective inner lines; 8 pre-pixelized ball frames; square particles; a pixel font for callouts; a guard that
+sheds pixel work over 4/8 ms.)* **L8 — Chunky UI**, the select wall, the pixel font and
 logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
 
 ## Testing every milestone

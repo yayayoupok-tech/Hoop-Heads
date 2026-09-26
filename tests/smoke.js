@@ -104,6 +104,21 @@ const FIX = path.join(__dirname, 'fixtures');
     await ev(() => { const g = HH.game; g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 4, controlMode: 'lock' }, { kind: 'quick' }); });
     await wait(1200); await shot('21-legends-arena'); await ev(() => HH.game.quitToMenu());
   });
+  await step('pixel mode (L7): the default; the match renders into the k× internal buffer with pixel sprites; Smooth still works; the pixel font covers its set', async () => {
+    await ev(() => { const g = HH.game, S = g.save.data.settings; if (S.graphics === 'smooth') throw new Error('Smooth by default'); S.graphics = 'pixel'; S.camera = 'legends';
+      g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 6, controlMode: 'lock' }, { kind: 'quick' }); });
+    await wait(900);
+    await ev(() => { const g = HH.game; if (!g.pixelFrame) throw new Error('no pixel frame'); const k = Math.max(2, Math.round(g.canvas.height / ART.pxRows)); if (PXS.k !== k || PXS.iw !== Math.ceil(g.canvas.width / k)) throw new Error('internal buffer ' + PXS.iw + 'x' + PXS.ih + ' k ' + PXS.k);
+      const d = PXS.ctx.getImageData(0, 0, PXS.iw, PXS.ih).data; for (let i = 3; i < d.length; i += 4) if (d[i] !== 255) throw new Error('a see-through pixel in the internal buffer');
+      for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?\'-:/+%#() ') { const G = PX_FONT[ch]; if (!G || G.length !== 7 || G.some(r => r.length !== 5)) throw new Error('glyph ' + ch); }
+      for (let fr = 0; fr < ART.pxBallFrames; fr++) { const b = pxBallSprite(5, fr, 0); if (!(b.width > 4)) throw new Error('ball frame ' + fr); } });
+    await ev(() => { const g = HH.game, m = g.match, cam = g.cam, upd = cam.update; g.paused = true; const hid = m.players.map(p => p.hidden); for (const p of m.players) p.hidden = true; cam.update = () => {}; // no shimmer: a 1-px pan moves the floor exactly 1 px
+      try { const grab = () => { g.renderSceneAny(g.ctx, m, 0, 0); const top = Math.round(cam.sy(0) * PXS.f) + 4; return PXS.ctx.getImageData(0, top, PXS.iw, PXS.ih - top - 2).data; }; const A = grab(); cam.x.x += 1 / (cam.ppm * PXS.f); const B = grab(); const w = PXS.iw; let diff = 0, n = 0;
+        for (let y = 0; y < B.length / 4 / w; y++) for (let x = 2; x < w - 2; x++) { const a = (y * w + x - 1) * 4, b = (y * w + x) * 4; n++; if (A[b] !== B[a] || A[b + 1] !== B[a + 1] || A[b + 2] !== B[a + 2]) diff++; } if (diff / n > 0.02) throw new Error('floor shimmer ' + (100 * diff / n).toFixed(1) + '%'); }
+      finally { cam.update = upd; m.players.forEach((p, i) => { p.hidden = hid[i]; }); g.paused = false; } });
+    await shot('22-pixel-mode');
+    await ev(() => { const g = HH.game; g.save.data.settings.graphics = 'smooth'; }); await wait(400); await ev(() => { if (HH.game.pixelFrame) throw new Error('Smooth did not turn pixel mode off'); HH.game.save.data.settings.graphics = 'pixel'; HH.game.quitToMenu(); });
+  });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
   await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {

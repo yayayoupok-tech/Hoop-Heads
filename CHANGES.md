@@ -3,6 +3,74 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L7 — Pixel mode (graphics overhaul, milestone 7)
+
+Settings → Graphics: **Pixel** (the new default) or **Smooth** (everything up to L6). Pixel mode renders the match
+scene into an internal buffer and blits it at a whole-number scale with smoothing off. It is presentation only:
+the simulation, hitboxes and camera targets are the same in both. Shots: `shots/l7/round-1/` (the first pass),
+`shots/l7/round-final/` (every Art Lab view plus in-game frames on desktop and phone) and `shots/legends/round-8/`
+(the Legends check pages, the Hair page, the three Pixel check pages and in-game Legends View frames).
+
+How it works (§8)
+- Internal resolution: k = max(2, round(device height / 240)); the buffer is device size / k (1280×720 → 427×240,
+  a phone at 844×390 @3x → 507×234). The camera snaps to whole internal pixels while a frame renders, so nothing
+  shimmers when it pans (the smoke test measures 0% shimmer on a slow pan).
+- Background: venue, crowd, floor, hoops and reflections draw as before into the buffer, then the rectangle is quantized
+  to a 32-color palette built per venue from its first frame, with Bayer 4×4 ordered dither (amplitude 14 of 255)
+  anchored to the camera so the pattern moves with the world.
+- Characters: each is drawn with the normal renderer into a scratch canvas at 3× the internal size (the pose callback
+  gives the tight box), scaled down natively (a box filter), cut at α 0.45, mapped through a per-character palette
+  (skin ramp, hair, kit and shoe colors, ink; about 29 colors) with a lazily filled 15-bit lookup, cleaned of orphan
+  pixels and pinholes, given a 1-px ink outline on the outside and selective inner lines where a light region meets a
+  darker one.
+- Ball: 8 pre-pixelized rotation frames per size (small sizes get fewer seams so they don't read as gears).
+- Particles: square pixels, faded with a dither mask instead of alpha. Callouts: the 5×7 pixel font, flickering out.
+- The guard (§8.6): pixel work over 4 ms (desktop) or 8 ms (phone) sheds, in order: characters at 2× instead of 3×,
+  no selective inner lines, character sprites redrawn at 30 Hz. It times only the pixel work.
+- Measured pixel work (headless Chromium, CPU): 2.17 ms per frame on desktop, 3.66 ms on the phone profile.
+
+New constants (ART, PIXEL section)
+
+| Constant | Value | What it does |
+| --- | --- | --- |
+| `pxRows` | 240 | k = max(2, round(device height / pxRows)) |
+| `pxSuper` | 3 | characters are painted at this supersample (the guard drops it to 2) |
+| `pxAlphaCut` | 0.45 | filtered pixels at least this opaque become opaque |
+| `pxVenueColors` | 32 | background palette size |
+| `pxDither` | 14 | Bayer 4×4 amplitude (26 made the floor grainy) |
+| `pxInner` / `pxInnerMix` | 0.32 / 0.4 | selective inner lines: luma step that triggers one, and how far it darkens |
+| `pxBudget` | [4, 8] ms | pixel work per frame before the guard sheds (desktop / phone) |
+| `pxBallFrames` | 8 | pre-pixelized ball rotation frames |
+| `brightGradeHs` | [1.06, 1.15] | the gym's bright grade (the arena's [1.25, 1.15] blew it out) |
+
+Rounds
+- Round 1: the dither crawled on camera pans (now anchored to the camera); the gym was blown out by the bright grade
+  (it gets its own, gentler one); small balls looked like gears (fewer seams); the Pixel check pages overflowed; the
+  Settings right column overflowed with the new Graphics row (36 px rows when there are more than 9).
+- Round 2 (`shots/legends/round-8/`): faces and hair hold up at the phone's 234-row buffer; outlines are continuous.
+
+Deviations
+- Menus and the HUD stay smooth in L7; the pixel UI (menu buffer, pixel font titles, the 7×11 score digits, the logo)
+  is L8.
+- The net is quantized with the rest of the hoop, not redrawn with Bresenham lines.
+- Faces are not cached separately: they are pixelized with the body each frame (the per-character sprite cache and the
+  guard's 30 Hz step cover the cost).
+- Character palettes are about 29 colors (the spec's 26 plus the ball's colors, after removing duplicates).
+- Reflections are drawn with alpha and then quantized with the dither, not through a checkerboard mask.
+- Motion trails are drawn inside each character's sprite box.
+- The Art Lab stays Smooth except its Pixel check pages (sprites at 1×/k×, the palette, the font, and a Legends frame).
+- The crowd uses the M5 atlas at the buffer's resolution (the spec's bigger 80×150 cells would not show at 240 rows).
+
+Tests (L7 changes no gameplay)
+- Smoke 90 of 90 (new step: Pixel is the default; the buffer is device/k with k from §8; the scene, characters, ball,
+  particles and callouts draw in pixel style; a slow pan shows 0% shimmer; Smooth still renders; no exceptions). Modes
+  13 of 13, old saves 16 of 16, dev tools all OK, phone audit: no errors; zero console errors.
+- `balance.js 12 21`: brute force vs Pro 1.28 PPP ✓, timing beats brute force 2.02 ✓, Legend beats Pro 84% ✓.
+  `careersim.js 40`: every target ✓ except Hall of Fame 8% (10–20%; 13% at 200 careers, unchanged since M8). §2 gate
+  unchanged: mirror 50%, Legend beats Pro 77%, brute force 0.98 PPP, mirror PPP 1.44 ✗ (known deviation).
+- `perf.js` (844×390 @2x, the pro arena, now in Pixel mode by default): guard level 0 median 23.1 ms, p95 31.3 ms; 4×
+  CPU 99.8 ms, and the guard engages at 4× as before (L6 Smooth: 19.5 / 28.1 ms, 103.5 ms).
+
 ## L6 — The Legends Arena and the bright grade (graphics overhaul, milestone 6)
 
 A new venue, the Legends Arena (court id `legends`, venue kind `legends`), and a bright grade for the career venues when
