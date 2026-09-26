@@ -85,6 +85,19 @@ const FIX = path.join(__dirname, 'fixtures');
     b.x = b.px = 9; for (let i = 0; i < 30; i++) { m._ovT -= 50; overlapOrder(m, m.players, 1); } if (b._depth > 0.01) throw new Error('overlap depth stuck at ' + b._depth);
     const me = defaultMeShape(); if (signatureUnlocked(me).some(Boolean)) throw new Error('colorways unlocked before the shoe deal'); me.cosmetics.shoes = 1; me.allStar = 1; me.careerStats.titles = 1; const u = signatureUnlocked(me); if (!(u[0] && u[1] && u[2]) || u[3]) throw new Error('unlocks ' + u); if (nextSignature(me) !== 2) throw new Error('next colorway ' + nextSignature(me));
   }));
+  await step('faces (L14): front-on and symmetric — the 12 cast faces at 256 px mirror within 3% (the side part exempt), every other hair style too; eyes the same width and height; the construction lines; the facing slide ≤ 0.04', async () => {
+    const r = await ev(() => {
+      const out = [], bad = [], sc = (look, o) => faceSymmetryScore(look, Object.assign({ u: 256 }, o));
+      LAB_CAST.forEach(c => { const q = sc(Object.assign({ v: 2 }, c.look), { name: c.name, age: c.age, team: c.colors }); out.push(c.name.split(' ')[0] + ' ' + (q.diff * 100).toFixed(2) + '%' + (q.symmetricHair ? '' : ' (side part, exempt)')); if (q.symmetricHair && !(q.diff < 0.03)) bad.push(c.name + ' ' + (q.diff * 100).toFixed(2) + '%'); if (q.eyeRatio !== 1 || q.eyeDy !== 0) bad.push(c.name + ' eyes ' + q.eyeRatio + ' / ' + q.eyeDy); });
+      const styles = []; for (let hs = 0; hs < 14; hs++) { if (hs === 10) continue; const q = sc(Object.assign({ v: 2 }, LAB_CAST[1].look, { hair: hs }), { name: 'Sym' + hs }); styles.push(hs + ':' + (q.diff * 100).toFixed(1)); if (!(q.diff < 0.03)) bad.push('hair ' + hs + ' ' + (q.diff * 100).toFixed(2) + '%'); }
+      const L = normLook(Object.assign({ v: 2 }, LAB_CAST[1].look), LAB_CAST[1].name), fr = faceFrame(L), E = eyeGeom(L), M = mouthGeom(L), N = noseGeom(L), pct = y => (y - fr.top) / fr.H;
+      const lines = [pct(E[0].y), pct(N.ty - N.type.drop), pct(M.y)]; if (Math.abs(lines[0] - 0.46) > 1e-9 || Math.abs(lines[1] - 0.62) > 1e-9 || Math.abs(lines[2] - 0.74) > 1e-9) bad.push('lines ' + lines.map(v => v.toFixed(3)));
+      const fc = getFaceCanvas(L, 'neutral', 24, 256, null, true), fr0 = getFaceCanvas(L, 'neutral', 24, 256, null, true, true); if (!(fc.slide > 0 && fc.slide <= 0.04 + 1e-9) || fr0.slide !== 0) bad.push('slide ' + fc.slide + ' / front ' + fr0.slide);
+      return { out, styles, bad, lines: lines.map(v => (v * 100).toFixed(1) + '%'), slide: fc.slide };
+    });
+    console.log('     L14 symmetry (mirror diff at 256 px): ' + r.out.join(' · ')); console.log('     L14 every other hair style on one face (%): ' + r.styles.join(' ') + ' · lines ' + r.lines.join(' / ') + ' · slide ' + r.slide.toFixed(4));
+    if (r.bad.length) throw new Error(r.bad.join(' · '));
+  });
   await step('animation (L5): a stray ball on the crown bonks (callout, shocked face, stars) and changes nothing else; posterizers give stars; a high flyer front-flips; every new clip poses', () => ev(() => {
     const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: 3, headless: true, humanTeam: -1 }); m.callouts = []; const p = m.players[1], ball = m.ball, DH = drawHeightOf(p);
     p.x = p.px = (HOOPS[0].x + HOOPS[1].x) / 2; p.y = 0; p.grounded = true; ball.setOwner(null); ball.mode = 'loose'; ball.lastTouch = m.players[0]; ball.x = p.x + 0.05; ball.y = ART.headCenter * DH + 0.2 * DH; ball.z = p.z; ball.vx = 0.5; ball.vy = -5; const before = [ball.x, ball.y, ball.vx, ball.vy].join();

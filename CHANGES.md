@@ -3,6 +3,86 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L14 — Faces front-on and symmetric (playtest pass, milestone 14)
+
+The playtest: faces were painted in a three-quarter view (a near eye bigger than the far one, the nose in profile with
+an inked ridge, the mouth and one ear off to the sides), so a head read as turned even when the player faced the
+camera, and the two halves of a face never matched.
+
+The construction now follows the big front-facing heads of Basketball Legends / Basketball Bros (original characters
+only), with the spec's proportions (u = head width, heights from the crown as a share of crown-to-chin):
+
+| Feature | Spec | Now |
+| --- | --- | --- |
+| eyes | ±0.19 at 46%, 0.19 × 0.13, iris 0.07 | both eyes identical, ±0.19 (plus the face's spacing), 0.19 × 0.13 and a 0.07 iris (× eye size), on the 46% line |
+| brows | 0.05 above the eyes | 0.05 (was 0.045) |
+| nose | tip at 62%, centered, nostrils ±0.05, no profile line | a lit tip on the 62% line, wings, nostrils at ±0.05 (× nose width), a soft line under it; the bridge is two soft shadow planes, no ink ridge |
+| mouth | at 74%, 0.34 wide (grin 0.42), even teeth | centered on the 74% line, 0.34 (× mouth width), a grin 0.42; teeth in an even, symmetric row |
+| ears | both, 0.10 × 0.16, eye to nose height | both ears, 0.10 × 0.16 (× ear size), centered between the eye and nose lines, behind the silhouette |
+| jaw | 0.80 | the six head archetypes are redrawn front-on; their jaw anchors average ±0.40 |
+
+How it is built
+- **One half, mirrored.** A face is two layers. The head and the hair (skull, light, ears, stubble, scalp, outline,
+  beards and chin straps, hair) are painted straight onto the face canvas, clipped to the right half, and that half is
+  mirrored in place about the pixel edge at the head's center. The face plate (the features and their shadows, a
+  mustache or goatee) is painted the same way in a scratch canvas and copied in. So the two halves match pixel for pixel
+  (no resampling). The canvas is laid out with the head's center on a pixel edge for this. The plate goes on top of the
+  hair; nothing drawn on the plate reaches the hairline.
+- **Facing slides the features.** The face plate lands 0.04 head widths (rounded to whole cache pixels) toward the
+  facing side, and the live eyes and brows slide with it; drawFace mirrors the whole face for facing left, as before.
+  `front: true` paints it centered (the Art Lab's symmetry page and the test).
+- **The side part is the one asymmetric style.** It is painted unmirrored over the mirrored layers.
+- Lighting is front-on: the key light is centered, the sides of the head turn into cel shadow past a face-plate oval,
+  there is a rim light on both edges, a gloss crescent on each cheekbone, and the forehead and chin shines sit centered.
+- Hair and facial hair, front-on: long hair falls on both sides (the front locks too); the bun sits on top of the crown;
+  the mohawk is a fanned crest; cornrows run straight back from the hairline; the afro is centered; the high top no
+  longer leans. Locs and box braids hang in mirrored pairs, two locs a side in front, beside the face. A buzz cut is
+  just the scalp's color (a shell with its own outline read as a skullcap front-on); the mustache and goatee sit on the
+  face plate, and beards and chin straps on the head layer. The eyes' face tilt now lifts both outer corners alike, and the
+  catchlights mirror.
+
+**The symmetry test** (Art Lab → Symmetry, and the smoke test): the 12 cast faces front-on at 256 px, the right half
+against the left half mirrored over every pixel either half paints (mean |Δ| over RGBA):
+
+| Face (hair) | L13: mirror diff · eye width ratio · eye height diff | L14 |
+| --- | --- | --- |
+| Theo (side part) | 15.06% · 1.29 · 0.028 | 4.70% (the asymmetric style: exempt) · 1.00 · 0 |
+| Dario (taper fade) | 18.81% · 1.29 · 0.026 | 0.12% ✓ · 1.00 · 0 |
+| Kenji (mohawk) | 14.87% · 1.29 · 0.010 | 0.06% ✓ · 1.00 · 0 |
+| Mateo (long) | 17.53% · 1.29 · 0.024 | 0.04% ✓ · 1.00 · 0 |
+| Samir (bun) | 14.30% · 1.29 · 0.034 | 0.09% ✓ · 1.00 · 0 |
+| Ravi (buzz) | 14.42% · 1.29 · 0.012 | 0.09% ✓ · 1.00 · 0 |
+| Luis (bald) | 12.96% · 1.29 · 0.000 | 0.05% ✓ · 1.00 · 0 |
+| Andre (high top) | 9.81% · 1.29 · 0.020 | 0.05% ✓ · 1.00 · 0 |
+| Marcus (locs) | 14.04% · 1.29 · 0.018 | 0.07% ✓ · 1.00 · 0 |
+| Jalen (afro) | 9.44% · 1.29 · 0.012 | 0.06% ✓ · 1.00 · 0 |
+| Kobi (cornrows) | 9.62% · 1.29 · 0.034 | 0.05% ✓ · 1.00 · 0 |
+| Obi (curly top) | 9.47% · 1.29 · 0.036 | 0.05% ✓ · 1.00 · 0 |
+
+The residue under 0.2% is the anti-aliasing where the live eyes and the resampled cache meet. Every other hair style on
+one face (box braids and twists aren't in the cast) mirrors within 0.1%. The construction lines land at exactly 46.0%,
+62.0% and 74.0% of crown-to-chin, and the facing slide is 0.039 head widths (10 px of a 256 px cache).
+
+**Visual rounds** (`shots/l14/`: round-1 to round-3, before/after, the Art Lab's `round-final`). The spec's `reference/`
+folder didn't exist, so `reference/face-construction.png` is a construction sheet drawn from the spec's proportions,
+and pages 4–6 of Art Lab → Symmetry draw it over each face.
+- Round 1: the construction reads, but the mohawk looked like a hairbrush and the buzz cut like a skullcap (its shell's
+  own outline and a window glint).
+- Round 2: the mohawk becomes a fanned crest of five spikes, and the buzz is just the scalp's color.
+- Round 3 (against the reference at 440 px): the nose's wing strokes curled like hooks, so it is now one soft line under
+  the tip with short wing creases. The smile folds ringed the mouth like a muzzle, so they are fainter (0.3) and stop
+  at the mouth corners. The cheekbone glints sat under the eyes like bags, so they moved out and down.
+
+**Paint cost.** The first cut painted three mirrored layers through a scratch canvas: 21.5 ms per face at 320 px, with
+raster forced by a readback (L13: 14.7 ms). The head and the hair are now one layer painted on the face canvas and
+mirrored in place. Only the kept half is rasterized (clipped to x ≥ 0), and only the face plate's box is copied from
+its scratch. Result: 14.3 ms per face. The optimized faces match the first cut within 0.03% mean difference.
+
+Tests: smoke 96/96 (the new L14 step: the 12 scores above, every hair style, the lines, the slide); modes 13/13; old
+saves 16/16; dev tools OK; phone audit no errors; Art Lab 52 shots, no errors. (Modes, old saves, dev tools and the phone
+audit ran on the first cut; smoke, Art Lab and perf ran again on the optimized build.) Perf at 844×390 @2x in the pro
+arena: median 18.1 ms, p95 26.9 ms (L13 17.2 / 25.5); at 4× CPU 92.2 ms (L13 93.9).
+
 ## L13 — True size: an 18 m Legends court (playtest pass, milestone 13)
 
 The playtest: in Legends View the players were drawn 1.3× on a 13 m court, so a 2 m player stood 1/5 of the court
