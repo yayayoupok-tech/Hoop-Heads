@@ -132,7 +132,9 @@ toward the cheeks; every hair style a bold-outlined two-tone silhouette with one
 outlined locs; a higher hairline; nothing covers the eyes.)* **L4 — Bodies** *(done: §3.1 proportions, open three-finger
 hands that wrap a held ball, high-tops with an original emblem, long baggy shorts, a trimmed tank with wordmark and
 number, near-black body lines, a contact shadow, §3.11 overlap order; signature colorways unlock in the pro career.)*
-**L5 — Animation exaggeration.** **L6 — The Legends Arena** and a bright grade for career venues. **L7 — Pixel mode**
+**L5 — Animation exaggeration** *(done: bigger squash and stretch, a springier head bobble with a landing lag,
+runs that tilt and flap, front-flip and card-thin spin dunks, rim-hang kicks and a bending rim, knockdowns with orbiting
+stars, the BONK!, jump-and-clap, air guitar and laugh celebrations, idle weight shifts and crowd glances.)* **L6 — The Legends Arena** and a bright grade for career venues. **L7 — Pixel mode**
 (internal resolution, pixelized sprites, dithered backgrounds). **L8 — Chunky UI**, the select wall, the pixel font and
 logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
 

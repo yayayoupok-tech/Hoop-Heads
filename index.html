@@ -1934,8 +1934,9 @@ Object.assign(ART, {
   crownY: 1.0,               // the crown's height (H), §3.1
   dunkChinClear: 0.05,       // a dunker is drawn lifted until the chin is this far above the rim (m), visual only...
   dunkLiftMax: 0.5,          // ...by at most this much (H)
-  hangCrownClear: 0.1,       // a rim-hanger is drawn lowered until the crown is this far above the rim (m)
-  liftEase: 12,              // the lift eases in and out at this rate (1/s)
+  hangChinAt: -0.02,         // a rim-hanger is drawn lifted until the chin is here relative to the rim (m): with a 2.6 m drawn body there is no room to hang the face under a 3.05 m rim
+  liftEase: 12,              // the lift eases out at this rate (1/s)...
+  liftEaseIn: 40,            // ...and in this fast, so the head is over the rim within a few frames of the takeoff
   overlapShare: 0.2,         // §3.11: heads overlapping by more than this share of a head width...
   overlapScale: 0.94,        // ...draw the farther player first at this scale...
   overlapRaise: 0.05,        // ...raised this much (H)...
@@ -1958,14 +1959,13 @@ function visualScaleOf(p) { return p && p.match && p.match.layoutId === 'legends
 function drawHeightOf(p) { return (p && p.height > 0.5 ? p.height : 1.9) * visualScaleOf(p); }
 const BALL_AT_WORLD = { dunk: 1, rimhang: 1, layup: 1, tipin: 1, catch: 1 };
 // Big heads at the rim (visual only; the player's real place never changes): on a dunk the drawn body rises until the chin
-// clears the rim, so the head sits above it and the hand slams the real ball down; on a rim hang it drops until the crown
-// sits just above the rim. Eased in and out on the match clock (a stand-in with no clock gets the target at once).
+// clears the rim, so the head sits above it and the hand slams the real ball down; on a rim hang it hangs chin-on-rim. Eased in and out on the match clock (a stand-in with no clock gets the target at once).
 function visualLift(p, y) {
   const a = p.anim || (p.anim = {}), DH = drawHeightOf(p), st = p.state; let tgt = 0;
   if (st === 'dunk') tgt = clamp(RIM_Y + ART.dunkChinClear - (y + ART.chinY * DH), 0, ART.dunkLiftMax * DH);
-  else if (st === 'rimhang') tgt = -clamp(y + ART.crownY * DH - (RIM_Y + ART.hangCrownClear), 0, Math.max(0, y));
+  else if (st === 'rimhang') tgt = clamp(RIM_Y + ART.hangChinAt - (y + ART.chinY * DH), 0, ART.dunkLiftMax * DH); // a pull-up: the chin at the rim, the hands gripping it at chin height
   if (!p.match || !isFinite(p.match.time)) return tgt;
-  const now = p.match.time, dt = clamp(now - (a.liftT == null ? now : a.liftT), 0, 0.1); a.liftT = now; a.lift = (a.lift || 0) + (tgt - (a.lift || 0)) * (1 - Math.exp(-dt * ART.liftEase)); if (!tgt && Math.abs(a.lift) < 1e-4) a.lift = 0; return a.lift;
+  const now = p.match.time, dt = clamp(now - (a.liftT == null ? now : a.liftT), 0, 0.1); a.liftT = now; const rate = tgt ? ART.liftEaseIn : ART.liftEase; a.lift = (a.lift || 0) + (tgt - (a.lift || 0)) * (1 - Math.exp(-dt * rate)); if (!tgt && Math.abs(a.lift) < 1e-4) a.lift = 0; return a.lift;
 }
 // §3.1: with the big head the torso is short, so a held or dribbled ball is drawn in front of it, not the face. Drawn
 // heights (in H) from 0.30 to 0.80 fold into 0.30–0.36, and 0.80–1.00 open out again, so a rising shot zips past the face
@@ -2149,7 +2149,7 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k); P.hemFlare = p.grounded === false ? clamp01(y / 0.35) : 0;
   const dk = clamp01(opts.depth || 0), dS = 1 - (1 - ART.overlapScale) * dk, dR = ART.overlapRaise * dk * k; // §3.11: the farther of two overlapping players is drawn smaller and higher
   // a turn (spin move, 360 dunk) narrows the body side-on and shows the other side halfway round; the head narrows less
-  let fv = f, ts = 1, hs = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -f; ts = Math.max(ART.turnMin, Math.abs(cs)); hs = Math.max(ART.headTurnMin, Math.abs(cs)) / ts; } P._f = fv;
+  let fv = f, ts = 1, hs = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -f; ts = Math.max(P.turnMin != null ? P.turnMin : ART.turnMin, Math.abs(cs)); hs = Math.max(P.headTurnMin != null ? P.headTurnMin : ART.headTurnMin, Math.abs(cs)) / ts; } P._f = fv;
   if (!opts.reflection) {
     const floorY = cam.sy(0, z), hgt = Math.max(0, y + lift), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1);
     if (!opts.noShadow) { ctx.globalAlpha = fade; ctx.drawImage(shadowSprite(), ox - 0.45 * k * sc, floorY - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); drawContactShadow(ctx, ox, floorY, k, fade * sc); ctx.globalAlpha = 1; } // soft floor shadow and the sharp contact shadow (the match scene draws all shadows first, in L5)
@@ -2173,8 +2173,10 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   // the head: cached painted face, live eyes and brows, strands (it sits on the collar; there is no neck). Pupils follow the ball.
   const hx = P.head.x, hy = -P.head.y; let lookX = 1, lookY = 0; const bl = ballLocal(p, ball, alpha);
   if (bl && !opts.reflection) { const dx = (bl.x * f * fv - P.head.x) * H, dh = (bl.y - P.head.y) * H, d = Math.hypot(dx, dh); if (d < ART.lookRange && d > 0.05) { const n = Math.max(d, 1.2); lookX = dx / n; lookY = -dh / n; } }
+  if (P.clip === 'idle' && !(bl && Math.hypot(bl.x, bl.y - P.head.y) < 0.6)) { const sd = hashString(p.name || 'p') % 991 / 991, [g0, g1] = ART.glanceEvery, per = g0 + (g1 - g0) * sd, ph = (rigNow(p, alpha) + sd * 17) % per; if (ph < ART.glanceS) { const u = Math.sin(Math.PI * ph / ART.glanceS); lookX = lerp(lookX, -0.35, u); lookY = lerp(lookY, -0.8, u); } } // §4 idle: a glance up at the crowd
   if (hs !== 1) { ctx.translate(hx, 0); ctx.scale(hs, 1); ctx.translate(-hx, 0); }
   drawFace(ctx, L, hx, hy, ART.headWidth, 1, (a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k * ts * hs, sim: opts.reflection ? null : a, warm: !opts.reflection && !!(p.match && p.match.players), vx: (p.vx || 0) * fv, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
+  if (a.starsT > 0 && !opts.reflection) drawDizzyStars(ctx, hx, hy - (ART.crownY - ART.chinY) * 0.52, a.starsT, lw); // §4: knockdown and bonk stars orbit the head
   ctx.restore();
   drawHand(ctx, T, P.handF, false, lw, kit, L.acc.wristband, wrapF ? 'back' : undefined);
   if (bp) { ctx.save(); ctx.setTransform(base); try { bp(); } catch (e) { reportFrameError(e); } ctx.restore(); if (wrapB) drawHand(ctx, T, P.handB, true, lw, kit, false, 'front'); if (wrapF) drawHand(ctx, T, P.handF, false, lw, kit, false, 'front'); }
@@ -2187,6 +2189,11 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
     if (p.callingForBall && !p.hasBall) { const bx = ox + f * k * 0.2, by = topY; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(bx, by, k * 0.06, 0, TAU); ctx.fill(); ctx.strokeStyle = '#1E1633'; ctx.lineWidth = Math.max(1.2, k * 0.006); ctx.stroke(); ctx.fillStyle = '#1E1633'; ctx.font = fontStr(k * 0.09, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', bx, by + 1); }
   }
   if (p.hand) { p.hand.x = x + P.handF.x * H * fv * ts; p.hand.y = y + P.handF.y * H; }
+}
+// §4: three outlined yellow 5-point stars orbiting an ellipse over the head (in body units, so they follow a fall).
+function drawDizzyStars(ctx, cx, cy, left, lw) {
+  const t = performance.now() / 1000, fade = clamp01(left / 0.25);
+  for (let i = 0; i < 3; i++) { const a = t * TAU * 1.4 + i * TAU / 3, x = cx + Math.cos(a) * 0.2, y = cy + Math.sin(a) * 0.05, r = 0.036 * (0.75 + 0.25 * Math.sin(a)); ctx.save(); ctx.globalAlpha = fade; ctx.beginPath(); for (let k = 0; k < 10; k++) { const b = -Math.PI / 2 + k * Math.PI / 5 + t * 3, rr = k % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr); } ctx.closePath(); ctx.fillStyle = '#FFD23F'; ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.fill(); ctx.stroke(); ctx.restore(); }
 }
 // §3.10: a sharp contact shadow under the shoes (0.28 × 0.04 H at α 0.55), on top of the soft one.
 function drawContactShadow(ctx, ox, floorY, k, a) { const [w, h, al] = ART.contactShadow; ctx.save(); ctx.globalAlpha = clamp01(al * (a == null ? 1 : a)); ctx.fillStyle = '#0A0612'; ctx.beginPath(); ctx.ellipse(ox, floorY, w * k / 2, h * k / 2, 0, 0, TAU); ctx.fill(); ctx.restore(); }
@@ -2220,13 +2227,38 @@ Object.assign(ART, {
   runStride: 0.10,           // run foot stride (±H)
   sprintStride: 0.13,        // sprint foot stride (±H)
   footLift: 0.05,            // foot lift during the swing (H)
-  runBounce: 0.015,          // pelvis bounce at twice the stride frequency (H)
+  runBounce: 0.03,           // pelvis bob at twice the stride frequency (H; §4, was 0.015)
+  runTilt: 4,                // the body tilts into each step by this much (degrees, §4)
+  runFlutter: 0.022,         // shorts flutter on the run (H)
   runLean: 6,                // run lean (degrees)
   sprintLean: 12,            // sprint lean (degrees)
   breatheHz: 0.9,            // idle breathing rate (Hz)
-  bobbleK: 120,              // head bobble spring stiffness (1/s²)
-  bobbleDamp: 12,            // head bobble damping (1/s)
-  bobbleMax: 0.04,           // head bobble clamp (±H)
+  bobbleK: 90,               // head bobble spring stiffness (1/s², §4: softer, so it overshoots)
+  bobbleDamp: 9,             // head bobble damping (1/s, §4)
+  bobbleMax: 0.064,          // head bobble clamp (±H; §4 amplitude ×1.6)
+  bobbleGain: 1.6,           // the body's acceleration moves the head 1.6× as much (§4)
+  landLagS: 0.06,            // on landing the head lags this long, then catches up (§4)...
+  landDip: 0.9,              // ...with a downward kick of this share of the landing speed (H/s per m/s ÷ H)
+  jumpSquash: [1.14, 0.84],  // jump start squash (x, y), §4
+  apexStretch: 1.10,         // stretched this tall around the apex (y), §4
+  landSquash: [1.18, 0.80],  // landing squash (x, y) for landS, §4
+  landS: 0.11,               // landing squash length (s)
+  flipHops: 8.5,             // a one- or two-hand dunk by a player with Hops (Jump) at least this becomes a front flip (visual)...
+  flipS: 0.5,                // ...360° about the chest in this long at the top
+  hangKick: 0.05,            // a rim-hanger's feet kick alternately ±this (H)...
+  hangKickHz: 5,             // ...this fast
+  rimBend: 3,                // the rim bends this far under a hanging player (degrees, visual)
+  starsS: 1.2,               // knockdown stars orbit this long (posterizer and ankle-breaker victims)
+  getUpS: 0.5,               // a knocked-down player gets up in this long (§4)
+  bonkStarsS: 0.6,           // stars after a head bonk
+  bonkShockS: 0.8,           // shocked eyes after a head bonk
+  bonkCooldown: 3,           // one bonk per player per this many seconds...
+  bonkGap: 12,               // ...and one per match per this many (a bonk is a rare gag, not every rebound)
+  bonkRimClear: 1.6,         // a falling ball only bonks this far (m) from both rims: under the rim it's just a rebound
+  bonkSpeed: 3,              // a loose or passed ball faster than this (m/s) that crosses a drawn head bonks it
+  idleShift: [2, 4],         // idle: a weight shift every 2–4 s...
+  glanceEvery: [5, 9],       // ...and a glance at the crowd every 5–9 s...
+  glanceS: 0.8,              // ...for this long
   bobbleAccMax: 40,          // root acceleration fed to the bobble is clamped to this (m/s²)
   dribblePump: 0.05,         // the dribble hand pushes the ball down this far from the top of the bounce (H)
   turnMin: 0.42,             // narrowest body width halfway through a turn (spin, 360 dunk)
@@ -2245,7 +2277,7 @@ Object.assign(ART, {
 const DEG = Math.PI / 180;
 const RIG_NODES = ['pelvis', 'chest', 'head', 'handF', 'handB', 'footF', 'footB'];
 const RIG_SCALARS = ['sx', 'sy', 'rot', 'px', 'py', 'lean', 'turn', 'hemFlutter'];
-const RIG_CELEBS = ['flex', 'chestPound', 'pointSky', 'shimmy', 'fingerWag', 'airplane'];
+const RIG_CELEBS = ['flex', 'chestPound', 'pointSky', 'shimmy', 'fingerWag', 'airplane', 'jumpClap', 'airGuitar']; // plus 'laugh' after a posterizer
 const EASE = { io: u => u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u), in: u => u * u, out: u => 1 - (1 - u) * (1 - u), lin: u => u };
 
 // --- pose helpers ---
@@ -2299,10 +2331,15 @@ function rigContext(p, alpha, ball, now) {
     airT: p.airT != null ? p.airT : (p.stateT || 0) };
 }
 function idleBase(c) { const P = restPose(), b = Math.sin(c.now * TAU * ART.breatheHz); P.chest.y += 0.004 * b; P.head.y += 0.006 * b; return P; }
+// §4 idle life: a weight shift every 2–4 s (the hips settle over one foot), seeded per player so two players never sync.
+function idleShift(c, P) {
+  const sd = hashString(c.p.name || 'p') % 997 / 997, [a, b] = ART.idleShift, per = a + (b - a) * sd, ph = ((c.now + sd * 11) % (2 * per)) / (2 * per), side = ph < 0.5 ? 1 : -1, u = Math.sin(Math.min(1, (ph % 0.5) / 0.12) * Math.PI / 2);
+  const dx = 0.014 * side * u; P.pelvis.x += dx; P.chest.x += dx * 0.7; P.head.x += dx * 0.5; P.head.r = (P.head.r || 0) - 0.02 * side * u; (side > 0 ? P.footB : P.footF).y = 0.004 * u; return P;
+}
 
 // --- the clips ---
 const RIG_CLIPS = {
-  idle(c) { const P = idleBase(c); gripCarry(P, c); return P; },
+  idle(c) { const P = idleShift(c, idleBase(c)); gripCarry(P, c); return P; },
   run(c) { return runPose(c, false); },
   sprint(c) { return runPose(c, true); },
   burstCross(c, t) { const P = runPose(c, true); P.lean = lerp(14, ART.sprintLean, clamp(t / 0.25, 0, 1)) * DEG; return P; },
@@ -2334,7 +2371,7 @@ const RIG_CLIPS = {
   },
   hesitation(c, t) { const P = idleBase(c); P.lean = -4 * DEG; P.head.r = -0.05; P.footF.x = 0.08; P.footB.x = -0.08; P.handB = rigHand(-0.2, 0.36, 'open', 0.3); P.handF = rigHand(0.24, 0.34, 'open', -0.3); gripCarry(P, c, true); return P; },
   shotGather(c, t) { // the dip before the jump: squash, knees bend, both hands bring the ball up
-    const g = (c.sd.gatherMs || 120) / 1000, u = EASE.out(clamp(t / g, 0, 1)), P = idleBase(c); P.sx = lerp(1, 1.08, u); P.sy = lerp(1, 0.92, u); P.pelvis.y -= 0.02 * u; P.footF.x = 0.09; P.footB.x = -0.07; P.head.r = -0.04 * u;
+    const g = (c.sd.gatherMs || 120) / 1000, u = EASE.out(clamp(t / g, 0, 1)), P = idleBase(c); P.sx = lerp(1, ART.jumpSquash[0], u); P.sy = lerp(1, ART.jumpSquash[1], u); P.pelvis.y -= 0.02 * u; P.footF.x = 0.09; P.footB.x = -0.07; P.head.r = -0.04 * u;
     if (c.holding) gripSides(P, c.bl, c.br); else { P.handF = rigHand(0.08, 0.40, 'cupped', -1.2); P.handB = rigHand(0.02, 0.42, 'cupped', 1.2); } return P;
   },
   layupGather(c, t) { // a two-step gather
@@ -2370,17 +2407,18 @@ const RIG_CLIPS = {
   dunk(c, t) {
     const v = c.a.dunkVar || 'onehand', u = clamp(t / 0.35, 0, 1), P = idleBase(c); P.footF = { x: 0.08, y: 0.09, r: -0.2 }; P.footB = { x: -0.04, y: 0.05, r: 0 }; P.sy = lerp(1, 1.04, u); P.head.r = -0.1;
     if (v === 'tomahawk') P.lean = lerp(-10, 10, EASE.in(u)) * DEG; // arched back, then snapped forward
-    if (v === 'spin360') P.turn = c.a.spinAngle || u * TAU;
+    if (v === 'spin360') { P.turn = c.a.spinAngle || u * TAU; P.turnMin = 0.02; P.headTurnMin = 0.3; } // §4: the body squashes to a sliver side-on and swaps facing
     if (!c.holding) { P.handF = rigHand(0.12, c.reachH - 0.05, 'open', -1.4); P.handB = rigHand(-0.1, 0.95, 'open', -1.2); return P; }
     const bl = c.bl, br = c.br;
     if (v === 'twohand') gripSides(P, bl, br);
     else if (v === 'tomahawk') { P.handF = gripOver(bl, br); P.handF.r = lerp(0.9, 0.3, u); P.handB = rigHand(0.22, 0.7, 'open', -0.5); }
     else { P.handF = gripBehind(bl, br); P.handB = rigHand(-0.16, 0.62, 'open', 0.4); }
+    if (v === 'flip') flipAbout(P, c, t);
     return P;
   },
   rimhang(c, t) { // hands on the rim, the body swings under them like a pendulum with the legs tucked
     const P = idleBase(c); const r = c.rim || { x: 0.2, y: c.reachH - 0.08 }; P.handF = rigHand(r.x - 0.02, r.y + 0.01, 'fist', -1.5); P.handB = rigHand(r.x - 0.11, r.y, 'fist', -1.5);
-    P.footF = { x: 0.06, y: 0.08, r: -0.2 }; P.footB = { x: -0.03, y: 0.06, r: 0 }; P.px = r.x - 0.06; P.py = r.y; P.rot = ART.hangSwing * DEG * Math.sin(t * TAU * ART.hangHz);
+    const kick = ART.hangKick * Math.sin(t * TAU * ART.hangKickHz); P.footF = { x: 0.06 + kick, y: 0.08 + Math.max(0, kick), r: -0.2 }; P.footB = { x: -0.03 - kick, y: 0.06 + Math.max(0, -kick), r: 0 }; P.px = r.x - 0.06; P.py = r.y; P.rot = ART.hangSwing * DEG * Math.sin(t * TAU * ART.hangHz); // §4: the feet kick alternately
     const st = 1 - EASE.out(clamp(t / 0.15, 0, 1)); P.sy = 1 + 0.08 * st; P.sx = 1 - 0.03 * st; return P; // the 1.08 stretch at the slam
   },
   block(c) { const P = idleBase(c); P.handF = rigHand(0.1, c.reachH - ART.palmRx, 'open', -1.4); P.handB = rigHand(-0.05, 0.9, 'open', -1.2); P.footF = { x: 0.04, y: 0.03, r: 0 }; P.footB = { x: -0.04, y: 0.02, r: 0 }; P.head.r = -0.1; return P; },
@@ -2397,22 +2435,26 @@ const RIG_CLIPS = {
   lob(c, t) { const P = idleBase(c); P.footF.x = 0.1; if (c.holding) { gripSides(P, c.bl, c.br); return P; } const u = EASE.out(clamp((t - 0.15) / 0.1, 0, 1)), back = EASE.io(clamp((t - 0.25) / 0.12, 0, 1)); P.handF = blendHand(rigHand(0.18, lerp(0.7, 1.0, u), 'open', -1.3), rigHand(0.2, 0.3, 'relaxed', 0.15), back); P.handB = blendHand(rigHand(0.1, lerp(0.66, 0.95, u), 'open', -1.3), rigHand(-0.18, 0.31, 'relaxed', 0.15), back); return P; },
   catch(c) { const P = idleBase(c); if (c.holding) { gripSides(P, c.bl, c.br); return P; } P.handF = rigHand(0.3, 0.45, 'open', -0.8); P.handB = rigHand(0.24, 0.42, 'open', -0.8); return P; },
   land(c, t) { // the landing squash (a jump shot lands a little softer), knees bend, then back up
-    const soft = c.a.landSoft, u = 1 - EASE.out(clamp(t / 0.09, 0, 1)), k = 1 - EASE.io(clamp((t - 0.05) / 0.07, 0, 1)); const P = idleBase(c);
-    P.sy = 1 - (soft ? 0.12 : 0.15) * u; P.sx = 1 + (soft ? 0.1 : 0.12) * u; P.pelvis.y -= 0.03 * k; P.chest.y -= 0.03 * k; P.head.y -= 0.03 * k; P.footF.x = 0.1; P.footB.x = -0.09; gripCarry(P, c); return P;
+    const soft = c.a.landSoft, u = 1 - EASE.out(clamp(t / ART.landS, 0, 1)), k = 1 - EASE.io(clamp((t - 0.05) / 0.07, 0, 1)); const P = idleBase(c), [lx, ly] = ART.landSquash;
+    P.sy = 1 - (1 - ly) * (soft ? 0.8 : 1) * u; P.sx = 1 + (lx - 1) * (soft ? 0.8 : 1) * u; P.pelvis.y -= 0.03 * k; P.chest.y -= 0.03 * k; P.head.y -= 0.03 * k; P.footF.x = 0.1; P.footB.x = -0.09; gripCarry(P, c); return P;
   },
   stagger(c, t) { const P = idleBase(c), u = Math.sin(clamp(t / 0.15, 0, 1) * Math.PI); P.rot = 8 * DEG * u; P.handF = rigHand(0.26, 0.42, 'open', -0.3); P.handB = rigHand(-0.24, 0.44, 'open', 0.3); gripCarry(P, c); return P; },
   stumble(c, t) { return evalKeys(idleBase(c), [{ t: 0 }, { t: 0.12, rot: 20 * DEG, handF: rigHand(0.3, 0.46, 'open', -0.2), handB: rigHand(-0.26, 0.5, 'open', 0.2), footF: { x: 0.12, y: 0.04 } }, { t: 0.35, rot: 20 * DEG, handF: rigHand(0.3, 0.46, 'open', -0.2), handB: rigHand(-0.26, 0.5, 'open', 0.2) }, { t: 0.7 }], t); },
   fall(c, t) { // knocked down or sat down by an ankle-breaker: tip over, bounce, lie there, get up in 0.6 s
     const D = Math.max(0.9, (c.sd.ms || 900) / 1000), lie = { rot: 80 * DEG, handF: rigHand(0.26, 0.6, 'open', -0.6), handB: rigHand(-0.2, 0.62, 'open', 0.4), footF: { x: 0.1, y: 0.06 }, footB: { x: 0.02, y: 0.02 } };
-    return evalKeys(idleBase(c), [{ t: 0 }, Object.assign({ t: 0.25, e: 'in' }, lie), Object.assign({}, lie, { t: 0.33, rot: 70 * DEG, e: 'out' }), Object.assign({}, lie, { t: 0.42, e: 'in' }), Object.assign({}, lie, { t: Math.max(0.43, D - 0.6) }), { t: Math.max(0.44, D) }], t);
+    return evalKeys(idleBase(c), [{ t: 0 }, Object.assign({ t: 0.25, e: 'in' }, lie), Object.assign({}, lie, { t: 0.33, rot: 68 * DEG, e: 'out' }), Object.assign({}, lie, { t: 0.42, e: 'in' }), Object.assign({}, lie, { t: 0.48, rot: 75 * DEG, e: 'out' }), Object.assign({}, lie, { t: 0.54, e: 'in' }), Object.assign({}, lie, { t: Math.max(0.55, D - ART.getUpS) }), { t: Math.max(0.56, D) }], t); // two bounces, up in 0.5 s
   },
   celebrate(c, t) {
     const v = c.a.celeb || 'flex', P = idleBase(c);
     if (v === 'flex') { P.handF = rigHand(ART.flexHand[0], ART.flexHand[1], 'fist', -1.6); P.handB = rigHand(-ART.flexHand[0], ART.flexHand[1], 'fist', -1.6); P.sx = 1.04; P.sy = 0.98; }
     else if (v === 'chestPound') { const tap = Math.max(0, Math.sin(clamp(t / 0.5, 0, 1) * Math.PI * 4)); P.handF = rigHand(lerp(0.15, 0.05, tap), lerp(0.42, 0.36, tap), 'fist', -0.2); P.handB = rigHand(-0.2, 0.34, 'relaxed', 0.15); }
     else if (v === 'pointSky') { P.handF = rigHand(0.04, 1.25, 'point', -Math.PI / 2); P.head.r = -0.15; P.handB = rigHand(-0.2, 0.34, 'relaxed', 0.15); }
-    else if (v === 'shimmy') { const s = 0.03 * Math.sin(t * TAU * 6); P.chest.x += s; P.head.x += s * 0.6; P.handF = rigHand(0.2 + s, 0.4, 'fist', -0.4); P.handB = rigHand(-0.2 + s, 0.4, 'fist', 0.4); }
+    else if (v === 'shimmy') { const s = 0.05 * Math.sin(t * TAU * 6); P.chest.x += s; P.head.x += s * 0.6; P.handF = rigHand(0.2 + s, 0.4, 'fist', -0.4); P.handB = rigHand(-0.2 + s, 0.4, 'fist', 0.4); }
     else if (v === 'fingerWag') { P.handF = rigHand(ART.wagHand[0], ART.wagHand[1], 'point', -Math.PI / 2 + 15 * DEG * Math.sin(t * TAU * 4)); P.head.r = 0.04 * Math.sin(t * TAU * 2); }
+    else if (v === 'jumpClap') { const ph = (t % 0.5) / 0.5, hop = Math.sin(ph * Math.PI), meet = Math.max(0, 1 - Math.abs(ph - 0.5) / 0.12); P.footF.y = P.footB.y = 0.1 * hop; P.pelvis.y += 0.1 * hop; P.chest.y += 0.1 * hop; P.head.y += 0.1 * hop; P.sy *= 1 + 0.06 * hop; P.sx *= 1 - 0.04 * hop;
+      const gap = lerp(0.2, 0.02, meet), hy = 1.08 + 0.1 * hop; P.handF = rigHand(0.06 + gap, hy, 'clap', -Math.PI / 2); P.handB = rigHand(0.06 - gap, hy, 'clap', -Math.PI / 2); P.handF.tick = P.handB.tick = meet > 0.6 ? meet : 0; } // jump and clap overhead
+    else if (v === 'airGuitar') { const s = Math.sin(t * TAU * 5), nod = Math.sin(t * TAU * 2.5); P.lean = -10 * DEG; P.head.r = -0.12 + 0.06 * nod; P.head.y -= 0.01 * Math.abs(nod); P.handF = rigHand(0.14, 0.3 + 0.03 * s, 'point', 0.8 + 0.4 * s); P.handB = rigHand(0.42, 0.52, 'fist', -0.5); P.footF.x = 0.12; P.footB.x = -0.12; }
+    else if (v === 'laugh') { const sh = Math.sin(t * TAU * 7); P.lean = -12 * DEG; P.head.r = -0.1; P.chest.y += 0.006 * sh; P.head.y += 0.008 * sh; P.handF = rigHand(0.2, 0.3 + 0.01 * sh, 'open', 1.3); P.handB = rigHand(-0.2, 0.3 - 0.01 * sh, 'open', 1.8); } // after a posterizer: hands on the belly, rocking back
     else { const s = Math.sin(t * TAU * 1.2); P.handF = rigHand(0.4, 0.55, 'open', 0); P.handB = rigHand(-0.4, 0.55, 'open', Math.PI); P.rot = -10 * DEG * s; if (c.sp > 0.3) { const J = runPose(c, false); P.footF = J.footF; P.footB = J.footB; } } // airplane
     return P;
   },
@@ -2426,7 +2468,7 @@ function runPose(c, sprint) {
   P.footF.r = -0.3 * Math.max(0, -sf) * Math.max(0, -cf); P.footB.r = -0.3 * Math.max(0, sf) * Math.max(0, cf); // toe-off
   const bob = ART.runBounce * Math.abs(sf); P.pelvis.y += bob; P.chest.y += bob; P.head.y += bob; P.lean = (back ? -0.5 : 1) * (sprint ? ART.sprintLean : ART.runLean) * k * DEG;
   const sw = sprint ? 0.1 : 0.08, pose = sprint ? 'fist' : 'relaxed'; P.handF = rigHand(0.16 - sw * cf, 0.30 - 0.04 * cf, pose, 0.2); P.handB = rigHand(-0.14 + sw * cf, 0.31 + 0.04 * cf, pose, 0.2);
-  P.hemFlutter = 0.01 * sf; gripCarry(P, c); return P;
+  P.lean += (back ? -1 : 1) * ART.runTilt * DEG * sf * k; P.hemFlutter = ART.runFlutter * sf; gripCarry(P, c); return P; // §4: a tilt into each step and flapping shorts
 }
 
 // --- the state machine: game state → clip ---
@@ -2464,15 +2506,15 @@ function rigBoxingOut(c) { // the rebound battle: a shot in the air, near its ho
 // stats so a replay of the same play picks the same one; never from the match RNG, so gameplay can't change.
 function rigEnter(c, name) {
   const a = c.a, p = c.p, s = p.stats || {}; const seed = hashString((p.name || '') + '|' + name + '|' + ((s.pts || 0) + 7 * (s.fga || 0) + 13 * (s.dunkA || 0) + 17 * (s.blk || 0)));
-  if (name === 'celebrate') a.celeb = RIG_CELEBS.includes(a.forceVar) ? a.forceVar : RIG_CELEBS[seed % RIG_CELEBS.length];
-  else if (name === 'dunk') { a.dunkVar = a.forceVar || DUNK_STYLES[c.sd.style | 0] || 'onehand'; } // the style was picked in play (gated by Hops and height)
+  if (name === 'celebrate') { a.celeb = RIG_CELEBS.includes(a.forceVar) || a.forceVar === 'laugh' ? a.forceVar : a.expr === 'laugh' && a.exprT > 0 ? 'laugh' : RIG_CELEBS[seed % RIG_CELEBS.length]; if (a.celeb === 'flex' || a.celeb === 'jumpClap') setExpr(p, 'hyped', 1.2); } // a posterizer's scorer laughs; flexes come with the hyped face
+  else if (name === 'dunk') { a.dunkVar = a.forceVar || DUNK_STYLES[c.sd.style | 0] || 'onehand'; if (!a.forceVar && (a.dunkVar === 'onehand' || a.dunkVar === 'twohand') && ((p.attrs && p.attrs.jmp) || 0) >= ART.flipHops && seed % 5 < 3) a.dunkVar = 'flip'; } // the style was picked in play; a high flyer's plain dunk becomes a front flip (visual only)
   else if (name === 'land') a.landSoft = a.rigClip === 'jumpshot' || a.rigClip === 'floater' || a.rigClip === 'hook';
 }
-// Squash and stretch in the air (§3.7): 0.9 y / 1.08 x for 60 ms after takeoff, 1.05 y around the apex.
+// Squash and stretch in the air (§4): the 1.14 × 0.84 jump start snaps into a stretch that peaks at 1.10 y at the apex.
 const RIG_AIR = { air: 1, block: 1, jumpshot: 1, floater: 1, hook: 1, layup: 1, dunk: 1, tip: 1 };
 function rigAirSquash(P, c, name) {
-  if (!RIG_AIR[name] || c.grounded) return; const t0 = c.airT;
-  if (t0 < 0.06) { const u = 1 - t0 / 0.06; P.sx *= 1 + 0.08 * u; P.sy *= 1 - 0.1 * u; } else P.sy *= 1 + 0.05 * Math.max(0, 1 - Math.abs(c.vy) / 2);
+  if (!RIG_AIR[name] || c.grounded) return; const t0 = c.airT, [jx, jy] = ART.jumpSquash, st = ART.apexStretch, up = Math.max(0, 1 - Math.abs(c.vy) / 5); // §4: the jump-start squash snaps into a stretch that peaks at the apex
+  if (t0 < 0.07) { const u = EASE.out(t0 / 0.07); P.sx *= lerp(jx, 1 - (st - 1) * 0.5, u); P.sy *= lerp(jy, 1 + (st - 1) * 0.5, u); } else { P.sy *= 1 + (st - 1) * (0.5 + 0.5 * up); P.sx *= 1 - (st - 1) * 0.5 * (0.5 + 0.5 * up); }
 }
 // Motion trails (§3.7): recent poses on dunks, spins and crossovers, drawn as fading team-color ghosts.
 const RIG_TRAIL = { dunk: 1, spin: 1, crossover: 1, burstCross: 1 };
@@ -2501,11 +2543,32 @@ function rigPoseFor(p, alpha, ball) {
 // --- per-step animation state (runs on the sim clock, so replays match): head bobble, run phase, faces ---
 function rigUpdate(p, m, dt) {
   const a = p.anim, H = p.height > 0.5 ? p.height : 1.9, f = p.facing < 0 ? -1 : 1, AM = ART.bobbleAccMax;
-  const ax = clamp((p.vx - p.prevVx) / dt, -AM, AM) * f / H, ay = clamp((p.vy - p.prevVy) / dt, -AM, AM) / H, K = ART.bobbleK, D = ART.bobbleDamp, M = ART.bobbleMax;
+  const G = ART.bobbleGain, ax = clamp((p.vx - p.prevVx) / dt, -AM, AM) * f / H * G, ay = clamp((p.vy - p.prevVy) / dt, -AM, AM) / H * G, K = ART.bobbleK, D = ART.bobbleDamp, M = ART.bobbleMax;
+  if (p.grounded && a.wasAir && p.prevVy < -1) { a.lagT = ART.landLagS; a.lagV = p.prevVy / H * ART.landDip; } a.wasAir = !p.grounded; // §4: the head lags the landing 60 ms, then catches up
+  if (a.lagT > 0) { a.lagT -= dt; if (a.lagT <= 0) a.bobVY = (a.bobVY || 0) + (a.lagV || 0); }
+  if (a.starsT > 0) a.starsT -= dt; if (a.bonkCD > 0) a.bonkCD -= dt; rigBonk(p, m, a);
   a.bobVX = (a.bobVX || 0) + (-K * (a.bobX || 0) - D * (a.bobVX || 0) - ax) * dt; a.bobX = clamp((a.bobX || 0) + a.bobVX * dt, -M, M); // the head lags the body's acceleration
   a.bobVY = (a.bobVY || 0) + (-K * (a.bobY || 0) - D * (a.bobVY || 0) - ay) * dt; a.bobY = clamp((a.bobY || 0) + a.bobVY * dt, -M, M);
   const sp = Math.abs(p.vx), per = ART.runPeriod * clamp(PC.runSpeed / Math.max(sp, 0.01), 1, ART.runPeriodMax / ART.runPeriod); if (p.grounded && sp > 0.3) a.runPh = ((a.runPh || 0) + dt * TAU / per) % (TAU * 64);
   rigExpression(p, m, dt);
+}
+// §4 head bonk: a loose or passed ball (not the player's own, not a pass to them) that crosses the drawn head bonks it:
+// a BONK! callout, a hard head-spring kick, shocked eyes and a small star orbit. Visual only; the ball is untouched.
+function rigBonk(p, m, a) {
+  const b = m && m.ball; if (!b || b.owner || a.bonkCD > 0 || !m.callouts) return; const sp = Math.hypot(b.vx || 0, b.vy || 0); if (sp < ART.bonkSpeed) return;
+  if (b.pass && (b.pass.to === p || b.pass.from === p)) return; if (b.lastTouch === p && m.time - (b.lastContactT || -9) < 0.4) return; if (b.shot && b.shot.shooter === p && m.time - b.shot.t < 0.6) return;
+  const DH = drawHeightOf(p), f = p.facing < 0 ? -1 : 1, hx = p.x, hy = p.y + ((p.anim && p.anim.lift) || 0) + ART.headCenter * DH, r = ART.headWidth * DH * 0.42;
+  if (!p.grounded || (m._bonkT != null && m.time - m._bonkT < ART.bonkGap)) return; // a grounded player, one bonk per 12 s per match
+  const rimFar = Math.min(...HOOPS.map(h => Math.abs(b.x - h.x))) > ART.bonkRimClear, onTop = rimFar && (b.vy || 0) < -2 && b.y > hy, zing = !!b.pass && sp > 6; if (!onTop && !zing) return; // a stray ball dropping on the crown away from the rims (not a rebound), or a zipped pass
+  if (Math.abs(b.z - p.z) > 0.6 || Math.hypot(b.x - hx, b.y - hy) > r + BALL.radius) return; m._bonkT = m.time;
+  a.bonkCD = ART.bonkCooldown; a.bobVX = (a.bobVX || 0) + clamp((b.vx || 0) * f, -8, 8) * 0.6 / (p.height || 1.9); a.bobVY = (a.bobVY || 0) + clamp(b.vy || 0, -8, 8) * 0.6 / (p.height || 1.9) - 0.4;
+  setExpr(p, 'shocked', ART.bonkShockS); a.starsT = Math.max(a.starsT || 0, ART.bonkStarsS); pushCallout(m, 'BONK!', '#FFD23F');
+}
+// §4 front flip: the whole figure turns 360° about the chest over flipS at the top of the dunk, the hands kept on the
+// ball and the rim (their places are counter-rotated, since the figure's rotation carries them).
+function flipAbout(P, c, t) {
+  const t0 = 0.04, u = EASE.io(clamp((t - t0) / ART.flipS, 0, 1)); if (u <= 0 || u >= 1) return; const rot = -u * TAU, cx = 0, cy = 0.5; P.rot = rot; P.px = cx; P.py = cy;
+  const co = Math.cos(-rot), si = Math.sin(-rot); for (const h of [P.handF, P.handB]) { if (!h) continue; const dx = h.x - cx, dy = h.y - cy; h.x = cx + dx * co - dy * si; h.y = cy + dx * si + dy * co; }
 }
 // Faces (§3.7 triggers): a reaction (hyped, shocked, angry) plays for its time; otherwise the face follows what the player
 // is doing: effort while shooting, dunking or contesting, tired when low on stamina, focused on defense, else neutral.
@@ -2527,11 +2590,11 @@ function drawTrail(ctx, cam, p, col, now) {
 function drawGhost(ctx, cam, s, H, col, al) {
   const k = cam.scale(s.z) * H, ox = cam.sx(s.x), oy = cam.sy(s.y, s.z), P = s.P; if (!isFinite(ox + oy) || !(k > 2)) return; let fv = s.f, ts = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -fv; ts = Math.max(ART.turnMin, Math.abs(cs)); }
   ctx.save(); ctx.globalAlpha = al; ctx.fillStyle = col; ctx.translate(ox, oy); ctx.scale(fv * k * ts, k); if (P.rot) { ctx.translate(P.px, -P.py); ctx.rotate(-P.rot); ctx.translate(-P.px, P.py); } ctx.scale(P.sx, P.sy);
-  ctx.beginPath(); for (const h of [P.handF, P.handB]) { ctx.moveTo(h.x + ART.palmRx, -h.y); ctx.ellipse(h.x, -h.y, ART.palmRx, ART.palmRy, 0, 0, TAU); } for (const ft of [P.footF, P.footB]) { ctx.moveTo(ft.x + 0.12, -ft.y - 0.035); ctx.ellipse(ft.x + 0.02, -ft.y - 0.035, 0.1, 0.035, 0, 0, TAU); }
-  ctx.rect(P.pelvis.x - 0.15, -(ART.hem + P.pelvis.y - 0.24), 0.3, ART.hem - 0.035); ctx.fill();
+  ctx.beginPath(); for (const h of [P.handF, P.handB]) { ctx.moveTo(h.x + ART.palmRx, -h.y); ctx.ellipse(h.x, -h.y, ART.palmRx, ART.palmRy, 0, 0, TAU); } for (const ft of [P.footF, P.footB]) { const cx = ft.x + ART.shoeLen * 0.2, cy = -ft.y - ART.shoeH * 0.4; ctx.moveTo(cx + ART.shoeLen * 0.5, cy); ctx.ellipse(cx, cy, ART.shoeLen * 0.5, ART.shoeH * 0.45, 0, 0, TAU); } // high-tops
+  ctx.rect(P.pelvis.x - 0.16, -(ART.waist + P.pelvis.y - 0.24), 0.32, ART.waist - ART.shoeH * 0.8); ctx.fill(); // shorts and legs
   ctx.translate(P.pelvis.x, -P.pelvis.y); ctx.rotate(P.lean || 0); ctx.translate(-P.pelvis.x, P.pelvis.y);
   ctx.beginPath(); ctx.moveTo(P.chest.x - 0.17, -ART.collar); ctx.lineTo(P.chest.x + 0.17, -ART.collar); ctx.lineTo(P.pelvis.x + 0.16, -ART.hem - (P.pelvis.y - 0.24)); ctx.lineTo(P.pelvis.x - 0.16, -ART.hem - (P.pelvis.y - 0.24)); ctx.closePath();
-  ctx.moveTo(P.head.x + ART.headWidth / 2, -P.head.y); ctx.ellipse(P.head.x, -P.head.y, ART.headWidth / 2, 0.285, 0, 0, TAU); ctx.fill(); ctx.restore();
+  ctx.moveTo(P.head.x + ART.headWidth / 2, -P.head.y); ctx.ellipse(P.head.x, -P.head.y, ART.headWidth / 2, (ART.crownY - ART.chinY) / 2, 0, 0, TAU); ctx.fill(); ctx.restore();
 }
 
 // ============================================================================
@@ -5249,7 +5312,8 @@ function setupMatchEvents(m) {
   // celebrations and faces (§3.7 expression triggers; the RIG section falls back to effort, tired, focused or neutral)
   bus.on('SCORE', e => { if (e.practice || !e.player) return; if (e.player.grounded) e.player.setState('celebrate'); setExpr(e.player, e.dunk ? 'laugh' : 'hyped', 1.5); }); // a dunk gets the laugh (§3.7)
   bus.on('ANKLE_BREAK', e => setExpr(e.victim, 'shocked', 1.2));
-  bus.on('POSTERIZE', e => { setExpr(e.victim, 'shocked', 1.2); setExpr(e.player, 'laugh', 1.8); });
+  bus.on('POSTERIZE', e => { setExpr(e.victim, 'shocked', 1.2); setExpr(e.player, 'laugh', 1.8); if (e.victim && e.victim.anim) e.victim.anim.starsT = ART.starsS; }); // §4: the victim sees stars
+  bus.on('ANKLE_BREAK', e => { const v = e.victim || e.defender; if (v && v.anim) v.anim.starsT = ART.starsS; });
   bus.on('BLOCK', e => { setExpr(e.player, 'hyped', 1.5); setExpr(e.shooter, 'shocked', 1.2); });
   bus.on('STEAL', e => { setExpr(e.player, 'hyped', 1.5); setExpr(e.victim, 'shocked', 1.2); });
   bus.on('MISS', e => { if (e.reason !== 'block' && e.shot && e.shot.contest < ART.openShot) setExpr(e.shooter, 'angry', 1); }); // missed an open look
@@ -6213,17 +6277,22 @@ function drawHoopBackNew(ctx, cam, hoop, V, idx, m, net) {
   if (m && m.phase === 'live' && isFinite(m.shotClock) && m.shotClock < 90) { ctx.fillStyle = m.shotClock <= 4 ? '#FF3030' : '#FF5A2A'; ctx.font = fontStr(sh * 0.8, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(Math.max(0, Math.ceil(m.shotClock))), scx + sw / 2, y0 - sh / 2 - 1); }
   // the rim's back half and the back of the net
   const cx = cam.sx(hoop.x), ry = Math.max(2, P * 0.06), rx = RIM_R * P, ryy = cam.sy(RIM_Y) + shake;
-  ctx.strokeStyle = ART.rimLo; ctx.lineWidth = Math.max(2, P * 0.045); ctx.beginPath(); ctx.ellipse(cx, ryy, rx, ry, 0, Math.PI, TAU); ctx.stroke();
+  ctx.save(); rimBendXf(ctx, cam, hoop, m, ryy); ctx.strokeStyle = ART.rimLo; ctx.lineWidth = Math.max(2, P * 0.045); ctx.beginPath(); ctx.ellipse(cx, ryy, rx, ry, 0, Math.PI, TAU); ctx.stroke(); ctx.restore();
   ctx.strokeStyle = ART.rimLo; ctx.lineWidth = Math.max(2, P * 0.05); ctx.beginPath(); ctx.moveTo(cam.sx(hoop.backX), ryy); ctx.lineTo(fx0, ryy - P * 0.02); ctx.stroke(); // the bracket
   if (net) net.draw(ctx, cam, false, shake);
 }
 // L8: the front of the net and the rim's front half.
 function drawHoopFrontNew(ctx, cam, hoop, V, idx, m, net) {
   const P = cam.ppm, shake = hoopShake(V, idx), cx = cam.sx(hoop.x), rx = RIM_R * P, ry = Math.max(2, P * 0.06), y = cam.sy(RIM_Y) + shake;
-  if (net) net.draw(ctx, cam, true, shake);
+  if (net) net.draw(ctx, cam, true, shake); ctx.save(); rimBendXf(ctx, cam, hoop, m, y); const _r = () => ctx.restore();
   ctx.strokeStyle = ART.rimLo; ctx.lineWidth = Math.max(3, P * 0.075); ctx.beginPath(); ctx.ellipse(cx, y + 1, rx, ry, 0, 0, Math.PI); ctx.stroke();
   ctx.strokeStyle = ART.rimColor; ctx.lineWidth = Math.max(2, P * 0.05); ctx.beginPath(); ctx.ellipse(cx, y, rx, ry, 0, 0, Math.PI); ctx.stroke();
-  ctx.strokeStyle = ART.rimHi; ctx.lineWidth = Math.max(1, P * 0.016); ctx.beginPath(); ctx.ellipse(cx, y - 1, rx * 0.97, ry * 0.8, 0, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke();
+  ctx.strokeStyle = ART.rimHi; ctx.lineWidth = Math.max(1, P * 0.016); ctx.beginPath(); ctx.ellipse(cx, y - 1, rx * 0.97, ry * 0.8, 0, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke(); _r();
+}
+// §4: the rim bends 3° under a player hanging on it (visual only), about its board-side edge.
+function rimBendXf(ctx, cam, hoop, m, y) {
+  if (!m || !m.players) return; let k = 0; for (const p of m.players) if (p.state === 'rimhang' && Math.abs(p.x - hoop.x) < 1.6) k = Math.max(k, clamp01((p.stateT || 0) / 0.1));
+  if (!k) return; const px = cam.sx(hoop.x + hoop.dir * RIM_R); ctx.translate(px, y); ctx.rotate(-hoop.dir * ART.rimBend * DEG * k); ctx.translate(-px, -y);
 }
 // A 12-strand net hanging from the rim ring in a diamond pattern: 2D verlet per strand, drawn back strands behind the
 // players and front strands in front. It snaps down when a dunk goes through.
@@ -7784,7 +7853,7 @@ function labStandIn(c, i, pose, facing, t, legends) {
     look: def.look, height: c.h, facing, state: st, stateT: pose === 'celebrate' ? 0.3 + (t % 1) : 0.25, sd: { style: 0, tApex: 0.33 }, grounded: !air, vx: pose === 'run' ? facing * 5 : 0, vy: air ? 0.5 : 0, x: 0, y, z: 0.5, px: 0, py: y, pz: 0.5,
     reach: c.h * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs, moves: {}, traits: {}, inState(...n) { return n.includes(this.state); }, rigForce: pose === 'block' ? 'block' : undefined };
   if (legends) p.match = { layoutId: 'legends' }; // drawn at the Legends View scale
-  if (flip) p.sd.style = 1; if (pose === 'knockdown') { p.sd.ms = 900; p.stateT = 0.35; p.anim.expr = 'shocked'; } if (pose === 'dunk') p.anim.expr = flip ? 'laugh' : 'effort';
+  if (flip) p.anim.forceVar = 'flip'; if (pose === 'knockdown') { p.sd.ms = 900; p.stateT = 0.35; p.anim.expr = 'shocked'; } if (pose === 'dunk') p.anim.expr = flip ? 'laugh' : 'effort';
   let ball = null;
   if (pose === 'dribble' || pose === 'jumpshot' || pose === 'dunk') {
     const bx = pose === 'dribble' ? facing * 0.32 : facing * 0.15, by = pose === 'dribble' ? 0.35 + Math.abs(Math.sin(t * 5)) * 0.55 : pose === 'jumpshot' ? y + c.h + 0.1 : y + p.reach - 0.1;
@@ -7936,10 +8005,10 @@ const LAB_CLIPS = [
   ['crossover', 0.24], ['burstCross', 0.25], ['spin', 0.45], ['stepback', 0.41], ['hesitation', 0.35], ['pumpfake', 0.38],
   ['shotGather', 0.12], ['jumpshot', 0.62], ['fadeaway', 0.62], ['floater', 0.56], ['hook', 0.56], ['land', 0.12],
   ['layupGather', 0.15], ['layup', 0.64], ['dunk:onehand', 0.5], ['dunk:twohand', 0.5], ['dunk:tomahawk', 0.5], ['dunk:windmill', 0.5],
-  ['dunk:spin360', 0.5], ['rimhang', 0.7], ['block', 0.6], ['air', 0.6], ['tip', 0.56], ['swipe', 0.47],
+  ['dunk:spin360', 0.5], ['dunk:flip', 0.6], ['rimhang', 0.7], ['block', 0.6], ['air', 0.6], ['tip', 0.56], ['swipe', 0.47],
   ['shove', 0.55], ['pass', 0.23], ['lob', 0.3], ['catch', 0.08], ['stagger', 0.15], ['stumble', 0.7],
   ['fall', 1.1], ['celebrate:flex', 0.8], ['celebrate:chestPound', 0.8], ['celebrate:pointSky', 0.8], ['celebrate:shimmy', 0.5], ['celebrate:fingerWag', 0.5],
-  ['celebrate:airplane', 0.8],
+  ['celebrate:airplane', 0.8], ['celebrate:jumpClap', 1.0], ['celebrate:airGuitar', 0.8], ['celebrate:laugh', 0.8],
 ];
 const LAB_CLIP_ROWS = 4, LAB_CLIP_FRAMES = 8;
 function labClipPages() { return Math.ceil(LAB_CLIPS.length / LAB_CLIP_ROWS); }

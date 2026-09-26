@@ -3,6 +3,43 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L5 — Animation (graphics overhaul, milestone 5)
+
+§4's exaggeration, all in the RIG section (visual only: clips read the simulation and never change it). Shots:
+`shots/l5/round-1/` … `round-6/` (the first frame of each key move in a live bot match, per round) and the Art Lab's
+Clips view (new rows: the front-flip dunk and the jump-and-clap, air-guitar and laugh celebrations).
+
+| Item | Was (M4) | Now (§4) |
+| --- | --- | --- |
+| Jump start squash | 1.08 × 0.92 (gather) | 1.14 × 0.84, snapping into the stretch |
+| Apex stretch | 1.05 y | 1.10 y at the apex |
+| Landing squash | 1.12 × 0.85 for 90 ms | 1.18 × 0.80 for 110 ms (80% of that after a jump shot) |
+| Head bobble | ×1, k 120, damping 12, clamp 0.04 H | ×1.6, k 90, damping 9 (it overshoots), clamp 0.064 H; on landings the head lags 60 ms, then catches up |
+| Run | pelvis bob 0.015 H | 0.03 H, a 4° tilt into each step, shorts flutter 0.022 H |
+| Front flip | — | a one- or two-hand dunk by a player with Hops ≥ 8.5 becomes a 360° flip about the chest over 0.5 s at the top, 3 dunks in 5 (seeded from the player's stats, never the match RNG) |
+| Spin 360 dunk | narrows to 42% side-on | squashes to a sliver (2%) at 90° and 270° and swaps facing |
+| Rim hang | a pendulum swing | plus the feet kicking alternately ±0.05 H at 5 Hz, and the rim bends 3° under the hanger |
+| Knockdowns | a fall with one bounce, up in 0.6 s | onto the back (−80°) with two bounces, up in 0.5 s; posterizer and ankle-breaker victims get 3 outlined yellow 5-point stars orbiting an ellipse over the head for 1.2 s |
+| Head bonk | — | a stray ball dropping on a grounded player's crown away from the rims, or a zipped pass through a head: a BONK! callout, a strong head-spring kick, shocked eyes for 0.8 s and stars for 0.6 s. The ball is untouched |
+| Celebrations | flex, chest pound, point, shimmy, finger wag, airplane | plus jump-and-clap (with the clap's impact tick) and air guitar; flexes and claps come with the hyped face; after a posterizer the scorer laughs (hands on the belly, rocking back); the shimmy is wider |
+| Idle | breathing | plus a weight shift every 2–4 s and a glance up at the crowd every 5–9 s, seeded per player so two players never sync |
+
+Tuned after looking at the reels (§0)
+
+| Item | Now | Why |
+| --- | --- | --- |
+| Bonk trigger | only a ball dropping (vy < −2 m/s) onto a grounded crown at least 1.6 m from both rims, or a pass faster than 6 m/s; one per player per 3 s and one per match per 12 s (`bonkRimClear`, `bonkGap`) | "a loose ball or pass hits a head" taken literally fired 17–21 times a game in bot matches, almost all rebounds falling through the drawn heads under the rim. Now about one every three games |
+| Rim hang | the drawn body is lifted until the chin is at the rim, a pull-up (`hangChinAt`) | a 1.3× body is 2.6 m tall: there is no room to hang the face below a 3.05 m rim without the feet going through the floor, and in between the rim cut across the face |
+| Dunk lift | eases in at 40/s, out at 12/s (`liftEaseIn`) | at 12/s the first frames of a dunk still had the rim across the face |
+
+Tests (L5 changes no gameplay)
+- Smoke 88 of 88 (new step: a stray ball on the crown bonks with the callout, the shocked face and stars and leaves the
+  ball untouched; posterizers give stars; a high flyer front-flips in some dunks, not all; every new clip poses).
+  Modes 13 of 13, old saves 16 of 16, dev tools all OK, phone audit: no errors; zero console errors.
+- `balance.js 12 21` and `careersim.js 40`: as in L4 (every balance target passes; careers: Hall of Fame 3 of 40 ✗,
+  the rest ✓). §2 gate: identical to L1. `perf.js`: guard level 0 median 20.6 ms, p95 29.9 ms (L4: 18.5 / 23.2 ms; the
+  machine varies by this much run to run), 4× CPU 89.6 ms.
+
 ## L4 — Bodies (graphics overhaul, milestone 4)
 
 The body is redrawn to §3.1 and §3.10, and §3.11's overlap rule is in. Shots: `shots/legends/round-6/` and `round-7/`
