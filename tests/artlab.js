@@ -1,5 +1,6 @@
 // Art Lab screenshots for a visual round: node tests/artlab.js <milestone> <round>
 // Saves every Art Lab view plus in-match frames (desktop and phone) to shots/<milestone>/round-<round>/.
+// LAB_ONLY=legends: only the Legends check pages and in-game Legends View frames (the §10 rounds in shots/legends/).
 const path = require('path'), fs = require('fs');
 const { ROOT, launch, openPage } = require('./lib');
 (async () => {
@@ -7,17 +8,19 @@ const { ROOT, launch, openPage } = require('./lib');
   const out = path.join(ROOT, 'shots', milestone, 'round-' + round); fs.mkdirSync(out, { recursive: true });
   const browser = await launch(); const P = await openPage(browser, { query: '?artlab', wait: 900 });
   const { page, ev } = P; let n = 0;
-  const views = await ev(() => LAB_VIEWS.slice());
+  const views = await ev(() => LAB_VIEWS.slice()), only = process.env.LAB_ONLY || '';
   const shot = async name => { await page.waitForTimeout(350); await P.shot(path.join(out, name + '.jpg')); n++; };
   for (let v = 0; v < views.length; v++) {
+    if (only === 'legends' && views[v] !== 'Legends check') continue;
     await ev(v => HH.game.ui.screen.setView(v), v);
+    if (views[v] === 'Legends check') { const n = await ev(v => labPageCount(v), v); for (let pg = 0; pg < n; pg++) { await ev(q => { const s = HH.game.ui.screen; s.setPage(q); s.setChar(q); }, pg); await shot('lab-' + v + '-legends-p' + pg); } continue; }
     if (v === 1) { for (const ch of (process.env.LAB_CHARS || '0,3,7,11').split(',').map(Number)) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-faces250-p' + (ch + 1)); } }
     else if (v === 3) { for (const ch of [0, 9]) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-hair-p' + (ch + 1)); } }
     else if (views[v] === 'Clips') { const n = await ev(() => labClipPages()); for (let pg = 0; pg < n; pg++) { await ev(q => HH.game.ui.screen.setPage(q), pg); await shot('lab-' + v + '-clips-p' + (pg + 1)); } }
     else await shot('lab-' + v + '-' + views[v].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''));
   }
   // in-match frames: a quick 1v1 in each venue, frozen mid-play
-  const venues = await ev(() => labVenueIds());
+  const venues = only === 'legends' ? ['arena', 'gym'] : await ev(() => labVenueIds());
   for (const id of venues) {
     await ev(id => { const g = HH.game; const a = LAB_CAST[3], b = LAB_CAST[9]; const tA = Object.assign({}, TEAMS[0], { id: 'labA', name: a.name, abbr: 'MAR', colors: a.colors, pattern: 'solid', players: [labDef(a, 3)] }), tB = Object.assign({}, TEAMS[1], { id: 'labB', name: b.name, abbr: 'ASH', colors: b.colors, pattern: 'solid', players: [labDef(b, 9)] }); g.startMatch({ mode: '1v1', teams: [tA, tB], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 21 }, court: id, seed: 5, controlMode: 'lock' }, { kind: 'quick' }); const m = g.match; g.guard.lock = true; for (const p of m.players) p.controlled = false; let k = 0; while (k < 120 * 40 && !m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.12)) { simStep(m, STEP); k++; } g.paused = true; }, id);
     await page.waitForTimeout(700); await shot('match-' + id);

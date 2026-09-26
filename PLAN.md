@@ -124,8 +124,9 @@ huge caricature heads with crisp pixel art, a whole court on one screen, bright 
 drives physics, rules, the AI and the camera; Settings → Camera. §2 gate: mirror 50%, Legend beats Pro 77%, brute force
 0.98 PPP; the mirror PPP is 1.44 against a 0.90–1.25 target (Classic 1.65). Three team-order biases found and fixed.)*
 
-**L2 — Faces** (bigger features, six face shapes, five noses, cel shading and gloss, bold line work, new eyes and mouths,
-the laugh). **L3 — Facial hair and hair.** **L4 — Bodies** (proportions, high-tops, open hands, jerseys, overlap).
+**L2 — Faces** *(done: bigger features, six face shapes, five noses, cel shading with crisp gloss, bold near-black
+lines, new eyes and mouths, the laugh after dunks and posterizers; a 384 px face bucket and a match-start warm-up of all
+8 expressions; Art Lab → Legends check; three visual rounds in `shots/legends/`.)* **L3 — Facial hair and hair.** **L4 — Bodies** (proportions, high-tops, open hands, jerseys, overlap).
 **L5 — Animation exaggeration.** **L6 — The Legends Arena** and a bright grade for career venues. **L7 — Pixel mode**
 (internal resolution, pixelized sprites, dithered backgrounds). **L8 — Chunky UI**, the select wall, the pixel font and
 logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
@@ -136,6 +137,7 @@ logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/af
 node tests/check-syntax.js         # node --check on the extracted script
 node tests/smoke.js                # desktop flow + modes + migrations + regressions + phone touch (0 errors allowed)
 node tests/artlab.js <m> <round>   # art milestones: Art Lab + in-match frames → shots/<m>/round-<n>/
+LAB_ONLY=legends node tests/artlab.js legends <n>   # the §10 rounds: Legends check pages + in-game Legends View frames (L2)
 node tests/reel.js <m> <round> [court]   # animation milestones: the first frame of each key move in a live bot match
 node tests/devtools.js             # runSims (1v1 Pro mirror, Legend vs Pro, 3v3), shotLab, tunnelTest
 node tests/balance.js [n]          # scripted human: PPP by strategy vs Pro and Legend

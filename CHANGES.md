@@ -3,6 +3,89 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L2 — Faces (graphics overhaul, milestone 2)
+
+The face painter is rewritten to the spec's §3.2–§3.7: bigger features, six head archetypes, five nose types, cel
+shading with crisp gloss, bold near-black lines, new eyes and mouths, and a new Laugh expression. Everything is in the
+ART section (`parts/025_art.js`); the face editor (Create → Face) gains Face shape and Nose pickers and the wider slider
+ranges. Shots: `shots/legends/round-1/` … `round-3/` (the Legends check pages and in-game Legends View frames, desktop
+and phone) and `shots/l2/round-final/` (every Art Lab view). There is no `reference/` folder in the repo, so each round
+was compared against the spec's written targets (§1, §3) instead of reference images.
+
+What is new
+- Layout (§3.2): eye line −0.07, near eye 0.27 × 0.15, far eye 0.21 × 0.13, irises 0.068 / 0.058, brows 0.045 above the
+  eye and 1.4× thicker, nose tip (0.31, 0.15) with radii 0.09 × 0.07, wing 0.075 × 0.055, mouth (0.15, 0.33) with
+  half-width 0.20·mouthW, lips 0.03 / 0.05 × lipFull, back ear 0.09 × 0.14.
+- Head archetypes (§3.3) replace the old anchors, still joined by Catmull-Rom: Round, Square, Long, Egg, Pear, Heart,
+  with the spec's crown, temple, cheek, jaw and chin numbers. Nose types: Button, Straight, Wide, Hooked (a convex bump
+  40% down the ridge), Long (tip 0.04 lower).
+- Wider `FACE_RANGES` exactly as the spec lists them. `faceParamsFromSeed` picks a shape and a nose, then pushes
+  parameters to the outer quarter of their range until at least 3 of the 6 character parameters (jaw, chin, eye size,
+  nose width, lips, brows) are there. The ranges are the same for every skin tone; no feature is tied to a tone. Old
+  looks without a shape or nose get one derived from their seed (normLook), so old saves keep a stable face.
+- Layer order (§3.4), all clipped to the head: base → key light α 0.6 → cel shadows in the skin's shadow color α 0.85
+  with a 0.03 soft band (far side, brow ridges, under the nose, under the lower lip, jaw/neck band, cheek hollows on Long
+  and Square) → deep occlusion α 0.5 (nostril, mouth corners, ear canal, inner eye corners) → warm zones α 0.4 → white
+  gloss → rim light #FFE2B8 α 0.6, 0.04 wide → grain α 0.05. The old diagonal nose "scar" stroke is gone.
+- Lines (§3.5) in #150B10: the silhouette max(0.04 u, 2.2 px) plus 0.015 along the jaw and chin; upper lid 0.03 with a
+  wing, lower lid 0.014, nose ridge 0.022, nostril 0.018, lip line 0.024, smile folds 0.018, ear fold 0.018. Detail lines
+  in the skin's shadow color α 0.5, 0.012: nasolabial folds, forehead lines from 25 (or when focused), under-eye creases
+  from 28, dimples on 15% of faces, a chin cleft on 10%.
+- Eyes (§3.6): sclera #FAF8F4 with the top 30% lid-shaded, iris gradient with a dark limbal ring (outer 8%), pupil 0.45 of
+  the iris, catchlight 0.32·ir at α 0.95, a filled lash line that tapers into a wing, the lid fold 0.035 above, brows with
+  hair strokes over a solid base at α 0.9.
+- Mouths (§3.7): the hyped grin (a D shape, 8–10 upper teeth 0.045 wide with separators and a lit top third, 6 lower
+  teeth, gums #D9707C, tongue, full lips, deep folds, raised cheeks); the neutral smirk rising 0.02 toward the facing
+  corner with a gloss dot; focused (pressed lips, corners down, a jaw-clench line); angry (both rows bared, a snarl);
+  shocked (a dark O with the top teeth and tongue); the effort yell (top teeth, tongue, uvula).
+- Laugh (new, `EXPRS` now has 8): the grin with crescent eyes and the head tilted back 6°. A made dunk shows it for
+  1.5 s, a posterizer for 1.8 s.
+- §9: a 384 px face bucket, and a warm-up: the first time a live player's face is drawn at a size, all 8 expressions
+  are queued and painted one per frame inside the paint budget (`faceWarmQueue` / `faceWarmTick`). Both players are
+  fully cached about a second into a match (the smoke test checks it). Measured paint cost per face: 0.75 ms at 96 px,
+  1.1 ms at 224, 1.7 ms at 320, 2.1 ms at 384 (desktop Chromium; 2.4 ms at 384 in the phone emulation).
+- Art Lab → Legends check (§10): page 1 is the 8-character lineup at in-game Legends View scale on a maple floor with
+  α 0.32 reflections fading over 1.4 m; pages 2–9 are each character's 8 expressions as 384 px portraits; page 10 is
+  the pose strip (run, jump shot, one-hand dunk, front-flip dunk, knockdown, celebration). `LAB_ONLY=legends node
+  tests/artlab.js legends <round>` saves the pages plus in-game frames.
+
+Tuned after looking at the Art Lab (§0: "if something looks wrong, tune it and log it")
+
+| Item | Spec | Now | Why |
+| --- | --- | --- | --- |
+| Nose ridge start | bridge at (0.19, −0.02) | 0.03 below the near eye (`noseRidgeGap`), and only the lower part is inked (from 40% of the ridge on straight and long noses, 50% wide, 15% hooked, all of a button; `noseRidgeFrom`), tapered 0.003 → 0.022 | y −0.02 is inside a 0.15-tall eye centered at −0.07: the line cut through the eye and ran across the cheek like a scar |
+| Nose-bridge gloss | (0.20, −0.02) → (0.24, 0.06), 0.02 wide, α 0.5 | the same width and α, laid along the ridge 0.026 inside it, from 36% to 64% of its length, as a lens | at the spec spot it sat under the eye like a tear |
+| Cheekbone gloss | (0.36, 0.02), α 0.45 | (0.39, 0.05), α 0.4 (`cheekGloss`, `cheekGlossA`) | against the bigger near eye it also read as a tear |
+| Chin gloss | a dot r 0.015 at (0.14, 0.52), α 0.5 | an ellipse 0.026 × 0.011 at the chin, α 0.45, skipped when the mouth is open | the dot read as a stray speck and collided with open mouths |
+| Mouth's facing corner | half-width 0.20·mouthW both ways | the facing half stops 0.07 inside the silhouette (`mouthEdgeGap`), grins 0.045 (`grinEdgeGap`) | on Heart and Egg jaws the facing corner ran into the outline |
+| Effort yell | 0.26 × 0.20 | 0.32 × 0.24 × mouthW (`yellW`, `yellH`) | read small next to the grin |
+| Shocked O | 0.10 × 0.14 | 0.13 × 0.18 full size (`shockO`) | +30% per §1's "features 30–40% bigger". Round 0 read the spec as radii (0.20 × 0.28), which broke through narrow chins |
+| Lid shade color | not given (the skin's shadow color was used) | '#6A5A66' for every tone, over 30% of the open eye's height (`lidShade`) | the skin shadow color made dark-skinned eyes read as shut; the band also ignored how open the eye was |
+| Eye gap | eyeSpacing ±0.03 | the same range, but the inner corners never come closer than 0.07 (`eyeGapMin`) | eyeSize 1.3 with eyeSpacing −0.03 made the eyes touch |
+| Brow inner end | not given (1.05 of the eye's half-width) | 0.95 (`browInner`) | brows joined into a unibrow over close-set eyes |
+| Lip line | 0.024 | 0.024 in the middle, tapering to 0.008 at the corners, with a small upturn at the smirk's corner | a uniform line read as a long thin slit |
+| Face editor preview | head width 330 at y 330 | 300 at y 365 | the taller archetypes covered the subtitle |
+
+Rounds (the five biggest differences from the written targets each time, then fixed)
+
+| Round | Biggest differences | Fixed in |
+| --- | --- | --- |
+| 0 (first render) | 1. the nose ridge cut through the near eye like a scar; 2. the bridge gloss read as a tear; 3. mouths ran into the silhouette on narrow jaws; 4. the yell read small; 5. the shocked O broke through narrow chins | round 1 (see the table above) |
+| 1 (`shots/legends/round-1/`) | 1. dark-skinned eyes read as shut (lid shade); 2. the chin dot read as a speck; 3. the cheekbone gloss read as a tear; 4. Legends-check portraits: tall hair covered the captions; 5. the pose strip overlapped two players per pose | round 2 |
+| 2 (`round-2/`) | 1. big close-set eyes touched; 2. brows joined into a unibrow; 3. locs and long hair fall over the facing side and hide the near eye; 4. afro and tall-hair hairlines sit on the brows; 5. heads pile up in contests, bodies are small, hands are mittens | 1–2 in round 3; 3–4 are hair (L3); 5 is the body (L4) |
+| 3 (`round-3/`) | what is left is outside the face painter: 1. hair over the face (L3); 2. hairline height (L3); 3. beards are stubble textures, not shaped cel fills (L3, §3.8); 4. body proportions, sneakers and hands (L4, §3.1, §3.10); 5. head overlap in contests (L4, §3.11) | L3, L4 |
+
+Tests (L2 changes no gameplay; only presentation, plus the laugh expression after dunks and posterizers)
+- Smoke 86 of 86 (a new step: a Legends match warms all 8 expressions of both players within 2 s; 300 seeds each put
+  at least 3 of 6 character parameters in the outer quarter; every shape × nose × expression paints). Modes 13 of 13,
+  old saves 16 of 16, dev tools all OK (tunnelTest 0 of 1000), phone audit: no errors. Zero console errors throughout.
+- `balance.js 12 21`: brute force 1.28 PPP against Pro, perfect timing 2.02, Legend beats Pro 84%. Every target passes.
+- `careersim.js 40`: OVR 57 / 69 / 77 at 17 / 21 / 25, peak 79, 0.80 titles per career, 0 stuck. Every target passes
+  except the Hall of Fame: 3 of 40 (8%) against 10–20%. The career sims run no art code; see the L3 section for a
+  200-career check.
+- §2 gate (`gate.js`): identical to L1. Legends: mirror PPP 1.44 (target 0.90–1.25, still ✗), team A wins 50%, Legend
+  beats Pro 77%, brute force 0.98, timing 2.07.
+
 ## L1 — Legends View (graphics overhaul, milestone 1)
 
 Legends View is the new default presentation for every 1v1 (career, exhibition, practice, the tutorial): a 13 m court

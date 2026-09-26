@@ -62,6 +62,18 @@ const FIX = path.join(__dirname, 'fixtures');
     g.quitToMenu(); S.camera = 'classic'; g.startMatch(mk('1v1'), { kind: 'quick' }); m = g.match; if (m.layoutId !== 'classic' || COURT_L !== 24 || W.threeLine !== 6.75 || CONFIG.shot.zoneThree !== 6.75 || PC.runSpeed !== 6.5 || CONFIG.defense.contactDist !== 0.62 || CONFIG.ai.sagMin !== 0.9) throw new Error('Classic did not come back exactly');
     g.quitToMenu(); S.camera = 'legends'; g.startMatch(mk('2v2'), { kind: 'quick' }); if (g.match.layoutId !== 'classic') throw new Error('2v2 is not Classic'); g.quitToMenu();
   }));
+  await step('faces (L2): a Legends match warms all 8 expressions of both players; 3 of 6 character parameters sit in the outer quarter; every shape × nose × expression paints', async () => {
+    await ev(() => { const g = HH.game; clearFaceCache(); g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'arena', seed: 3, controlMode: 'lock' }, { kind: 'quick' }); });
+    await wait(2000);
+    await ev(() => {
+      const byLook = {}; for (const k of _faceCache.keys()) { const [look, expr, , bucket] = k.split('|'); if (+bucket < 160) continue; (byLook[look + '@' + bucket] = byLook[look + '@' + bucket] || new Set()).add(expr); }
+      const full = Object.values(byLook).filter(s => EXPRS.every(e => s.has(e))).length; if (full < 2) throw new Error('warm-up: ' + JSON.stringify(Object.entries(byLook).map(([k, s]) => [k.slice(-8), s.size])));
+      HH.game.quitToMenu();
+      for (let seed = 1; seed <= 300; seed++) { const f = faceParamsFromSeed(seed * 7919); const n = FACE_CHARACTER.filter(k => { const [a, b] = FACE_RANGES[k], u = (f[k] - a) / (b - a); return u < 0.25 || u > 0.75; }).length; if (n < 3) throw new Error('seed ' + seed + ': only ' + n + ' character parameters in the outer quarter'); if (!(f.shape >= 0 && f.shape < FACE_SHAPES.length && f.nose >= 0 && f.nose < NOSE_TYPES.length)) throw new Error('shape/nose ' + f.shape + '/' + f.nose); }
+      const cv = document.createElement('canvas'); cv.width = cv.height = 200; const g = cv.getContext('2d');
+      for (let sh = 0; sh < FACE_SHAPES.length; sh++) for (let no = 0; no < NOSE_TYPES.length; no++) { const look = randomLook(artRng(sh * 11 + no + 1)); look.face.shape = sh; look.face.nose = no; for (const e of EXPRS) { const c = getFaceCanvas(normLook(look), e, 27, 96, null, true); if (!c || !c.canvas) throw new Error('no face for ' + sh + '/' + no + '/' + e); drawFace(g, look, 100, 100, 60, 1, e, { force: true, t: 1 }); } }
+    });
+  });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
   await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {
