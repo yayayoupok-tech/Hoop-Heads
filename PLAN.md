@@ -164,7 +164,9 @@ the gate passes except mirror PPP (L19). The All-Star fan vote counts star power
 mirrored; the 12 cast faces mirror within 0.12% at 256 px (L13: up to 18.8%), and facing slides the features 0.04; three
 visual rounds against reference/face-construction.png.)* **L15 — Pixel mode for the players only** *(done: Pixel mode pixelizes only the characters and the
 ball, composited at an integer scale on the pixel grid; everything else is the Smooth frame at full resolution, 0.000%
-different outside the sprite boxes; the venue dithering, pixel font and pixel menus are gone.)* **L16 — Stop the 1v1 blob.** **L17 — Players read against the
+different outside the sprite boxes; the venue dithering, pixel font and pixel menus are gone.)* **L16 — Stop the 1v1 blob** *(done: close players are drawn pushed apart up to 0.25 m each, the one farther
+from the ball behind at 0.92 and 0.1 H higher, contact 0.95 m; 60 s Pro vs Pro: median close-play head overlap 0%,
+no face over 49% hidden, was up to 100%.)* **L17 — Players read against the
 crowd.** **L18 — Phone layout.** **L19 — Balance the Legends mirror.**
 
 ## Testing every milestone

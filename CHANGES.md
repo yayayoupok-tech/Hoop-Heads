@@ -3,6 +3,51 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L16 — Stop the 1v1 blob (playtest pass, milestone 16)
+
+The playtest: when one player guards the other, the front player's head almost completely hides the other face.
+
+What changed (Legends View)
+- **Pushed apart, visually.** Two players whose heads come closer than a head width are drawn pushed apart, up to 0.25 m
+  each. This happens when one head overlaps the other's head or torso on screen. It changes the drawing only: the body,
+  its shadow and the pixel sprite move, and the hitboxes don't.
+  - `ART.pushApart` 0.25 m. The full push applies from a third of a head width in: amount = 0.25 × min(1, 3 × (1 − gap ÷
+    head width)).
+  - The push eases in fast (150/s), so a burst or a stumble doesn't catch a face behind a head, and eases out gently
+    (12/s).
+  - The overlap is judged on screen from the head each pose drew on the last frame, so leans, jumps and lane offsets
+    count.
+- **Draw order.** The player farther from the ball is drawn first, 0.1 H higher, at 0.92 scale (`ART.overlapRaise` 0.05 →
+  0.1, `ART.overlapScale` 0.94 → 0.92). A player passing through another (L11) is still drawn behind. A tie (both the same
+  distance from the ball) puts the defender behind.
+- **Contact 0.95 m.** The Legends body contact distance is 0.95 m (`CONFIG.layout.legends.bodyContact`; was 0.75). It
+  still applies only in the L11 contact situations: a drive into a square defender, box-outs, post-ups and back-downs.
+  The gaps the AI and contests scale from (`contactDist`, the LP base) stay at 0.75, so sag, contest and reach distances
+  don't move. Its balance effect is measured in the L19 "before" gate.
+
+**The test** (smoke, "the 1v1 blob (L16)", and `blob.js` for 60 s). Pro AI plays Pro AI in Legends View, sampled at
+60 Hz of game time. Each sample poses both players through `drawCharacter`, and a head is the pose's head ellipse.
+- Head overlap = the heads' horizontal overlap ÷ a head width, counted in "close play" (the players under 1.5 m apart).
+- Face hidden = the share of the behind player's head covered by the front player's head or torso.
+
+| 60 s, Pro vs Pro | L15 seed 77 | L16 seed 77 | L15 seed 91 | L16 seed 91 |
+| --- | --- | --- | --- | --- |
+| median head overlap, close play (target < 30%) | 19.8% | **0.0%** | 23.3% | **0.0%** |
+| p90 head overlap, close play | 78.3% | 24.1% | 88.8% | 26.1% |
+| most any face is hidden (target ≤ 60%) | 100% | **44.1%** | 100% | **49.2%** |
+| frames with a face over 60% hidden | 246 | **0** | 583 | **0** |
+| p99 face hidden | 88.1% | 28.2% | 100% | 34.5% |
+
+(3,600 samples each; 2,266–2,536 in close play.) The smoke step runs 30 s on seed 77 and asserts the two targets and
+the values. `shots/l16/` has a close-play frame before and after, on desktop with a 2× crop and on the phone.
+
+Tests: smoke 97/97, with the new L16 step. The first run failed "phone: stick drag moves the player" again (0.06 m).
+The step dragged the stick toward the AI player, and in the failing runs the human defender stood in front of a set
+handler. Walking into him there is real contact (L11): a repro moves 0.52 m in 0.84 s at the old 0.75 m contact and
+0.33 m at 0.95, against 3.57 m walking away. The step now drags away from the opponent, clears any Freeze first and
+prints the player's state if it fails. Also: modes 13/13, phone audit no errors, Art Lab 50 shots with no errors. The
+gate isn't run here (the spec doesn't ask for it at L16); the contact change is in L19's "before" gate.
+
 ## L15 — Pixel mode is for the players and the ball only (playtest pass, milestone 15)
 
 The playtest: Pixel mode pixelized and dithered everything. Banner text ("POSTER NIGHT"), the LED ribbon and the

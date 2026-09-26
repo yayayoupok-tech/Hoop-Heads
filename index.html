@@ -77,7 +77,8 @@ const CONFIG = {
       h: 0.78,                 // horizontal gameplay distances and speeds scale by this; vertical stays real (jumps, rim, reach, gravity) (L13 gate: 0.8 gave Legend 85% over Pro and 1.59 mirror PPP; 0.75 dropped Legend to 73%)
       zones: [1.0, 1.1, 1.6],  // shot zones as distance ÷ 3-point radius: three from 1.0, deep from 1.1, heave past 1.6 (the make table is unchanged)
       apexBase: 1.0,           // jumper apex constant (classic 0.9); the solver stays in meters
-      contactDist: 0.75,       // body contact distance in resolveBodies (m)
+      contactDist: 0.75,       // the base that gaps between players scale from (LP: sag, contest and reach distances) (m)
+      bodyContact: 0.95,       // L16: body contact distance in real contact (resolveBodies, box-outs, post-ups, a drive into a square defender) (m); was 0.75
       checkDist: 7.0,          // street half court: the check ball this far from the hoop (m), a meter past the arc...
       halfLine: 8.0,           // ...and the players stay within this of the hoop (m): the midcourt line is 7.5 m out
       visualScale: 1.0,        // L13: characters are drawn true size (a 2 m player is 1/9 of the court); was 1.3
@@ -2007,9 +2008,13 @@ Object.assign(ART, {
   liftEase: 12,              // the lift eases out at this rate (1/s)...
   liftEaseIn: 40,            // ...and in this fast, so the head is over the rim within a few frames of the takeoff
   overlapShare: 0.2,         // §3.11: heads overlapping by more than this share of a head width...
-  overlapScale: 0.94,        // ...draw the farther player first at this scale...
-  overlapRaise: 0.05,        // ...raised this much (H)...
-  overlapEase: 10,           // ...easing in and out at this rate (1/s), so nobody pops
+  overlapScale: 0.92,        // ...draw the one farther from the ball first at this scale... (L16 spec; was 0.94)
+  overlapRaise: 0.1,         // ...raised this much (H)... (L16 spec; was 0.05)
+  pushApart: 0.25,           // L16: two players closer than a head width whose head overlaps the other's head or torso on screen are drawn pushed apart, up to this much each (m; draw only)...
+  pushGain: 3,               // ...the full push from a third of a head width in (amount = pushApart × min(1, pushGain × (1 − gap ÷ head width)))...
+  pushEase: [150, 12],        // ...easing in at the first rate (1/s) and out at the second: quick enough that a burst or a stumble doesn't catch a face behind a head, gentle on the way back
+  torsoReach: 1.2,           // ...and a head counts as overlapping when it is within this many head heights below the other head (its torso)
+  overlapEase: 20,           // ...easing in and out at this rate (1/s), so nobody pops (L16: 10 raised the far face too late on a burst)
 });
 // --- cached sprites ---
 let _shadowSprite = null, _glowSprite = null;
@@ -2213,7 +2218,7 @@ function drawJersey(ctx, P, lw, kit, number) {
 // --- the whole character ---
 function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   opts = opts || {}; const a = p.anim || (p.anim = {}); const H = drawHeightOf(p); const f = p.facing < 0 ? -1 : 1;
-  const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
+  const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); // (+ the L16 push-apart, draw only)
   const lift = visualLift(p, y), s = cam.scale(z), k = s * H, ox = cam.sx(x), oy = cam.sy(y + lift, z); if (!isFinite(ox) || !isFinite(oy) || !(k > 2)) return;
   const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k); P.hemFlare = p.grounded === false ? clamp01(y / 0.35) : 0;
   const dk = clamp01(opts.depth || 0), dS = 1 - (1 - ART.overlapScale) * dk, dR = ART.overlapRaise * dk * k; // §3.11: the farther of two overlapping players is drawn smaller and higher
@@ -2229,6 +2234,7 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   }
   P.bigHead = extrasHeadScale(p); // L9 big-head power-up (Pixel mode sizes its sprite box with it)
   if (opts.onPose) opts.onPose(P, { ox, oy: oy - dR, kx: fv * k * ts * dS, ky: k * dS }); // Pixel mode measures the figure's box from the pose
+  if (!opts.reflection) { const hp = pxBodyPt({ ox, oy: oy - dR, kx: fv * k * ts * dS, ky: k * dS }, P, P.head.x, P.head.y); p._head = { dx: (hp[0] - ox) / s, dy: (oy - hp[1]) / s }; } // L16: where the head is drawn (m from the feet), for next frame's push-apart
   const base = ctx.getTransform(); ctx.save(); ctx.translate(ox, oy - dR); ctx.scale(fv * k * ts * dS, k * dS); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   if (P.rot) { ctx.translate(P.px, -P.py); ctx.rotate(-P.rot); ctx.translate(-P.px, P.py); } // falls tip backward about the feet; a rim hang swings under the hands
   ctx.scale(P.sx, P.sy); // squash and stretch about the feet
@@ -2271,18 +2277,24 @@ function drawDizzyStars(ctx, cx, cy, left, lw) {
 function drawContactShadow(ctx, ox, floorY, k, a) { const [w, h, al] = ART.contactShadow; ctx.save(); ctx.globalAlpha = clamp01(al * (a == null ? 1 : a)); ctx.fillStyle = '#0A0612'; ctx.beginPath(); ctx.ellipse(ox, floorY, w * k / 2, h * k / 2, 0, 0, TAU); ctx.fill(); ctx.restore(); }
 // §3.11: when two players' drawn heads overlap by more than 20% of a head width, the farther one (the defender, else the
 // lower lane) is drawn first, at 0.94 scale and 0.05 H higher, so the nearer character's bold outline separates them.
-// The depth eases in and out. Returns the draw order; each player's depth (0…1) is in p._depth.
-function overlapOrder(m, players, alpha) {
-  const now = performance.now(), dt = clamp((now - (m._ovT || now)) / 1000, 0, 0.1); m._ovT = now; const k = 1 - Math.exp(-dt * ART.overlapEase);
-  const ps = players.filter(p => !p.hidden), tgt = new Map(ps.map(p => [p, 0]));
-  const head = p => { const H = drawHeightOf(p); return { x: lerp(p.px != null ? p.px : p.x, p.x, alpha), y: lerp(p.py != null ? p.py : p.y, p.y, alpha) + ((p.anim && p.anim.lift) || 0) + ART.headCenter * H, w: ART.headWidth * H, h: 0.62 * H }; };
+// The depth eases in and out. Returns the draw order; each player's depth (0…1) is in p._depth, and (L16) the drawn
+// push-apart in p._pushX (m).
+function overlapOrder(m, players, alpha, ball, cam) {
+  const now = performance.now(), dt = clamp((now - (m._ovT || now)) / 1000, 0, 0.1); m._ovT = now; const k = 1 - Math.exp(-dt * ART.overlapEase), kpIn = 1 - Math.exp(-dt * ART.pushEase[0]), kpOut = 1 - Math.exp(-dt * ART.pushEase[1]);
+  const ps = players.filter(p => !p.hidden), tgt = new Map(ps.map(p => [p, 0])), push = new Map(ps.map(p => [p, 0]));
+  // a head on screen (px) when there is a camera (lanes shift players up and down), else in world meters
+  const head = p => { const H = drawHeightOf(p), hd = p._head, x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (hd ? hd.dx : 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha) + ((p.anim && p.anim.lift) || 0) + (hd ? hd.dy : ART.headCenter * H); // (L16: last frame's drawn head, lean and depth included)
+    if (cam) { const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), s = cam.scale(z); return { m: x, mw: ART.headWidth * H, x: cam.sx(x), y: -cam.sy(y, z), w: ART.headWidth * H * s, h: 0.62 * H * s }; }
+    return { m: x, mw: ART.headWidth * H, x, y, w: ART.headWidth * H, h: 0.62 * H }; };
+  const bx = ball ? lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) : null;
   for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
-    const a = ps[i], b = ps[j], A = head(a), B = head(b); const ox = (A.w + B.w) / 2 - Math.abs(A.x - B.x), oy = (A.h + B.h) / 2 - Math.abs(A.y - B.y);
-    if (!(ox > ART.overlapShare * Math.min(A.w, B.w) && oy > 0)) continue;
-    const pa = (a.drawBehindUntil || 0) > (m.time || 0), pb = (b.drawBehindUntil || 0) > (m.time || 0); // L11: a player passing through another is drawn behind
-    const off = m.possession, far = pa !== pb ? (pa ? a : b) : off != null && a.team !== b.team ? (a.team === off ? b : a) : (a.z < b.z ? a : b); tgt.set(far, 1);
+    const a = ps[i], b = ps[j], A = head(a), B = head(b), dm = B.m - A.m, hw = (A.mw + B.mw) / 2, oy = (A.h + B.h) / 2 - Math.abs(A.y - B.y);
+    if (Math.abs(dm) < hw && oy + ART.torsoReach * Math.max(A.h, B.h) > 0) { const sd = dm ? Math.sign(dm) : (a.team < b.team ? 1 : -1), amt = ART.pushApart * Math.min(1, ART.pushGain * (1 - Math.abs(dm) / hw)); push.set(a, push.get(a) - sd * amt); push.set(b, push.get(b) + sd * amt); } // L16: closer than a head width (and overlapping on screen) → drawn apart
+    const ox = (A.w + B.w) / 2 - Math.abs(A.x - B.x); if (!(ox > ART.overlapShare * Math.min(A.w, B.w) && oy > 0)) continue;
+    const pa = (a.drawBehindUntil || 0) > (m.time || 0), pb = (b.drawBehindUntil || 0) > (m.time || 0); // L11: a player passing through another is drawn behind...
+    const off = m.possession, far = pa !== pb ? (pa ? a : b) : bx != null && Math.abs(Math.abs(a.x - bx) - Math.abs(b.x - bx)) > 0.02 ? (Math.abs(a.x - bx) > Math.abs(b.x - bx) ? a : b) : off != null && a.team !== b.team ? (a.team === off ? b : a) : (a.z < b.z ? a : b); tgt.set(far, 1); // ...else (L16) the one farther from the ball
   }
-  for (const p of ps) { const t = tgt.get(p) || 0; p._depth = (p._depth || 0) + (t - (p._depth || 0)) * k; if (p._depth < 0.002 && !t) p._depth = 0; }
+  for (const p of ps) { const t = tgt.get(p) || 0; p._depth = (p._depth || 0) + (t - (p._depth || 0)) * k; if (p._depth < 0.002 && !t) p._depth = 0; const q = clamp(push.get(p) || 0, -ART.pushApart, ART.pushApart); const pv = p._pushX || 0, kp = Math.abs(q) > Math.abs(pv) || q * pv < 0 ? kpIn : kpOut; p._pushX = pv + (q - pv) * kp; if (Math.abs(p._pushX) < 1e-4 && !q) p._pushX = 0; }
   return ps.slice().sort((a, b) => (b._depth || 0) - (a._depth || 0) || a.z - b.z);
 }
 let _fireSprite = null; function radialFire() { return _fireSprite || (_fireSprite = radialSprite('#FF8A2A', 0.7)); }
@@ -3056,7 +3068,7 @@ function useLayout(id) {
   const S = CONFIG.shot, B = _layoutBase;
   if (L.legends) { const z = L.zones, R = L.threeLine; S.zoneThree = R * z[0]; S.zoneDeep = R * z[1]; S.heaveRange = R * z[2]; S.apexBase = L.apexBase; CONFIG.rules.checkDist = L.checkDist; }
   else { S.zoneThree = B['shot.zoneThree']; S.zoneDeep = B['shot.zoneDeep']; S.heaveRange = B['shot.heaveRange']; S.apexBase = B['shot.apexBase']; CONFIG.rules.checkDist = B['rules.checkDist']; }
-  CONFIG.defense.contactDist = contact;
+  CONFIG.defense.contactDist = L.bodyContact || contact; // L16: real contact keeps bodies this far apart; LP still scales gaps from contactDist
   if (L.legends && L.tune) for (const path in L.tune) { const [o, k] = cfgRef(path); o[k] = L.tune[path]; } // (every tuned path is in the registry above, so Classic restores it)
   return LAY;
 }
@@ -5962,9 +5974,9 @@ function buildPoster(src, headline, sub, palette, scoreText) {
 Object.assign(ART, {
   layerRes: 1,                 // far layer and crowd buffer resolution, as a fraction of the screen's (L15: full resolution, so banners and faces are crisp; was 0.5)...
   layerResLow: 0.5,            // ...from performance-guard level 1
-  reflectRes: 0.5,             // floor reflections render at this fraction of the screen resolution (they are blurred and faded anyway)
   layerHz: 30,                 // ...and redraw this often (the performance guard drops the crowd to 15)
   layerMargin: 0.08,           // buffers overscan each screen edge by this fraction so camera moves between redraws never show an edge
+  reflectRes: 0.5,             // floor reflections render at this fraction of the screen resolution (they are blurred and faded anyway)
   squashFrom: { pro: 4.2, college: 3.0, hs: 2.9, street: 2.4 }, // above this height (the top of the crowd or wall), heights are squashed...
   squash: { pro: 0.12, college: 0.15, hs: 0.5, street: 0.6 },       // ...by this, so the spec's far layout (jumbotron at 6.8 m, banners at 6.5 m) fits the game camera, which shows about 8 m of height
   crowdDim: { pro: 0.24, college: 0.2, hs: 0.06, street: 0 }, // the stands sit in shadow so the lit court stays the focus
@@ -6657,8 +6669,8 @@ function drawBallNew(ctx, cam, b, alpha, skin, onFire, opts) {
 // L5: soft shadows for every player and the ball, drawn before the hoops and players.
 function drawShadows(ctx, cam, players, ball, alpha, replay) {
   const spr = shadowSprite();
-  if (!replay) for (const p of players) { if (!p.controlled || p.hidden) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), k = cam.scale(z) * drawHeightOf(p), ox = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha)), fy = cam.sy(0, z); ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, fy + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; } // the ring under your player
-  for (const p of players) { if (p.hidden) continue; const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); const k = cam.scale(z) * drawHeightOf(p), hgt = Math.max(0, y + ((p.anim && p.anim.lift) || 0)), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1); const ox = cam.sx(x), fy = cam.sy(0, z) - ART.overlapRaise * (p._depth || 0) * k; if (!isFinite(ox + fy)) continue; ctx.globalAlpha = fade; ctx.drawImage(spr, ox - 0.45 * k * sc, fy - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); drawContactShadow(ctx, ox, fy, k * (1 - (1 - ART.overlapScale) * (p._depth || 0)), fade * sc); }
+  if (!replay) for (const p of players) { if (!p.controlled || p.hidden) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), k = cam.scale(z) * drawHeightOf(p), ox = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0)), fy = cam.sy(0, z); ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, fy + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; } // the ring under your player
+  for (const p of players) { if (p.hidden) continue; const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); const k = cam.scale(z) * drawHeightOf(p), hgt = Math.max(0, y + ((p.anim && p.anim.lift) || 0)), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1); const ox = cam.sx(x), fy = cam.sy(0, z) - ART.overlapRaise * (p._depth || 0) * k; if (!isFinite(ox + fy)) continue; ctx.globalAlpha = fade; ctx.drawImage(spr, ox - 0.45 * k * sc, fy - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); drawContactShadow(ctx, ox, fy, k * (1 - (1 - ART.overlapScale) * (p._depth || 0)), fade * sc); }
   if (ball) { const x = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0), y = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0), z = lerp(ball.pz != null ? ball.pz : ball.z, ball.z, alpha); const r = BALL.radius * cam.scale(z) * 1.15, sc = clamp(1 - y / 6, 0.35, 1); ctx.globalAlpha = clamp(1 - y / 5, 0.15, 0.9); ctx.drawImage(spr, cam.sx(x) - r * 1.3 * sc, cam.sy(0, z) - r * 0.35 * sc, r * 2.6 * sc, r * 0.7 * sc); }
   ctx.globalAlpha = 1;
 }
@@ -6756,7 +6768,7 @@ function pxBodyBox(gm, P, extraTop) {
 // CSS px; f maps CSS px to sprite px; the sprite lands at PXS.k device px per sprite px on that grid. Returns false if
 // nothing was drawn.
 function pxDrawCharacter(pctx, cam, p, alpha, ball, team, opts, f, ballPaintFor) {
-  const H = drawHeightOf(p), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha); const k = cam.scale(z) * H; if (!(k > 2) || !isFinite(k)) return false;
+  const H = drawHeightOf(p), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha); const k = cam.scale(z) * H; if (!(k > 2) || !isFinite(k)) return false;
   const lift = (p.anim && p.anim.lift) || 0, ox = cam.sx(x), oy = cam.sy(y + lift, z); if (!isFinite(ox + oy)) return false;
   const last = PXS.last.get(p); if (PXS.level >= 3 && last && (PXS.frame & 1) && last.frame === PXS.frame - 1) { pctx.save(); pctx.setTransform(PXS.k, 0, 0, PXS.k, 0, 0); pctx.imageSmoothingEnabled = false; pctx.drawImage(last.spr, Math.round(ox * f) + last.dx, Math.round(oy * f) + last.dy); pctx.restore(); return true; } // guard level 3: sprites update at 30 Hz
   const ss = PXS.ss, K = f * ss, wide = p.inState && p.inState('knocked', 'stumble', 'stagger', 'rimhang', 'celebrate') ? 1.3 : 0.9;
@@ -10959,7 +10971,7 @@ const TUTORIAL_STEPS = [
 function drawMatchScene(ctx, env, m, alpha) {
   ensureLayout(m); const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop, rp = env.rp, guard = env.guard || 0; const V = world.venueFor(m);
   const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball; updateBallView(ball);
-  const order = overlapOrder(m, players, alpha); // §3.11 (the defender behind when heads overlap), else by lane
+  const order = overlapOrder(m, players, alpha, ball, cam); // §3.11/L16: the one farther from the ball behind when heads overlap, else by lane
   if (V) V.drawBack(ctx, cam, m, guard); else world.drawBackdrop(ctx, cam, court, m);        // L0–L2
   if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } if (m.halfCourt && LAY.legends) drawHalfCourtLine(ctx, cam); // L3
   const PXM = env.pixel && !env.pixelOff ? env.pixel : null, f = PXM ? PXM.f : 1; // §8/L15: Pixel mode swaps the characters and the ball for sprites (1 CSS px = f sprite px); the rest is the Smooth scene
