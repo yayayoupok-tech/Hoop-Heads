@@ -13,7 +13,7 @@ const { ROOT, launch, openPage } = require('./lib');
   for (let v = 0; v < views.length; v++) {
     if (only === 'legends' && views[v] !== 'Legends check' && views[v] !== 'Hair' && views[v] !== 'Pixel check') continue;
     await ev(v => HH.game.ui.screen.setView(v), v);
-    if (views[v] === 'Legends check' || views[v] === 'Pixel check') { const n = await ev(v => labPageCount(v), v); for (let pg = 0; pg < n; pg++) { await ev(q => { const s = HH.game.ui.screen; s.setPage(q); s.setChar(q); }, pg); await shot('lab-' + v + (views[v] === 'Pixel check' ? '-pixel-p' : '-legends-p') + pg); } continue; }
+    if (views[v] === 'Legends check' || views[v] === 'Pixel check' || views[v] === 'Symmetry') { const n = await ev(v => labPageCount(v), v); for (let pg = 0; pg < n; pg++) { await ev(q => { const s = HH.game.ui.screen; s.setPage(q); s.setChar(q); }, pg); await shot('lab-' + v + (views[v] === 'Pixel check' ? '-pixel-p' : views[v] === 'Symmetry' ? '-symmetry-p' : '-legends-p') + pg); } continue; }
     if (v === 1) { for (const ch of (process.env.LAB_CHARS || '0,3,7,11').split(',').map(Number)) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-faces250-p' + (ch + 1)); } }
     else if (v === 3) { for (const ch of [0, 9]) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-hair-p' + (ch + 1)); } }
     else if (views[v] === 'Clips') { const n = await ev(() => labClipPages()); for (let pg = 0; pg < n; pg++) { await ev(q => HH.game.ui.screen.setPage(q), pg); await shot('lab-' + v + '-clips-p' + (pg + 1)); } }

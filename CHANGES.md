@@ -3,6 +3,89 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L13 — True size: an 18 m Legends court (playtest pass, milestone 13)
+
+The playtest: in Legends View the players were drawn 1.3× on a 13 m court, so a 2 m player stood 1/5 of the court
+length and a 1v1 filled the screen with bodies.
+
+What changed (Legends View only; Classic is untouched)
+- **Players are drawn true size** (`visualScale` 1.3 → 1.0) and the court grows instead: 18 m baseline to baseline
+  (was 13), the hoops 1.5 m in (1.3), the 3-point arc 6.0 m (4.6), the free-throw line 4.2 m (3.1), 1.0 m of wall behind
+  each baseline (0.9). The street half court checks the ball 7.0 m out (5.6) and keeps the players within 8.0 m of the
+  hoop (7.0).
+- **Camera:** ppm = W ÷ (18 + 2) = W ÷ 20 (capped at H ÷ 4.7 on a very wide, short screen, so the backboard stays in
+  view); the floor line sits at 70% of the screen height (was 80%), so the floor band takes 30%. In Legends View the
+  painted floor now reaches the bottom of the screen (`ART.lgFloorDepthM` 3.4 m of floor, and the band is extended to the
+  screen's edge), so a tall screen never shows a strip of wall under the court.
+- **Gameplay distances:** `h` (the scale on horizontal speeds and distances) goes 0.58 → 0.78, and the jumper apex
+  constant 1.1 → 1.0 for the longer shots. The L1 gate tuning for the 13 m court no longer fit, so the AI spots and the
+  contest reach were retuned for 18 m (`CONFIG.layout.legends.tune`):
+
+| Path | 13 m court (L1) | 18 m court (L13) | Why |
+| --- | --- | --- | --- |
+| `ai.sagMin` | 0.78 m | 0.85 m | the on-ball gap on a good shooter |
+| `ai.soloSagMax` | 0.8 m | 0.95 m | the gap on a poor shooter in 1v1 |
+| `ai.pickupDistSolo` | 6.5 m | 8.0 m | 1v1 pick-up distance from the hoop: 2 m past the arc |
+| `ai.pickupDistSoloBig` | 5.5 m | 6.5 m | the same against a handler who can't shoot |
+| `contest.proxNear` | 0.85 m | 0.95 m | full contest inside this gap |
+| `contest.proxRange` | 1.3 m | 1.45 m | the contest fades to nothing over this |
+
+Tuning rounds (`l13/lgate.js` in the working notes: the Legends half of the gate with overrides. The untuned run used 150
+mirror games and 100 Legend-vs-Pro games, the rest 300 and 200; the harness ran 8 games per cell for the untuned run, A and B, and 12 for C and D):
+
+| Round | h | tune | mirror PPP | team A | Legend beats Pro | brute vs Pro | timing | threes vs Pro |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| untuned | 0.80 | none | 1.59 | 43% ✗ | 85% | 1.17 | 2.41 | 1.85 |
+| A | 0.80 | sag 0.85 / 0.95, pick-up 8.0 / 6.5, contest 0.9 / 1.4 | 1.55 | 50% | 78.5% | 1.30 | 2.14 | 1.43 |
+| B | 0.75 | as A | 1.49 | 49% | 73% ✗ | 1.13 | 2.11 | 1.16 |
+| C | 0.80 | as A, contest 1.0 / 1.5 | 1.51 | 49% | 76% | 1.25 | 1.86 | 1.43 |
+| **D (kept)** | **0.78** | **as A, contest 0.95 / 1.45** | **1.49** | **50%** | **80%** | **1.11** | **1.91** | **1.28** |
+
+**The measurement** (the smoke test and `l11/mshots.js size` in the working notes; ppm = pixels per meter):
+
+| | L12 | L13 |
+| --- | --- | --- |
+| court length | 13 m | 18 m |
+| character scale | 1.3× | 1.0× (true size) |
+| a 2 m player ÷ the court length | 1/5.0 | **1/9.0** (target 1/9–1/10) |
+| floor line (share of the screen height) | 80% | 70%: the floor band takes 30% |
+| ppm desktop 1280×720 / phone 844×390 | 86.5 / 57 | 64.0 (= 1280 ÷ 20) / 42.2 |
+
+**The gate** (`node tests/gate.js`: 300 mirror games, 200 Legend-vs-Pro, harness 12 per cell; the Legends column, L12 → L13;
+Classic is unchanged: the same numbers as L12):
+
+| | L12 (13 m) | L13 (18 m) | target |
+| --- | --- | --- | --- |
+| Pro mirror PPP | 1.47 | 1.50 | 0.90–1.25 ✗ (L19) |
+| Pro mirror: team A wins | 53% | 51% ✓ | 45–55% |
+| the side attacking right | 43% | 49% | |
+| Legend beats Pro | 78% | 80% ✓ | 75–95% |
+| PPP Legend / Pro | 1.60 / 1.28 | 1.63 / 1.29 | |
+| harness vs Pro / vs Legend: brute | 1.08 / 1.22 | 1.11 / 0.80 ✓ | ≤ 1.30 vs Pro |
+| spam | 0.38 / 0.23 | 0.24 / 0.29 | |
+| drives | 1.44 / 1.42 | 1.53 / 1.26 | |
+| threes | 1.53 / 1.00 | 1.28 / 1.02 | |
+| sniper (timing) | 1.86 / 1.71 | 1.91 / 1.41 ✓ | beats brute |
+| reader | 1.65 / 1.20 | 1.64 / 1.15 | |
+
+**Ratings matter less on the bigger court than they did on the 13 m one** (`l13/ratings.js`: 40 bot games, Pro vs Pro,
+first to 21, two 1.93 m players with every attribute at the rating): a 99 beats an 80 85% of the time on the 13 m court,
+70% on the 18 m court and 68% in Classic. So the short court exaggerated ratings, and the true-size one sits with
+Classic. In simulated pro seasons (`l13/ppg.js`: four league seeds, 11 games each, the user's games through the engine),
+a 99-rated player went from 41.1 PPG and 66% wins on the 13 m court to 36.6 PPG and 50% wins (Classic: 38.0 and 66%).
+One smoke step caught it: a 99-rated player was no longer among the four All-Stars by midseason. **The All-Star fan
+vote now counts star power** (`CR.allStar1v1.ovrVote` 0.6 × (OVR − 75), for every player). A maxed player is voted in
+again, and fans pick stars, which is what the vote is meant to model. The legacy score doesn't count All-Star
+appearances, and the career simulator runs on the league model.
+
+Other results on the L13 build: smoke 95/95 (desktop and phone; the Legends View step now checks the 18 m court, the
+camera and the 1/9 ratio); modes 13/13; old saves 16/16; dev tools OK; phone audit no errors; Art Lab no errors. Balance
+harness (Classic): unchanged (brute 1.24 ✓, timing 2.05 ✓, Legend beats Pro 79%). Career simulator (40 careers): OVR at
+17/21/25 57/69/77 ✓, peak 79 ✓, titles 1.02 per career ✓ (L12 0.80), Hall of Fame 13% ✓ (L12 8% ✗), stuck 0 ✓. The
+All-Star vote change moved which careers draw what, and with 40 careers that moved both numbers. Perf at 844×390 @2x in
+the pro arena: median 17.2 ms, p95 25.5 ms (L12 21.9 / 31.4; the characters are smaller, so Pixel mode has fewer pixels
+to paint); at 4× CPU 93.9 ms (L12 114.7).
+
 ## L12 — Traveling and double dribble, every ruleset (playtest pass, milestone 12)
 
 The playtest: the human jumps with the ball, stays in the air, lands still holding it, dribbles on and keeps the ball

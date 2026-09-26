@@ -158,7 +158,9 @@ behind. A defender 1.6 m behind a standing handler now gets past in 0.47 s witho
 **L12 — Traveling and double dribble** *(done: landing with the ball after jumping with it is a TRAVEL in every
 ruleset, and the Arcade re-dribble exception is gone. A picked-up dribble may pivot; walking is a travel, dribbling is a double
 dribble, and 5 s held while closely guarded is a turnover. Bots follow the same rules: 0 bot travels per game in 30 bot games.)*
-**L13 — True-size players on an 18 m court.** **L14 — Symmetric front-facing
+**L13 — True-size players on an 18 m court** *(done: characters are drawn true size on an 18 m court seen whole, with
+the floor at 70%; a 2 m player is 1/9.0 of the court, was 1/5. h is 0.78 and the AI spots and contest reach are retuned;
+the gate passes except mirror PPP (L19). The All-Star fan vote counts star power.)* **L14 — Symmetric front-facing
 faces.** **L15 — Pixel mode for the players only.** **L16 — Stop the 1v1 blob.** **L17 — Players read against the
 crowd.** **L18 — Phone layout.** **L19 — Balance the Legends mirror.**
 
