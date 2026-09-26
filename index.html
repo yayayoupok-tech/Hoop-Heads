@@ -67,6 +67,23 @@ const CONFIG = {
     laneChangeSpeedMul: 0.8,   // speed multiplier while a lane change is in progress
     netDepth: 0.45,            // net length below the rim (m)
   },
+  layout: {                    // §2 court layouts. Classic is the world block above; Legends View is 1v1 on a short court seen whole
+    legends: {
+      courtLength: 13.0,       // baseline to baseline (m)
+      hoopInset: 1.3,          // hoop center in from each baseline (m)
+      wallPad: 0.9,            // wall behind each baseline (m)
+      threeLine: 4.6,          // 3-point radius (m)
+      ftLine: 3.1,             // free-throw distance (m)
+      h: 0.58,                 // horizontal gameplay distances and speeds scale by this; vertical stays real (jumps, rim, reach, gravity)
+      zones: [1.0, 1.1, 1.6],  // shot zones as distance ÷ 3-point radius: three from 1.0, deep from 1.1, heave past 1.6 (the make table is unchanged; §2 gate tuning: deep from 1.25 → 1.1)
+      apexBase: 1.1,           // jumper apex constant (classic 0.9); the solver stays in meters
+      contactDist: 0.75,       // body contact distance in resolveBodies (m): the drawn bodies are bigger
+      checkDist: 5.6,          // street half court: the check ball this far from the hoop (m)...
+      halfLine: 7.0,           // ...and the players stay within this of the hoop (m): the short court's midcourt line is only 5.2 m out
+      visualScale: 1.3,        // characters are drawn this much taller; hitboxes and reach stay real
+      tune: { 'ai.sagMin': 0.78, 'ai.soloSagMax': 0.8, 'ai.pickupDistSolo': 6.5, 'ai.pickupDistSoloBig': 5.5, 'contest.proxNear': 0.85, 'contest.proxRange': 1.3 }, // §2 gate tuning (AI spots and contest reach, m): the short court brings shooters into range sooner, so the on-ball defender plays tighter and contests from farther
+    },
+  },
   ball: {
     radius: 0.12,              // ball radius (m)
     restFloor: 0.78,           // restitution on the floor
@@ -618,6 +635,8 @@ const CONFIG = {
     contactWindow: 0.6,        // ...for this long after the contact (s)
     rimJumpDist: 1.9,          // an on-ball defender leaves the floor for a layup or dunk within this distance of the finisher (m)
     chargeSlowDist: 2.4,       // a driving bot lets go of Sprint this far from a set defender ahead of it (no charges, m)
+    legendsCloseGap: 0.75,     // Legends View: an on-ball defender this much (× h, m) deeper than his sag steps up to a handler in shooting range instead of containing...
+    legendsStepUpMaxV: 7.1,    // ...who is slower than this (× h, m/s): a walking shooter, not a sprinting driver
   },
   camera: {
     halfCourtPad: 1.0,         // street half court: the view stops this far past the midcourt line (m)
@@ -645,6 +664,13 @@ const CONFIG = {
     ftZoom: 1.25,              // free throw camera zoom
     lobArrowMargin: 24,        // px inset for the off-screen lob arrow
     solo: { zoomMin: 1.0, zoomMax: 1.38, margin: 1.3, hoopRange: 9.5, hoopPad: 1.0 }, // 1v1: zoom range, space around the players (m), ball distance that pulls the hoop into frame (m), room around the rim (m)
+    legends: {                 // §2 Legends View camera: the whole court, no zoom, no off-screen arrows
+      viewH: 6.2,              // ppm = min(W ÷ (court + both walls), H ÷ this)
+      floorAt: 0.8,            // the floor line sits this far down the screen
+      drift: 0.35,             // the view drifts toward the ball at most this far (m)...
+      driftOmega: 2.2,         // ...with this spring frequency (damped)
+      punchIn: 0.04,           // punch-in on dunks and blocks
+    },
   },
   fx: {
     hitStop: { dunk: 70, block: 90, ankle: 50 }, // hit-stop durations (ms)
@@ -1568,6 +1594,7 @@ Object.assign(ART, {
   glowAlpha: 0.25,           // backlight glow strength
   numberContrast: 0.3,       // the jersey number uses the trim color only if it is light (dark on light jerseys) and its luminance differs from the jersey by this much, else white (ink on light jerseys)
   shadowAlpha: 0.45,         // floor shadow strength
+  ballViewEase: 22,          // Legends View: a held ball eases between the drawn (scaled) hands and its real place at this rate (1/s)
 });
 // --- cached sprites ---
 let _shadowSprite = null, _glowSprite = null;
@@ -1579,8 +1606,20 @@ function glowSprite() { return _glowSprite || (_glowSprite = radialSprite(ART.gl
 // The §3.7 idle: rot turns the whole body about (px, py) (positive tips it backward), lean turns the upper body about the
 // pelvis, turn is a spin about the vertical axis, sx/sy squash about the feet.
 function restPose() { return { pelvis: { x: 0, y: 0.24, r: 0 }, chest: { x: 0, y: 0.36, r: 0 }, head: { x: 0, y: ART.headCenter, r: 0 }, handF: { x: ART.handRest[0], y: ART.handRest[1], pose: 'relaxed', r: 0.15 }, handB: { x: ART.handRestB[0], y: ART.handRestB[1], pose: 'relaxed', r: 0.15 }, footF: { x: 0.07, y: 0, r: 0 }, footB: { x: -0.07, y: 0, r: 0 }, sx: 1, sy: 1, rot: 0, px: 0, py: 0, lean: 0, turn: 0, hemFlutter: 0 }; }
-// Ball position in the player's body units (H), or null.
-function ballLocal(p, ball, alpha) { if (!ball) return null; const bx = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha), by = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha); const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha); const H = p.height || 1.9; return { x: (bx - x) * (p.facing < 0 ? -1 : 1) / H, y: (by - y) / H }; }
+// §2 Legends View draws characters LAYOUT.legends.visualScale taller about their feet; hitboxes, reach and the ball stay
+// real. A ball in the hands is drawn in the same scaled frame so it sits in the drawn hands (ball.visDX/visDY, eased by
+// updateBallView); a ball at the rim (dunks, layups, tips), just caught or loose is drawn where it really is.
+function visualScaleOf(p) { return p && p.match && p.match.layoutId === 'legends' ? LAYOUT.legends.visualScale : 1; }
+function drawHeightOf(p) { return (p && p.height > 0.5 ? p.height : 1.9) * visualScaleOf(p); }
+const BALL_AT_WORLD = { dunk: 1, rimhang: 1, layup: 1, tipin: 1, catch: 1 };
+function updateBallView(ball) {
+  if (!ball) return; const now = performance.now(), dt = clamp((now - (ball.visT || now)) / 1000, 0, 0.1); ball.visT = now;
+  const o = ball.owner, V = visualScaleOf(o); let tx = 0, ty = 0;
+  if (o && V !== 1 && !BALL_AT_WORLD[o.state]) { tx = (ball.x - o.x) * (V - 1); ty = Math.max(0, ball.y - o.y - BALL.radius) * (V - 1); }
+  const k = 1 - Math.exp(-dt * ART.ballViewEase); ball.visDX = (ball.visDX || 0) + (tx - (ball.visDX || 0)) * k; ball.visDY = (ball.visDY || 0) + (ty - (ball.visDY || 0)) * k;
+}
+// Ball position in the player's body units (the drawn height), or null.
+function ballLocal(p, ball, alpha) { if (!ball) return null; const bx = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0), by = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0); const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha); const H = drawHeightOf(p); return { x: (bx - x) * (p.facing < 0 ? -1 : 1) / H, y: (by - y) / H }; }
 function poseFor(p, alpha, ball) { return rigPoseFor(p, alpha, ball); }
 
 // --- the kit ---
@@ -1693,7 +1732,7 @@ function drawJersey(ctx, P, lw, kit, number) {
 
 // --- the whole character ---
 function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
-  opts = opts || {}; const a = p.anim || (p.anim = {}); const H = p.height > 0.5 ? p.height : 1.9; const f = p.facing < 0 ? -1 : 1;
+  opts = opts || {}; const a = p.anim || (p.anim = {}); const H = drawHeightOf(p); const f = p.facing < 0 ? -1 : 1;
   const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
   const s = cam.scale(z), k = s * H, ox = cam.sx(x), oy = cam.sy(y, z); if (!isFinite(ox) || !isFinite(oy) || !(k > 2)) return;
   const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k);
@@ -1820,7 +1859,7 @@ function gripCarry(P, c, follow) { if (!c.holding) return; if (c.dribbling) grip
 // --- the clip context: everything a clip reads, gathered once per frame ---
 function rigNow(p, alpha) { return p.rigTime != null ? p.rigTime : (p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : performance.now() / 1000); }
 function rigContext(p, alpha, ball, now) {
-  const a = p.anim || (p.anim = {}), H = p.height > 0.5 ? p.height : 1.9, f = p.facing < 0 ? -1 : 1;
+  const a = p.anim || (p.anim = {}), H = drawHeightOf(p), f = p.facing < 0 ? -1 : 1; // body units are the drawn height: world anchors (rim, ball, reach) land on their real points
   const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
   const bl = ballLocal(p, ball, alpha), holding = !!(ball && ball.owner === p && bl), sd = p.sd || {}, hoop = p.hoop;
   const rim = hoop && isFinite(hoop.x) ? { x: (hoop.x - f * W.rimInnerRadius * 0.8 - x) * f / H, y: (RIM_Y - y) / H } : null;
@@ -2051,7 +2090,7 @@ function rigExpression(p, m, dt) {
 
 // --- motion-trail ghosts: simple team-color silhouettes of recent poses ---
 function drawTrail(ctx, cam, p, col, now) {
-  const tr = p.anim && p.anim.trail; if (!tr || tr.length < 2) return; const H = p.height > 0.5 ? p.height : 1.9; let n = 0;
+  const tr = p.anim && p.anim.trail; if (!tr || tr.length < 2) return; const H = drawHeightOf(p); let n = 0;
   for (let i = tr.length - 1; i >= 0 && n < ART.trail.length; i--) { const s = tr[i]; if (now - s.t < 0.012) continue; drawGhost(ctx, cam, s, H, col, ART.trail[n]); n++; }
 }
 function drawGhost(ctx, cam, s, H, col, al) {
@@ -2388,12 +2427,75 @@ class AudioSys {
 // SECTION: PHYSICS — ball integration (exact constant-acceleration, substepped), colliders, look-ahead
 // ============================================================================
 const W = CONFIG.world, BALL = CONFIG.ball;
-const COURT_L = W.courtLength, WALL_L = -W.wallPad, WALL_R = W.courtLength + W.wallPad, RIM_Y = W.rimHeight, RIM_R = W.rimInnerRadius;
+let COURT_L = W.courtLength, WALL_L = -W.wallPad, WALL_R = W.courtLength + W.wallPad; const RIM_Y = W.rimHeight, RIM_R = W.rimInnerRadius;
 // Hoop geometry. dir = +1 for the right hoop (its backboard is to the right of the rim), -1 for the left hoop.
 function makeHoop(x, dir) {
   return { x, dir, y: RIM_Y, frontX: x - dir * RIM_R, backX: x + dir * RIM_R, boardX: x + dir * W.boardOffset, boardBottom: W.boardBottom, boardTop: W.boardTop, side: dir > 0 ? 'right' : 'left' };
 }
 const HOOPS = [makeHoop(W.hoopInset, -1), makeHoop(W.courtLength - W.hoopInset, 1)];
+
+// --- §2 court layouts ---
+// Classic is CONFIG.world as authored. Legends View (1v1 only) is a 13 m court seen whole. useLayout() rewrites the court
+// geometry, the two hoops (in place: every system holds these objects) and a registry of gameplay values, so physics,
+// rules, the AI and the camera all read one layout. In Legends, horizontal speeds and distances scale by h (vertical
+// stays real); distances between two players scale by h beyond body contact (LP), because the contact distance itself
+// grows for the bigger drawn bodies; places on the court tied to the arc scale with the 3-point radius (LR). The base
+// values are captured once, so Classic always comes back exactly as authored.
+const LAYOUT_SCALED = {
+  h: ['player.runSpeed', 'player.sprintSpeed', 'player.accel', 'player.friction', 'player.backdownSpeed', 'height.postPerM',
+    'shot.dunkRange', 'shot.dunkMinSpeed', 'shot.layupRange', 'shot.floaterRange', 'shot.floaterMinSpeed', 'shot.hookRange', 'shot.fadeSpeed',
+    'contest.proxRange', 'contest.lanePenalty', 'block.swatSpeed', 'block.rimRange', 'duel.knockback',
+    'defense.squareMaxVel', 'defense.autoSquareMaxVel', 'defense.bodyUpSpeed', 'defense.bodyUpPush', 'defense.chargePlantedVel', 'defense.chargeRestrictedR', 'defense.bumpKnockback', 'defense.bumpMinSpeed', 'defense.separate',
+    'moves.jabSpeed', 'moves.spinSpeed', 'moves.stepbackDist', 'moves.hesiMaxSpeed', 'ankle.wrongWayVel', 'steal.popSpeed',
+    'pass.chestSpeed', 'pass.bounceSpeed', 'pass.maxLead', 'pass.alleyRange', 'pass.accuracyNoise', 'rebound.putbackRange', 'rebound.boxOutReach',
+    'post.range', 'post.dropSpeed', 'post.upUnderSpeed', 'arcade.shove.push',
+    'ai.helpTriggerDist', 'ai.containSpeed', 'ai.holdLineDist', 'ai.lobMinDist', 'ai.postShootDist', 'ai.recoverAhead', 'ai.cushionMax', 'ai.rimRecoverDist', 'ai.rimSpot', 'ai.cutInLead'],
+  ih: ['duel.speedBonusPer'],                                                   // per m/s: the scaled approach speed earns the same bonus
+  g: ['contest.proxNear', 'contest.posNear', 'defense.squareRange', 'defense.autoStanceRange', 'moves.spinRange', 'ankle.range', 'steal.nearRange',
+    'pass.overheadRange', 'pass.autoBounceMin', 'pass.autoBounceEnd', 'post.defRange', 'arcade.shove.range', 'rules.inboundDist', 'rules.checkGap',
+    'ai.sagMin', 'ai.sagMax', 'ai.soloSagMax', 'ai.stanceRange', 'ai.openThreshold', 'ai.offBallSagBase', 'ai.soloApproachMinGap', 'ai.flyCloseout', 'ai.rimJumpDist', 'ai.chargeSlowDist',
+    'harness.openDist', 'harness.defGap'],
+  // reaches that end at the other player's ball: the whole span from body center to the ball scales as a gap (LP), less
+  // the parts that stay real (a jumper leaves 0.12 m in front of the shooter, hand + ball radii 0.37 m; the dribble sits
+  // 0.36 m out and the swipe box has a 0.1 m pad that scales)
+  fn: { 'block.handForward': b => LP(b + 0.49) - 0.49, 'steal.reach': b => LP(b + 0.46) - 0.36 - LX(0.1) },
+  r: ['shot.bankMin', 'shot.bankMax', 'ai.spots.dunker', 'ai.spots.shortMid', 'ai.spots.arc', 'ai.spots.deepTop', 'ai.pickupDist', 'ai.pickupDistSolo', 'ai.pickupDistSoloBig',
+    'ai.soloSpotShooter', 'ai.soloSpotOther', 'harness.threeSpot'],
+};
+const _layoutBase = {}; const CONTACT0 = CONFIG.defense.contactDist;
+function cfgRef(path) { const k = path.split('.'); let o = CONFIG; for (let i = 0; i < k.length - 1; i++) o = o[k[i]]; return [o, k[k.length - 1]]; }
+const layoutPaths = kind => kind === 'fn' ? Object.keys(LAYOUT_SCALED.fn) : LAYOUT_SCALED[kind];
+(function () { for (const kind in LAYOUT_SCALED) for (const path of layoutPaths(kind)) { const [o, k] = cfgRef(path); _layoutBase[path] = o[k]; }
+  for (const k of ['zoneThree', 'zoneDeep', 'heaveRange', 'apexBase']) _layoutBase['shot.' + k] = CONFIG.shot[k]; _layoutBase['rules.checkDist'] = CONFIG.rules.checkDist; })();
+const LAYOUT = {
+  classic: { id: 'classic', legends: false, courtLength: W.courtLength, hoopInset: W.hoopInset, wallPad: W.wallPad, threeLine: W.threeLine, ftLine: W.ftLine, h: 1, contactDist: CONTACT0, visualScale: 1 },
+  legends: Object.assign({ id: 'legends', legends: true }, CONFIG.layout.legends),
+};
+let LAY = { id: '', legends: false, h: 1, ih: 1, r3: 1, contact: CONTACT0, V: 1 };
+function layout() { return LAY; }
+function LX(v) { return v * LAY.h; }                                                 // a horizontal speed or distance (along the floor, to the hoop)
+function LR(v) { return v * LAY.r3; }                                                // a place on the court tied to the arc
+function LP(v) { return LAY.legends ? LAY.contact + (v - CONTACT0) * LAY.h : v; }    // a distance between two players: scaled beyond body contact
+function useLayout(id) {
+  const L = LAYOUT[id] || LAYOUT.classic, C = LAYOUT.classic; if (LAY.id === L.id) return LAY;
+  W.courtLength = L.courtLength; W.hoopInset = L.hoopInset; W.wallPad = L.wallPad; W.threeLine = L.threeLine; W.ftLine = L.ftLine;
+  COURT_L = L.courtLength; WALL_L = -L.wallPad; WALL_R = L.courtLength + L.wallPad;
+  const place = (H, x) => { H.x = x; H.frontX = x - H.dir * RIM_R; H.backX = x + H.dir * RIM_R; H.boardX = x + H.dir * W.boardOffset; };
+  place(HOOPS[0], L.hoopInset); place(HOOPS[1], L.courtLength - L.hoopInset);
+  const h = L.h, r3 = L.threeLine / C.threeLine, contact = L.contactDist;
+  LAY = { id: L.id, legends: !!L.legends, h, ih: 1 / h, r3, contact, V: L.visualScale || 1, checkDist: L.checkDist, halfLine: L.halfLine };
+  for (const kind in LAYOUT_SCALED) for (const path of layoutPaths(kind)) { const [o, k] = cfgRef(path), b = _layoutBase[path]; o[k] = !L.legends ? b : kind === 'h' ? b * h : kind === 'ih' ? b / h : kind === 'r' ? b * r3 : kind === 'fn' ? LAYOUT_SCALED.fn[path](b) : LP(b); }
+  const S = CONFIG.shot, B = _layoutBase;
+  if (L.legends) { const z = L.zones, R = L.threeLine; S.zoneThree = R * z[0]; S.zoneDeep = R * z[1]; S.heaveRange = R * z[2]; S.apexBase = L.apexBase; CONFIG.rules.checkDist = L.checkDist; }
+  else { S.zoneThree = B['shot.zoneThree']; S.zoneDeep = B['shot.zoneDeep']; S.heaveRange = B['shot.heaveRange']; S.apexBase = B['shot.apexBase']; CONFIG.rules.checkDist = B['rules.checkDist']; }
+  CONFIG.defense.contactDist = contact;
+  if (L.legends && L.tune) for (const path in L.tune) { const [o, k] = cfgRef(path); o[k] = L.tune[path]; } // (every tuned path is in the registry above, so Classic restores it)
+  return LAY;
+}
+function ensureLayout(m) { const id = (m && m.layoutId) || 'classic'; if (LAY.id !== id) useLayout(id); }
+// Street half court: the lowest x a player may stand at (the midcourt line less a pad; Legends: a line past it, the short court's midcourt line is inside the check spot).
+function halfCourtMinX() { return LAY.legends ? HOOPS[1].x - LAY.halfLine : COURT_L / 2 - CONFIG.rules.midlinePad; }
+useLayout('classic');
 
 // Ball state used both by the live ball and by scratch balls for look-ahead.
 function makeBallState() { return { x: 12, y: 1, z: 0.5, vx: 0, vy: 0, armed: false, fromBelow: false, spin: 0, restT: 0 }; }
@@ -2433,7 +2535,7 @@ function ballSubstep(b, dt, contact, heads, nHeads) {
   // hoops
   for (let h = 0; h < 2; h++) {
     const H = HOOPS[h];
-    if (Math.abs(b.x - H.x) > 1.6 || b.y < 1.9 || b.y > 5.5) continue;
+    if (Math.abs(b.x - H.x) > 1.6 || b.y < 1.9 || b.y > 5.5) continue; // (real meters: the ball and the rim keep real physics in every layout)
     // backboard: vertical segment at H.boardX between boardBottom and boardTop, ball approaches from the rim side
     if (b.y + r > H.boardBottom && b.y - r < H.boardTop) {
       const dxb = (b.x - H.boardX) * H.dir; // negative = on the rim side of the board
@@ -2694,6 +2796,7 @@ class Match {
     this.possession = 0; this.lastScorer = null; this.ended = false; this.winner = -1; this.hintCounts = {}; this.buzzerPending = false; this.deadReason = ''; this.pendingInbound = -1; this.ftState = null; this.tipT = 0; this.callouts = []; this.lastShot = null; this.humanTeam = o.humanTeam == null ? 0 : o.humanTeam;
     this.sidesSwapped = false; this.lastPasser = null; this.lastPassT = -9; this.posStartT = 0; this.periodPossession = [0, 0]; this.stallT = 0; this.replayHold = 0; this.replayRequested = false;
     this.snapshots = null; this.replay = null; this.heads = []; this.contact = makeContact(); this.invariantFails = {}; this.invariantCount = 0; this.dev = !!o.dev; this.slowMoT = 0;
+    this.layoutId = o.layout === 'legends' && this.perSide === 1 && !this.contest3 ? 'legends' : 'classic'; useLayout(this.layoutId); // §2: Legends View is 1v1 only; 2v2 and up and the 3-point contest stay Classic
     this.build();
   }
   hoopFor(team) { if (this.halfCourt) return HOOPS[1]; const rightTeam = this.opts.rightTeam != null ? this.opts.rightTeam : (this.humanTeam >= 0 ? this.humanTeam : 0); const attackRight = (team === rightTeam) !== this.sidesSwapped; return attackRight ? HOOPS[1] : HOOPS[0]; }
@@ -2733,7 +2836,7 @@ class Match {
     for (let t = 0; t < 2; t++) {
       const team = this.teams[t]; const dir = sgn(this.hoopFor(t).x - mid); // toward the hoop we attack; we line up on our own half
       const sorted = team.players.slice().sort((a, b) => b.height - a.height);
-      sorted.forEach((p, i) => { p.x = mid - dir * (i === 0 ? 0.55 : 2.2 + i * 1.3); p.y = 0; p.vx = 0; p.vy = 0; p.grounded = true; p.lane = [1, 0, 2, 0, 2][i]; p.z = W.lanes[p.lane]; p.zTarget = p.z; p.facing = dir; p.setState('idle'); p.tipoff = i === 0; p.px = p.x; p.py = p.y; });
+      sorted.forEach((p, i) => { p.x = mid - dir * (i === 0 ? LP(1.1) / 2 : LX(2.2 + i * 1.3)); p.y = 0; p.vx = 0; p.vy = 0; p.grounded = true; p.lane = [1, 0, 2, 0, 2][i]; p.z = W.lanes[p.lane]; p.zTarget = p.z; p.facing = dir; p.setState('idle'); p.tipoff = i === 0; p.px = p.x; p.py = p.y; });
     }
     this.ball.setOwner(null); this.ball.mode = 'loose'; this.ball.x = mid; this.ball.y = 1.2; this.ball.vx = 0; this.ball.vy = 0; this.ball.z = 0.5;
   }
@@ -2781,8 +2884,8 @@ function setLane(p, lane) {
 function checkLaneAnkle(p, fromLane) {
   const m = p.match, A_ = CONFIG.ankle, ops = m.opponentsOf(p);
   for (let i = 0; i < ops.length; i++) {
-    const d = ops[i]; if (Math.abs(d.x - p.x) > A_.range || !d.grounded || d.inState('stumble', 'knocked')) continue;
-    const sliding = Math.abs(d.z - d.zTarget) > 0.06 && Math.abs(d.zTarget - LANES[fromLane]) < 0.05;
+    const d = ops[i], q = d.s0 || d; if (Math.abs(q.x - p.x) > A_.range || !q.grounded || q.state === 'stumble' || q.state === 'knocked') continue; // the defender as he stood when this step began
+    const sliding = Math.abs(q.z - d.zTarget) > 0.06 && Math.abs(d.zTarget - LANES[fromLane]) < 0.05;
     if (!sliding && !d.recovering) continue;
     let chance = clamp(A_.base + A_.ratingSlope * (p.attrs.han - d.attrs.def) + (d.recovering ? A_.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.height < HT.smallGuard ? HT.smallAnkle : 0) + (p.traits.snatcher ? CONFIG.career.trait.snatcher : 0), 0, A_.max) * 0.8;
     const roll = m.rng.next();
@@ -2792,12 +2895,12 @@ function checkLaneAnkle(p, fromLane) {
 // A human defender guarding the ball automatically slides into the handler's lane (a beat behind, so fakes still work).
 function mirrorLane(p, dt) {
   if (!p.controlled) return; const m = p.match, h = m.ball.owner; if (!h || h.team === p.team) return;
-  if (Math.abs(h.x - p.x) > 2.6 || !p.grounded) return;
+  if (Math.abs(h.x - p.x) > LP(2.6) || !p.grounded) return;
   const want = laneOf(h.z); if (want === laneOf(p.zTarget)) { p.mirrorT = 0; return; }
   p.mirrorT = (p.mirrorT || 0) + dt; if (p.mirrorT >= DF.humanMirrorDelay) { p.mirrorT = 0; p.lane = want; p.zTarget = LANES[want]; p.laneT = m.time; }
 }
 // The post game: a defender on your back (between you and the hoop), near the block, and at least 3 in. of height on him.
-function postDefender(p) { const ops = p.match.opponentsOf(p), dir = p.dirToHoop(); let best = null, bd = PG.defRange; for (let i = 0; i < ops.length; i++) { const o = ops[i]; if (o.hidden || Math.abs(o.z - p.z) > W.laneShare) continue; const d = Math.abs(o.x - p.x); if (d < bd && (o.x - p.x) * dir > -0.2) { bd = d; best = o; } } return best; }
+function postDefender(p) { const ops = p.match.opponentsOf(p), dir = p.dirToHoop(); let best = null, bd = PG.defRange; for (let i = 0; i < ops.length; i++) { const o = ops[i]; if (o.hidden || Math.abs(o.z - p.z) > W.laneShare) continue; const d = Math.abs(o.x - p.x); if (d < bd && (o.x - p.x) * dir > -LX(0.2)) { bd = d; best = o; } } return best; }
 function canPost(p) { if (Math.abs(p.x - p.hoop.x) > PG.range) return null; const d = postDefender(p); return d && p.height - d.height >= PG.minEdge - 1e-6 ? d : null; }
 function dropStepChance(p, d) { return clamp(PG.dropBase + PG.dropStrSlope * (p.attrs.str - d.attrs.str) + PG.dropEdgePerDh * (p.height - d.height - PG.minEdge) / 0.1 + (d.offBalance ? 0.2 : 0), PG.dropMin, PG.dropMax); }
 // A spin into a close defender: Handling against Defense, easier off a defender who is leaning on you.
@@ -2817,7 +2920,7 @@ function updatePlayer(p, dt) {
   p.slipDragT = Math.max(0, p.slipDragT - dt); p.plantT = p.grounded && p.state === 'stance' && Math.abs(p.vx) < DF.chargePlantedVel ? p.plantT + dt : 0; // how long a defender has been set (charges)
   p.stateT += dt; if (!p.grounded) p.airT += dt;
   // stamina
-  const sprinting = I.sprint && Math.abs(p.vx) > 2 && p.grounded && !(m.practice && m.practice.infiniteStamina);
+  const sprinting = I.sprint && Math.abs(p.vx) > LX(2) && p.grounded && !(m.practice && m.practice.infiniteStamina);
   if (sprinting) p.stamina = Math.max(0, p.stamina - S.sprintCost * (p.traits.ironman ? CONFIG.career.trait.ironman : 1) * dt); else p.stamina = Math.min(S.max, p.stamina + S.regen * dt);
   if (m.practice && m.practice.infiniteStamina) p.stamina = S.max;
   // lanes: the human (or a bot) asks for a lane; z eases toward it
@@ -2855,7 +2958,7 @@ function stepStateMachine(p, dt) {
           if (p.passBuf > 0 && m.teammatesOf(p).length > 1) { p.passBuf = 0; startPass(p, I.holdPass >= CONFIG.pass.lobHoldMs / 1000); break; }
           if (p.passBuf > 0) { p.passBuf = 0; startShot(p, 'fade'); break; } // 1v1: Pass is the fadeaway
           if (p.actionBuf > 0) { p.actionBuf = 0; if (startMove(p)) break; }
-          if (I.sprintP && Math.abs(p.vx) < MV.hesiMaxSpeed && Math.abs(p.vx) > 0.3 && p.moves.hesitation && p.state !== 'protect') { startNamedMove(p, 'hesitation'); break; }
+          if (I.sprintP && Math.abs(p.vx) < MV.hesiMaxSpeed && Math.abs(p.vx) > LX(0.3) && p.moves.hesitation && p.state !== 'protect') { startNamedMove(p, 'hesitation'); break; }
         } else {
           if (p.actionBuf > 0) { p.actionBuf = 0; if (startDefensiveAction(p)) break; }
         }
@@ -2867,7 +2970,7 @@ function stepStateMachine(p, dt) {
       // jump (block jump on defense, plain jump with the ball, rebound jump)
       if (p.jumpBuf > 0 && (p.grounded || p.coyote > 0) && !(p.pickedUp && hasBall && !m.arcade)) { p.jumpBuf = 0; doJump(p, 1, 'jump'); }
       // lob catch: auto-jump when an alley-oop lob is arriving
-      if (p.grounded && ball.pass && ball.pass.to === p && ball.pass.type === 'lob' && ball.mode === 'flight') { const dxb = Math.abs(ball.x - p.x); const tHit = ball.vy < 0 ? (ball.y - (p.y + p.reach)) / -ball.vy : 9; if (dxb < 1.4 && ball.vy < 0 && tHit < 0.42) doJump(p, 1, 'jump'); }
+      if (p.grounded && ball.pass && ball.pass.to === p && ball.pass.type === 'lob' && ball.mode === 'flight') { const dxb = Math.abs(ball.x - p.x); const tHit = ball.vy < 0 ? (ball.y - (p.y + p.reach)) / -ball.vy : 9; if (dxb < LX(1.4) && ball.vy < 0 && tHit < 0.42) doJump(p, 1, 'jump'); }
       break;
     }
     case 'jump': case 'fall': {
@@ -2897,7 +3000,7 @@ function stepStateMachine(p, dt) {
       break;
     }
     case 'layup': {
-      if (!sd.released) { const closeToRim = Math.abs(p.x - p.hoop.x) < 0.9 && p.vy < 2.5; if (p.stateT >= sd.tApex * 0.9 || closeToRim || (p.grounded && p.stateT > 0.05)) releaseShot(p, 0); }
+      if (!sd.released) { const closeToRim = Math.abs(p.x - p.hoop.x) < LX(0.9) && p.vy < 2.5; if (p.stateT >= sd.tApex * 0.9 || closeToRim || (p.grounded && p.stateT > 0.05)) releaseShot(p, 0); }
       else if (p.grounded && p.stateT > 0.05) land(p);
       break;
     }
@@ -3006,7 +3109,7 @@ function land(p) {
   if (p.hasBall) { p.pickedUp = true; p.pickedUpT = 0; }
   m.bus.emit('LAND', { player: p, speed: -p.prevVy });
 }
-function nearRimForTip(p) { const b = p.match.ball; return Math.abs(p.x - p.hoop.x) < 1.6 && b.y > RIM_Y - 0.3; }
+function nearRimForTip(p) { const b = p.match.ball; return Math.abs(p.x - p.hoop.x) < LX(1.6) && b.y > RIM_Y - 0.3; }
 function startTipOrPutback(p) {
   const d = Math.abs(p.x - p.hoop.x), b = p.match.ball;
   if (d < CONFIG.rebound.putbackRange && b.y > RIM_Y && canDunk(p) && p.vy > -1) { p.setState('dunk', { style: pickDunkStyle(p), fromAir: true, wasAir: true, tApex: 0.1 }); p.match.bus.emit('DUNK_START', { player: p }); }
@@ -3068,7 +3171,7 @@ function integrateBody(p, dt) {
   if (p.y <= 0) { if (!p.grounded) { p.grounded = true; p.sd.wasAir = true; onTouchGround(p); } p.y = 0; if (p.vy < 0) p.vy = 0; }
   else if (p.y > 0.001 && p.grounded) { p.grounded = false; }
   // court bounds (players can't go into the padded walls; street half court: they stay on the hoop's half)
-  const minX = p.match.halfCourt ? COURT_L / 2 - CONFIG.rules.midlinePad : WALL_L + 0.5, maxX = WALL_R - 0.5; if (p.x < minX) { p.x = minX; if (p.vx < 0) p.vx = 0; } if (p.x > maxX) { p.x = maxX; if (p.vx > 0) p.vx = 0; }
+  const minX = p.match.halfCourt ? halfCourtMinX() : WALL_L + 0.5, maxX = WALL_R - 0.5; if (p.x < minX) { p.x = minX; if (p.vx < 0) p.vx = 0; } if (p.x > maxX) { p.x = maxX; if (p.vx > 0) p.vx = 0; }
   // inbound hold: defenders held back
   const m = p.match; if (m.inboundHoldT > 0 && m.inboundPlayer && p.team !== m.inboundPlayer.team) { const ip = m.inboundPlayer, d = p.x - ip.x; const need = CONFIG.rules.inboundDist * sgn(d || ip.dirToHoop()); if (Math.abs(d) < CONFIG.rules.inboundDist) { p.x = ip.x + need; p.vx = 0; } }
 }
@@ -3094,12 +3197,12 @@ function updateDribble(p, dt) {
   const D = PC.dribble, st = p.state, d = p.dribble;
   const dribbling = p.grounded && !p.pickedUp && (st === 'move' || st === 'stance' || st === 'protect' || st === 'burst' || st === 'crossover' || st === 'spin' || st === 'stepback' || st === 'hesitation' || st === 'celebrate' || st === 'catch' || st === 'land' || st === 'dropstep' || st === 'upunder');
   if (dribbling) {
-    const sp = Math.abs(p.vx); const cycle = sp < 0.5 ? D.cycleIdle : (sp > PC.runSpeed * 0.9 ? D.cycleSprint : D.cycleWalk);
+    const sp = Math.abs(p.vx); const cycle = sp < LX(0.5) ? D.cycleIdle : (sp > PC.runSpeed * 0.9 ? D.cycleSprint : D.cycleWalk);
     const prev = d.phase; d.phase += dt / cycle; if (Math.floor(d.phase) !== Math.floor(prev)) { d.bounced = true; p.match.bus.emit('DRIBBLE_BOUNCE', { player: p, speed: 3 + sp * 0.3 }); }
     const f = d.phase - Math.floor(d.phase); const h = Math.abs(Math.sin(f * Math.PI));
-    let side = d.side; const tbD = p.match.teams[1 - p.team].brain; const op = (tbD && tbD.onBallDefender) || p.match.nearestOpponent(p); const attacking = st === 'burst' || (p.input.sprint && sp > 3) || st === 'spin' || st === 'stepback';
-    if (st === 'protect' || st === 'spin' || st === 'dropstep' || st === 'upunder') { if (op) side = -sgn(op.x - p.x) || side; d.side = side; } // shield the ball with the body (a spin swings it around the back)
-    else if (st !== 'crossover' && st !== 'hesitation') { if (attacking) side = p.facing; else if (op && Math.abs(op.x - p.x) < 2.5 && Math.abs(op.z - p.z) < W.laneShare + 0.2) side = -sgn(op.x - p.x) || side; else side = p.facing; d.side = side; }
+    let side = d.side; const tbD = p.match.teams[1 - p.team].brain; const op = (tbD && tbD.onBallDefender) || p.match.nearestOpponent(p); const attacking = st === 'burst' || (p.input.sprint && sp > LX(3)) || st === 'spin' || st === 'stepback';
+    if (st === 'protect' || st === 'spin' || st === 'dropstep' || st === 'upunder') { if (op) side = -sgn((op.s0 || op).x - p.x) || side; d.side = side; } // shield the ball with the body (a spin swings it around the back)
+    else if (st !== 'crossover' && st !== 'hesitation') { const oq = op && (op.s0 || op); if (attacking) side = p.facing; else if (op && Math.abs(oq.x - p.x) < LP(2.5) && Math.abs(oq.z - p.z) < W.laneShare + 0.2) side = -sgn(oq.x - p.x) || side; else side = p.facing; d.side = side; }
     let sx = side * D.sideOffset;
     if (st === 'crossover') { const c = d.cross; sx = lerp(-p.sd.dir * D.sideOffset, p.sd.dir * D.sideOffset, easeInOutQuad(c)); }
     if (st === 'hesitation') sx = side * D.sideOffset * 0.6;
@@ -3127,7 +3230,7 @@ function updateDribble(p, dt) {
 // --- dribble moves ---
 function startMove(p) {
   const I = p.input, m = p.match; if (!canDribbleMove(p)) return false;
-  const dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > 0.5 ? sgn(p.vx) : p.dirToHoop());
+  const dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > LX(0.5) ? sgn(p.vx) : p.dirToHoop());
   let name;
   if (p.state === 'protect' && canPost(p)) name = 'dropstep';
   else if (I.sprint && p.moves.spin) name = 'spin';
@@ -3137,16 +3240,16 @@ function startMove(p) {
 }
 function startNamedMove(p, name, dir) {
   const m = p.match, I = p.input;
-  if (dir == null) dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > 0.5 ? sgn(p.vx) : p.dirToHoop());
+  if (dir == null) dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > LX(0.5) ? sgn(p.vx) : p.dirToHoop());
   const repeat = p.lastMove === name && (m.time - p.lastMoveT) < MV.repeatWindowS;
   p.stamina = Math.max(0, p.stamina - PC.stamina.moveCost);
   const sd = { dir, repeat, phase: 'startup' };
-  if (name === 'spin') { const op = m.nearestOpponent(p); sd.closeDef = !!(op && Math.abs(op.x - p.x) < MV.spinRange && Math.abs(op.z - p.z) < W.laneShare); sd.dir = p.dirToHoop(); if (sd.closeDef) { sd.def = op; sd.beat = m.rng.next() < spinChance(p, op); } }
+  if (name === 'spin') { const op = m.nearestOpponent(p), oq = op && (op.s0 || op); sd.closeDef = !!(op && Math.abs(oq.x - p.x) < MV.spinRange && Math.abs(oq.z - p.z) < W.laneShare); sd.dir = p.dirToHoop(); if (sd.closeDef) { sd.def = op; sd.beat = m.rng.next() < spinChance(p, op); } }
   if (name === 'stepback') sd.dir = p.dirToHoop();
   if (name === 'dropstep') { sd.dir = p.dirToHoop(); const d = postDefender(p); sd.def = d; sd.beat = !!d && m.rng.next() < dropStepChance(p, d); }
   if (name === 'upunder') { sd.dir = p.dirToHoop(); const d = postDefender(p); sd.def = d; sd.beat = !!d && m.rng.next() < (d.biteT > 0 || !d.grounded ? PG.upUnderBit : PG.upUnderBase); }
   if (name === 'crossover') { sd.dir = dir; }
-  if (name === 'hesitation') { sd.dir = Math.abs(p.vx) > 0.3 ? sgn(p.vx) : p.dirToHoop(); }
+  if (name === 'hesitation') { sd.dir = Math.abs(p.vx) > LX(0.3) ? sgn(p.vx) : p.dirToHoop(); }
   p.setState(name, sd); p.lastMove = name; p.lastMoveT = m.time; p.facing = sd.dir; p.stats.moves++;
   m.bus.emit('MOVE', { player: p, move: name, dir: sd.dir, repeat });
   return true;
@@ -3155,16 +3258,16 @@ function startNamedMove(p, name, dir) {
 function checkAnkleBreak(p, newDir) {
   const m = p.match, A = CONFIG.ankle, ops = m.opponentsOf(p);
   for (let i = 0; i < ops.length; i++) {
-    const d = ops[i]; if (Math.abs(d.x - p.x) > A.range || Math.abs(d.z - p.z) > W.laneShare || !d.grounded) continue;
-    if (d.inState('stumble', 'knocked')) continue;
-    const wrongWay = d.vx * newDir < -A.wrongWayVel; const recovering = d.recovering || d.biteT > 0;
+    const d = ops[i], q = d.s0 || d; if (Math.abs(q.x - p.x) > A.range || Math.abs(q.z - p.z) > W.laneShare || !q.grounded) continue; // the defender as he stood when this step began
+    if (q.state === 'stumble' || q.state === 'knocked') continue;
+    const wrongWay = q.vx * newDir < -A.wrongWayVel; const recovering = d.recovering || d.biteT > 0;
     if (!wrongWay && !recovering) continue;
     let chance = clamp(A.base + A.ratingSlope * (p.attrs.han - d.attrs.def) + (recovering ? A.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.height < HT.smallGuard ? HT.smallAnkle : 0) + (p.traits.snatcher ? CONFIG.career.trait.snatcher : 0), 0, A.max);
     if (p.sd && p.sd.repeat) chance *= MV.repeatAnkleMul;
     const roll = m.rng.next();
     if (roll < chance) {
       const sit = roll < chance * A.sitDownFrac;
-      d.setState('stumble', { ms: sit ? FR.sitdown : FR.stumble, sit }); d.vx = -newDir * 1.5; d.anim.expr = 'shocked'; d.anim.exprT = 1.5; p.anim.expr = 'hyped'; p.anim.exprT = 1.2;
+      d.setState('stumble', { ms: sit ? FR.sitdown : FR.stumble, sit }); d.vx = -newDir * LX(1.5); d.anim.expr = 'shocked'; d.anim.exprT = 1.5; p.anim.expr = 'hyped'; p.anim.exprT = 1.2;
       p.stats.ankles++; m.bus.emit('ANKLE_BREAK', { player: p, victim: d, sit });
       return;
     }
@@ -3174,7 +3277,7 @@ function checkAnkleBreak(p, newDir) {
 // --- defense actions: steal near the handler, shove otherwise (Arcade) ---
 function startDefensiveAction(p) {
   const m = p.match, b = m.ball, h = b.owner;
-  if (h && h.team !== p.team && Math.abs(h.x - p.x) < CONFIG.steal.nearRange + 0.6 && Math.abs(h.z - p.z) < W.laneShare + 0.15) { p.setState('swipe', { phase: 'startup' }); p.facing = sgn(h.x - p.x) || p.facing; m.bus.emit('SWIPE', { player: p }); return true; }
+  const hq = h && (h.s0 || h); if (h && h.team !== p.team && Math.abs(hq.x - p.x) < CONFIG.steal.nearRange + LX(0.6) && Math.abs(hq.z - p.z) < W.laneShare + 0.15) { p.setState('swipe', { phase: 'startup' }); p.facing = sgn(hq.x - p.x) || p.facing; m.bus.emit('SWIPE', { player: p }); return true; }
   if (m.arcade && p.shoveCd <= 0) { p.setState('shove', {}); p.shoveCd = CONFIG.arcade.shove.cooldown; p.stamina = Math.max(0, p.stamina - PC.stamina.shoveCost); return true; }
   return false;
 }
@@ -3191,10 +3294,10 @@ function stealExposure(h, defender) {
 }
 function resolveSwipe(p) {
   const m = p.match, b = m.ball, h = b.owner, S = CONFIG.steal; if (!h || h.team === p.team) return false;
-  if (h.inState('jumpshot', 'layup', 'dunk', 'floater', 'rimhang', 'tipin')) return false;
-  if (Math.abs(h.z - p.z) > W.laneShare) return false;
-  const bx = b.x, by = b.y; const x0 = p.x, x1 = p.x + p.facing * S.reach;
-  const inBox = bx >= Math.min(x0, x1) - 0.1 && bx <= Math.max(x0, x1) + 0.1 && by >= S.boxLow && by <= S.boxHigh;
+  const hs = h.s0 || h; if (hs.state === 'jumpshot' || hs.state === 'layup' || hs.state === 'dunk' || hs.state === 'floater' || hs.state === 'rimhang' || hs.state === 'tipin') return false;
+  if (Math.abs(hs.z - p.z) > W.laneShare) return false;
+  const bx = b.s0x != null ? b.s0x : b.x, by = b.s0y != null ? b.s0y : b.y; const x0 = p.x, x1 = p.x + p.facing * S.reach; // the handler and ball as they were when this step began (update order must not matter)
+  const inBox = bx >= Math.min(x0, x1) - LX(0.1) && bx <= Math.max(x0, x1) + LX(0.1) && by >= S.boxLow && by <= S.boxHigh;
   if (!inBox) return false;
   if (p.sd.rolled) return false; p.sd.rolled = true;
   const e = stealExposure(h, p);
@@ -3224,7 +3327,7 @@ function resolveShove(p) {
   m.bus.emit('SHOVE', { player: p, victim: best });
 }
 function knockDown(p, ms) { p.setState('knocked', { ms }); p.anim.expr = 'shocked'; p.anim.exprT = 1.2; if (p.hasBall) popBallLoose(p, p.facing); p.match.bus.emit('KNOCKDOWN', { player: p }); }
-function popBallLoose(p, dir) { const b = p.match.ball; b.setOwner(null); b.mode = 'loose'; b.x = p.x + dir * 0.2; b.y = p.y + 0.9; b.vx = dir * 2 + p.vx * 0.5; b.vy = 2.5; b.z = p.z; b.lastTouch = p; b.lastTouchTeam = p.team; }
+function popBallLoose(p, dir) { const b = p.match.ball; b.setOwner(null); b.mode = 'loose'; b.x = p.x + dir * 0.2; b.y = p.y + 0.9; b.vx = dir * LX(2) + p.vx * 0.5; b.vy = 2.5; b.z = p.z; b.lastTouch = p; b.lastTouchTeam = p.team; }
 
 // ============================================================================
 // SECTION: MECHANICS (part 2) — shot selection, release timing, make model, roll-then-solve launch,
@@ -3269,13 +3372,13 @@ const _ct = { value: 0, by: null };
 function computeContest(shooter, releaseY) {
   const m = shooter.match, C = CONFIG.contest, ops = m.opponentsOf(shooter), hoop = shooter.hoop; let best = 0, by = null;
   for (let i = 0; i < ops.length; i++) {
-    const d = ops[i]; if (d.hidden || d.inState('stumble', 'knocked')) continue;
-    const dx = Math.abs(d.x - shooter.x) + Math.abs(d.z - shooter.z) * C.lanePenalty;
+    const d = ops[i], q = d.s0 || d; if (d.hidden || q.state === 'stumble' || q.state === 'knocked') continue; // the defender as he stood when this step began
+    const dx = Math.abs(q.x - shooter.x) + Math.abs(q.z - shooter.z) * C.lanePenalty;
     const prox = clamp01(1 - (dx - C.proxNear) / C.proxRange); if (prox <= 0) continue;
-    let vert; const handY = d.y + d.reach;
-    if (!d.grounded && handY >= releaseY - C.handsMargin) vert = C.vertAir; else if (d.state === 'stance' && d.grounded) vert = C.vertStance; else vert = C.vertOther;
+    let vert; const handY = q.y + d.reach;
+    if (!q.grounded && handY >= releaseY - C.handsMargin) vert = C.vertAir; else if (q.state === 'stance' && q.grounded) vert = C.vertStance; else vert = C.vertOther;
     vert += clamp((d.height - shooter.height) * C.heightBonus, -C.heightClamp, C.heightClamp); // size matters: a taller defender contests more
-    const between = (d.x - shooter.x) * (hoop.x - shooter.x) > 0 || Math.abs(d.x - shooter.x) < C.posNear;
+    const between = (q.x - shooter.x) * (hoop.x - shooter.x) > 0 || Math.abs(q.x - shooter.x) < C.posNear;
     const pos = between ? 1 : C.posBehind;
     const c = prox * vert * pos; if (c > best) { best = c; by = d; }
   }
@@ -3307,8 +3410,8 @@ function launchShotJump(p) {
   const v = jumpVelOf(p) * (sd.type === 'jumper' || sd.type === 'ft' ? 0.92 : (sd.type === 'hook' ? SH.hookJumpMul : 1)); const tApex = v / G;
   p.grounded = false; p.coyote = 0; p.airT = 0; p.vy = v; p.stamina = Math.max(0, p.stamina - PC.stamina.jumpCost); p.anim.squash = 0.85;
   if (sd.type === 'jumper' || sd.type === 'ft') { p.vx *= 0.25; if (sd.fade) p.vx = -dir * SH.fadeSpeed; p.setState('jumpshot', { type: sd.type, tApex, released: false, wasAir: true, stepback: sd.stepback, botRelease: false, quick: false, fade: !!sd.fade, btn: sd.btn }); }
-  else if (sd.type === 'hook') { p.vx = dir * 0.5; p.setState('floater', { type: 'hook', tApex, released: false, wasAir: true, botRelease: false }); m.bus.emit('HOOK', { player: p }); }
-  else if (sd.type === 'floater') { p.vx = dir * clamp(Math.abs(p.vx) * 0.6, 1.5, 4); p.setState('floater', { type: 'floater', tApex, released: false, wasAir: true, botRelease: false }); }
+  else if (sd.type === 'hook') { p.vx = dir * LX(0.5); p.setState('floater', { type: 'hook', tApex, released: false, wasAir: true, botRelease: false }); m.bus.emit('HOOK', { player: p }); }
+  else if (sd.type === 'floater') { p.vx = dir * clamp(Math.abs(p.vx) * 0.6, LX(1.5), LX(4)); p.setState('floater', { type: 'floater', tApex, released: false, wasAir: true, botRelease: false }); }
   else if (sd.type === 'layup') {
     p.zTarget = 0.5; const targetX = hoop.x - dir * 0.5; const vx = clamp((targetX - p.x) / tApex, -PC.sprintSpeed * 1.2, PC.sprintSpeed * 1.2); p.vx = vx;
     if (sd.euro) { p.zTarget = p.z < 0.5 ? LANES[0] : LANES[2]; sd.zBack = true; }
@@ -3361,11 +3464,11 @@ function rimProtect(m, p, shot) {
   const BK = CONFIG.block, C = CONFIG.contest, ops = m.opponentsOf(p), hoop = p.hoop; if (m.practice && m.practice.noDefender) return;
   const typeMul = shot.type === 'floater' ? BK.rimFloaterMul : (shot.type === 'hook' ? BK.rimHookMul : 1);
   for (let i = 0; i < ops.length; i++) {
-    const d = ops[i]; if (d.hidden || d.grounded || d.inState('stumble', 'knocked')) continue;
-    handPos(d, _hp); if (_hp.y < shot.y0 - BK.rimHandsMargin) continue;
-    const dx = Math.abs(_hp.x - shot.x0) + Math.abs(d.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
+    const d = ops[i], q = d.s0 || d; if (d.hidden || q.grounded || q.state === 'stumble' || q.state === 'knocked') continue;
+    handPos0(d, _hp); if (_hp.y < shot.y0 - BK.rimHandsMargin) continue;
+    const dx = Math.abs(_hp.x - shot.x0) + Math.abs(q.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
     const tried = shot.blockTried || (shot.blockTried = {}); if (tried[d.id]) continue; tried[d.id] = true;
-    const inFront = (d.x - p.x) * (hoop.x - p.x) > 0 || Math.abs(d.x - p.x) < C.posNear;
+    const inFront = (q.x - p.x) * (hoop.x - p.x) > 0 || Math.abs(q.x - p.x) < C.posNear;
     const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height) + (d.traits.eraser ? CONFIG.career.trait.eraser : 0), 0, BK.rimMax);
     const ch = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * typeMul; shot.rimBlockP = Math.max(shot.rimBlockP || 0, ch);
     if (m.rng.next() < ch) { doBlock(m, d, p); return; }
@@ -3438,6 +3541,7 @@ function launchShot(b, x0, y0, hoop, type, make, flavor, d, dir) {
 
 // --- blocks, goaltending, interference, tips: every player's hands vs. a ball in shot flight ---
 function handPos(p, out) { out.x = p.x + p.facing * CONFIG.block.handForward; out.y = p.y + p.reach - 0.05; return out; }
+function handPos0(p, out) { const q = p.s0 || p; out.x = q.x + q.facing * CONFIG.block.handForward; out.y = q.y + p.reach - 0.05; return out; } // at the start of this step (see snapStartOfStep)
 const _hp = { x: 0, y: 0 };
 function resolveShotTouches(m, dt) {
   const b = m.ball; if (b.mode !== 'flight' || !b.shot) return; if (m.phase !== 'live' && m.phase !== 'freethrow' && !m.practice && !m.contest3) return; const shot = b.shot; const shooter = shot.shooter; const hoop = shooter.hoop; const BK = CONFIG.block;
@@ -3474,11 +3578,11 @@ function forceScore(m, hoop, shot, reason) { const b = m.ball; b.x = hoop.x; b.y
 function checkRimDuel(p) {
   const m = p.match, b = m.ball, D = CONFIG.duel, ops = m.opponentsOf(p);
   for (let i = 0; i < ops.length; i++) {
-    const d = ops[i]; if (d.grounded || d.state !== 'jump') continue; if (Math.abs(d.z - p.z) > W.laneShare + 0.2) continue;
-    handPos(d, _hp); const rr = CONFIG.block.handRadius + BALL.radius + D.reach; const dx = b.x - _hp.x, dy = b.y - _hp.y; if (dx * dx + dy * dy > rr * rr) continue;
+    const d = ops[i], q = d.s0 || d; if (q.grounded || q.state !== 'jump') continue; if (Math.abs(q.z - p.z) > W.laneShare + 0.2) continue;
+    handPos0(d, _hp); const rr = CONFIG.block.handRadius + BALL.radius + D.reach; const dx = b.x - _hp.x, dy = b.y - _hp.y; if (dx * dx + dy * dy > rr * rr) continue;
     p.sd.dueled = true;
     const dunkPower = p.attrs.fin + p.attrs.str + (p.traits.posterizer ? CONFIG.career.trait.posterizer : 0) + D.momentum + D.speedBonusPer * (p.sd.approach || 0) + D.heightBonusPer * (p.height - 2.0) + m.rng.range(-D.noise, D.noise);
-    const tApex = d.sd.tApex || 0.3; const timing = clamp01(1 - Math.abs(d.airT - tApex) / D.timingWindow) * D.timingBonusMax;
+    const tApex = (q.sd && q.sd.tApex) || 0.3; const timing = clamp01(1 - Math.abs(q.airT - tApex) / D.timingWindow) * D.timingBonusMax;
     const blockPower = d.attrs.def + d.attrs.jmp + timing + D.heightBonusPer * (d.height - 2.0) + m.rng.range(-D.noise, D.noise);
     if (blockPower - dunkPower > D.margin) stuffDunk(m, p, d); // blocked at the rim
     else if (dunkPower - blockPower > D.margin) {
@@ -3500,10 +3604,10 @@ function stuffDunk(m, p, d) {
 function dunkProtect(p) {
   const m = p.match, b = m.ball, BK = CONFIG.block, C = CONFIG.contest, ops = m.opponentsOf(p); if (b.owner !== p || (m.practice && m.practice.noDefender)) return false;
   for (let i = 0; i < ops.length; i++) {
-    const d = ops[i]; if (d.hidden || d.grounded || d.inState('stumble', 'knocked')) continue;
-    handPos(d, _hp); if (_hp.y < b.y - BK.rimHandsMargin) continue;
-    const dx = Math.abs(_hp.x - b.x) + Math.abs(d.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
-    const inFront = (d.x - p.x) * (p.hoop.x - p.x) > 0 || Math.abs(d.x - p.x) < C.posNear;
+    const d = ops[i], q = d.s0 || d; if (d.hidden || q.grounded || q.state === 'stumble' || q.state === 'knocked') continue;
+    handPos0(d, _hp); if (_hp.y < b.y - BK.rimHandsMargin) continue;
+    const dx = Math.abs(_hp.x - b.x) + Math.abs(q.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
+    const inFront = (q.x - p.x) * (p.hoop.x - p.x) > 0 || Math.abs(q.x - p.x) < C.posNear;
     const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height) + (d.traits.eraser ? CONFIG.career.trait.eraser : 0), 0, BK.rimMax);
     if (m.rng.next() < base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * BK.rimDunkMul) { stuffDunk(m, p, d); return true; }
   }
@@ -3519,7 +3623,7 @@ function slam(p) {
   const shot = { shooter: p, type: 'dunk', zone: 'mid', grade: -1, err: 0, window: 0, contest: dct.value, contestBy: dct.by, P: dunkP, roll, make, flavor: 'dunk', green: false, x0: hoop.x, y0: RIM_Y + 0.3, d: 0, points: 2, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, poster: !!sd.poster, style: sd.style, id: m.stepCount }; shot.points = m.pointBase;
   b.shot = shot; m.lastShot = shot; p.stats.fga++; p.stats.dunkA++;
   if (make) { b.x = hoop.x; b.y = RIM_Y + 0.22; b.vx = 0; b.vy = -7; b.armed = true; b.fromBelow = false; }
-  else { b.x = hoop.x - p.facing * 0.1; b.y = RIM_Y + 0.35; b.vx = -p.facing * 2.5; b.vy = 2.5; b.armed = false; }
+  else { b.x = hoop.x - p.facing * 0.1; b.y = RIM_Y + 0.35; b.vx = -p.facing * LX(2.5); b.vy = 2.5; b.armed = false; }
   m.bus.emit('SHOT_RELEASED', shot);
   const hangMs = FR.rimHangMin + m.rng.next() * (FR.rimHangMax - FR.rimHangMin);
   p.setState('rimhang', { hangMs, hangX: p.x, hangY: Math.max(p.y, RIM_Y - p.reach + 0.15), wasAir: true, poster: sd.poster });
@@ -3636,26 +3740,29 @@ function resolveCatches(m, dt) {
   let winner = _contenders[0];
   if (n === 2) {
     // a 50/50 ball: position, timing and Strength make the favorite; height adds 0.04 win chance per 10 cm (RB.heightWinPerDh)
-    const a = _contenders[0], c = _contenders[1], hx = (b.shot ? b.shot.shooter.hoop : a.hoop).x;
+    const a = _contenders[0], c = _contenders[1], hx = looseRefX(b);
     const pa = clamp(winChanceOfGap(looseScore(a, b, hx) - looseScore(c, b, hx)) + RB.heightWinPerDh * (a.height - c.height) / 0.1, 0.03, 0.97);
     winner = m.rng.next() < pa ? a : c;
-    if (m.rng.next() < RB.tipChance) { const loser = winner === a ? c : a; b.vx += sgn(loser.x - winner.x) * -1.5; b.vy = 2.5 + m.rng.next(); b.lastTouch = loser; b.lastTouchTeam = loser.team; loser.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } m.bus.emit('TIP', { player: loser }); return; }
+    if (m.rng.next() < RB.tipChance) { const loser = winner === a ? c : a; b.vx += sgn(loser.x - winner.x) * -LX(1.5); b.vy = 2.5 + m.rng.next(); b.lastTouch = loser; b.lastTouchTeam = loser.team; loser.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } m.bus.emit('TIP', { player: loser }); return; }
   } else if (n > 2) {
-    let bs = -Infinity; const hx = winner.hoop.x;
-    for (let i = 0; i < n; i++) { const p = _contenders[i]; let s = p.attrs.str * 0.5 + HT.reboundPerM * (p.height - HT.ref) + (p.grounded ? 0 : 2 + (p.vy > 0 ? 1 : 0)) + (Math.abs(p.x - b.x) < 0.3 ? 1.5 : 0) + m.rng.range(0, 1.5); const underOrFront = (b.x - p.x) * (hx - p.x) >= 0; if (underOrFront) s += 1; if (s > bs) { bs = s; winner = p; } }
+    let bs = -Infinity; const hx = looseRefX(b);
+    for (let i = 0; i < n; i++) { const p = _contenders[i]; let s = p.attrs.str * 0.5 + HT.reboundPerM * (p.height - HT.ref) + (p.grounded ? 0 : 2 + (p.vy > 0 ? 1 : 0)) + (Math.abs(p.x - b.x) < LX(0.3) ? 1.5 : 0) + m.rng.range(0, 1.5); const underOrFront = (b.x - p.x) * (hx - p.x) >= 0; if (underOrFront) s += 1; if (s > bs) { bs = s; winner = p; } }
     // the loser may tip it
-    if (m.rng.next() < RB.tipChance) { const loser = _contenders[0] === winner ? _contenders[1] : _contenders[0]; b.vx += sgn(loser.x - winner.x) * -1.5; b.vy = 2.5 + m.rng.next(); b.lastTouch = loser; b.lastTouchTeam = loser.team; loser.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } m.bus.emit('TIP', { player: loser }); return; }
+    if (m.rng.next() < RB.tipChance) { const loser = _contenders[0] === winner ? _contenders[1] : _contenders[0]; b.vx += sgn(loser.x - winner.x) * -LX(1.5); b.vy = 2.5 + m.rng.next(); b.lastTouch = loser; b.lastTouchTeam = loser.team; loser.lastTouchT = m.time; if (b.shot) { b.shot.touched = true; b.touchedAfterShot = true; } m.bus.emit('TIP', { player: loser }); return; }
   }
   completeCatch(m, winner, b.shot ? 'rebound' : 'loose');
 }
+// The basket a scramble is judged against: the shooter's for a rebound, else the one nearest the ball (it used to be the
+// first contender's own basket, which handed team A the position bonus on every tip, pop and block: a mirror match went ~57% to team A).
+function looseRefX(b) { return b.shot ? b.shot.shooter.hoop.x : (Math.abs(b.x - HOOPS[0].x) < Math.abs(b.x - HOOPS[1].x) ? HOOPS[0].x : HOOPS[1].x); }
 // Loose-ball favorite score without height (height enters as a straight win-chance shift). The noise is two U(0, 1.5) draws.
-function looseScore(p, b, hx) { return p.attrs.str * 0.5 + (p.grounded ? 0 : 2 + (p.vy > 0 ? 1 : 0)) + (Math.abs(p.x - b.x) < 0.3 ? 1.5 : 0) + ((b.x - p.x) * (hx - p.x) >= 0 ? 1 : 0); }
+function looseScore(p, b, hx) { return p.attrs.str * 0.5 + (p.grounded ? 0 : 2 + (p.vy > 0 ? 1 : 0)) + (Math.abs(p.x - b.x) < LX(0.3) ? 1.5 : 0) + ((b.x - p.x) * (hx - p.x) >= 0 ? 1 : 0); }
 function winChanceOfGap(g) { const R = 1.5; if (g >= R) return 1; if (g <= -R) return 0; return g >= 0 ? 1 - (R - g) * (R - g) / (2 * R * R) : (R + g) * (R + g) / (2 * R * R); }
 // Box-outs: while a shot is up, a player in stance with an opponent at his back (same lane, farther from the hoop) can seal
 // him; one roll per shot and pair (Strength, +0.04 per 10 cm of height). A sealed player moves 40% slower toward the ball.
 function updateBoxOuts(m) {
   const b = m.ball, live = !!b.shot && !b.owner && (b.mode === 'flight' || b.mode === 'loose');
-  for (let i = 0; i < m.players.length; i++) { const p = m.players[i], bx = p.boxedOutBy; if (bx && (!live || bx.hidden || bx.state !== 'stance' || Math.abs(bx.x - p.x) > DF.contactDist + RB.boxOutReach + 0.2 || Math.abs(bx.z - p.z) > W.laneShare)) p.boxedOutBy = null; }
+  for (let i = 0; i < m.players.length; i++) { const p = m.players[i], bx = p.boxedOutBy; if (bx && (!live || bx.hidden || bx.state !== 'stance' || Math.abs(bx.x - p.x) > DF.contactDist + RB.boxOutReach + LX(0.2) || Math.abs(bx.z - p.z) > W.laneShare)) p.boxedOutBy = null; }
   if (!live) return; const hoopX = b.shot.shooter.hoop.x, tried = b.shot.boxTried || (b.shot.boxTried = {});
   for (let i = 0; i < m.players.length; i++) {
     const bx = m.players[i]; if (bx.hidden || !bx.grounded || bx.state !== 'stance') continue; const ops = m.opponentsOf(bx);
@@ -3672,7 +3779,7 @@ function completeCatch(m, p, how) {
   if (wasShot && !wasShot.resolved) resolveShotOutcome(m, false, 'rebound');
   const fromPass = b.pass; b.setOwner(p); p.lastTouchT = m.time; b.z = p.z; p.pickedUp = false; p.lane = laneOf(p.zTarget);
   if (p.grounded) p.setState('catch', {}); else p.setState('catch', { wasAir: true });
-  if (p.grounded && how !== 'pass') p.dribble.side = p.dirToHoop();
+  if (how !== 'pass') p.dribble.side = p.dirToHoop(); // airborne catches too (the old grounded-only check left a caught tip on the default right-hand side: a mirror-image bug)
   if (how === 'rebound') { p.stats.reb++; const off = p.team === shooterTeam; if (off) p.stats.oreb++; m.bus.emit('REBOUND', { player: p, offensive: off }); if (off) { if (b.rimTouched || b.boardTouched) m.shotClock = Math.min(m.shotClock, CONFIG.rules.shotClockOffReb); } }
   if (fromPass) { p.lastCatchFrom = fromPass.from; p.catchT = m.time; m.bus.emit('CATCH', { player: p, from: fromPass.from }); }
   else { p.lastCatchFrom = null; }
@@ -3698,8 +3805,8 @@ function isSquare(d, h) {
   const hoopX = h.hoop.x; const between = (d.x - h.x) * (hoopX - h.x) > 0; if (!between) return false;
   if (Math.abs(d.x - h.x) > DF.squareRange) return false;
   const sameDir = d.vx * h.vx > 0; const intense = d.state === 'stance';
-  if (!(Math.abs(d.vx) < (intense ? DF.autoSquareMaxVel + 1 : DF.autoSquareMaxVel) || sameDir)) return false;
-  if (d.input && d.input.sprint && Math.abs(d.vx) > 3 && !sameDir) return false;
+  if (!(Math.abs(d.vx) < (intense ? DF.autoSquareMaxVel + LX(1) : DF.autoSquareMaxVel) || sameDir)) return false;
+  if (d.input && d.input.sprint && Math.abs(d.vx) > LX(3) && !sameDir) return false;
   return true;
 }
 // A charge: first contact at a sprint (faster than the handler's own run) into a defender set in stance, outside the restricted arc.
@@ -3711,8 +3818,8 @@ function isCharge(m, h, d, vIn) {
 }
 function callCharge(m, h, d) {
   const dir = sgn(d.x - h.x) || h.facing; h.stats.to++; h.stats.fouls++; d.stats.chg++;
-  d.setState('knocked', { ms: DF.chargeFallMs, charge: true }); d.vx = dir * 1.2; d.anim.expr = 'focused'; d.anim.exprT = 1.2;
-  h.setState('stagger'); h.vx = -dir * 0.6; h.anim.expr = 'shocked'; h.anim.exprT = 1.2;
+  d.setState('knocked', { ms: DF.chargeFallMs, charge: true }); d.vx = dir * LX(1.2); d.anim.expr = 'focused'; d.anim.exprT = 1.2;
+  h.setState('stagger'); h.vx = -dir * LX(0.6); h.anim.expr = 'shocked'; h.anim.exprT = 1.2;
   m.bus.emit('CHARGE', { player: h, defender: d });
   turnoverTo(m, d.team, h, 'charge');
 }
@@ -3726,14 +3833,14 @@ function resolveBodies(m, dt) {
     const dx = b.x - a.x; const overlap = DF.contactDist - Math.abs(dx); if (overlap <= 0) continue;
     const dir = sgn(dx) || 1; // from a toward b
     const handler = a === h ? a : (b === h ? b : null); const def = handler === a ? b : a;
-    if (handler && handler.grounded && handler.bodyUpT > 0 && Math.abs(handler.vx) < 0.2) handler.bodyUpT = 0;
+    if (handler && handler.grounded && handler.bodyUpT > 0 && Math.abs(handler.vx) < LX(0.2)) handler.bodyUpT = 0;
     if (handler && handler.grounded && (handler.state === 'move' || handler.state === 'burst' || handler.state === 'spin' || handler.state === 'protect' || handler.state === 'gather') && handler.passThroughT <= 0) {
       const backingDown = handler.state === 'protect' && def.state === 'stance' && handler.input.moveX * sgn(def.x - handler.x) > 0.3; // a back-down is a steady lean, not a charge
       const toward = backingDown || handler.vx * sgn(def.x - handler.x) > DF.bumpMinSpeed;
       if (toward && handler.blowByT <= 0) {
         if (handler.state === 'protect' && def.state === 'stance') {
           // back-down: strength vs strength, the loser gives ground slowly
-          const edge = (handler.attrs.str - def.attrs.str) * PC.backdownSpeed * 0.25 + 0.35 + HT.postPerM * (handler.height - def.height); const push = Math.max(0.05, edge) * dt; def.x += sgn(def.x - handler.x) * push; handler.vx *= 0.9; handler.postT = (handler.postT || 0) + dt;
+          const edge = (handler.attrs.str - def.attrs.str) * PC.backdownSpeed * 0.25 + LX(0.35) + HT.postPerM * (handler.height - def.height); const push = Math.max(LX(0.05), edge) * dt; def.x += sgn(def.x - handler.x) * push; handler.vx *= 0.9; handler.postT = (handler.postT || 0) + dt;
         } else if (isSquare(def, handler)) {
           // BODY-UP: a set defender is a wall you can lean on but never get stuck against. Speed is capped,
           // the defender gives ground slowly (Strength vs Strength), and if you keep pushing you slip
@@ -3742,10 +3849,10 @@ function resolveBodies(m, dt) {
           // CHARGE: sprinting into a defender who was already set (outside the restricted arc) can be an offensive foul
           if (fresh && isCharge(m, handler, def, handler.vx * fwd) && m.rng.next() < clamp(DF.chargeBase + DF.chargeDefSlope * (def.attrs.def - 5), 0.05, 0.6)) { callCharge(m, handler, def); return; }
           handler.x = def.x + back * (DF.contactDist + 0.01); if (handler.vx * fwd > DF.bodyUpSpeed) handler.vx = fwd * DF.bodyUpSpeed;
-          const push = Math.max(0.1, DF.bodyUpPush + 0.08 * (handler.attrs.str - def.attrs.str)) * dt; def.x += fwd * push; def.vx *= 0.5; def.anim.bodyUpT = 0.2;
+          const push = Math.max(LX(0.1), DF.bodyUpPush + LX(0.08) * (handler.attrs.str - def.attrs.str)) * dt; def.x += fwd * push; def.vx *= 0.5; def.anim.bodyUpT = 0.2;
           handler.bodyUpT = (handler.bodyUpT || 0) + dt; if (handler.state !== 'spin') handler.exposureBumpT = 0.2; // a walled spin still shields the ball
           if (fresh) { handler.lastBumpT = m.time; m.bus.emit('BUMP', { player: handler, defender: def }); }
-          if (handler.bodyUpT > (m.perSide === 1 ? DF.slipAfter : DF.slipAfterTeam) * clamp(1.3 - PC.slipHanSlope * handler.attrs.han, 0.6, 1.3) && handler.input.moveX * fwd > 0.2 && canChangeLane(handler) && (m.perSide === 1 || (handler.attrs.str - def.attrs.str) >= DF.slipStrEdge)) { const cur = laneOf(handler.zTarget); const cands = [cur - 1, cur + 1].filter(l => l >= 0 && l < LANES.length); let best = -1; for (const l of cands) { let blocked = false; const ops = m.opponentsOf(handler); for (let k = 0; k < ops.length; k++) { const o = ops[k]; if (o.hidden) continue; if (Math.abs(o.z - LANES[l]) < W.laneShare && (o.x - handler.x) * fwd > -0.4 && Math.abs(o.x - handler.x) < 1.6) blocked = true; } if (!blocked) { best = l; break; } } if (best >= 0) { let ok = true; if (m.perSide === 1) { const ch = clamp(DF.soloSlipBase + DF.soloSlipHan * (handler.attrs.han - def.attrs.def) + DF.soloSlipSpd * (handler.attrs.spd - def.attrs.spd) + DF.soloSlipHeight * (def.height - handler.height) + DF.soloSlipStr * (handler.attrs.str - def.attrs.str), DF.soloSlipMin, DF.soloSlipMax); ok = m.rng.next() < ch; } if (ok) { setLane(handler, best); handler.bodyUpT = 0; handler.slipDragT = DF.slipDragS; m.bus.emit('SLIP', { player: handler, defender: def }); } else { handler.bodyUpT = -DF.cutoffS; handler.vx = -fwd * DF.bumpKnockback; handler.exposureBumpT = 0.25; m.bus.emit('CUTOFF', { player: handler, defender: def }); } } }
+          if (handler.bodyUpT > (m.perSide === 1 ? DF.slipAfter : DF.slipAfterTeam) * clamp(1.3 - PC.slipHanSlope * handler.attrs.han, 0.6, 1.3) && handler.input.moveX * fwd > 0.2 && canChangeLane(handler) && (m.perSide === 1 || (handler.attrs.str - def.attrs.str) >= DF.slipStrEdge)) { const cur = laneOf(handler.zTarget); const cands = [cur - 1, cur + 1].filter(l => l >= 0 && l < LANES.length); let best = -1; for (const l of cands) { let blocked = false; const ops = m.opponentsOf(handler); for (let k = 0; k < ops.length; k++) { const o = ops[k]; if (o.hidden) continue; if (Math.abs(o.z - LANES[l]) < W.laneShare && (o.x - handler.x) * fwd > -LX(0.4) && Math.abs(o.x - handler.x) < LP(1.6)) blocked = true; } if (!blocked) { best = l; break; } } if (best >= 0) { let ok = true; if (m.perSide === 1) { const ch = clamp(DF.soloSlipBase + DF.soloSlipHan * (handler.attrs.han - def.attrs.def) + DF.soloSlipSpd * (handler.attrs.spd - def.attrs.spd) + DF.soloSlipHeight * (def.height - handler.height) + DF.soloSlipStr * (handler.attrs.str - def.attrs.str), DF.soloSlipMin, DF.soloSlipMax); ok = m.rng.next() < ch; } if (ok) { setLane(handler, best); handler.bodyUpT = 0; handler.slipDragT = DF.slipDragS; m.bus.emit('SLIP', { player: handler, defender: def }); } else { handler.bodyUpT = -DF.cutoffS; handler.vx = -fwd * DF.bumpKnockback; handler.exposureBumpT = 0.25; m.bus.emit('CUTOFF', { player: handler, defender: def }); } } }
           continue;
         } else if (handler.state !== 'gather') {
           // BLOW-BY: soft defender, pass through at a speed penalty
@@ -3758,7 +3865,7 @@ function resolveBodies(m, dt) {
     if (h && (a === h || b === h) && handler && handler.blowByT > 0) continue;
     // plain separation (screens stop defenders this way too)
     const push = Math.min(overlap * 0.5, DF.separate * dt) * (h && (a === h || b === h) ? 1 : DF.offBallSeparation);
-    const aMob = a.inState('stance', 'idle') && Math.abs(a.vx) < 0.5 ? 0.3 : 1, bMob = b.inState('stance', 'idle') && Math.abs(b.vx) < 0.5 ? 0.3 : 1;
+    const aMob = a.inState('stance', 'idle') && Math.abs(a.vx) < LX(0.5) ? 0.3 : 1, bMob = b.inState('stance', 'idle') && Math.abs(b.vx) < LX(0.5) ? 0.3 : 1;
     const tot = aMob + bMob; a.x -= dir * push * (aMob / tot) * 2; b.x += dir * push * (bMob / tot) * 2;
     if (a.vx * dir > 0) a.vx *= 0.5; if (b.vx * dir < 0) b.vx *= 0.5;
     // fighting over a screen: a defender pressed against a planted screener slows down
@@ -3770,7 +3877,7 @@ function resolveBodies(m, dt) {
 function updateLanes(m) {
   const b = m.ball;
   // Everyone picks their own lane (humans with W/S, bots through their brains). A loose ball pulls nearby chasers into its lane.
-  if (!b.owner && b.mode === 'loose') { for (let i = 0; i < m.players.length; i++) { const p = m.players[i]; if (!p.hidden && Math.abs(p.x - b.x) < 2.5 && p.grounded) p.zTarget = b.z; } }
+  if (!b.owner && b.mode === 'loose') { for (let i = 0; i < m.players.length; i++) { const p = m.players[i]; if (!p.hidden && Math.abs(p.x - b.x) < LX(2.5) && p.grounded) p.zTarget = b.z; } }
 }
 
 // --- ball update ---
@@ -3793,7 +3900,7 @@ function updateBall(m, dt) {
   if (b.shot && !b.shot.resolved && b.y < RIM_Y - 0.6 && b.vy < 0) resolveShotOutcome(m, false, 'below');
   if (b.shot && !b.shot.resolved && b.flightT > BALL.shotTimeoutS) { resolveShotOutcome(m, false, 'timeout'); b.mode = 'loose'; }
   // a ball wedged on the rim or a wall pad gets a nudge toward the court so play never stalls
-  if (Math.abs(b.vx) < 0.08 && Math.abs(b.vy) < 0.08 && b.y > BALL.radius + 0.05) { b.restT += dt; if (b.restT > BALL.stuckS) { b.restT = 0; b.vx = sgn(COURT_L / 2 - b.x) * 1.8; b.vy = 1.2; b.armed = false; } } else b.restT = 0;
+  if (Math.abs(b.vx) < 0.08 && Math.abs(b.vy) < 0.08 && b.y > BALL.radius + 0.05) { b.restT += dt; if (b.restT > BALL.stuckS) { b.restT = 0; b.vx = sgn(COURT_L / 2 - b.x) * LX(1.8); b.vy = 1.2; b.armed = false; } } else b.restT = 0;
   if (b.pass && b.flightT > b.pass.T * 2.5 + 0.5) { b.pass = null; b.mode = 'loose'; }
   // lane easing for the ball: passes go to the receiver's lane, shots fly toward the rim lane, loose balls drift to the middle
   if (b.pass) { const t = clamp01(b.flightT / b.pass.T); b.z = lerp(b.pass.z0, b.pass.z1, t); }
@@ -3804,15 +3911,22 @@ function updateBall(m, dt) {
 }
 
 // --- one full simulation step ---
+// Where everyone stood when this step began. A shot released, a swipe or a rim contest during one player's update reads
+// the other player from here, so it never matters whose update runs first (team A's shooters used to meet defenders a
+// step behind while team B's met them a step ahead: a mirror match went about 56–59% to team A).
+function snapStartOfStep(m) {
+  for (let i = 0; i < m.players.length; i++) { const p = m.players[i], s = p.s0 || (p.s0 = { x: 0, y: 0, z: 0, facing: 1, grounded: true, state: '', vx: 0, airT: 0, sd: null }); s.x = p.x; s.y = p.y; s.z = p.z; s.facing = p.facing; s.grounded = p.grounded; s.state = p.state; s.vx = p.vx; s.airT = p.airT; s.sd = p.sd; }
+  const b = m.ball; b.s0x = b.x; b.s0y = b.y;
+}
 function simStep(m, dt) {
-  if (m.ended) return;
+  if (m.ended) return; ensureLayout(m); // another match (a headless sim) may have switched the court layout since the last step
   m.time += dt; m.stepCount++;
-  m.perception.maybeRecord();
+  m.perception.maybeRecord(); snapStartOfStep(m);
   // brains write inputs exactly like a human would
   if (m.opts.reverseBrains) { for (let t = 1; t >= 0; t--) m.teams[t].brain.update(dt); for (let i = m.players.length - 1; i >= 0; i--) { const p = m.players[i]; if (p.brain && !p.controlled && !p.hidden) p.brain.update(dt); } }
   else { for (let t = 0; t < 2; t++) m.teams[t].brain.update(dt); for (let i = 0; i < m.players.length; i++) { const p = m.players[i]; if (p.brain && !p.controlled && !p.hidden) p.brain.update(dt); } }
   updateLanes(m);
-  for (let i = 0; i < m.players.length; i++) if (!m.players[i].hidden) updatePlayer(m.players[i], dt);
+  if (m.opts.reverseUpdates) { for (let i = m.players.length - 1; i >= 0; i--) if (!m.players[i].hidden) updatePlayer(m.players[i], dt); } else for (let i = 0; i < m.players.length; i++) if (!m.players[i].hidden) updatePlayer(m.players[i], dt);
   resolveBodies(m, dt);
   updateBoxOuts(m);
   updateBall(m, dt);
@@ -3860,7 +3974,7 @@ class AdaptMemory {
     m.bus.on('SHOT_RELEASED', s => { if (isH(s.shooter) && s.type !== 'ft') { this.shots++; if (this.zones[s.zone]) { this.zones[s.zone][1]++; if (s.make) this.zones[s.zone][0]++; } } });
     m.bus.on('SWIPE', e => { if (isH(e.player)) this.stealAttempts++; });
     // how often does the human defender leave their feet or lunge when a bot fakes?
-    m.bus.on('PUMP_FAKE', e => { if (!isH(e.player)) { const d = m.controlledPlayer; if (d && d.team !== e.player.team && Math.abs(d.x - e.player.x) < 2) { this.fakes++; this._fakeWatch = { t: m.time, d }; } } });
+    m.bus.on('PUMP_FAKE', e => { if (!isH(e.player)) { const d = m.controlledPlayer; if (d && d.team !== e.player.team && Math.abs(d.x - e.player.x) < LP(2)) { this.fakes++; this._fakeWatch = { t: m.time, d }; } } });
     m.bus.on('JUMP', e => { const w = this._fakeWatch; if (w && e.player === w.d && m.time - w.t < 0.5) { this.fakeBites++; this._fakeWatch = null; } });
     m.bus.on('POSSESSION_CHANGE', e => { if (e.team !== m.humanTeam) this.defPossessions++; });
   }
@@ -4070,8 +4184,8 @@ class PlayerBrain {
     if (m.halfCourt && m.mustClear === p.team && d < W.threeLine + 0.4) { if (!this.intent || this.intent.type !== 'clear') this.setIntent('clear', 0.2, { dir: sgn(COURT_L / 2 - hoop.x) }); else this.commitT = 0.2; return; } // half court: take it back past the arc first (toward the top, even from behind the rim)
     if (this.commitT > 0 && this.intent && this.intent.type !== 'idle') { this.refreshHandlerIntent(); return; }
     const ops = m.opponentsOf(p); let def = null, defDist = 99, defQ = null;
-    for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.z - p.z) > W.laneShare + 0.1) continue; const dd = Math.abs(q.x - p.x); const between = (q.x - p.x) * dir > 0 || dd < 0.8; if (between && dd < defDist) { defDist = dd; def = ops[i]; defQ = q; } }
-    const defSquare = defQ && defQ.state === 'stance' && defQ.grounded && defDist < DF.squareRange + 0.3 && !(defQ.vx * dir < -DF.squareMaxVel);
+    for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.z - p.z) > W.laneShare + 0.1) continue; const dd = Math.abs(q.x - p.x); const between = (q.x - p.x) * dir > 0 || dd < LP(0.8); if (between && dd < defDist) { defDist = dd; def = ops[i]; defQ = q; } }
+    const defSquare = defQ && defQ.state === 'stance' && defQ.grounded && defDist < DF.squareRange + LX(0.3) && !(defQ.vx * dir < -DF.squareMaxVel);
     const defOff = defQ && (defQ.state === 'stumble' || defQ.state === 'knocked' || defQ.state === 'stagger' || defQ.state === 'land' || !defQ.grounded || (defQ.state === 'swipe' && defQ.phase === 'recovery') || defQ.biteT > 0);
     const releaseY = p.y + p.height + SH.releaseAbove; const contest = this.estimateContest(p.x, releaseY, p.z); this.debug.contest = contest;
     let n = 0; const sc = m.shotClock; const pressure = sc < AI.shotClockPressureStart ? (AI.shotClockPressureStart - sc) / AI.shotClockPressureStart : 0;
@@ -4083,7 +4197,7 @@ class PlayerBrain {
     if (d < SH.floaterRange && d > SH.layupRange && Math.abs(p.vx) > SH.floaterMinSpeed) shootEV = Math.max(shootEV, makeProbability(p, 'floater', 'mid', 0, contest).P * 2);
     if (d <= SH.layupRange) shootEV = Math.max(shootEV, makeProbability(p, 'layup', 'mid', 0, contest).P * 2 * (1 - helpRisk * 0.5) * (walled ? 1.3 : 1));
     if (p.pickedUp && !m.arcade) shootEV *= 1.2;
-    if (p.attrs.sho <= 3 && d > SH.layupRange + 1.5) shootEV *= 0.35; // bigs don't live outside
+    if (p.attrs.sho <= 3 && d > SH.layupRange + LX(1.5)) shootEV *= 0.35; // bigs don't live outside
     if (d > SH.heaveRange) shootEV = 0; if (d > SH.zoneDeep && contest > 0.3) shootEV *= 0.3; if (contest > AI.goodLookContest && d > SH.layupRange) shootEV *= 0.55; else if (contest < 0.3 && d > SH.layupRange) shootEV *= 1.3; if (J.P < AI.minShotP && d > SH.layupRange && sc >= 3) shootEV = -50; if (d > SH.zoneDeep && sc >= 4 && shootEV > 0) shootEV *= AI.deepShotMul; shootEV *= 1 + pressure * 1.5; if (sc < AI.shotClockPanicS) shootEV += 5;
     if (sc < AI.planDropClock) this.plan = null; const pl = k => !this.plan ? 1 : (this.plan === k ? AI.planBoost : AI.planDamp); // the possession plan
     const sm = AI.styleMix[p.arch] || AI.styleMix.lockdown; if (d > SH.layupRange) shootEV *= (J.pts === 3 ? sm.three : sm.jumper) * pl(J.pts === 3 ? 'three' : 'mid'); // play to the build
@@ -4092,43 +4206,43 @@ class PlayerBrain {
     // drive
     if (!p.pickedUp || (m.arcade && p.pickedUpT > CONFIG.rules.reDribblePenaltyS)) {
       const finishP = (canDunk(p) ? 0.9 : 0.78) * (SH.ratingBase + SH.ratingSlope * p.attrs.fin);
-      const defWrongWay = defQ && defQ.vx * dir < -1.5; const defFar = !def || defDist > 4.0;
+      const defWrongWay = defQ && defQ.vx * dir < -LX(1.5); const defFar = !def || defDist > LP(4.0);
       let laneOpen = defFar ? 1 : (defOff ? 0.95 : (defWrongWay ? 0.8 : (m.perSide === 1 ? lerp(defSquare ? AI.soloLaneSquare : AI.soloLaneSoft, 0.95, this.driveEMA) : lerp(defSquare ? 0.1 : 0.2, 0.85, this.driveEMA))));
-      const stealRisk = def && defDist < 1.5 ? 0.12 : 0.04;
+      const stealRisk = def && defDist < LP(1.5) ? 0.12 : 0.04;
       let driveEV = laneOpen * finishP * 2 * (1 - helpRisk) * (1 - stealRisk) * (1 + AI.personalityEVMul * (pr.driveRate - 0.5)) * (1 + pressure * 0.8);
       if (m.time - (p.lastBumpT || -9) < 2.0) driveEV *= 0.3;
-      if (d < 2.8) driveEV = finishP * 2 * (1 - helpRisk * 0.6) * (defSquare && defDist < 1 ? 0.5 : 1) * (1 + pressure);
+      if (d < LX(2.8)) driveEV = finishP * 2 * (1 - helpRisk * 0.6) * (defSquare && defDist < LP(1) ? 0.5 : 1) * (1 + pressure);
       if (walled) driveEV *= 0.3; driveEV *= sm.drive * pl('drive');
       _evNames[n] = 'drive'; _evScores[n] = driveEV; _evData[n++] = null;
       // walk it up: get to a real shot zone before deciding again (1v1: walk the defender down while they give room)
-      const solo = m.perSide === 1, postStyle = solo && this.plan === 'post' && sizeEdge; const spot = solo ? (postStyle ? PG.range : this.plan === 'three' ? Math.max(AI.soloSpotShooter, SH.zoneThree + 0.4) : this.plan === 'mid' ? AI.soloSpotOther : (p.attrs.sho >= 7 ? AI.soloSpotShooter : AI.soloSpotOther)) : SH.zoneThree - 0.6;
-      if ((solo ? d > spot + 0.4 : d > SH.zoneThree + 0.5) && (!def || defDist > (solo ? AI.soloApproachMinGap : 1.5))) { const J3 = this.jumperEV(p, solo ? spot : SH.zoneThree - 0.8, 0.35); let aev = J3.ev * 0.9; if (postStyle) aev = Math.max(aev, makeProbability(p, 'hook', 'mid', 0, 0.2).P * 2 * sm.post * 0.8); _evNames[n] = 'approach'; _evScores[n] = aev * (1 - pressure * 0.5) * (solo ? 1.15 : 1); _evData[n++] = { dir, stopAt: spot, solo }; } // bigs walk it up to the block
+      const solo = m.perSide === 1, postStyle = solo && this.plan === 'post' && sizeEdge; const spot = solo ? (postStyle ? PG.range : this.plan === 'three' ? Math.max(AI.soloSpotShooter, SH.zoneThree + LR(0.4)) : this.plan === 'mid' ? AI.soloSpotOther : (p.attrs.sho >= 7 ? AI.soloSpotShooter : AI.soloSpotOther)) : SH.zoneThree - LR(0.6);
+      if ((solo ? d > spot + LX(0.4) : d > SH.zoneThree + LR(0.5)) && (!def || defDist > (solo ? AI.soloApproachMinGap : LP(1.5)))) { const J3 = this.jumperEV(p, solo ? spot : SH.zoneThree - LR(0.8), 0.35); let aev = J3.ev * 0.9; if (postStyle) aev = Math.max(aev, makeProbability(p, 'hook', 'mid', 0, 0.2).P * 2 * sm.post * 0.8); _evNames[n] = 'approach'; _evScores[n] = aev * (1 - pressure * 0.5) * (solo ? 1.15 : 1); _evData[n++] = { dir, stopAt: spot, solo }; } // bigs walk it up to the block
       // dribble moves: each applicable move is its own option (the softmax picks among reads)
-      if (def && defDist < 2.0 && d > 2.4 && canDribbleMove(p) && sc > 1.5) {
+      if (def && defDist < LP(2.0) && d > LX(2.4) && canDribbleMove(p) && sc > 1.5) {
         const moves = P.moves; const openAfter = 0.9 * finishP * 2 * (1 - helpRisk); const recent = m.time - this.lastMoveT < 1.5; const bumped = m.time - (p.lastBumpT || -9) < 2.0;
         const ankleBonus = 0.06 * (p.attrs.han - def.attrs.def); const flash = 1 + AI.personalityEVMul * (pr.flashiness - 0.5) * 0.5;
         const oppP = brainParams(m.teams[1 - p.team]); const biteGuess = def.controlled ? (m.memory ? m.memory.humanBite() : 0.4) : 0.5 * oppP.bite + 0.2;
         const add = (mv, ev, mdir) => { if (m.perSide === 1 && mv !== 'pumpfake') ev *= AI.soloMoveMul; if (recent && this.lastMoveName === mv) ev *= 0.5; if (mv === 'pumpfake' && this.lastMoveName === 'pumpfake' && m.time - this.lastMoveT < AI.pumpFakeRepeatS) ev *= 0.15; if (bumped && !walled) ev *= 0.6; if (walled) ev *= 1.3; _evNames[n] = 'move'; _evScores[n] = ev * flash * sm.move; _evData[n++] = { move: mv, dir: mdir || dir }; };
-        const closing = defQ.vx * dir < -1.0; // the defender is stepping toward me: cross him
-        if (moves.includes('crossover') && (closing || Math.abs(defQ.vx) > 1.5)) add('crossover', 0.8 * openAfter + ankleBonus, P.readsMomentum && Math.abs(defQ.vx) > 1.5 ? (-sgn(defQ.vx) || dir) : dir);
+        const closing = defQ.vx * dir < -LX(1.0); // the defender is stepping toward me: cross him
+        if (moves.includes('crossover') && (closing || Math.abs(defQ.vx) > LX(1.5))) add('crossover', 0.8 * openAfter + ankleBonus, P.readsMomentum && Math.abs(defQ.vx) > LX(1.5) ? (-sgn(defQ.vx) || dir) : dir);
         else if (moves.includes('crossover') && !defSquare) add('crossover', 0.45 * openAfter + ankleBonus);
         else if (moves.includes('crossover')) add('crossover', AI.crossBaitMul * (def.controlled ? 0.35 : oppP.bite) * openAfter + ankleBonus);
-        if (moves.includes('pumpfake') && defSquare && defDist < 1.4 && d < SH.zoneDeep) add('pumpfake', AI.pumpFakeEVMul * biteGuess * 2 * openAfter * clamp01(J.P / AI.pumpFakeShotP));
-        if (moves.includes('stepback') && p.moves.stepback && defSquare && defDist < 1.7 && d + MV.stepbackDist < SH.zoneDeep - 0.3 && p.attrs.sho >= 5) { const JS = this.jumperEV(p, d + MV.stepbackDist, contest * 0.3); add('stepback', JS.ev * 0.95 * (JS.pts === 3 ? sm.three / sm.move : sm.jumper / sm.move) * pl(JS.pts === 3 ? 'three' : 'mid')); } // a step-back is a jumper: weigh it like one
-        if (moves.includes('hesitation') && p.moves.hesitation && defSquare && Math.abs(p.vx) > 0.5 && Math.abs(p.vx) < MV.hesiMaxSpeed) add('hesitation', 0.5 * biteGuess * 2 * openAfter);
-        if (moves.includes('spin') && p.moves.spin && defSquare && defDist < MV.spinRange + 0.1) add('spin', 0.95 * spinChance(p, def) * openAfter);
+        if (moves.includes('pumpfake') && defSquare && defDist < LP(1.4) && d < SH.zoneDeep) add('pumpfake', AI.pumpFakeEVMul * biteGuess * 2 * openAfter * clamp01(J.P / AI.pumpFakeShotP));
+        if (moves.includes('stepback') && p.moves.stepback && defSquare && defDist < LP(1.7) && d + MV.stepbackDist < SH.zoneDeep - LR(0.3) && p.attrs.sho >= 5) { const JS = this.jumperEV(p, d + MV.stepbackDist, contest * 0.3); add('stepback', JS.ev * 0.95 * (JS.pts === 3 ? sm.three / sm.move : sm.jumper / sm.move) * pl(JS.pts === 3 ? 'three' : 'mid')); } // a step-back is a jumper: weigh it like one
+        if (moves.includes('hesitation') && p.moves.hesitation && defSquare && Math.abs(p.vx) > LX(0.5) && Math.abs(p.vx) < MV.hesiMaxSpeed) add('hesitation', 0.5 * biteGuess * 2 * openAfter);
+        if (moves.includes('spin') && p.moves.spin && defSquare && defDist < MV.spinRange + LX(0.1)) add('spin', 0.95 * spinChance(p, def) * openAfter);
         // go around: switch to the lane with the clearest path and drive
-        if (moves.includes('lane') && defSquare && p.grounded) { const myLane = laneOf(p.zTarget); for (const cand of [myLane - 1, myLane + 1]) { if (cand < 0 || cand >= LANES.length) continue; let blocked = false; for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > -0.3 && Math.abs(q.x - p.x) < 2.6 && Math.abs(q.z - LANES[cand]) < W.laneShare) blocked = true; } if (!blocked) add('lane', 0.7 * openAfter + ankleBonus * 0.5, cand); } }
+        if (moves.includes('lane') && defSquare && p.grounded) { const myLane = laneOf(p.zTarget); for (const cand of [myLane - 1, myLane + 1]) { if (cand < 0 || cand >= LANES.length) continue; let blocked = false; for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > -LX(0.3) && Math.abs(q.x - p.x) < LP(2.6) && Math.abs(q.z - LANES[cand]) < W.laneShare) blocked = true; } if (!blocked) add('lane', 0.7 * openAfter + ankleBonus * 0.5, cand); } }
       }
     }
     // post up: at least 3 in. taller than the man guarding you, back him down and finish with a hook, a drop step or an up-and-under
-    if (def && defDist < 1.8 && d < 8.5 && d > 1.2 && !p.pickedUp && p.grounded && sc > 3.5 && p.height - def.height >= PG.minEdge - 1e-6 && m.time > (this.postCdT || -9)) {
+    if (def && defDist < LP(1.8) && d < LR(8.5) && d > LX(1.2) && !p.pickedUp && p.grounded && sc > 3.5 && p.height - def.height >= PG.minEdge - 1e-6 && m.time > (this.postCdT || -9)) {
       const edge = (p.height - def.height) * 5 + (p.attrs.str - def.attrs.str) * 0.35;
       if (edge > AI.postEdgeMin) { const hookP = makeProbability(p, 'hook', 'mid', 0, clamp01(contest * SH.hookContestMul - (p.height - def.height) * 0.4)).P; const postEV = hookP * 2 * clamp(AI.postEVBase + edge * AI.postEVPerEdge, AI.postEVBase, AI.postEVMax) * (1 + AI.personalityEVMul * (pr.aggression - 0.5)) * (1 + pressure * 0.3) * sm.post * pl('post'); _evNames[n] = 'post'; _evScores[n] = postEV; _evData[n++] = { dir }; }
     }
     // fadeaway over a tight defender (1v1: Pass is the fadeaway button)
-    if (def && defDist < 1.4 && d > 2.8 && d < SH.zoneDeep && p.attrs.sho >= AI.fadeMinSho && m.teammatesOf(p).length === 1 && p.grounded) {
-      const JF = this.jumperEV(p, d + 0.8, contest * SH.fadeContestMul); if (JF.P >= AI.minShotP || sc < 3) { _evNames[n] = 'fade'; _evScores[n] = JF.ev * SH.fadeMakeMul * (1 + pressure * 1.2) * (JF.pts === 3 ? sm.three : sm.jumper) * pl(JF.pts === 3 ? 'three' : 'mid'); _evData[n++] = null; }
+    if (def && defDist < LP(1.4) && d > LX(2.8) && d < SH.zoneDeep && p.attrs.sho >= AI.fadeMinSho && m.teammatesOf(p).length === 1 && p.grounded) {
+      const JF = this.jumperEV(p, d + LX(0.8), contest * SH.fadeContestMul); if (JF.P >= AI.minShotP || sc < 3) { _evNames[n] = 'fade'; _evScores[n] = JF.ev * SH.fadeMakeMul * (1 + pressure * 1.2) * (JF.pts === 3 ? sm.three : sm.jumper) * pl(JF.pts === 3 ? 'three' : 'mid'); _evData[n++] = null; }
     }
     // passes
     const mates = m.teammatesOf(p);
@@ -4147,7 +4261,7 @@ class PlayerBrain {
       if (td < PS.alleyRange && open > 0.5 && Math.abs(q.x - p.x) > AI.lobMinDist && canDunk(t) && (q.grounded)) { const lev = 2 * 0.82 * open * (1 - risk * 0.5) * (1 + AI.personalityEVMul * pr.flashiness); _evNames[n] = 'pass'; _evScores[n] = lev; _evData[n++] = { target: t, lob: true }; }
     }
     // reset / back out
-    if (sc > AI.resetMinClock && !p.pickedUp) { _evNames[n] = 'reset'; _evScores[n] = AI.resetEV * (1 + (1 - pr.pace) * 0.5) * (def && defDist < 1.2 ? 1.2 : 0.7); _evData[n++] = null; }
+    if (sc > AI.resetMinClock && !p.pickedUp) { _evNames[n] = 'reset'; _evScores[n] = AI.resetEV * (1 + (1 - pr.pace) * 0.5) * (def && defDist < LP(1.2) ? 1.2 : 0.7); _evData[n++] = null; }
     // a teammate calling for the ball gets it if the pass is reasonable (the human's Pass button off the ball)
     for (let i = 0; i < n; i++) { if (_evNames[i] === 'pass' && _evData[i] && _evData[i].target && _evData[i].target.callingForBall && !_evData[i].lob && _evScores[i] > AI.callForBallMinEV && _evData[i].risk < AI.callForBallMaxRisk && m.time - (this.lastCallPassT || -9) > 1.5) { this.lastCallPassT = m.time; this.setIntent('pass', AI.passCommitS, _evData[i]); return; } }
     // obviously bad options are never picked (a human wouldn't heave from half court with 10 s left)
@@ -4157,7 +4271,7 @@ class PlayerBrain {
     const idx = softmaxPick(_evScores, n, P.temperature, this.rng);
     const dbg = this.debug.options; dbg.length = 0; for (let i = 0; i < n; i++) dbg.push({ name: _evNames[i] + (_evData[i] && _evData[i].move ? ':' + _evData[i].move : (_evData[i] && _evData[i].target ? ':' + _evData[i].target.nick + (_evData[i].lob ? '(lob)' : '') : '')), ev: _evScores[i] }); dbg.sort((a, b) => b.ev - a.ev); if (dbg.length > 3) dbg.length = 3;
     const name = _evNames[idx], data = _evData[idx];
-    if ((name === 'post' && this.plan === 'post') || (name === 'drive' && this.plan === 'drive' && d < 7.5) || (name === 'shoot' && (this.plan === 'three' || this.plan === 'mid') && d > SH.layupRange)) { this.lastPlan = this.plan; this.plan = null; } // ran the plan
+    if ((name === 'post' && this.plan === 'post') || (name === 'drive' && this.plan === 'drive' && d < LR(7.5)) || (name === 'shoot' && (this.plan === 'three' || this.plan === 'mid') && d > SH.layupRange)) { this.lastPlan = this.plan; this.plan = null; } // ran the plan
     if (name === 'shoot') { this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; }
     else if (name === 'drive') { this.setIntent('drive', AI.driveCommitS, { dir, stopAt: 0 }); }
     else if (name === 'approach') { this.setIntent('drive', 1.5, data); }
@@ -4171,12 +4285,12 @@ class PlayerBrain {
   refreshHandlerIntent() {
     // while committed, a drive that reaches the rim turns into a finish; a walled-off drive ends early
     const p = this.p, it = this.intent, m = this.m; if (!it) return; const hoop = p.hoop, d = Math.abs(p.x - hoop.x), dir = sgn(hoop.x - p.x) || p.facing;
-    if (it.type === 'drive' && (this.plan === 'mid' || (!this.plan && this.lastPlan === 'mid')) && !it.data.stopAt && p.grounded && !p.pickedUp && d <= AI.soloSpotOther + 0.3 && d > SH.layupRange + 1.2 && (p.state === 'move' || p.state === 'burst') && this.snap) { const c = this.estimateContest(p.x, p.y + p.height + SH.releaseAbove, p.z); if (c < AI.goodLookContest) { this.plan = null; this.lastPlan = null; this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; return; } } // mid-range plan: pull up off the drive
-    if (it.type === 'drive') { if (p.state === 'stagger' || (p.bodyUpT || 0) > AI.walledAfterS) { this.commitT = 0; if (this.plan === 'drive' && d > 6.5 && (AI.stylePlan[p.arch] || {}).mid > 0.1) this.plan = 'mid'; } if (it.data.stopAt && d <= it.data.stopAt) { this.commitT = 0; return; } if (it.data.stopAt) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > 0 && Math.abs(q.x - p.x) < (it.data.solo ? AI.soloApproachMinGap - 0.1 : 1.6) && Math.abs(q.z - p.z) < W.laneShare + 0.1 && q.grounded) { this.commitT = 0; return; } } } const toward = p.vx * dir; if ((d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p)) || d <= SH.layupRange - 0.2) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; } }
+    if (it.type === 'drive' && (this.plan === 'mid' || (!this.plan && this.lastPlan === 'mid')) && !it.data.stopAt && p.grounded && !p.pickedUp && d <= AI.soloSpotOther + LR(0.3) && d > SH.layupRange + LX(1.2) && (p.state === 'move' || p.state === 'burst') && this.snap) { const c = this.estimateContest(p.x, p.y + p.height + SH.releaseAbove, p.z); if (c < AI.goodLookContest) { this.plan = null; this.lastPlan = null; this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; return; } } // mid-range plan: pull up off the drive
+    if (it.type === 'drive') { if (p.state === 'stagger' || (p.bodyUpT || 0) > AI.walledAfterS) { this.commitT = 0; if (this.plan === 'drive' && d > LR(6.5) && (AI.stylePlan[p.arch] || {}).mid > 0.1) this.plan = 'mid'; } if (it.data.stopAt && d <= it.data.stopAt) { this.commitT = 0; return; } if (it.data.stopAt) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > 0 && Math.abs(q.x - p.x) < (it.data.solo ? AI.soloApproachMinGap - LX(0.1) : LP(1.6)) && Math.abs(q.z - p.z) < W.laneShare + 0.1 && q.grounded) { this.commitT = 0; return; } } } const toward = p.vx * dir; if ((d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p)) || d <= SH.layupRange - LX(0.2)) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; } }
     if (it.type === 'post') {
       if ((p.state === 'move' || p.state === 'burst') && this.postActPressed) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; return; } // went around him: finish at the rim
       const df = m.nearestOpponent(p); const stuck = m.time - (this.postStartT || 0) > AI.postMaxS; const busy = p.inState('gather', 'floater', 'pumpfake', 'dropstep', 'upunder');
-      if ((!df || Math.abs(df.x - p.x) > 2.2 || stuck) && !busy) { this.commitT = 0; this.postCdT = m.time + AI.postRetryS; return; } this.commitT = Math.max(this.commitT, 0.15); return;
+      if ((!df || Math.abs(df.x - p.x) > LP(2.2) || stuck) && !busy) { this.commitT = 0; this.postCdT = m.time + AI.postRetryS; return; } this.commitT = Math.max(this.commitT, 0.15); return;
     }
     if (it.type === 'move' && it.data.move === 'lane' && this.movePressed && this.commitT < AI.moveCommitS - 0.1) { this.setIntent('drive', AI.driveCommitS + 0.2, { dir, stopAt: 0 }); return; }
     if (it.type === 'move' && (p.state === 'move' || p.state === 'burst') && p.stateT > 0.05 && MOVE_STATES[it.data.move] && this.movePressed) { if (p.state === 'burst') { this.mv = it.data.dir; } if (p.state === 'move' && this.commitT < AI.moveCommitS - 0.15) { this.commitT = 0; if (it.data.move === 'stepback') { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; } else this.setIntent('drive', AI.driveCommitS, { dir }); } }
@@ -4205,45 +4319,46 @@ class PlayerBrain {
       if (Math.abs(hq.z - p.z) < W.laneShare && (p.x - hq.x) * dir > 0 && (p.x - hx) * dir < DF.contactDist) hx = p.x - dir * DF.contactDist; // a body in the way: the read stops at my chest
       // sag by shooting quality and memory
       let shooterQ = clamp01((h.attrs.sho - 3) / 6); let sag = m.perSide === 1 ? lerp(AI.soloSagMax, AI.sagMin, shooterQ) : lerp(AI.sagMax, AI.sagMin, shooterQ);
-      sag += clamp((speedOf(h) * heightMul(h, HT.speedPerM) - speedOf(p) * heightMul(p, HT.speedPerM)) * AI.cushionPerSpeed, -0.15, AI.cushionMax); // give a quicker handler a cushion (drop coverage for slow bigs)
-      if (mem && memW > 0 && h.controlled) { const tp = mem.zonePct('three'); if (tp >= 0 && tp < AI.coldShooterPct) sag += 0.3 * memW; if (tp > AI.hotShooterPct) sag -= 0.25 * memW; }
-      const hd = Math.abs(hx - myHoop.x); if (hd < 3) sag = Math.min(sag, 0.8);
+      sag += clamp((speedOf(h) * heightMul(h, HT.speedPerM) - speedOf(p) * heightMul(p, HT.speedPerM)) * AI.cushionPerSpeed, -LX(0.15), AI.cushionMax); // give a quicker handler a cushion (drop coverage for slow bigs)
+      if (mem && memW > 0 && h.controlled) { const tp = mem.zonePct('three'); if (tp >= 0 && tp < AI.coldShooterPct) sag += LX(0.3) * memW; if (tp > AI.hotShooterPct) sag -= LX(0.25) * memW; }
+      const hd = Math.abs(hx - myHoop.x); if (hd < LX(3)) sag = Math.min(sag, LP(0.8));
       let targetX = hx + dir * sag; const pickupLine = myHoop.x - dir * (m.perSide === 1 ? lerp(AI.pickupDistSoloBig, AI.pickupDistSolo, clamp01((h.attrs.sho - 3.5) / 2)) : AI.pickupDist); if ((targetX - pickupLine) * dir < 0) targetX = pickupLine; // don't meet a non-shooter at the arc
-      if ((hq.vx || 0) * dir > AI.containSpeed && (targetX - p.x) * dir < 0 && Math.abs(hx - p.x) < 4.5) targetX = p.x; // contain a drive instead of lunging at it (lunging defenders get blown by)
+      const deepVsShooter = LAY.legends && Math.abs(hx - p.x) > sag + LX(AI.legendsCloseGap) && Math.abs(hx - myHoop.x) < SH.zoneDeep + LR(0.5) && Math.abs(hq.vx || 0) < LX(AI.legendsStepUpMaxV); // Legends: the short court brings a walking shooter into range before the defender is set, so a deep defender steps up instead of freezing
+      if ((hq.vx || 0) * dir > AI.containSpeed && (targetX - p.x) * dir < 0 && Math.abs(hx - p.x) < LP(4.5) && !deepVsShooter) targetX = p.x; // contain a drive instead of lunging at it (lunging defenders get blown by)
       { const holdX = myHoop.x - dir * AI.holdLineDist; if ((targetX - holdX) * dir > 0 && (hx - holdX) * dir < 0) targetX = holdX; } // stand your ground at the hold line; the driver has to beat you, not walk you back
-      if (mem && memW > 0 && h.controlled) { const od = mem.overplayDir(); if (od !== 0) targetX += od * 0.25 * memW; }
-      if (hq.state === 'protect' && Math.abs(hx - p.x) < 1.0 && (p.x - hx) * dir > 0) targetX = p.x; // a big backing me down: hold ground with the body (Strength decides who gives)
+      if (mem && memW > 0 && h.controlled) { const od = mem.overplayDir(); if (od !== 0) targetX += od * LX(0.25) * memW; }
+      if (hq.state === 'protect' && Math.abs(hx - p.x) < LP(1.0) && (p.x - hx) * dir > 0) targetX = p.x; // a big backing me down: hold ground with the body (Strength decides who gives)
       // when the handler is mid-move, disciplined defenders hold instead of chasing the jab
       const inMove = hq.state === 'crossover' || hq.state === 'hesitation';
       if (inMove && !this.biteRolled) { this.biteRolled = true; this.biting = this.rng.next() < clamp(P.bite + PC.biteHanSlope * (h.attrs.han - p.attrs.def), 0.02, 0.9); if (!this.biting) this.freezeT = 0.35; else if (hq.state === 'hesitation') { p.biteT = 0.35; } else if (hq.state === 'crossover') { p.biteT = 0.3; this.lungeDir = sgn(hq.vx) || -dir; this.lungeT = 0.3; } }
       if (!inMove && hq.state !== 'gather' && hq.state !== 'pumpfake') this.biteRolled = false;
       if (this.freezeT > 0) targetX = p.x;
-      if ((this.lungeT = (this.lungeT || 0) - this.interval) > 0) targetX = p.x + this.lungeDir * 1.2; // bit on the jab
+      if ((this.lungeT = (this.lungeT || 0) - this.interval) > 0) targetX = p.x + this.lungeDir * LX(1.2); // bit on the jab
       const dist = Math.abs(hx - p.x);
-      if ((hq.state === 'gather' || hq.state === 'jumpshot' || hq.state === 'stepback') && hq.gType !== 'layup' && hq.gType !== 'dunk' && dist < 2.6 && dist > 1.05) targetX = hx + dir * 1.0; // close out to a hand's length, not into the shooter (a step-back is a shot coming)
+      if ((hq.state === 'gather' || hq.state === 'jumpshot' || hq.state === 'stepback') && hq.gType !== 'layup' && hq.gType !== 'dunk' && dist < LP(2.6) && dist > LP(1.05)) targetX = hx + dir * LP(1.0); // close out to a hand's length, not into the shooter (a step-back is a shot coming)
       // beaten: race to the rim in the next lane over (a trailer in the same lane is stuck behind the body) and contest from the side
-      const ahead = (p.x - hx) * dir; let beaten = ahead < 0 && hd < 9 && dist < 6;
-      if (beaten) this.recoverUntil = m.time + AI.recoverHoldS; else if (m.time < this.recoverUntil && ahead < AI.cutInLead && hd < 9) beaten = true;
+      const ahead = (p.x - hx) * dir; let beaten = ahead < 0 && hd < LR(9) && dist < LP(6);
+      if (beaten) this.recoverUntil = m.time + AI.recoverHoldS; else if (m.time < this.recoverUntil && ahead < AI.cutInLead && hd < LR(9)) beaten = true;
       if (beaten && this.freezeT <= 0) targetX = (p.height >= AI.rimRecoverH && hd < AI.rimRecoverDist) ? myHoop.x - dir * AI.rimSpot : hx + dir * AI.recoverAhead; // a big races to the rim, everyone else to the driver's hip
       // contest: react to a jump shot; bite on a gather sometimes
       let jump = false;
-      const finishing = hq.gType === 'layup' || hq.gType === 'dunk' || ((hq.state === 'layup' || hq.state === 'dunk') && hq.vy > 0) || ((hq.vx || 0) * dir > 3 && hq.grounded && hd < SH.layupRange && (hq.state === 'move' || hq.state === 'burst')); // read the drive: at this speed inside layup range, he's going up
-      if (hq.state === 'gather' && !finishing && !this.biteRolled) { this.biteRolled = true; let bite = P.bite; if (mem && memW > 0 && h.controlled && mem.pumpAbuse() > AI.pumpAbuse) bite *= (1 - 0.8 * memW); this.biting = this.rng.next() < bite; if (this.biting && dist < 1.8) { jump = true; p.biteT = 0.45; } }
-      const underRim = Math.abs(p.x - myHoop.x) < 1.3 && hd > 2.5;
+      const finishing = hq.gType === 'layup' || hq.gType === 'dunk' || ((hq.state === 'layup' || hq.state === 'dunk') && hq.vy > 0) || ((hq.vx || 0) * dir > LX(3) && hq.grounded && hd < SH.layupRange && (hq.state === 'move' || hq.state === 'burst')); // read the drive: at this speed inside layup range, he's going up
+      if (hq.state === 'gather' && !finishing && !this.biteRolled) { this.biteRolled = true; let bite = P.bite; if (mem && memW > 0 && h.controlled && mem.pumpAbuse() > AI.pumpAbuse) bite *= (1 - 0.8 * memW); this.biting = this.rng.next() < bite; if (this.biting && dist < LP(1.8)) { jump = true; p.biteT = 0.45; } }
+      const underRim = Math.abs(p.x - myHoop.x) < LX(1.3) && hd > LX(2.5);
       if ((hq.state === 'jumpshot' || hq.state === 'floater') && hq.stateT < 0.2 && dist < AI.flyCloseout && this.jumpCd <= 0 && !underRim) jump = true;
       // rim protection: leave the floor as the finisher goes up (a gather seen late is still in time for the good ones)
-      if (finishing && hd < 3.4 && dist < AI.rimJumpDist && this.jumpCd <= 0 && (m.perSide === 1 || p.attrs.def + p.attrs.jmp >= 9 || p.height >= 2.0)) jump = true;
+      if (finishing && hd < LX(3.4) && dist < AI.rimJumpDist && this.jumpCd <= 0 && (m.perSide === 1 || p.attrs.def + p.attrs.jmp >= 9 || p.height >= 2.0)) jump = true;
       if (jump && p.grounded && this.jumpCd <= 0) { this.pulse.jump = 0.12 + this.rng.next() * 0.05; this.jumpCd = 0.9; }
       // steal
       let exposure = 0; const ballSideTowardMe = sgn(hq.ballSide) === sgn(p.x - hx); if (ballSideTowardMe) exposure += CONFIG.steal.expSide; if (hq.phase === 'startup') exposure += CONFIG.steal.expStartup; if (hq.pickedUp) exposure += CONFIG.steal.expPickedUp; if (hq.state === 'protect') exposure += CONFIG.steal.expProtect; exposure += HT.stealPerM * (h.height - HT.ref); if (hq.state === 'stagger') exposure *= 2;
-      const ballX = hx + hq.ballSide * PC.dribble.sideOffset; const ballInReach = Math.abs(ballX - p.x) < CONFIG.steal.reach + 0.15;
-      if (exposure >= P.discipline + 0.05 && dist < 1.3 && ballInReach && this.stealCd <= 0 && p.grounded && Math.abs(hq.z - p.z) < W.laneShare && !beaten) { this.pulse.action = 0.05; this.stealCd = (2.8 + this.rng.next() * 1.5) * (1 + 0.35 * (m.perSide - 1)); }
+      const ballX = hx + hq.ballSide * PC.dribble.sideOffset; const ballInReach = Math.abs(ballX - p.x) < CONFIG.steal.reach + LX(0.15);
+      if (exposure >= P.discipline + 0.05 && dist < LP(1.3) && ballInReach && this.stealCd <= 0 && p.grounded && Math.abs(hq.z - p.z) < W.laneShare && !beaten) { this.pulse.action = 0.05; this.stealCd = (2.8 + this.rng.next() * 1.5) * (1 + 0.35 * (m.perSide - 1)); }
       if (p.grounded) {
         const hl = laneOf(hq.z); let want = hl;
         if (beaten) { const cur = laneOf(p.zTarget); want = cur !== hl ? cur : (hl === 1 ? (p.z < 0.5 ? 0 : 2) : 1); } // chase in the next lane, cut back in a body ahead
         if (want !== laneOf(p.zTarget)) { p.lane = want; p.zTarget = LANES[want]; p.laneT = m.time; }
       }
-      this.setIntent('onball', 0.1, { x: targetX, stance: dist < AI.stanceRange && !beaten, sprint: beaten || dist > 3.5 });
+      this.setIntent('onball', 0.1, { x: targetX, stance: dist < AI.stanceRange && !beaten, sprint: beaten || dist > LP(3.5) });
       this.debug.role = beaten ? 'recover' : 'on-ball';
     } else {
       const man = tb.myMan(p) || h; const mq = this.perceived(man); const ballDist = Math.abs(hq.x - mq.x);
@@ -4269,18 +4384,18 @@ class PlayerBrain {
       const isBig = p.attrs.str >= AI.crashGlassStrength || p.height >= 2.05; const shooterTeam = b.shot.shooter.team;
       const mates = m.teammatesOf(p); const closest = mates.reduce((c, q) => Math.abs(q.x - this.rebX) < Math.abs(c.x - this.rebX) ? q : c, p);
       const rank = mates.slice().sort((a, b_) => Math.abs(a.x - this.rebX) - Math.abs(b_.x - this.rebX)).indexOf(p);
-      this.crash = isBig || closest === p || mates.length === 1 || (shooterTeam !== p.team && rank <= 1) || Math.abs(p.x - this.rebX) < 2.5;
+      this.crash = isBig || closest === p || mates.length === 1 || (shooterTeam !== p.team && rank <= 1) || Math.abs(p.x - this.rebX) < LX(2.5);
       this.debug.rebX = this.rebX;
     }
-    if (!this.crash) { const dir = sgn(hoop.x - COURT_L / 2); this.setIntent('goto', 0.2, { x: hoop.x - dir * 9, action: 'getback' }); this.debug.action = 'get back'; return; }
+    if (!this.crash) { const dir = sgn(hoop.x - COURT_L / 2); this.setIntent('goto', 0.2, { x: hoop.x - dir * LR(9), action: 'getback' }); this.debug.action = 'get back'; return; }
     // box out when an opponent is behind me toward the ball, else go to the spot
-    const ops = m.opponentsOf(p); let boxTarget = null; for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.x - p.x) < 1.2 && Math.abs(q.z - p.z) < 0.4 && (q.x - p.x) * (this.rebX - p.x) < 0) boxTarget = ops[i]; }
+    const ops = m.opponentsOf(p); let boxTarget = null; for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.x - p.x) < LP(1.2) && Math.abs(q.z - p.z) < 0.4 && (q.x - p.x) * (this.rebX - p.x) < 0) boxTarget = ops[i]; }
     this.setIntent('rebound', 0.15, { x: this.rebX, box: !!boxTarget }); this.debug.action = boxTarget ? 'box out' : 'rebound';
   }
   thinkLoose() {
     const p = this.p, m = this.m, sq = this.snap.ball, b = m.ball; const x = sq.x + sq.vx * 0.25;
     this.setIntent('chase', 0.1, { x }); this.debug.action = 'chase';
-    if (m.arcade && p.shoveCd <= 0 && p.grounded) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.x - p.x) < 0.9 && Math.abs(q.x - sq.x) < 1.5 && Math.abs(q.z - p.z) < 0.4 && this.rng.next() < 0.08 * m.teams[p.team].personality.aggression + 0.02) { this.pulse.action = 0.05; break; } } }
+    if (m.arcade && p.shoveCd <= 0 && p.grounded) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.x - p.x) < LP(0.9) && Math.abs(q.x - sq.x) < LX(1.5) && Math.abs(q.z - p.z) < 0.4 && this.rng.next() < 0.08 * m.teams[p.team].personality.aggression + 0.02) { this.pulse.action = 0.05; break; } } }
   }
   // ---------------- motor layer: turn the intent into button presses every step ----------------
   act(dt) {
@@ -4329,16 +4444,16 @@ class PlayerBrain {
         break;
       }
       case 'drive': {
-        mv = it.data.dir * (it.data.solo ? 0.55 : 1); const def = m.nearestOpponent(p); sprint = p.stamina > 30 && (!def || Math.abs(def.x - p.x) > 1.0 || p.state === 'burst') && !it.data.stopAt; if (p.pickedUp && !m.arcade) mv = 0;
+        mv = it.data.dir * (it.data.solo ? 0.55 : 1); const def = m.nearestOpponent(p); sprint = p.stamina > 30 && (!def || Math.abs(def.x - p.x) > LP(1.0) || p.state === 'burst') && !it.data.stopAt; if (p.pickedUp && !m.arcade) mv = 0;
         // no charges: let go of Sprint before running into a defender who is set in the lane ahead
-        if (sprint && def && m.charges && this.snap) { const q = this.perceived(def), ahead = (q.x - p.x) * it.data.dir; if (q.grounded && q.state === 'stance' && Math.abs(q.vx) < DF.chargePlantedVel + 0.5 && ahead > 0 && ahead < AI.chargeSlowDist && Math.abs(q.z - p.z) < W.laneShare + 0.05) sprint = false; }
+        if (sprint && def && m.charges && this.snap) { const q = this.perceived(def), ahead = (q.x - p.x) * it.data.dir; if (q.grounded && q.state === 'stance' && Math.abs(q.vx) < DF.chargePlantedVel + LX(0.5) && ahead > 0 && ahead < AI.chargeSlowDist && Math.abs(q.z - p.z) < W.laneShare + 0.05) sprint = false; }
         break;
       }
-      case 'hold': { mv = 0; const def = m.nearestOpponent(p); down = !!(def && Math.abs(def.x - p.x) < 1.5 && p.grounded); break; }
+      case 'hold': { mv = 0; const def = m.nearestOpponent(p); down = !!(def && Math.abs(def.x - p.x) < LP(1.5) && p.grounded); break; }
       case 'move': {
         const mvn = it.data.move; mv = it.data.dir;
         if (!this.movePressed) {
-          if (mvn === 'hesitation') { if (p.state === 'move' && Math.abs(p.vx) > 0.4) { this.pulse.sprint = 0.03; this.movePressed = true; } else mv = it.data.dir; }
+          if (mvn === 'hesitation') { if (p.state === 'move' && Math.abs(p.vx) > LX(0.4)) { this.pulse.sprint = 0.03; this.movePressed = true; } else mv = it.data.dir; }
           else if (mvn === 'pumpfake') { this.pulse.shoot = 0.05; this.movePressed = true; mv = 0; }
           else if (mvn === 'spin') { sprint = true; this.pulse.action = 0.03; this.movePressed = true; }
           else if (mvn === 'stepback') { mv = -(sgn(p.hoop.x - p.x) || p.facing); this.pulse.action = 0.03; this.movePressed = true; }
@@ -4356,24 +4471,24 @@ class PlayerBrain {
         if (p.state === 'pass' || p.state === 'lob') { mv = 0; }
         break;
       }
-      case 'clear': { mv = it.data.dir; const def = m.nearestOpponent(p); sprint = !def || Math.abs(def.x - p.x) > 1.5; down = !!(def && Math.abs(def.x - p.x) < 1.1) && !sprint; break; }
-      case 'reset': { mv = it.data.dir; const def = m.nearestOpponent(p); if (def && Math.abs(def.x - p.x) < 1.3) down = true; if (Math.abs(p.x - p.hoop.x) > AI.spots.deepTop + 1) mv = 0; break; }
-      case 'goto': { const dx = it.data.x - p.x; if (Math.abs(dx) > 0.3) mv = sgn(dx); sprint = Math.abs(dx) > 3.5 || it.data.action === 'cut' || it.data.action === 'roll' || it.data.action === 'run'; if (Math.abs(dx) <= 0.3 && (it.data.action === 'screen' || it.data.action === 'post')) down = true; break; }
-      case 'onball': { const dx = it.data.x - p.x; if (Math.abs(dx) > 0.12) mv = clamp(dx / 0.5, -1, 1); down = it.data.stance; sprint = it.data.sprint && Math.abs(dx) > 1.5; if (this.freezeT > 0) { mv = 0; down = true; } break; }
-      case 'offball': { const dx = it.data.x - p.x; if (Math.abs(dx) > 0.2) mv = clamp(dx / 0.6, -1, 1); down = it.data.stance && Math.abs(dx) < 0.6; sprint = it.data.sprint && Math.abs(dx) > 1.5; break; }
+      case 'clear': { mv = it.data.dir; const def = m.nearestOpponent(p); sprint = !def || Math.abs(def.x - p.x) > LP(1.5); down = !!(def && Math.abs(def.x - p.x) < LP(1.1)) && !sprint; break; }
+      case 'reset': { mv = it.data.dir; const def = m.nearestOpponent(p); if (def && Math.abs(def.x - p.x) < LP(1.3)) down = true; if (Math.abs(p.x - p.hoop.x) > AI.spots.deepTop + LR(1)) mv = 0; break; }
+      case 'goto': { const dx = it.data.x - p.x; if (Math.abs(dx) > LX(0.3)) mv = sgn(dx); sprint = Math.abs(dx) > LX(3.5) || it.data.action === 'cut' || it.data.action === 'roll' || it.data.action === 'run'; if (Math.abs(dx) <= LX(0.3) && (it.data.action === 'screen' || it.data.action === 'post')) down = true; break; }
+      case 'onball': { const dx = it.data.x - p.x; if (Math.abs(dx) > LX(0.12)) mv = clamp(dx / LX(0.5), -1, 1); down = it.data.stance; sprint = it.data.sprint && Math.abs(dx) > LX(1.5); if (this.freezeT > 0) { mv = 0; down = true; } break; }
+      case 'offball': { const dx = it.data.x - p.x; if (Math.abs(dx) > LX(0.2)) mv = clamp(dx / LX(0.6), -1, 1); down = it.data.stance && Math.abs(dx) < LX(0.6); sprint = it.data.sprint && Math.abs(dx) > LX(1.5); break; }
       case 'rebound': {
-        const dx = it.data.x - p.x; if (Math.abs(dx) > 0.25) mv = clamp(dx / 0.6, -1, 1); sprint = Math.abs(dx) > 2; down = it.data.box && Math.abs(dx) < 0.6;
+        const dx = it.data.x - p.x; if (Math.abs(dx) > LX(0.25)) mv = clamp(dx / LX(0.6), -1, 1); sprint = Math.abs(dx) > LX(2); down = it.data.box && Math.abs(dx) < LX(0.6);
         const handMax = p.reach + jumpVelOf(p) ** 2 / (2 * G);
         if (p.grounded && Math.abs(b.x - p.x) < AI.rebJumpRange && b.vy < 0 && b.y < handMax + 0.4 && b.y > p.reach - 0.2 && this.jumpCd <= 0 && (b.rimTouched || b.boardTouched || b.y < RIM_Y - 0.1 || Math.abs(b.x - p.hoop.x) > 1.3)) { this.pulse.jump = 0.15; this.jumpCd = 0.8; }
         break;
       }
-      case 'chase': { const dx = it.data.x - p.x; if (Math.abs(dx) > 0.15) mv = clamp(dx / 0.5, -1, 1); sprint = Math.abs(dx) > 1.2; if (p.grounded && Math.abs(b.x - p.x) < 0.8 && b.y > 1.6 && b.y < p.reach + 0.9 && b.vy < 0 && this.jumpCd <= 0) { this.pulse.jump = 0.15; this.jumpCd = 0.8; } break; }
+      case 'chase': { const dx = it.data.x - p.x; if (Math.abs(dx) > LX(0.15)) mv = clamp(dx / LX(0.5), -1, 1); sprint = Math.abs(dx) > LX(1.2); if (p.grounded && Math.abs(b.x - p.x) < 0.8 && b.y > 1.6 && b.y < p.reach + 0.9 && b.vy < 0 && this.jumpCd <= 0) { this.pulse.jump = 0.15; this.jumpCd = 0.8; } break; }
       case 'receive': { const dx = b.x + b.vx * 0.15 - p.x; if (b.pass && b.pass.type !== 'lob' && Math.abs(dx) > 0.35 && Math.abs(b.x - p.x) < 4) mv = clamp(dx / 0.6, -1, 1); break; }
       case 'tipoff': break;
       default: break;
     }
     // airborne with the ball after a lob or rebound: finish it
-    if (p.hasBall && !p.grounded && (p.state === 'jump' || p.state === 'catch' || p.state === 'fall') && Math.abs(p.x - p.hoop.x) < 1.6 && b.y > RIM_Y - 0.05 && p.vy > -2 && !(m.halfCourt && m.mustClear === p.team)) { this.pulse.shoot = 0.05; }
+    if (p.hasBall && !p.grounded && (p.state === 'jump' || p.state === 'catch' || p.state === 'fall') && Math.abs(p.x - p.hoop.x) < LX(1.6) && b.y > RIM_Y - 0.05 && p.vy > -2 && !(m.halfCourt && m.mustClear === p.team)) { this.pulse.shoot = 0.05; }
     if (this.pulse.shoot > 0) shoot = true; if (this.pulse.pass > 0) pass = true; if (this.pulse.jump > 0) jump = true; if (this.pulse.action > 0) action = true; if (this.pulse.sprint > 0) sprint = true;
     I.set('laneUp', this.pulse.laneUp > 0); I.set('laneDown', this.pulse.laneDown > 0);
     if (it && it.type !== 'move' && it.type !== 'pass') { this.movePressed = false; this.passPressed = false; }
@@ -4438,7 +4553,7 @@ function updateTipoff(m, dt) {
   if (m.phaseT > RU.tipoffTimeout) { const tippers = m.players.filter(p => p.tipoff); tipTo(m, tippers[m.rng.int(tippers.length)] || m.players[0]); }
 }
 function tipTo(m, p) {
-  const b = m.ball, dir = sgn(p.hoop.x - COURT_L / 2); b.vx = -dir * 2.2; b.vy = -0.5; b.lastTouch = p; b.lastTouchTeam = p.team; b.mode = 'loose';
+  const b = m.ball, dir = sgn(p.hoop.x - COURT_L / 2); b.vx = -dir * LX(2.2); b.vy = -0.5; b.lastTouch = p; b.lastTouchTeam = p.team; b.mode = 'loose';
   m.possession = p.team; m.shotClock = RU.shotClock; for (const q of m.players) { q.tipoff = false; if (q.state === 'tipoff') q.setState('move'); }
   m.bus.emit('TIPOFF_WON', { player: p, team: p.team }); m.tipWinner = p.team; goLive(m); m.bus.emit('POSSESSION_CHANGE', { team: p.team, player: p, how: 'tip' });
 }
@@ -4463,7 +4578,7 @@ function updateLive(m, dt) {
   if (m.halfCourt) {
     const hoop = HOOPS[1];
     if (m.mustClear >= 0 && b.owner && b.owner.team === m.mustClear && Math.abs(b.owner.x - hoop.x) >= W.threeLine + 0.05) { m.mustClear = -1; m.bus.emit('CLEARED', { team: b.owner.team, player: b.owner }); }
-    if (!b.owner && b.mode === 'loose' && b.x < COURT_L / 2 - RU.midlinePad) { const lt = b.lastTouchTeam >= 0 ? b.lastTouchTeam : m.possession; m.bus.emit('VIOLATION', { kind: 'out', team: lt, player: b.lastTouch }); turnoverTo(m, 1 - lt, b.lastTouch, 'out'); return; }
+    if (!b.owner && b.mode === 'loose' && b.x < halfCourtMinX()) { const lt = b.lastTouchTeam >= 0 ? b.lastTouchTeam : m.possession; m.bus.emit('VIOLATION', { kind: 'out', team: lt, player: b.lastTouch }); turnoverTo(m, 1 - lt, b.lastTouch, 'out'); return; }
     if (m.drill && b.owner && b.owner.team !== m.drill.attack) { drillStop(m, b.owner); return; } // a drill: the defense got the ball, so the possession is over
   }
 }
@@ -4533,10 +4648,10 @@ function doInbound(m) {
   const team = m.pendingInbound >= 0 ? m.pendingInbound : m.rng.int(2); m.pendingInbound = -1; m.replayHold = 0;
   if (m.halfCourt) { doCheckBall(m, team); return; }
   const hoop = m.hoopFor(1 - team); // the hoop this team defends
-  const dir = sgn(COURT_L / 2 - hoop.x); const spotX = hoop.x + dir * 1.2;
+  const dir = sgn(COURT_L / 2 - hoop.x); const spotX = hoop.x + dir * LX(1.2);
   const players = m.teams[team].players; let p = players[0], bd = 99; for (const q of players) { const d = Math.abs(q.x - spotX); if (d < bd && !q.inState('knocked')) { bd = d; p = q; } }
   p.x = spotX; p.y = 0; p.vx = 0; p.vy = 0; p.grounded = true; p.setState('move'); p.facing = dir; p.pickedUp = false; p.zTarget = 0.5; p.z = 0.5;
-  for (const q of m.players) { if (q.team !== team) { if (Math.abs(q.x - p.x) < RU.inboundDist + 0.3) { q.x = p.x + dir * (RU.inboundDist + 0.3 + Math.random() * 0); q.vx = 0; } } if (q.inState('stumble', 'knocked', 'stagger', 'rimhang', 'celebrate')) { q.setState('move'); q.y = 0; q.grounded = true; q.vy = 0; } if (q.brain) { q.brain.intent = null; q.brain.commitT = 0; q.brain.holdShoot = false; q.brain.holdPass = false; } }
+  for (const q of m.players) { if (q.team !== team) { if (Math.abs(q.x - p.x) < RU.inboundDist + LX(0.3)) { q.x = p.x + dir * (RU.inboundDist + LX(0.3)); q.vx = 0; } } if (q.inState('stumble', 'knocked', 'stagger', 'rimhang', 'celebrate')) { q.setState('move'); q.y = 0; q.grounded = true; q.vy = 0; } if (q.brain) { q.brain.intent = null; q.brain.commitT = 0; q.brain.holdShoot = false; q.brain.holdPass = false; } }
   freezeBall(m); m.ball.x = p.x + dir * 0.3; m.ball.y = RU.inboundTossHeight; m.ball.z = p.z; m.ball.setOwner(p); p.dribble.side = dir;
   m.possession = team; m.shotClock = RU.shotClock; m.inboundHoldT = RU.inboundHold; m.inboundPlayer = p; m.posStartT = m.time;
   m.teams[team].possessions++;
@@ -4547,7 +4662,7 @@ function doInbound(m) {
 function doCheckBall(m, team) {
   const hoop = HOOPS[1], dir = sgn(COURT_L / 2 - hoop.x) || -1, hp = m.teams[team].players[0], x = hoop.x + dir * RU.checkDist;
   const place = (q, qx, face) => { q.x = qx; q.y = 0; q.vx = 0; q.vy = 0; q.grounded = true; q.setState('move'); q.facing = face; q.zTarget = 0.5; q.z = 0.5; q.lane = 1; if (q.brain) { q.brain.intent = null; q.brain.commitT = 0; q.brain.holdShoot = false; q.brain.holdPass = false; } };
-  place(hp, x, -dir); hp.pickedUp = false; for (const q of m.players) if (q !== hp) place(q, q.team === team ? x + dir * 1.5 : x - dir * RU.checkGap, q.team === team ? -dir : dir);
+  place(hp, x, -dir); hp.pickedUp = false; for (const q of m.players) if (q !== hp) place(q, q.team === team ? x + dir * LX(1.5) : x - dir * RU.checkGap, q.team === team ? -dir : dir);
   freezeBall(m); m.ball.x = hp.x - dir * 0.3; m.ball.y = RU.inboundTossHeight; m.ball.z = hp.z; m.ball.setOwner(hp); hp.dribble.side = -dir;
   m.possession = team; m.shotClock = RU.shotClock; m.mustClear = -1; m.inboundHoldT = 0; m.inboundPlayer = null; m.posStartT = m.time; m.teams[team].possessions++; m.clockRunning = false;
   setPhase(m, 'check', {}); m.bus.emit('CHECK', { team, player: hp }); m.bus.emit('POSSESSION_CHANGE', { team, player: hp, how: 'check' });
@@ -4570,7 +4685,7 @@ function startFreeThrows(m) {
 function positionForFreeThrow(m) {
   const ft = m.ftState, shooter = ft.shooter, hoop = shooter.hoop, dir = sgn(COURT_L / 2 - hoop.x);
   shooter.x = hoop.x + dir * W.ftLine; shooter.y = 0; shooter.vx = 0; shooter.vy = 0; shooter.grounded = true; shooter.facing = -dir; shooter.setState('move'); shooter.z = 0.5; shooter.zTarget = 0.5; shooter.pickedUp = true;
-  let k = 0; for (const p of m.players) { if (p === shooter) continue; p.x = hoop.x + dir * (2.2 + k * 0.9); p.y = 0; p.vx = 0; p.vy = 0; p.grounded = true; p.setState('move'); p.z = p.team === shooter.team ? 0.25 : 0.75; p.zTarget = p.z; k++; if (p.brain) { p.brain.intent = null; p.brain.holdShoot = false; } }
+  let k = 0; for (const p of m.players) { if (p === shooter) continue; p.x = hoop.x + dir * LX(2.2 + k * 0.9); p.y = 0; p.vx = 0; p.vy = 0; p.grounded = true; p.setState('move'); p.z = p.team === shooter.team ? 0.25 : 0.75; p.zTarget = p.z; k++; if (p.brain) { p.brain.intent = null; p.brain.holdShoot = false; } }
   freezeBall(m); m.ball.setOwner(shooter); ft.ready = false; ft.t = 0; if (shooter.brain) { shooter.brain.holdShoot = false; shooter.brain.intent = null; }
 }
 function updateFreeThrow(m, dt) {
@@ -4593,8 +4708,8 @@ function ftResult(m, made) {
 // --- practice, contest and the 3-point mode rules ---
 function setupPractice(m) {
   const pr = m.practice; pr.shots = 0; pr.makes = 0; pr.byZone = { mid: [0, 0], three: [0, 0], deep: [0, 0], heave: [0, 0], lay: [0, 0], dunk: [0, 0] }; pr.respawnT = 0; pr.chart = [];
-  const hp = m.human; if (hp) { hp.x = m.hoopFor(hp.team).x - 5; hp.y = 0; }
-  const dummy = m.players.find(p => p.team !== m.humanTeam); if (dummy) { if (pr.noDefender) { dummy.x = -50; dummy.zTarget = 0.5; dummy.hidden = true; } else { dummy.x = m.hoopFor(hp.team).x - 2.5; } }
+  const hp = m.human; if (hp) { hp.x = m.hoopFor(hp.team).x - LR(5); hp.y = 0; }
+  const dummy = m.players.find(p => p.team !== m.humanTeam); if (dummy) { if (pr.noDefender) { dummy.x = -50; dummy.zTarget = 0.5; dummy.hidden = true; } else { dummy.x = m.hoopFor(hp.team).x - LX(2.5); } }
   m.possession = m.humanTeam; m.shotClock = 99;
   m.bus.on('SHOT_RELEASED', s => { if (s.shooter.team !== m.humanTeam) return; pr.shots++; pr.chart.push({ x: s.x0, d: s.d, zone: s.zone, make: s.make, type: s.type, grade: s.grade, id: s.id }); const k = s.type === 'layup' || s.type === 'tip' ? 'lay' : s.type === 'dunk' ? 'dunk' : s.zone; pr.byZone[k][1]++; });
   m.bus.on('MISS', e => { if (e.shooter.team === m.humanTeam) pr.respawnT = 1.1; });
@@ -4752,6 +4867,7 @@ class Camera {
   resize(W, H) { this.W = W; this.H = H; }
   snapTo(x) { this.x.x = x; this.x.v = 0; }
   update(m, dt, focusOverride) {
+    ensureLayout(m); if (LAY.legends) { this.updateLegends(m, dt, focusOverride); return; }
     const b = m.ball, cp = m.controlledPlayer || m.players[0];
     let fx, targetZoom;
     if (this.fixed) { fx = this.fixed.x; targetZoom = this.fixed.zoom; }
@@ -4791,8 +4907,22 @@ class Camera {
     const t2 = this.trauma * this.trauma * (this.reduceMotion ? 0 : this.shakeSetting);
     this.shakeX = t2 * CAM.shakeAmp * Math.sin(this.noiseT * 61.7) * Math.cos(this.noiseT * 23.1); this.shakeY = t2 * CAM.shakeAmp * Math.sin(this.noiseT * 47.3 + 1.7);
   }
+  // §2 Legends View: the whole court on one screen at a fixed scale, the floor line at 80% of the screen height, a small
+  // damped drift toward the ball, the punch-in on dunks and blocks and the usual shake. No dynamic zoom. A replay still
+  // cuts in closer (it is a highlight, not live play).
+  updateLegends(m, dt, focusOverride) {
+    const L = CAM.legends, b = m.ball, mid = COURT_L / 2, ppm0 = Math.min(this.W / (COURT_L + 2 * W.wallPad), this.H / L.viewH);
+    let fx = mid + L.drift * clamp((b.x - mid) / Math.max(1, mid - W.hoopInset), -1, 1), zoom = 1;
+    if (focusOverride) { zoom = focusOverride.zoom; const half = this.W / 2 / (ppm0 * zoom); fx = half * 2 >= WALL_R - WALL_L ? mid : clamp(focusOverride.x, WALL_L + half, WALL_R - half); }
+    this.noiseT += dt; springStep(this.x, fx, focusOverride ? CAM.omega : L.driftOmega, dt); springStep(this.zoom, zoom, CAM.zoomOmega * 2, dt);
+    this.ppm = ppm0 * this.zoom.x * (1 + this.punch);
+    this.y.x = (this.H * L.floorAt - this.H / 2) / this.ppm + (focusOverride ? (this.zoom.x - 1) * 1.2 : 0); this.y.v = 0; // the floor sits at floorAt; a replay frames a little higher
+    this.trauma = Math.max(0, this.trauma - CAM.shakeDecay * dt); this.punch = approach(this.punch, 0, CAM.punchDecay * dt * Math.max(0.02, this.punch));
+    const t2 = this.trauma * this.trauma * (this.reduceMotion ? 0 : this.shakeSetting);
+    this.shakeX = t2 * CAM.shakeAmp * Math.sin(this.noiseT * 61.7) * Math.cos(this.noiseT * 23.1); this.shakeY = t2 * CAM.shakeAmp * Math.sin(this.noiseT * 47.3 + 1.7);
+  }
   addTrauma(t) { this.trauma = Math.min(1, this.trauma + t); }
-  addPunch() { if (!this.reduceMotion) this.punch = CAM.punchIn; }
+  addPunch() { if (!this.reduceMotion) this.punch = LAY.legends ? CAM.legends.punchIn : CAM.punchIn; }
   // world -> screen (CSS pixels)
   sx(wx) { return (wx - this.x.x - this.shakeX) * this.ppm + this.W / 2; }
   sy(wy, z) { return this.H / 2 - (wy - this.y.x - this.shakeY) * this.ppm + ((0.5 - (z == null ? 0.5 : z)) * CONFIG.fx.laneOffsetPx * this.zoom.x); }
@@ -4945,7 +5075,7 @@ function drawPlayer(ctx, cam, p, alpha, ball, team, opts) { drawCharacter(ctx, c
 function opennessLabel(c) { return c < 0.15 ? 'WIDE OPEN' : c < 0.4 ? 'OPEN' : c < 0.7 ? 'CONTESTED' : 'SMOTHERED'; }
 function drawShotMeter(ctx, cam, p, alpha, setting, lastShot, time) {
   if (setting === 'off') return; const sd = p.sd; const st = p.state; const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha), z = lerp(p.pz, p.z, alpha); const s = cam.scale(z);
-  const bx = cam.sx(x) - p.facing * s * 0.8, by0 = cam.sy(y, z) - s * p.height * 1.3, hgt = s * p.height * 0.95, w = Math.max(6, s * 0.11);
+  const DH = drawHeightOf(p), bx = cam.sx(x) - p.facing * s * 0.8 * DH / p.height, by0 = cam.sy(y, z) - s * DH * 1.3, hgt = s * DH * 0.95, w = Math.max(6, s * 0.11);
   if ((st === 'jumpshot' || st === 'floater') && setting === 'on' && sd.type !== 'hook') {
     const tApex = sd.tApex || 0.3; const fill = clamp01(p.stateT / (2 * tApex)); const wFrac = clamp((perfectWindow(p, sd.contestGuess || 0, Math.abs(x - p.hoop.x)) / (2 * tApex)), 0.02, 0.3);
     ctx.fillStyle = 'rgba(10,10,30,0.75)'; ctx.beginPath(); roundRectPath(ctx, bx - w / 2 - 3, by0 - 3, w + 6, hgt + 6, 4); ctx.fill();
@@ -5587,7 +5717,7 @@ Object.assign(ART, {
 // --- the floor texture, baked once per venue and colors ---
 const _floorTex = new Map();
 function floorTexture(kind, home, courtId) {
-  const key = kind + '|' + home.join() + '|' + courtId; let T = _floorTex.get(key); if (T) return T;
+  const key = kind + '|' + home.join() + '|' + courtId + '|' + LAY.id; let T = _floorTex.get(key); if (T) return T; // the court lines follow the layout
   const PX = ART.floorPxPerM, X0 = WALL_L - 3, X1 = WALL_R + 3, Wm = X1 - X0, D = ART.floorDepthM; const c = document.createElement('canvas'); c.width = Math.ceil(Wm * PX); c.height = Math.ceil(D * PX); const g = c.getContext('2d');
   let s = hashString(key); const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; const X = x => (x - X0) * PX, H_ = c.height;
   const street = kind === 'street', base = kind === 'hs' ? '#E3B87C' : kind === 'college' ? '#C98B4A' : street ? '#3A3A44' : '#C98B4A';
@@ -5616,6 +5746,8 @@ function floorTexture(kind, home, courtId) {
   T = { canvas: c, x0: X0, x1: X1 }; if (_floorTex.size > 8) _floorTex.clear(); _floorTex.set(key, T); return T;
 }
 function floorBandOf(cam) { return { top: cam.sy(0), bottom: cam.sy(-ART.floorDepthM) }; }
+// Legends View street half court: the players stay on the hoop's side of a line past the short court's midcourt line.
+function drawHalfCourtLine(ctx, cam) { const { top, bottom } = floorBandOf(cam), x = cam.sx(halfCourtMinX()); ctx.save(); ctx.strokeStyle = 'rgba(247,244,236,0.85)'; ctx.lineWidth = Math.max(2, ART.lineW * cam.ppm * 1.4); ctx.setLineDash([cam.ppm * 0.25, cam.ppm * 0.15]); ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke(); ctx.restore(); }
 // L3: the floor (texture blit), light pools and specular bars; `back` is the floor color below the band.
 function drawCourtFloor(ctx, cam, V, courtId) {
   const T = floorTexture(V.kind, V.home, courtId), { top, bottom } = floorBandOf(cam), W_ = cam.W;
@@ -5702,7 +5834,7 @@ function ballSprite(skin, px) {
 let _flames = null;
 function flameFrames() { if (_flames) return _flames; _flames = []; for (let k = 0; k < ART.flameFrames; k++) _flames.push(vSprite('flame' + k, 48, 64, (g, w, h) => { const cols = ['#FFD23F', '#FF8A2A', '#FF4FA3']; for (let i = 2; i >= 0; i--) { const s = 1 - i * 0.26, wob = (k - 1) * 3; g.fillStyle = cols[i]; g.globalAlpha = 0.85; g.beginPath(); g.moveTo(w / 2 + wob, h * (0.08 + i * 0.1)); g.bezierCurveTo(w * (0.5 + 0.45 * s), h * 0.45, w * (0.5 + 0.35 * s), h * 0.95, w / 2, h * 0.95); g.bezierCurveTo(w * (0.5 - 0.35 * s), h * 0.95, w * (0.5 - 0.45 * s), h * 0.45, w / 2 + wob, h * (0.08 + i * 0.1)); g.fill(); } })); return _flames; }
 function drawBallNew(ctx, cam, b, alpha, skin, onFire, opts) {
-  const x = lerp(b.px != null ? b.px : b.x, b.x, alpha), y = lerp(b.py != null ? b.py : b.y, b.y, alpha), z = lerp(b.pz != null ? b.pz : b.z, b.z, alpha);
+  const x = lerp(b.px != null ? b.px : b.x, b.x, alpha) + (b.visDX || 0), y = lerp(b.py != null ? b.py : b.y, b.y, alpha) + (b.visDY || 0), z = lerp(b.pz != null ? b.pz : b.z, b.z, alpha); // (+ the Legends View hand offset)
   const s = cam.scale(z), r = BALL.radius * s * 1.15, sx = cam.sx(x), sy = cam.sy(y, z); if (!isFinite(sx + sy) || !(r > 0.5)) return;
   if (onFire && !(opts && opts.reflection)) { const F = flameFrames(), vx = b.vx || 0, vy = b.vy || 0, sp = Math.hypot(vx, vy) || 1; for (let k = 0; k < F.length; k++) { const d = (k + 1) * r * 0.9, a = Math.atan2(-vy, vx); ctx.save(); ctx.globalAlpha = 0.7 - k * 0.2; ctx.translate(sx - (vx / sp) * d, sy + (vy / sp) * d); ctx.rotate(a + Math.PI / 2); const fs = r * (2.2 - k * 0.4); ctx.drawImage(F[(k + Math.floor(performance.now() / 70)) % F.length], -fs / 2, -fs * 0.3, fs, fs * 1.33); ctx.restore(); } }
   const spr = ballSprite(skin, r); const k = r / ((spr.width - 4) / 2); ctx.drawImage(spr, sx - spr.width / 2 * k, sy - spr.height / 2 * k, spr.width * k, spr.height * k);
@@ -5712,9 +5844,9 @@ function drawBallNew(ctx, cam, b, alpha, skin, onFire, opts) {
 // L5: soft shadows for every player and the ball, drawn before the hoops and players.
 function drawShadows(ctx, cam, players, ball, alpha, replay) {
   const spr = shadowSprite();
-  if (!replay) for (const p of players) { if (!p.controlled || p.hidden) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), k = cam.scale(z) * (p.height || 1.9), ox = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha)), fy = cam.sy(0, z); ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, fy + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; } // the ring under your player
-  for (const p of players) { if (p.hidden) continue; const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); const k = cam.scale(z) * (p.height || 1.9), hgt = Math.max(0, y), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1); const ox = cam.sx(x), fy = cam.sy(0, z); if (!isFinite(ox + fy)) continue; ctx.globalAlpha = fade; ctx.drawImage(spr, ox - 0.45 * k * sc, fy - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); }
-  if (ball) { const x = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha), y = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha), z = lerp(ball.pz != null ? ball.pz : ball.z, ball.z, alpha); const r = BALL.radius * cam.scale(z) * 1.15, sc = clamp(1 - y / 6, 0.35, 1); ctx.globalAlpha = clamp(1 - y / 5, 0.15, 0.9); ctx.drawImage(spr, cam.sx(x) - r * 1.3 * sc, cam.sy(0, z) - r * 0.35 * sc, r * 2.6 * sc, r * 0.7 * sc); }
+  if (!replay) for (const p of players) { if (!p.controlled || p.hidden) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), k = cam.scale(z) * drawHeightOf(p), ox = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha)), fy = cam.sy(0, z); ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, fy + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; } // the ring under your player
+  for (const p of players) { if (p.hidden) continue; const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); const k = cam.scale(z) * drawHeightOf(p), hgt = Math.max(0, y), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1); const ox = cam.sx(x), fy = cam.sy(0, z); if (!isFinite(ox + fy)) continue; ctx.globalAlpha = fade; ctx.drawImage(spr, ox - 0.45 * k * sc, fy - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); }
+  if (ball) { const x = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0), y = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0), z = lerp(ball.pz != null ? ball.pz : ball.z, ball.z, alpha); const r = BALL.radius * cam.scale(z) * 1.15, sc = clamp(1 - y / 6, 0.35, 1); ctx.globalAlpha = clamp(1 - y / 5, 0.15, 0.9); ctx.drawImage(spr, cam.sx(x) - r * 1.3 * sc, cam.sy(0, z) - r * 0.35 * sc, r * 2.6 * sc, r * 0.7 * sc); }
   ctx.globalAlpha = 1;
 }
 // L4: floor reflections from a half-resolution buffer, faded out with depth.
@@ -5788,7 +5920,7 @@ class FXSystem {
     if (this.blur) { this.blur.t -= dt; if (this.blur.t <= 0) this.blur = null; }
     if (m) for (const p of m.players) { // sweat (§3.7): drops flung off a tired player at 2 per second below 40% stamina
       const a = p.anim; if (!a || p.hidden || !(p.stamina < ART.sweatBelow * PC.stamina.max)) continue; a.sweatAcc = (a.sweatAcc || 0) + dt * ART.sweatRate;
-      while (a.sweatAcc >= 1) { a.sweatAcc -= 1; this.spawn('sweat', p.x - p.facing * 0.08 * p.height, p.y + p.height * 0.95, p.z, 1, '#CFEFFF', { dir: p.facing, spread: 0.3 * p.height }); }
+      while (a.sweatAcc >= 1) { a.sweatAcc -= 1; { const DH = drawHeightOf(p); this.spawn('sweat', p.x - p.facing * 0.08 * DH, p.y + DH * 0.95, p.z, 1, '#CFEFFF', { dir: p.facing, spread: 0.3 * DH }); } }
     }
     // On Fire flame trail
     if (m) { this.trailT += dt; const fire = m.ball.owner && m.ball.owner.onFire > 0 || (m.ball.shot && m.ball.shot.shooter.onFire > 0 && m.ball.mode === 'flight'); if (fire && this.trailT > 0.04) { this.trailT = 0; this.spawn('flame', m.ball.x, m.ball.y, m.ball.z, 2, ['#FF8A2A', '#FF4FA3', '#FFD23F'], { spread: 0.15 }); } for (const p of m.players) if (p.onFire > 0 && this.trailT === 0) this.spawn('flame', p.x, p.y + 0.2, p.z, 1, ['#FF8A2A', '#FFD23F'], { spread: 0.4 }); }
@@ -5819,7 +5951,7 @@ function attachPresentation(m, game) {
   bus.on('BALL_BOUNCE', e => { au.bounce(e.impact); if (e.impact > 3) fx.spawn('dust', e.x, 0.05, m.ball.z, 3, 'rgba(243,240,255,0.5)'); });
   bus.on('RIM_HIT', e => { au.rim(e.impact > 4.5); if (e.impact > 5) { fx.spawn('spark', e.x, e.y, m.ball.z, CONFIG.fx.sparkPerClank, ['#FF8A2A', '#FFB347', '#FF7A1A', '#FFD23F'], { spread: 0.05, spreadY: 0.05 }); cam.addTrauma(0.15); } /* 10 orange sparks, 0.3 s (§5) */ });
   bus.on('BOARD_HIT', e => au.board()); bus.on('WALL_HIT', e => au.wall());
-  bus.on('BONK', e => { au.bonk(); pushCallout(m, 'BONK', CALLOUT.defense); fx.spawn('star', e.player.x, e.player.headY + 0.3, e.player.z, 4, '#FFD23F'); e.player.anim.expr = 'shocked'; e.player.anim.exprT = 1; });
+  bus.on('BONK', e => { au.bonk(); pushCallout(m, 'BONK', CALLOUT.defense); fx.spawn('star', e.player.x, e.player.y + drawHeightOf(e.player) + 0.1, e.player.z, 4, '#FFD23F'); e.player.anim.expr = 'shocked'; e.player.anim.exprT = 1; });
   bus.on('CATCH', e => au.catchBall()); bus.on('PASS', e => au.noise(0.05, 0.1, { filter: 'bandpass', freq: 2500 }));
   bus.on('MOVE', e => { au.squeak(); fx.spawn('dust', e.player.x, 0.05, e.player.z, 3, 'rgba(243,240,255,0.5)'); });
   bus.on('LAND', e => { fx.spawn('puff', e.player.x, 0.06, e.player.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); /* 8 beige puffs drifting outward (§5) */ if (e.speed > 4) au.noise(0.05, 0.12, { filter: 'lowpass', freq: 500 }); });
@@ -5847,7 +5979,7 @@ function attachPresentation(m, game) {
   bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; m.replayRequested = true; au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
   bus.on('HEAT_ON', e => { pushCallout(m, 'ON FIRE', CALLOUT.make, true); au.stinger('fire'); fx.spawn('flame', e.player.x, e.player.y + 1, e.player.z, 16, ['#FF8A2A', '#FFD23F', '#FF4FA3'], { spread: 0.6, spreadY: 1 }); });
   bus.on('SHOVE', e => { au.shove(); cam.addTrauma(0.2); fx.spawn('dust', e.victim.x, 0.3, e.victim.z, 4, 'rgba(243,240,255,0.5)'); });
-  bus.on('KNOCKDOWN', e => { au.stumble(); fx.spawn('star', e.player.x, e.player.headY + 0.3, e.player.z, 3, '#FFD23F'); });
+  bus.on('KNOCKDOWN', e => { au.stumble(); fx.spawn('star', e.player.x, e.player.y + drawHeightOf(e.player) + 0.1, e.player.z, 3, '#FFD23F'); });
   bus.on('VIOLATION', e => { au.buzzer(); pushCallout(m, e.kind === 'travel' ? 'TRAVEL' : e.kind === 'clear' ? 'TAKE IT BACK' : e.kind === 'out' ? 'OUT OF BOUNDS' : 'SHOT CLOCK', CALLOUT.call); });
   bus.on('DRILL_STOP', e => { au.whistle(); pushCallout(m, m.drill && m.drill.attack === humanTeam ? 'CHECK IT BACK' : 'STOP', m.drill && m.drill.attack === humanTeam ? CALLOUT.call : CALLOUT.defense); });
   bus.on('CHECK', e => { au.bounce(4); }); bus.on('CLEARED', e => { if (e.team === humanTeam) au.ui('tick'); });
@@ -6460,6 +6592,7 @@ function settingsScreen(game) {
     tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }),
   ];
   const feel = [
+    sel('Camera (1v1)', 0, 0, 0, 0, ['Legends View', 'Classic'], () => S.camera === 'classic' ? 1 : 0, i => { S.camera = i ? 'classic' : 'legends'; }), // §2: the whole short court on one screen, or the classic follow camera (2v2 and up are always Classic)
     sld('Screen shake', 0, 0, 0, 0, 0, 1, 0.1, () => S.shake, v => { S.shake = v; apply(); }), tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }),
     sld('Master volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.master, v => { S.master = v; apply(); }), sld('SFX volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.sfx, v => { S.sfx = v; apply(); }), sld('Music volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.music, v => { S.music = v; apply(); }),
     sld('Touch size', 0, 0, 0, 0, 0.7, 1.5, 0.1, () => S.touchSize, v => { S.touchSize = v; apply(); }, v => v.toFixed(1) + 'x'), sld('Touch opacity', 0, 0, 0, 0, 0.2, 1, 0.1, () => S.touchOpacity, v => { S.touchOpacity = v; apply(); }), tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }),
@@ -6692,7 +6825,7 @@ function leagueScreen(game) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'THE ISO LEAGUE', 40, 52, 34); ui.label(ctx, 'Season ' + c.season + (c.phase === 'playoffs' ? ' · playoffs' : c.phase === 'regular' ? ' · week ' + Math.min(c.week + 1, c.schedule.length) + ' of ' + c.schedule.length : ''), 1240, 52, 15, UI_DIM, 'right');
       const tab = st.tab;
       if (tab === 0) { const order = standingsSorted(c); const cols = ['#', 'PLAYER', 'CLUB', 'W', 'L', 'PCT', '+/-', 'STRK', 'OVR', 'AGE', 'HT']; const cx = [60, 100, 400, 560, 610, 670, 740, 810, 870, 930, 990]; ctx.font = fontStr(12, true); ctx.fillStyle = UI_CYAN; cols.forEach((h, i) => { ctx.textAlign = i === 1 || i === 2 ? 'left' : 'center'; ctx.fillText(h, cx[i], 148); });
-        order.forEach((id, r) => { const y = 170 + r * 29; const p = c.players[id], s = c.standings[id]; if (r === CR.playoffSeeds) { ctx.strokeStyle = 'rgba(255,214,63,0.5)'; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(50, y - 15); ctx.lineTo(1030, y - 15); ctx.stroke(); ctx.setLineDash([]); } if (id === c.meId) { ctx.fillStyle = 'rgba(255,214,63,0.12)'; ctx.fillRect(50, y - 13, 980, 26); } const row = [r + 1, p.name + (id === c.rivalId ? ' (rival)' : ''), clubOf(p.club).abbr, s.w, s.l, (s.w + s.l ? (s.w / (s.w + s.l)).toFixed(3).replace(/^0/, '') : '.000'), (s.pf - s.pa > 0 ? '+' : '') + (s.pf - s.pa), s.strk > 0 ? 'W' + s.strk : s.strk < 0 ? 'L' + (-s.strk) : '—', recOvr(p), p.age, fmtHeight(p.h)]; ctx.font = fontStr(14, id === c.meId); ctx.fillStyle = id === c.meId ? UI_GOLD : UI_TEXT; row.forEach((v, i) => { ctx.textAlign = i === 1 || i === 2 ? 'left' : 'center'; ctx.fillText(String(v), cx[i], y); }); });
+        order.forEach((id, r) => { const y = 170 + r * 29; const p = c.players[id], s = c.standings[id] || NO_STANDING; if (r === CR.playoffSeeds) { ctx.strokeStyle = 'rgba(255,214,63,0.5)'; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(50, y - 15); ctx.lineTo(1030, y - 15); ctx.stroke(); ctx.setLineDash([]); } if (id === c.meId) { ctx.fillStyle = 'rgba(255,214,63,0.12)'; ctx.fillRect(50, y - 13, 980, 26); } const row = [r + 1, p.name + (id === c.rivalId ? ' (rival)' : ''), clubOf(p.club).abbr, s.w, s.l, (s.w + s.l ? (s.w / (s.w + s.l)).toFixed(3).replace(/^0/, '') : '.000'), (s.pf - s.pa > 0 ? '+' : '') + (s.pf - s.pa), s.strk > 0 ? 'W' + s.strk : s.strk < 0 ? 'L' + (-s.strk) : '—', recOvr(p), p.age, fmtHeight(p.h)]; ctx.font = fontStr(14, id === c.meId); ctx.fillStyle = id === c.meId ? UI_GOLD : UI_TEXT; row.forEach((v, i) => { ctx.textAlign = i === 1 || i === 2 ? 'left' : 'center'; ctx.fillText(String(v), cx[i], y); }); });
         ctx.font = fontStr(13, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Top ' + CR.playoffSeeds + ' make the playoffs (below the dashed line you\'re out). ' + (CR.playoffSeeds >= 8 ? 'Quarterfinals and semifinals are one game' : 'The semifinals are one game') + '; the final is best of ' + CR.finalsBestOf + '. Ties go to point difference.', 1050, 160, 180, 18); }
       if (tab === 1) { const cats = [['pts', 'POINTS'], ['reb', 'REBOUNDS'], ['stl', 'STEALS'], ['blk', 'BLOCKS'], ['fg', 'FIELD GOAL %'], ['tp', '3-POINT %']]; cats.forEach(([k, label], ci) => { const x = 60 + (ci % 3) * 400, y0 = 160 + Math.floor(ci / 3) * 250; ui.heading(ctx, label, x, y0, 15, UI_CYAN); leaders(c, k, 5, 1).forEach((r, i) => { const p = c.players[r.id]; ctx.font = fontStr(15, r.id === c.meId); ctx.fillStyle = r.id === c.meId ? UI_GOLD : UI_TEXT; ctx.textAlign = 'left'; ctx.fillText((i + 1) + '. ' + p.name, x, y0 + 30 + i * 30); ctx.textAlign = 'right'; ctx.fillText(k === 'fg' || k === 'tp' ? (100 * r.v).toFixed(1) + '%' : r.v.toFixed(1), x + 330, y0 + 30 + i * 30); }); }); }
       if (tab === 2) { ui.heading(ctx, 'YOUR SCHEDULE', 60, 150, 15, UI_CYAN); const list = []; c.schedule.forEach((wk, w) => { const g = wk.find(x => x.h === c.meId || x.a === c.meId); if (g) list.push({ w, g }); }); const perC = P ? 13 : 15, colW = P ? 400 : 600; list.forEach((it, i) => { const col = Math.floor(i / perC), row = i % perC; const x = 60 + col * colW, y = 180 + row * 30; const oid = it.g.h === c.meId ? it.g.a : it.g.h; const res = (c.results[it.w] || []).find(r => (r.h === c.meId || r.a === c.meId) && !r.p); let txt = 'W' + (it.w + 1) + '  ' + (it.g.h === c.meId ? 'vs ' : '@ ') + c.players[oid].name; ctx.font = fontStr(14, it.w === c.week); ctx.fillStyle = it.w === c.week ? UI_GOLD : UI_TEXT; ctx.textAlign = 'left'; ctx.fillText(txt, x, y); if (res) { const mine = res.h === c.meId ? res.hs : res.as, th = res.h === c.meId ? res.as : res.hs; ctx.fillStyle = mine > th ? UI_GREEN : UI_RED; ctx.textAlign = 'right'; ctx.fillText((mine > th ? 'W ' : 'L ') + mine + '-' + th, x + colW - 80, y); } }); }
@@ -6705,7 +6838,7 @@ function leagueScreen(game) {
 }
 // A league player's card: portrait, body, ratings, season numbers.
 function playerCard(ctx, ui, c, id, x, y) {
-  const p = c.players[id], s = c.stats[id], sd = c.standings[id], g = Math.max(1, s.g); const club = clubOf(p.club);
+  const p = c.players[id], s = c.stats[id] || emptySeasonStats(), sd = c.standings[id] || NO_STANDING, g = Math.max(1, s.g); const club = clubOf(p.club);
   drawMannequin(ctx, drawDefOf(p), club, x + 140, y + 460, 300, 'focused', 1, 0); heightScale(ctx, x + 20, y + 460, 300, x + 24, x + 280);
   ui.heading(ctx, p.name.toUpperCase() + (id === c.rivalId ? '  · RIVAL' : '') + (p.isMe ? '  · YOU' : ''), x + 320, y + 10, 24, p.isMe ? UI_GOLD : UI_TEXT); ui.label(ctx, ARCHETYPES[p.arch].label + ' · age ' + p.age + ' · ' + fmtHeightFull(p.h) + ' · wingspan ' + fmtHeight(p.h * p.wing) + ' · ' + club.name, x + 320, y + 38, 14, UI_DIM);
   ovrBadge(ctx, x + 1110, y + 30, 34, recOvr(p), 'CEILING ' + potGrade(potOf(p))); ratingRows(ctx, p.r, x + 320, y + 70, 460, 36, { labelW: 130 });
@@ -8282,7 +8415,7 @@ function commitDayScreen(game, c, ev, done) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false },
+    settings: { difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends' },
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -8491,7 +8624,7 @@ function careerMatchOpts(c, save, g, forSim) {
   const opp = opponentOf(c, g); const sameClub = c.players[opp].club === meOf(c).club;
   const mine = matchTeamDef(c, c.meId, false, { week: true, oppId: opp }), theirs = matchTeamDef(c, opp, sameClub, { fire: opp === c.rivalId ? c.me.rivalFire || 0 : 0 }); // teammates at the same club: the visitor wears the alternate kit
   const court = 'arena'; // every pro game is in the pro arena, dressed in the home club's colors (§4: venue by level)
-  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'timed', half: c.gameLength }, court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff), ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band
+  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'timed', half: c.gameLength }, court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff), ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band
 }
 
 // ---------------- the fast league model: AI-vs-AI games in a millisecond ----------------
@@ -8530,7 +8663,8 @@ function recordResult(c, r, playoff) {
 function topLine(r) { const bh = r.box[r.h], ba = r.box[r.a]; return bh.pts >= ba.pts ? { id: r.h, pts: bh.pts, reb: bh.reb } : { id: r.a, pts: ba.pts, reb: ba.reb }; }
 function gameScore(s) { return s.pts + 0.4 * s.reb + 1.5 * s.stl + 1.5 * s.blk - s.to - 0.4 * Math.max(0, s.fga - s.fgm) + 0.5 * (s.dunk || 0) + 1.5 * (s.ank || 0); }
 function gradeFor(s, win) { const v = gameScore(s) + (win ? 3 : 0); return v >= 34 ? 'A+' : v >= 28 ? 'A' : v >= 23 ? 'B+' : v >= 18 ? 'B' : v >= 13 ? 'C' : v >= 8 ? 'D' : 'F'; }
-function standingsSorted(c) { return c.active.slice().sort((x, y) => { const A = c.standings[x], B = c.standings[y]; const pa = A.w / Math.max(1, A.w + A.l), pb = B.w / Math.max(1, B.w + B.l); return (pb - pa) || ((B.pf - B.pa) - (A.pf - A.pa)) || (recOvr(c.players[y]) - recOvr(c.players[x])); }); }
+const NO_STANDING = { w: 0, l: 0, pf: 0, pa: 0, strk: 0 };
+function standingsSorted(c) { return c.active.slice().sort((x, y) => { const A = c.standings[x] || NO_STANDING, B = c.standings[y] || NO_STANDING; const pa = A.w / Math.max(1, A.w + A.l), pb = B.w / Math.max(1, B.w + B.l); return (pb - pa) || ((B.pf - B.pa) - (A.pf - A.pa)) || (recOvr(c.players[y]) - recOvr(c.players[x])); }); }
 function leaders(c, key, n, minG) { const rows = c.active.map(id => { const s = c.stats[id]; const g = Math.max(1, s.g); let v; if (key === 'fg') v = s.fga >= 5 * s.g && s.g ? s.fgm / s.fga : -1; else if (key === 'tp') v = s.tpa >= 1.5 * s.g && s.g ? s.tpm / s.tpa : -1; else v = s[key] / g; return { id, v, g: s.g }; }).filter(r => r.g >= (minG || 1) && r.v >= 0); rows.sort((a, b) => b.v - a.v); return rows.slice(0, n || 5); }
 
 // ---------------- progression: XP from games and training, level-ups, learned moves, traits ----------------
@@ -8748,7 +8882,7 @@ function offseasonMoves(c) {
   for (const id of c.active.slice()) { const p = c.players[id]; if (p.isMe) continue; const o = recOvr(p); const ch = p.age >= CR.retireForcedAge ? 1 : p.age >= 36 ? 0.5 : p.age >= CR.retireFadeAge ? 0.25 : p.age >= 32 ? 0.1 : 0; if (rng.next() < ch || (p.age >= CR.retireFadeAge && o < CR.retireFadeOvr)) { out.retired.push({ id, name: p.name, age: p.age, ovr: o, club: p.club }); c.active.splice(c.active.indexOf(id), 1); c.retiredList.push({ id, name: p.name, age: p.age, ovr: o, season: c.season }); if (c.rivalId === id) c.rivalId = null; } }
   // draft: worst records pick first; the rookie takes the open club spot
   const counts = {}; TEAMS.forEach(t => counts[t.id] = 0); for (const id of c.active) counts[c.players[id].club]++;
-  let pick = 1 + rng.int(4); while (c.active.length < CR.leagueSize) { const id = 'p' + c.nextId++; const r = genProspect(c, rng, used, id); r.since = c.season + 1; const least = Math.min(...TEAMS.map(t => counts[t.id])); r.club = rng.pick(TEAMS.map(t => t.id).filter(k => counts[k] === least)); counts[r.club]++; r.draftPick = pick; pick += 1 + rng.int(6); r.contract = { years: CR.rookieYears, salary: rookiePay(r.draftPick) }; c.players[id] = r; c.active.push(id); out.drafted.push({ id, name: r.name, arch: r.arch, h: r.h, ovr: recOvr(r), pot: potOf(r), club: r.club, pick: r.draftPick }); }
+  let pick = 1 + rng.int(4); while (c.active.length < CR.leagueSize) { const id = 'p' + c.nextId++; const r = genProspect(c, rng, used, id); r.since = c.season + 1; const least = Math.min(...TEAMS.map(t => counts[t.id])); r.club = rng.pick(TEAMS.map(t => t.id).filter(k => counts[k] === least)); counts[r.club]++; r.draftPick = pick; pick += 1 + rng.int(6); r.contract = { years: CR.rookieYears, salary: rookiePay(r.draftPick) }; c.players[id] = r; c.active.push(id); c.standings[id] = { w: 0, l: 0, pf: 0, pa: 0, strk: 0 }; c.stats[id] = emptySeasonStats(); /* the league pages list every active player (the offseason used to crash them) */ out.drafted.push({ id, name: r.name, arch: r.arch, h: r.h, ovr: recOvr(r), pot: potOf(r), club: r.club, pick: r.draftPick }); }
   if (!c.rivalId) { const me = meOf(c); const cand = c.active.filter(id => id !== c.meId).sort((a, b) => Math.abs(recOvr(c.players[a]) - recOvr(me)) - Math.abs(recOvr(c.players[b]) - recOvr(me)))[0]; c.rivalId = cand; pushNews(c, c.players[cand].name + ' is calling you out. New rival.', 'rival'); }
   // AI contracts: expiring players re-sign or swap clubs with an open-minded player
   for (const id of c.active) { const p = c.players[id]; if (p.isMe || p.rookie && p.since === c.season + 1) continue; p.contract.years--; if (p.contract.years <= 0) { p.contract = { years: 1 + rng.int(4), salary: marketValue(c, p) }; if (rng.next() < 0.3) { const other = c.active.filter(x => x !== id && x !== c.meId && c.players[x].club !== p.club && c.players[x].contract.years <= 1); if (other.length) { const q = c.players[rng.pick(other)]; const t = p.club; p.club = q.club; q.club = t; out.moved.push({ name: p.name, to: p.club }, { name: q.name, to: q.club }); } } } }
@@ -9482,7 +9616,7 @@ function runSims(o) {
   const results = []; const t0 = performance.now();
   for (let i = 0; i < o.n; i++) {
     const seed = (o.seed + i * 7919) >>> 0; const tA = teamWithRoster(teamDef(o.teamA)), tB = teamWithRoster(teamDef(o.teamB)); if (o.teamA === o.teamB) { tB.abbr = tB.abbr + '2'; tB.name = tB.name + ' (mirror)'; }
-    const r = simulateMatch({ mode: o.mode, difficulty: o.difficulty, teams: [tA, tB], seed, ruleset: o.ruleset, format: o.format, humanTeam: -1, teamDifficulties: o.difficulty2 ? [o.difficulty, o.difficulty2] : null, difficultyA: o.difficulty, difficultyB: o.difficulty2 || o.difficulty }, { render: false });
+    const r = simulateMatch({ mode: o.mode, difficulty: o.difficulty, teams: [tA, tB], seed, ruleset: o.ruleset, format: o.format, layout: o.layout, humanTeam: -1, teamDifficulties: o.difficulty2 ? [o.difficulty, o.difficulty2] : null, difficultyA: o.difficulty, difficultyB: o.difficulty2 || o.difficulty }, { render: false });
     results.push(r);
     if (o.onProgress) o.onProgress(i + 1, o.n);
   }
@@ -9500,9 +9634,9 @@ function formatSimTable(agg) {
 // count what the physics actually does. Proves the solver honors the roll.
 function shotLab(o) {
   o = Object.assign({ zone: 'three', grade: 1, contest: 0, n: 200, seed: 5, shooting: 5, type: 'jumper' }, o || {});
-  const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: o.seed, headless: true, humanTeam: -1 });
+  const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: o.seed, headless: true, humanTeam: -1, layout: o.layout });
   const p = m.players[0]; p.attrs.sho = o.shooting; p.attrs.fin = o.shooting; const hoop = p.hoop; const rng = new RNG(o.seed);
-  const dist = o.type === 'layup' ? 1.6 : (o.zone === 'mid' ? 4.5 : o.zone === 'three' ? 7.4 : o.zone === 'deep' ? 9.5 : 12.5);
+  const dist = o.type === 'layup' ? LX(1.6) : LR(o.zone === 'mid' ? 4.5 : o.zone === 'three' ? 7.4 : o.zone === 'deep' ? 9.5 : 12.5); // the same spots relative to the arc in every layout
   const b = makeBallState(); let makes = 0, expected = 0, flavorOk = 0, fallbacks = 0, tries = 0; const flavors = {};
   for (let i = 0; i < o.n; i++) {
     const dir = -1; const x0 = hoop.x - dir * dist * -1; // shooter on the court side of the hoop
@@ -9516,8 +9650,8 @@ function shotLab(o) {
   return { n: o.n, zone: o.zone, grade: o.grade, contest: o.contest, modelP: expected / o.n, actual: makes / o.n, rollHonored: flavorOk / o.n, avgTries: tries / o.n, fallbacks, flavors, diffPct: 100 * (makes / o.n - expected / o.n) };
 }
 // Tunneling test: fire random high-speed balls at the rim/backboard region; none may pass through a collider.
-function tunnelTest(n) {
-  n = n || 1000; const rng = new RNG(42); const b = makeBallState(); const c = makeContact(); let tunnels = 0, rimHits = 0, boardHits = 0; const hoop = HOOPS[1]; const sdt = STEP / CONFIG.sim.ballSubsteps;
+function tunnelTest(n, layoutId) {
+  n = n || 1000; useLayout(layoutId || 'classic'); const rng = new RNG(42); const b = makeBallState(); const c = makeContact(); let tunnels = 0, rimHits = 0, boardHits = 0; const hoop = HOOPS[1]; const sdt = STEP / CONFIG.sim.ballSubsteps;
   for (let i = 0; i < n; i++) {
     b.x = hoop.x - 3 - rng.next() * 6; b.y = 1 + rng.next() * 4; const speed = 15 + rng.next() * 15; const tx = hoop.x + rng.range(-0.4, 0.5), ty = RIM_Y + rng.range(-0.3, 0.9); const dx = tx - b.x, dy = ty - b.y; const L = Math.sqrt(dx * dx + dy * dy); b.vx = dx / L * speed; b.vy = dy / L * speed + 2; b.armed = false; b.fromBelow = false;
     let hitRim = false, hitBoard = false, bad = false;
@@ -9579,9 +9713,9 @@ class ScriptedHuman {
   offense(o, dt) {
     const m = this.m, p = this.p; if (this.shot && this.finishShot(o, dt)) return; if (m.ball.owner !== p) return;
     const hoop = p.hoop, dir = sgn(hoop.x - p.x) || p.facing, d = Math.abs(p.x - hoop.x), def = m.nearestOpponent(p), q = this.seen(def);
-    const dd = Math.abs(q.x - p.x), between = (q.x - p.x) * dir > -0.25, clock = m.shotClock; const rim = d <= SH.layupRange - 0.15;
+    const dd = Math.abs(q.x - p.x), between = (q.x - p.x) * dir > -LX(0.25), clock = m.shotClock; const rim = d <= SH.layupRange - LX(0.15);
     const S = this.strategy;
-    if (S === 'brute') { o.mv = dir; o.sprint = true; if (d <= SH.dunkRange + 0.1 || (clock < 2 && d < SH.heaveRange)) this.fire(o, 'rim'); return; }
+    if (S === 'brute') { o.mv = dir; o.sprint = true; if (d <= SH.dunkRange + LX(0.1) || (clock < 2 && d < SH.heaveRange)) this.fire(o, 'rim'); return; }
     if (S === 'drives') { o.mv = dir; if (rim || (clock < 2 && d < SH.zoneDeep)) this.fire(o, 'rim'); return; }
     if (S === 'spam') {
       o.mv = this.rng.next() < 0.75 ? dir : -dir;
@@ -9590,17 +9724,17 @@ class ScriptedHuman {
       return;
     }
     if (S === 'threes') {
-      const want = SH.zoneThree + HN.threeSpot; if (d > want + 0.35) o.mv = dir; else if (d < want - 0.35) o.mv = -dir;
-      else if (Math.abs(p.vx) < 1.2 || clock < 3) this.fire(o, 'jumper');
+      const want = SH.zoneThree + HN.threeSpot; if (d > want + LX(0.35)) o.mv = dir; else if (d < want - LX(0.35)) o.mv = -dir;
+      else if (Math.abs(p.vx) < LX(1.2) || clock < 3) this.fire(o, 'jumper');
       return;
     }
     if (S === 'sniper') {
       const want = SH.zoneThree + HN.threeSpot, open = dd >= HN.openDist || !between;
-      if (open && d <= SH.zoneDeep && d >= SH.layupRange + 1) { if (Math.abs(p.vx) < 1.5) { this.fire(o, 'jumper'); return; } o.mv = 0; return; }
-      if (clock < 2.5 && d < SH.zoneDeep + 1) { this.fire(o, 'jumper'); return; }
+      if (open && d <= SH.zoneDeep && d >= SH.layupRange + LX(1)) { if (Math.abs(p.vx) < LX(1.5)) { this.fire(o, 'jumper'); return; } o.mv = 0; return; }
+      if (clock < 2.5 && d < SH.zoneDeep + LR(1)) { this.fire(o, 'jumper'); return; }
       if (this.plan === 'afterStep' && this.planT > 0) { if (p.state === 'move' || p.state === 'protect') { this.fire(o, 'jumper'); this.plan = null; } return; }
       if (dd < HN.openDist && between && this.cd.move <= 0 && p.moves.stepback && d < SH.zoneDeep - MV.stepbackDist) { o.mv = -dir; o.action = true; this.cd.move = 0.9; this.plan = 'afterStep'; this.planT = 0.8; return; }
-      if (d > want + 0.35) o.mv = dir; else if (d < want - 1.5) o.mv = -dir;
+      if (d > want + LX(0.35)) o.mv = dir; else if (d < want - LX(1.5)) o.mv = -dir;
       return;
     }
     // reader: post up when bigger, attack a beaten or biting defender, shoot when open, beat a set defender with a move
@@ -9608,40 +9742,40 @@ class ScriptedHuman {
     if (this.plan && this.planT > 0) {
       if (this.plan === 'drive') { o.mv = dir; o.sprint = true; if (rim || (d <= SH.dunkRange && canDunk(p))) { this.fire(o, 'rim'); this.plan = null; } return; }
       if (this.plan === 'shoot' && (p.state === 'move' || p.state === 'protect')) { this.fire(o, 'jumper'); this.plan = null; return; }
-      if (this.plan === 'post') { o.down = true; o.mv = dir; if (d <= SH.hookRange - 0.5) { this.fire(o, 'hook'); this.plan = null; } return; }
+      if (this.plan === 'post') { o.down = true; o.mv = dir; if (d <= SH.hookRange - LX(0.5)) { this.fire(o, 'hook'); this.plan = null; } return; }
       if (this.plan === 'fake') { if (!q.grounded || q.biteT > 0) { this.plan = 'drive'; this.planT = 1.2; } return; }
       return;
     }
-    if (edge >= HN.postEdge && d < SH.hookRange + 2.5 && d > SH.layupRange) { this.plan = 'post'; this.planT = HN.postTime; o.down = true; o.mv = dir; return; }
-    if (qOff && d < SH.zoneThree + 2) { this.plan = 'drive'; this.planT = 1.4; o.mv = dir; o.sprint = true; return; }
+    if (edge >= HN.postEdge && d < SH.hookRange + LX(2.5) && d > SH.layupRange) { this.plan = 'post'; this.planT = HN.postTime; o.down = true; o.mv = dir; return; }
+    if (qOff && d < SH.zoneThree + LR(2)) { this.plan = 'drive'; this.planT = 1.4; o.mv = dir; o.sprint = true; return; }
     if (rim) { this.fire(o, 'rim'); return; }
-    if (dd >= HN.openDist && d <= SH.zoneDeep - 0.2 && Math.abs(p.vx) < 2) { this.fire(o, 'jumper'); return; }
-    if (clock < 2.5) { if (d < SH.zoneDeep + 1) this.fire(o, 'jumper'); else { o.mv = dir; o.sprint = true; } return; }
+    if (dd >= HN.openDist && d <= SH.zoneDeep - LR(0.2) && Math.abs(p.vx) < LX(2)) { this.fire(o, 'jumper'); return; }
+    if (clock < 2.5) { if (d < SH.zoneDeep + LR(1)) this.fire(o, 'jumper'); else { o.mv = dir; o.sprint = true; } return; }
     if (dd < HN.openDist && between && this.cd.move <= 0) {
       this.cd.move = HN.moveEvery; const r = this.rng.next();
-      if (Math.abs(q.vx) > 1.0 && q.vx * dir < 0) { o.mv = dir; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; } // closing hard: cross him and go
-      if (r < 0.3 && p.moves.stepback && d > SH.layupRange + 1.5 && d < SH.zoneDeep - MV.stepbackDist) { o.mv = -dir; o.action = true; this.plan = 'shoot'; this.planT = 0.9; return; }
+      if (Math.abs(q.vx) > LX(1.0) && q.vx * dir < 0) { o.mv = dir; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; } // closing hard: cross him and go
+      if (r < 0.3 && p.moves.stepback && d > SH.layupRange + LX(1.5) && d < SH.zoneDeep - MV.stepbackDist) { o.mv = -dir; o.action = true; this.plan = 'shoot'; this.planT = 0.9; return; }
       if (r < 0.5 && this.cd.fake <= 0) { o.shoot = true; this.cd.fake = 2.5; this.plan = 'fake'; this.planT = 0.45; return; } // pump fake, drive if he leaves his feet
       if (r < 0.75 && p.moves.spin && d < SH.zoneThree) { o.mv = dir; o.sprint = true; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; }
       o.mv = dir; o.action = true; this.plan = 'drive'; this.planT = 1.0; return; // crossover
     }
-    if (d > SH.zoneThree + 0.8) o.mv = dir; else o.mv = 0;
+    if (d > SH.zoneThree + LR(0.8)) o.mv = dir; else o.mv = 0;
   }
   defense(o, dt) {
     const m = this.m, p = this.p, h = m.ball.owner, q = this.seen(h), myHoop = p.ownHoop; const dir = sgn(myHoop.x - q.x) || 1; const dist = Math.abs(q.x - p.x);
-    let tx = q.x + dir * HN.defGap; if (Math.abs(q.x - myHoop.x) < HN.defGap + 0.3) tx = myHoop.x - dir * 0.25;
-    const dx = tx - p.x; if (Math.abs(dx) > 0.12) o.mv = clamp(dx / 0.5, -1, 1); o.down = dist < 2.6; o.sprint = Math.abs(dx) > 2.5;
+    let tx = q.x + dir * HN.defGap; if (Math.abs(q.x - myHoop.x) < HN.defGap + LX(0.3)) tx = myHoop.x - dir * LX(0.25);
+    const dx = tx - p.x; if (Math.abs(dx) > LX(0.12)) o.mv = clamp(dx / LX(0.5), -1, 1); o.down = dist < LP(2.6); o.sprint = Math.abs(dx) > LX(2.5);
     if (q.state !== 'gather') this.bit = false;
     if (this.cd.jump <= 0 && p.grounded) {
-      if ((q.state === 'jumpshot' || q.state === 'floater') && q.stateT < 0.25 && dist < 1.9) { o.jump = true; this.cd.jump = 0.9; }
-      else if (q.state === 'gather' && dist < 1.7 && !this.bit) { this.bit = true; if (this.rng.next() < HN.bite) { o.jump = true; this.cd.jump = 0.9; } }
-      else if ((q.state === 'layup' || q.state === 'dunk') && dist < 1.7) { o.jump = true; this.cd.jump = 0.9; }
+      if ((q.state === 'jumpshot' || q.state === 'floater') && q.stateT < 0.25 && dist < LP(1.9)) { o.jump = true; this.cd.jump = 0.9; }
+      else if (q.state === 'gather' && dist < LP(1.7) && !this.bit) { this.bit = true; if (this.rng.next() < HN.bite) { o.jump = true; this.cd.jump = 0.9; } }
+      else if ((q.state === 'layup' || q.state === 'dunk') && dist < LP(1.7)) { o.jump = true; this.cd.jump = 0.9; }
     }
-    if (!o.jump && dist < 1.25 && this.cd.steal <= 0 && q.grounded && sgn(q.ballSide) === sgn(p.x - q.x) && this.rng.next() < HN.stealTry) { o.action = true; this.cd.steal = HN.stealEvery; }
+    if (!o.jump && dist < LP(1.25) && this.cd.steal <= 0 && q.grounded && sgn(q.ballSide) === sgn(p.x - q.x) && this.rng.next() < HN.stealTry) { o.action = true; this.cd.steal = HN.stealEvery; }
   }
   loose(o, dt) {
     const m = this.m, p = this.p, b = m.ball; const x = b.x + b.vx * 0.3; const dx = x - p.x;
-    if (Math.abs(dx) > 0.15) o.mv = clamp(dx / 0.5, -1, 1); o.sprint = Math.abs(dx) > 1.5;
+    if (Math.abs(dx) > LX(0.15)) o.mv = clamp(dx / LX(0.5), -1, 1); o.sprint = Math.abs(dx) > LX(1.5);
     if (p.grounded && this.cd.jump <= 0 && Math.abs(b.x - p.x) < 0.9 && b.y > p.reach - 0.3 && b.y < p.reach + 1.0 && b.vy < 0 && (b.rimTouched || b.boardTouched || !b.shot)) { o.jump = true; this.cd.jump = 0.8; }
   }
 }
@@ -9650,7 +9784,7 @@ function harnessDef(name, height, attrs, arch, look) { return { name, nick: name
 function harnessGame(o) {
   const human = o.human || harnessDef('Scripted Human', 1.93), bot = o.bot || harnessDef('Mirror Bot', human.height, human.attrs, human.arch);
   const tA = Object.assign({}, TEAMS[0], { id: 'hvA', name: 'Human', abbr: 'HUM', players: [human] }), tB = Object.assign({}, TEAMS[1], { id: 'hvB', name: 'Bot', abbr: 'BOT', players: [bot] });
-  const m = new Match({ mode: '1v1', teams: [tA, tB], humanTeam: 0, humanPlayerIndex: 0, difficulty: o.difficulty || 'pro', ruleset: o.ruleset || 'arcade', format: o.format || { type: 'first', target: 21 }, court: 'arena', seed: o.seed || 1, controlMode: 'lock', dev: true });
+  const m = new Match({ mode: '1v1', teams: [tA, tB], humanTeam: 0, humanPlayerIndex: 0, difficulty: o.difficulty || 'pro', ruleset: o.ruleset || 'arcade', format: o.format || { type: 'first', target: 21 }, court: 'arena', seed: o.seed || 1, controlMode: 'lock', dev: true, layout: o.layout || 'classic' });
   const sh = new ScriptedHuman(m, m.human, o.strategy || 'reader', o.seed || 1); let steps = 0; const max = HN.maxSteps;
   while (!m.ended && steps < max) { sh.step(STEP); simStep(m, STEP); steps++; }
   const box = boxScore(m, steps); box.timedOut = !m.ended; return box;
@@ -9661,7 +9795,7 @@ function runBalanceHarness(o) {
   for (const diff of o.difficulties) for (const strat of o.strategies) {
     const r = { strategy: strat, difficulty: diff, games: 0, wins: 0, pts: 0, poss: 0, botPts: 0, botPoss: 0, fga: 0, fgm: 0, rimA: 0, midA: 0, threeA: 0, hookA: 0, blk: 0, botBlk: 0, stl: 0, to: 0, timeouts: 0, invariant: 0 };
     for (let i = 0; i < o.n; i++) {
-      const b = harnessGame({ strategy: strat, difficulty: diff, seed: (o.seed + i * 7919 + HARNESS_STRATEGIES.indexOf(strat) * 131) >>> 0, format: { type: 'first', target: o.target } });
+      const b = harnessGame({ strategy: strat, difficulty: diff, seed: (o.seed + i * 7919 + HARNESS_STRATEGIES.indexOf(strat) * 131) >>> 0, format: { type: 'first', target: o.target }, layout: o.layout });
       const h = b.teams[0], bt = b.teams[1], hp = h.players[0], bp = bt.players[0];
       r.games++; if (b.winner === 0) r.wins++; r.pts += h.score; r.poss += h.possessions; r.botPts += bt.score; r.botPoss += bt.possessions; r.fga += hp.fga; r.fgm += hp.fgm;
       r.rimA += (hp.layA || 0) + (hp.dunkA || 0); r.midA += hp.midA || 0; r.threeA += (hp.threeA || 0) + (hp.deepA || 0) + (hp.heaveA || 0); r.hookA += hp.hookA || 0; r.blk += hp.blk; r.botBlk += bp.blk; r.stl += hp.stl; r.to += hp.to; if (b.timedOut) r.timeouts++; r.invariant += b.invariantFails;
@@ -9698,11 +9832,11 @@ const TUTORIAL_STEPS = [
 // L5 shadows, L6 hoop backs, L7 players and ball, L8 hoop fronts, foreground silhouettes, L9 FX, L10 lighting.
 // env = { cam, world, fx, W, H, degraded, guard, rp, racks }. guard = the performance guard's level (0 = everything on).
 function drawMatchScene(ctx, env, m, alpha) {
-  const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop, rp = env.rp, guard = env.guard || 0; const V = world.venueFor(m);
-  const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball;
+  ensureLayout(m); const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop, rp = env.rp, guard = env.guard || 0; const V = world.venueFor(m);
+  const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball; updateBallView(ball);
   const order = players.filter(p => !p.hidden).slice().sort((a, b) => a.z - b.z);
   if (V) V.drawBack(ctx, cam, m, guard); else world.drawBackdrop(ctx, cam, court, m);        // L0–L2
-  if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } // L3
+  if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } if (m.halfCourt && LAY.legends) drawHalfCourtLine(ctx, cam); // L3
   const drawAll = (g, reflection) => {
     const o = { replay: !!rp, reflection, glow: !!(V && V.kind === 'pro'), noShadow: true }; let ballDrawn = false;
     for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], o); if (ball.owner === p) { drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o); ballDrawn = true; } }
@@ -9744,7 +9878,7 @@ class Game {
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
-    const S = this.save.data.settings; opts.dev = true; if (opts.charges == null) opts.charges = S.charges !== false; this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
+    const S = this.save.data.settings; opts.dev = true; if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
@@ -9813,7 +9947,7 @@ class Game {
       }
     }
     const alpha = clamp01(this.acc / STEP);
-    this.world.update(dt, m); fx.update(dt, m); this.cam.fixed = m.phase === 'freethrow' && m.ftState ? { x: m.ftState.shooter.hoop.x - sgn(m.ftState.shooter.hoop.x - 12) * 2.2, zoom: CONFIG.camera.ftZoom } : null;
+    this.world.update(dt, m); fx.update(dt, m); this.cam.fixed = m.phase === 'freethrow' && m.ftState ? { x: m.ftState.shooter.hoop.x - sgn(m.ftState.shooter.hoop.x - COURT_L / 2) * 2.2, zoom: CONFIG.camera.ftZoom } : null;
     if (this.replayPlayer) { const gb = m.replay.ghostBall; this.cam.update(m, dt, { x: gb.x + gb.vx * 0, zoom: CONFIG.camera.replayZoom }); } else this.cam.update(m, dt);
     // poster request: capture the frame, print it, freeze if asked
     if (fx.posterRequest) { const req = fx.posterRequest; fx.posterRequest = null; this.renderScene(ctx, m, alpha); const sc = this.sceneCanvas; const g = sc.getContext('2d', { willReadFrequently: true }); g.drawImage(this.canvas, 0, 0, sc.width, sc.height); const pal = COURTS[m.courtId].palette; const card = buildPoster(sc, req.headline, req.sub, pal, m.teams[0].abbr + ' ' + m.teams[0].score + ' – ' + m.teams[1].score + ' ' + m.teams[1].abbr); const copy = document.createElement('canvas'); copy.width = card.width; copy.height = card.height; copy.getContext('2d').drawImage(card, 0, 0); m.posterCards.push(copy); if (req.freeze && !fx.reduceMotion) { const show = { canvas: copy, t: CONFIG.fx.posterMs / 1000, headline: req.headline }; if (req.delay > 0) this.posterPending = { show, t: req.delay }; else { this.posterShow = show; fx.hitStopMs = Math.max(fx.hitStopMs, CONFIG.fx.posterMs); } } try { const small = document.createElement('canvas'); small.width = CONFIG.save.posterW; small.height = CONFIG.save.posterH; small.getContext('2d').drawImage(copy, 0, 0, small.width, small.height); this.save.addPoster(small.toDataURL('image/jpeg', 0.6), req.headline); } catch (e) {} }
@@ -9851,8 +9985,8 @@ class Game {
     for (const p of m.players) if (p.controlled || (p.inState('jumpshot', 'floater') && S.meter === 'on' && false)) drawShotMeter(ctx, cam, p, alpha, S.meter, m.lastShot, m.time);
     drawCallouts(ctx, m, W_, H_, dt);
     // off-screen arrow for high lobs / balls
-    const b = m.ball; const bsx = cam.sx(b.x), bsy = cam.sy(b.y, b.z); if ((bsy < -10 || bsx < -10 || bsx > W_ + 10) && !b.owner) { const ax = clamp(bsx, 30, W_ - 30), ay = clamp(bsy, CONFIG.camera.lobArrowMargin + 70, H_ - 30); inkShape(ctx, c => c.arc(ax, ay, 14, 0, TAU), '#FF8A2A', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(ax, ay - 22); ctx.lineTo(ax - 8, ay - 12); ctx.lineTo(ax + 8, ay - 12); ctx.fill(); }
-    { const me = m.controlledPlayer; if (me && !me.hidden) { const psx = cam.sx(me.x); if (psx < 6 || psx > W_ - 6) { const left = psx < 6, ax = left ? 28 : W_ - 28, ay = clamp(cam.sy(me.y + me.height * 0.6, me.z), 96, H_ - 120); inkShape(ctx, c => c.arc(ax, ay, 17, 0, TAU), '#FFD23F', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); const tip = left ? ax - 26 : ax + 26, base = left ? ax - 16 : ax + 16; ctx.moveTo(tip, ay); ctx.lineTo(base, ay - 8); ctx.lineTo(base, ay + 8); ctx.fill(); ctx.font = fontStr(11, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('YOU', ax, ay + 1); } } } // off-screen marker for the player you control
+    const b = m.ball; const bsx = cam.sx(b.x), bsy = cam.sy(b.y, b.z); if ((bsy < -10 || bsx < -10 || bsx > W_ + 10) && !b.owner && !LAY.legends) { const ax = clamp(bsx, 30, W_ - 30), ay = clamp(bsy, CONFIG.camera.lobArrowMargin + 70, H_ - 30); inkShape(ctx, c => c.arc(ax, ay, 14, 0, TAU), '#FF8A2A', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(ax, ay - 22); ctx.lineTo(ax - 8, ay - 12); ctx.lineTo(ax + 8, ay - 12); ctx.fill(); }
+    { const me = m.controlledPlayer; if (me && !me.hidden && !LAY.legends) { const psx = cam.sx(me.x); if (psx < 6 || psx > W_ - 6) { const left = psx < 6, ax = left ? 28 : W_ - 28, ay = clamp(cam.sy(me.y + me.height * 0.6, me.z), 96, H_ - 120); inkShape(ctx, c => c.arc(ax, ay, 17, 0, TAU), '#FFD23F', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); const tip = left ? ax - 26 : ax + 26, base = left ? ax - 16 : ax + 16; ctx.moveTo(tip, ay); ctx.lineTo(base, ay - 8); ctx.lineTo(base, ay + 8); ctx.fill(); ctx.font = fontStr(11, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('YOU', ax, ay + 1); } } } // off-screen marker for the player you control
     // inbound hold indicator, phase banners
     if (m.phase === 'freethrow' && m.ftState) { ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('FREE THROW ' + (m.ftState.index + 1) + ' of ' + m.ftState.count + ' · ' + m.ftState.shooter.nick, W_ / 2, 80); }
     if (m.phase === 'pregame') kitStamp(ctx, m.drill ? DRILL_INFO[m.drill.focus].title : m.teams[0].name.toUpperCase() + '  vs  ' + m.teams[1].name.toUpperCase(), W_ / 2, H_ * 0.5, Math.min(34, W_ / 30), ['#FFFFFF', '#C9CCE0'], { tilt: -2, outline: 0.16 });

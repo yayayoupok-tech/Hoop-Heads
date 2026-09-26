@@ -115,6 +115,21 @@ two-line rows); 16 old saves and 13 mode runs play through without errors; the g
   and every old save.
 - The before/after gallery in `shots/before-after/`, then publish.
 
+## The Legends look (graphics overhaul, L1–L10)
+
+The spec "Hoop Heads → 'Legends' look in pixel art" asks for screenshots that hold up next to the big-head arcade games:
+huge caricature heads with crisp pixel art, a whole court on one screen, bright arenas. Everything stays original.
+
+**L1 — Legends View** *(done: a 13 m court seen whole for every 1v1, players drawn 1.3× taller; one layout registry
+drives physics, rules, the AI and the camera; Settings → Camera. §2 gate: mirror 50%, Legend beats Pro 77%, brute force
+0.98 PPP; the mirror PPP is 1.44 against a 0.90–1.25 target (Classic 1.65). Three team-order biases found and fixed.)*
+
+**L2 — Faces** (bigger features, six face shapes, five noses, cel shading and gloss, bold line work, new eyes and mouths,
+the laugh). **L3 — Facial hair and hair.** **L4 — Bodies** (proportions, high-tops, open hands, jerseys, overlap).
+**L5 — Animation exaggeration.** **L6 — The Legends Arena** and a bright grade for career venues. **L7 — Pixel mode**
+(internal resolution, pixelized sprites, dithered backgrounds). **L8 — Chunky UI**, the select wall, the pixel font and
+logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
+
 ## Testing every milestone
 
 ```
@@ -129,6 +144,8 @@ node tests/perf.js                 # frame cost at 844×390 in the pro arena (CP
 node tests/modes.js                # every mode to its end (M9)
 node tests/oldsaves.js             # every fixture save reloaded and played on (M9)
 node tests/phoneaudit.js [dir]     # phone tap targets, overlaps and text size on 65 screens (M9)
+node tests/gate.js [n] [hn]        # the §2 Legends View gate: mirror, Legend vs Pro and the harness in both layouts (L1)
+node tests/tojpeg.js <dir>         # milestone screenshots: PNG → JPEG
 ```
 
 Every tuned number is logged in `CHANGES.md`.

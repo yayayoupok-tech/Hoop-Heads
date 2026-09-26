@@ -3,6 +3,116 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L1 — Legends View (graphics overhaul, milestone 1)
+
+Legends View is the new default presentation for every 1v1 (career, exhibition, practice, the tutorial): a 13 m court
+seen whole, players drawn 1.3× taller. Settings → Camera (1v1) switches between Legends View and Classic; 2v2 and up and
+the 3-point contest always use Classic. Shots: `shots/l1/` (desktop and phone, arena, gym, street half court, and the
+same arena in Classic).
+
+The layout (`CONFIG.layout.legends`, `useLayout()` in the physics section)
+
+| Item | Classic | Legends | Note |
+| --- | --- | --- | --- |
+| Baseline to baseline | 24 m | 13.0 m | as spec |
+| Hoop center from baseline | 1.6 m | 1.3 m | as spec |
+| Wall behind the baseline | 1.4 m | 0.9 m | as spec |
+| 3-point radius / free throw | 6.75 / 4.6 m | 4.6 / 3.1 m | as spec |
+| Rim height | 3.05 m | 3.05 m | as spec |
+| Horizontal scale h | 1 | 0.58 | as spec |
+| Shot zones (÷ 3-point radius) | 6.75 / 8.5 / 11 m | three 1.0, deep 1.1, heave 1.6 | spec deep 1.25; see the gate |
+| Apex constant | 0.9 | 1.1 | as spec |
+| Body contact distance | 0.62 m | 0.75 m | as spec (§3.11) |
+| Visual scale | 1 | 1.3 | as spec |
+| Street half court: check ball / players stay within | 8.2 m / the midcourt line | 5.6 m / 7.0 m from the hoop | new: the short court's midcourt line is only 5.2 m out, inside the check spot. A dashed line on the floor marks it |
+
+How the scale is applied. One registry (`LAYOUT_SCALED`) lists every gameplay value the layout touches; `useLayout()`
+rewrites them from base values captured once, so Classic always comes back exactly as authored (the smoke test checks
+it). Three rules:
+- Horizontal speeds, accelerations and distances to the hoop scale by h (`LX`): run and sprint speed, acceleration and
+  friction, pass speeds, move speeds and distances, dunk, layup, floater, hook and post ranges, the charge arc, help and
+  hold lines, loose-ball pops, and every such literal in the mechanics, the rules, the AI and the balance harness.
+- Distances between two players scale by h beyond body contact (`LP`: contact + (d − 0.62) × h). The spec scales these
+  by h too, but the contact distance itself grows to 0.75 m, so a plain h would put steals, contests and sags inside the
+  bodies (a swipe could only reach 0.08 m past contact). Contests, steal and ankle ranges, sag, closeouts, the stance and
+  square ranges, the inbound and check gaps.
+- Places tied to the arc scale with the 3-point radius (`LR`, 4.6 / 6.75): the AI's spacing and solo spots, the pickup
+  lines, bank-shot range, shotLab's test spots.
+Two reaches that end at the other player's ball are derived so the reach past body contact scales by h:
+`block.handForward` 0.32 → 0.37 m, `steal.reach` 0.9 → 0.76 m. Vertical stays real (jumps, rim, reach, gravity), and the
+ball keeps real physics (the solver works in meters).
+
+The camera (`CONFIG.camera.legends`): ppm = min(W ÷ 14.8 m, H ÷ 6.2 m); the floor line at 80% of the screen; a damped
+drift toward the ball of at most 0.35 m; a 4% punch-in on dunks and blocks; the usual shake; no dynamic zoom; no
+off-screen arrows. A replay still cuts in closer (it is a highlight, not live play).
+
+Drawing at 1.3×. Bodies, hands and shadows use the drawn height; the rig normalizes world anchors (rim, ball, reach) by
+the drawn height, so a hand at the rim or on a loose ball lands on the real point. A ball in the hands is drawn in the
+same scaled frame so it sits in the drawn hands, easing back to its real place when it leaves the hands (22/s); a ball in
+a dunk, a layup, a tip or just caught is drawn where it is. Hitboxes do not change.
+
+Measured: a 2 m player is 33% of the screen height at 1280×720 and 38% at 844×390 (spec target "about 45%": with the
+whole 14.8 m court across a 16:9 screen, 45% would take a visual scale near 1.7). Left for the body and animation
+milestones to judge in the Art Lab.
+
+Bugs found by the gate (they were in Classic too)
+- A mirror match went 56% to team A in Classic and 57–59% in Legends. Three causes, all fixed:
+  - Loose balls that were not rebounds (the tip, pops, blocks) were scored against team A's basket in a scramble. They
+    now use the basket nearest the ball (`looseRefX`). This one was most of it: after the tip, team A's jumper caught
+    its own tip and got stripped.
+  - A shot's contest, rim protection, rim duels, swipes and ankle-breaker checks read the other player's live position,
+    one step fresher for whoever updated second. They now read where everyone stood when the step began
+    (`snapStartOfStep`).
+  - After an airborne catch, the dribble hand stayed on the default right side instead of turning toward the hoop.
+  Classic mirror after the fixes: 51% (300 games, both ways round). A small side effect remains in both layouts (the
+  side attacking right won 53% in Classic and 56% in Legends over 300 games); the gate plays half its mirror games
+  each way round.
+- The free-throw camera assumed midcourt at x = 12.
+- The offseason put new rookies in the league without a standings row, so the League page crashed if you opened it
+  before the next season started (an old-save fixture reached that state once simulated games ran in Legends View).
+
+Classic after the bias fixes (`node tests/balance.js 12 21`): brute force 1.28 PPP vs Pro (M7: 1.18; target ≤ 1.30),
+perfect timing 2.02 and reads 1.93 (M7: 1.88, 1.80), Legend beats Pro 84% of 96. The fixes move Classic a little
+because they change who wins scrambles and contests; the targets still hold.
+
+The §2 gate (`node tests/gate.js 300 12`: 300 mirror games both ways round, 200 Legend-vs-Pro games, the harness at 12
+games per cell)
+
+| Target (Legends) | Legends | Classic |
+| --- | --- | --- |
+| Pro mirror PPP 0.90–1.25 | **1.44 ✗** | 1.65 |
+| Mirror: team A wins 45–55% | 50% ✓ | 51% |
+| Legend beats Pro 75–95% | 77% ✓ (PPP 1.56 vs 1.28) | 82% |
+| Brute force vs Pro ≤ 1.30 PPP | 0.98 ✓ | 1.28 |
+| Timing and reads beat brute force | 2.07 ✓ | 2.02 |
+
+Harness PPP, scripted human vs Pro / vs Legend: Legends — brute 0.98 / 0.97, mash 0.30 / 0.29, drives 1.47 / 0.99,
+threes 1.37 / 0.87, perfect timing 2.07 / 1.64, reads 1.62 / 1.45. Classic — 1.28 / 1.31, 0.35 / 0.25, 1.15 / 0.87,
+1.56 / 1.19, 2.02 / 1.31, 1.93 / 1.15.
+
+Tuning to the gate. The straight layout gave a mirror PPP of 1.58 (Classic 1.65), Legend over Pro 86% and a
+perfect-timing shooter at 2.71 PPP against Pro: the short court brings a walking shooter into range before the on-ball
+defender is set, and the "contain the drive" rule froze the defender 1.6 m off him. The spec's levers:
+
+| Value | Straight layout | Now | Why |
+| --- | --- | --- | --- |
+| Deep zone from | 1.25 × radius (5.75 m) | 1.1 × radius (5.06 m) | fewer "three" looks from far out |
+| `ai.sagMin` / `ai.soloSagMax` | 0.91 / 1.00 m | 0.78 / 0.80 m | the on-ball defender plays at body contact |
+| `ai.pickupDistSolo` / `…SoloBig` | 5.79 / 4.63 m | 6.5 / 5.5 m | he meets the handler before the arc |
+| `contest.proxNear` / `proxRange` | 0.74 / 0.93 m | 0.85 / 1.3 m | the drawn arms are longer: a contest counts from farther (a "lateral contest distance") |
+| `ai.legendsCloseGap`, `ai.legendsStepUpMaxV` | — | 0.75 m, 7.1 m/s (× h) | new: a defender deeper than his sag + 0.43 m steps up to a handler in shooting range who is not sprinting, instead of containing |
+| h | 0.58 | 0.58 | 0.45 lowered the mirror PPP to 1.41 but dropped Legend over Pro to 71% and left the mirror lopsided |
+
+The mirror PPP target is not met. The levers moved it from 1.58 to 1.44; the rest of the gap is the make table and the
+timing windows, which the spec keeps unchanged (Classic sits at 1.65, so the target is below the engine's own level). In
+the career format (2 × 2:00 halves) the two layouts score the same per game (33.4 vs 33.2 points per player): Legends has
+more possessions (24.3 vs 21.5) at a lower PPP, so the league model fitted on Classic games still matches. A career's
+simulated games now use the same layout as the ones you play.
+
+Tests: the smoke test (85 steps) checks the Legends court and camera, that a headless Classic sim in between does not
+leak into a live Legends match, that Classic comes back exactly, and that 2v2 stays Classic. `tests/gate.js` prints the
+gate tables. runSims, shotLab and tunnelTest take a layout.
+
 ## M9 — Phone pass, bug sweep, performance, before/after gallery
 
 M9 adds no features. It makes every screen work at phone size, sweeps every mode and every old save, measures the frame
