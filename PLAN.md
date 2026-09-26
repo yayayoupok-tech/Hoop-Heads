@@ -144,7 +144,7 @@ sheds pixel work over 4/8 ms.)* **L8 — Chunky UI** *(done: 900-weight gradient
 headings with a 4 px outline, drop shadow and an arch; the logo with a code-drawn basketball; buttons with a 3 px outline,
 a 6 px lip and a squash-overshoot press; the select wall's bobbling, grinning heads; a bigger score, grinning scorer
 portraits, a bigger shot-clock pill; pop-in transitions and a team-color wipe into matches. Pixel mode: menus and the
-HUD in a UI layer at 2× internal resolution, notched panels, pixel-font headings on a 6-color ramp, 7×11 score digits.)* **L9 — Optional arcade extras** *(done: a super meter from makes, blocks and steals; Action + Shoot fires a Fireball, a Freeze or a Mega jump; speed shoes, big head and sticky ball power-ups every 20–30 s; Legends View arcade 1v1 only, quick games by default, Settings → Arcade extras.)* **L10 — Performance, phone, before/after gallery, final report.**
+HUD in a UI layer at 2× internal resolution, notched panels, pixel-font headings on a 6-color ramp, 7×11 score digits.)* **L9 — Optional arcade extras** *(done: a super meter from makes, blocks and steals; Action + Shoot fires a Fireball, a Freeze or a Mega jump; speed shoes, big head and sticky ball power-ups every 20–30 s; Legends View arcade 1v1 only, quick games by default, Settings → Arcade extras.)* **L10 — Performance, phone, before/after gallery, final report** *(done: phones paint Pixel characters at 2× (the phone scene 22.0 → 16.7 ms in the profile); a phone smoke check; `shots/before-after-legends/`: the pre-L1 build, Smooth and Pixel side by side from one script, `tests/gallery.js`.)*
 
 ## Testing every milestone
 

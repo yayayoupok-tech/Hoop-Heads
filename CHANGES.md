@@ -3,6 +3,40 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L10 — Performance, the phone pass, the gallery (graphics overhaul, milestone 10)
+
+Performance
+- Pixel mode on a phone paints characters at a 2× supersample instead of 3× (`pxSuperPhone`: 2). In the profile of a
+  Legends Arena match at 844×390 @2x this cut the character cost from 13.6 to 9.2 ms a frame and the scene from 22.0 to
+  16.7 ms; at the phone's 260-row buffer the sprites look the same (`shots/l10/phone-ss2.jpg`). Desktop stays at 3×.
+- The profile (headless Chromium, CPU canvas; a Legends Arena match, Pixel mode, guard level 0):
+
+  | | Desktop 1280×720 (k = 3) | Phone 844×390 @2x, L9 | Phone, L10 |
+  | --- | --- | --- | --- |
+  | whole scene | 16.9 ms | 22.0 ms | 16.7 ms |
+  | characters (paint + pixelize) | 9.1 ms | 13.6 ms | 9.2 ms |
+  | background quantize | 2.4 ms | 3.4 ms | 3.3 ms |
+  | pixel work the guard times | 2.2 ms | 4.6 ms | 3.2 ms |
+
+
+The phone pass
+- Pixel menus on a real phone (390 px tall @3x, k = 5) draw in a UI layer of 2-device-pixel UI pixels; the tests' phone
+  profile (@2x, k = 3) draws them at full resolution. Both were checked by eye in `shots/l8/ui/` (the @3x set) and the
+  phone audit (every menu keeps 64 px tap targets, no errors).
+- The SUPER button (L9) sits above Shoot only while the meter is full and clears the other buttons at every touch size.
+- A new phone smoke check: Pixel mode on a phone paints characters at the 2× supersample.
+
+The gallery
+- `shots/before-after-legends/`: the same short tour (`node tests/gallery.js shoot <dir> [pixel|smooth]`) on the
+  last build before L1 (M9) and on this one in both looks, composed side by side with `node tests/gallery.js compose`:
+  title, menu, create, settings, a quick 1v1 at tip-off, a jumper, an attack at the rim, defense and pause on desktop;
+  the match and pause on a phone. Notes in `shots/before-after-legends/NOTES.md`.
+
+Tests
+- Smoke 93 of 93 on this build (new phone step: Pixel on a phone paints characters at the 2× supersample). The rest of
+  the suite (modes, old saves, dev tools, phone audit, balance, careersim, the §2 gate, perf) is recorded in the next
+  commit.
+
 ## L9 — Optional arcade extras (graphics overhaul, milestone 9)
 
 A new EXTRAS section. It only runs when a match asks for it, and only for the Legends View arcade 1v1 (no practice,

@@ -6596,6 +6596,7 @@ class FrameGuard {
 Object.assign(ART, {
   pxRows: 240,                 // k = max(2, round(device height / pxRows))
   pxSuper: 3,                  // characters are painted at this supersample and box-filtered down (the guard drops to 2)
+  pxSuperPhone: 2,             // ...on a phone (L10: the 3× paint cost 11.8 ms a frame at 844×390 @2x; 2× looks the same at that size)
   pxAlphaCut: 0.45,            // a filtered pixel at least this opaque becomes opaque; the rest become transparent
   pxVenueColors: 32,           // background palette size
   pxDither: 14,                // Bayer 4×4 amplitude on the background (0–255 per channel; 26 made the floor grainy)
@@ -6791,7 +6792,7 @@ function pxBegin(game) {
   const devW = game.canvas.width, devH = game.canvas.height, k = Math.max(2, Math.round(devH / ART.pxRows)), iw = Math.ceil(devW / k), ih = Math.ceil(devH / k);
   if (!PXS.buf) { PXS.buf = document.createElement('canvas'); PXS.ctx = PXS.buf.getContext('2d', { willReadFrequently: true }); }
   if (PXS.buf.width !== iw || PXS.buf.height !== ih) { PXS.buf.width = iw; PXS.buf.height = ih; }
-  PXS.k = k; PXS.iw = iw; PXS.ih = ih; PXS.f = game.dpr / k; PXS.frame++; PXS.ss = PXS.level >= 1 ? 2 : ART.pxSuper;
+  PXS.k = k; PXS.iw = iw; PXS.ih = ih; PXS.f = game.dpr / k; PXS.frame++; PXS.ss = PXS.level >= 1 ? 2 : (game.ui && game.ui.phone ? ART.pxSuperPhone : ART.pxSuper);
   const c = PXS.ctx; c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.imageSmoothingEnabled = true; c.fillStyle = '#000'; c.fillRect(0, 0, iw, ih); c.setTransform(PXS.f, 0, 0, PXS.f, 0, 0); return c;
 }
 function pxBlit(game) { const ctx = game.ctx; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(PXS.buf, 0, 0, PXS.iw * PXS.k, PXS.ih * PXS.k); ctx.restore(); }
