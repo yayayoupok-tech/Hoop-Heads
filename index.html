@@ -2158,6 +2158,7 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
     if (p.onFire > 0) { ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = 'lighter'; const gs = 1.1 * k; ctx.drawImage(radialFire(), ox - gs / 2, oy - 0.5 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
     drawTrail(ctx, cam, p, (team && team.colors && team.colors[0]) || '#F3F0FF', rigNow(p, alpha));
   }
+  P.bigHead = extrasHeadScale(p); // L9 big-head power-up (Pixel mode sizes its sprite box with it)
   if (opts.onPose) opts.onPose(P, { ox, oy: oy - dR, kx: fv * k * ts * dS, ky: k * dS }); // Pixel mode measures the figure's box from the pose
   const base = ctx.getTransform(); ctx.save(); ctx.translate(ox, oy - dR); ctx.scale(fv * k * ts * dS, k * dS); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   if (P.rot) { ctx.translate(P.px, -P.py); ctx.rotate(-P.rot); ctx.translate(-P.px, P.py); } // falls tip backward about the feet; a rim hang swings under the hands
@@ -2176,6 +2177,7 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   if (bl && !opts.reflection) { const dx = (bl.x * f * fv - P.head.x) * H, dh = (bl.y - P.head.y) * H, d = Math.hypot(dx, dh); if (d < ART.lookRange && d > 0.05) { const n = Math.max(d, 1.2); lookX = dx / n; lookY = -dh / n; } }
   if (P.clip === 'idle' && !(bl && Math.hypot(bl.x, bl.y - P.head.y) < 0.6)) { const sd = hashString(p.name || 'p') % 991 / 991, [g0, g1] = ART.glanceEvery, per = g0 + (g1 - g0) * sd, ph = (rigNow(p, alpha) + sd * 17) % per; if (ph < ART.glanceS) { const u = Math.sin(Math.PI * ph / ART.glanceS); lookX = lerp(lookX, -0.35, u); lookY = lerp(lookY, -0.8, u); } } // §4 idle: a glance up at the crowd
   if (hs !== 1) { ctx.translate(hx, 0); ctx.scale(hs, 1); ctx.translate(-hx, 0); }
+  if (P.bigHead !== 1) { const pv = hy + ART.headWidth * 0.62; ctx.translate(hx, pv); ctx.scale(P.bigHead, P.bigHead); ctx.translate(-hx, -pv); } // grows up from the collar
   drawFace(ctx, L, hx, hy, ART.headWidth, 1, (a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k * ts * hs, sim: opts.reflection ? null : a, warm: !opts.reflection && !!(p.match && p.match.players), vx: (p.vx || 0) * fv, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
   if (a.starsT > 0 && !opts.reflection) drawDizzyStars(ctx, hx, hy - (ART.crownY - ART.chinY) * 0.52, a.starsT, lw); // §4: knockdown and bonk stars orbit the head
   ctx.restore();
@@ -2769,11 +2771,12 @@ class TouchControls {
         { key: 'jump', x: bx + (right ? -m * 0.9 : m * 0.9), y: by - m * 1.0, r: m * 0.62, labelO: 'JUMP', labelD: 'JUMP' },
         { key: 'pass', x: bx + (right ? -m * 1.1 : m * 1.1), y: by + m * 0.55, r: m * 0.62, labelO: 'PASS', labelD: 'SWITCH' },
         { key: 'action', x: bx + (right ? m * 0.2 : -m * 0.2), y: by + m * 1.25, r: m * 0.62, labelO: 'MOVE', labelD: 'STEAL' },
+        { key: 'super', x: bx + (right ? m * 1.1 : -m * 1.1), y: by - m * 1.7, r: m * 0.62, labelO: 'SUPER', labelD: 'FREEZE' }, // L9: only while the super meter is full; Action + Shoot at once
       ],
       pause: { x: W - iR * 0.8 - 26, y: iT + 26, r: 24 },
     };
   }
-  hitButton(x, y) { const L = this.layout; if (!L) return null; for (let i = 0; i < L.buttons.length; i++) { const b = L.buttons[i]; if (dist2(x, y, b.x, b.y) < b.r * b.r * 1.3) return b.key; } return null; }
+  hitButton(x, y) { const L = this.layout; if (!L) return null; for (let i = 0; i < L.buttons.length; i++) { const b = L.buttons[i]; if (b.key === 'super' && !this.superOn) continue; if (dist2(x, y, b.x, b.y) < b.r * b.r * 1.3) return b.key; } return null; }
   // (named pointerDown, not down: `down` is the stance flag above and would shadow the method)
   pointerDown(e) {
     const x = e.clientX, y = e.clientY; this.tapped = true; this.lastTapX = x; this.lastTapY = y;
@@ -2802,7 +2805,7 @@ class TouchControls {
     let mx = clamp(this.stickDX / (r * 0.8), -1, 1); if (Math.abs(mx) < 0.15) mx = 0;
     this.moveX = mx; this.sprint = Math.abs(mx) > 0.85; this.down = this.stickId >= 0 && this.stickDY > r * 0.45 && Math.abs(this.stickDY) > Math.abs(this.stickDX) * 0.7; this.laneUp = false; this.laneDown = false;
     this.jump = this.shoot = this.pass = this.action = false;
-    for (const p of this.pointers.values()) if (p.kind === 'button' && p.key) this[p.key] = true;
+    for (const p of this.pointers.values()) if (p.kind === 'button' && p.key) { if (p.key === 'super') this.action = this.shoot = true; else this[p.key] = true; }
   }
   clearAll() { this.pointers.clear(); this.stickId = -1; this.stickDX = this.stickDY = 0; this.moveX = 0; this.sprint = this.down = this.jump = this.shoot = this.pass = this.action = this.laneUp = this.laneDown = false; }
   consumeTap() { const t = this.tapped; this.tapped = false; return t; }
@@ -3293,7 +3296,7 @@ class Match {
     this.sidesSwapped = false; this.lastPasser = null; this.lastPassT = -9; this.posStartT = 0; this.periodPossession = [0, 0]; this.stallT = 0; this.replayHold = 0; this.replayRequested = false;
     this.snapshots = null; this.replay = null; this.heads = []; this.contact = makeContact(); this.invariantFails = {}; this.invariantCount = 0; this.dev = !!o.dev; this.slowMoT = 0;
     this.layoutId = o.layout === 'legends' && this.perSide === 1 && !this.contest3 ? 'legends' : 'classic'; useLayout(this.layoutId); // §2: Legends View is 1v1 only; 2v2 and up and the 3-point contest stay Classic
-    this.build();
+    this.build(); this.ex = initExtras(this); // L9: the optional arcade extras (null unless the match asks for them)
   }
   hoopFor(team) { if (this.halfCourt) return HOOPS[1]; const rightTeam = this.opts.rightTeam != null ? this.opts.rightTeam : (this.humanTeam >= 0 ? this.humanTeam : 0); const attackRight = (team === rightTeam) !== this.sidesSwapped; return attackRight ? HOOPS[1] : HOOPS[0]; }
   build() {
@@ -3358,7 +3361,7 @@ function phaseOf(p) {
 function maxSpeedOf(p, sprint) {
   let s = (sprint ? PC.sprintSpeed : PC.runSpeed) * speedOf(p) * heightMul(p, HT.speedPerM);
   if (p.tired) s *= PC.stamina.lowSpeedMul; if (p.onFire > 0) s *= CONFIG.arcade.heat.fireSpeedMul;
-  if (p.screenFightT > 0) s *= 0.4;
+  if (p.screenFightT > 0) s *= 0.4; if (p.ex && p.ex.speedT > 0) s *= CONFIG.extras.speedMul; // L9 speed shoes
   if (p.boxedOutBy) s *= (1 - CONFIG.rebound.boxOutSlow);
   if (Math.abs(p.z - p.zTarget) > 0.04) s *= W.laneChangeSpeedMul;
   if (p.hasBall && p.grounded && !p.pickedUp) s *= PC.dribbleSpeedMul;
@@ -3410,6 +3413,7 @@ function updatePlayer(p, dt) {
   I.tick(dt);
   if (I.jumpP) p.jumpBuf = PC.jumpBufferMs / 1000; if (I.shootP) p.shootBuf = PC.inputBufferMs / 1000; if (I.passP) p.passBuf = PC.inputBufferMs / 1000; if (I.actionP) p.actionBuf = PC.inputBufferMs / 1000;
   p.jumpBuf = Math.max(0, p.jumpBuf - dt); p.shootBuf = Math.max(0, p.shootBuf - dt); p.passBuf = Math.max(0, p.passBuf - dt); p.actionBuf = Math.max(0, p.actionBuf - dt);
+  if (p.ex) extrasPlayer(p, dt); // L9: the super meter's combo, power-up timers, the freeze
   p.coyote = p.grounded ? PC.coyoteMs / 1000 : Math.max(0, p.coyote - dt);
   p.shoveCd = Math.max(0, p.shoveCd - dt); p.exposureBumpT = Math.max(0, (p.exposureBumpT || 0) - dt); if (!p.hasBall) p.bodyUpT = 0; if (p.state !== 'protect') p.postT = 0; p.blowByT = Math.max(0, p.blowByT - dt); p.passThroughT = Math.max(0, p.passThroughT - dt); p.offBalanceT = Math.max(0, p.offBalanceT - dt); p.biteT = Math.max(0, p.biteT - dt); p.screenFightT = Math.max(0, p.screenFightT - dt); p.reDribbleT = Math.max(0, p.reDribbleT - dt);
   if (p.beaten > 0) p.beaten = Math.max(0, p.beaten - dt);
@@ -3796,6 +3800,7 @@ function resolveSwipe(p) {
   const inBox = bx >= Math.min(x0, x1) - LX(0.1) && bx <= Math.max(x0, x1) + LX(0.1) && by >= S.boxLow && by <= S.boxHigh;
   if (!inBox) return false;
   if (p.sd.rolled) return false; p.sd.rolled = true;
+  if (h.ex && h.ex.stickyT > 0) return false; // L9 sticky ball: the swipe finds nothing to strip
   const e = stealExposure(h, p);
   const chance = clamp(S.base + S.ratingSlope * (p.attrs.def - h.attrs.han) + e + (p.traits.glove ? CONFIG.career.trait.glove : 0), S.min, S.max);
   if (m.rng.next() < chance) {
@@ -3842,6 +3847,7 @@ function perfectWindow(p, contest, d) {
   const distF = d <= SH.zoneThree ? 1 : remap(d, SH.zoneThree, SH.heaveRange, 1, SH.deepWindowMin); w *= distF;
   if (p.onFire > 0) w *= CONFIG.arcade.heat.fireWindowMul;
   if (p.match.practice && p.match.practice.easyTiming) w *= 2;
+  if (p.ex && p.ex.headT > 0) w *= CONFIG.extras.headWindow; // L9 big head
   return w / 1000;
 }
 function gradeOf(err, w) { const a = Math.abs(err); return a <= w ? 0 : a <= w * SH.gradeGood ? 1 : a <= w * SH.gradeSlight ? 2 : 3; }
@@ -3937,6 +3943,7 @@ function releaseShot(p, err, forced) {
   const timed = type === 'jumper' || type === 'ft' || type === 'floater';
   let w = 0, grade = -1;
   if (timed) { if (p.arch === 'sharpshooter') err += SH.quickReleaseEarlyMs / 1000; w = perfectWindow(p, contest, d) * (sd.fade ? SH.fadeWindowMul : 1); grade = forced ? 3 : gradeOf(err, w); }
+  const fire = !!(p.ex && p.ex.fireball); if (fire) { p.ex.fireball = false; if (timed) { grade = 0; err = 0; } } // L9 Fireball: a perfect release (the contest still counts)
   const mp = makeProbability(p, type === 'ft' ? 'ft' : type, zone, grade < 0 ? 0 : grade, contest, { stepback: sd.stepback, fade: sd.fade });
   const P = mp.P, green = mp.green;
   const roll = m.rng.next(); const make = roll < P;
@@ -3944,7 +3951,7 @@ function releaseShot(p, err, forced) {
   b.setOwner(null); b.mode = 'flight'; b.x = x0; b.y = y0; b.z = p.z; b.zTarget = 0.5; b.flightZ0 = p.z; b.armed = false; b.fromBelow = false; b.rimTouched = false; b.boardTouched = false; b.flightT = 0; b.touchedAfterShot = false; b.lastTouch = p; b.lastTouchTeam = p.team;
   const solve = launchShot(b, x0, y0, hoop, type, make, flavor, d, dir);
   const points = type === 'ft' ? 1 : m.pointBase + ((type === 'jumper' && zone !== 'mid') ? 1 : 0); // half court can score by 1s and 2s
-  const shot = { shooter: p, type, zone, grade, err, window: w, contest, contestBy: ct.by, P, roll, make, flavor, green, x0, y0, d, points, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, solver: solve.attempts, solverOk: solve.ok, solverFallback: solve.fallback, base: mp.base, forced: !!forced, stepback: !!sd.stepback, euro: !!sd.euro, fade: !!sd.fade, id: m.stepCount };
+  const shot = { shooter: p, type, zone, grade, err, window: w, contest, contestBy: ct.by, P, roll, make, flavor, green, x0, y0, d, points, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, solver: solve.attempts, solverOk: solve.ok, solverFallback: solve.fallback, base: mp.base, forced: !!forced, stepback: !!sd.stepback, euro: !!sd.euro, fade: !!sd.fade, id: m.stepCount, fireball: fire };
   b.shot = shot; m.lastShot = shot;
   if (type !== 'ft') { p.stats.fga++; if (points === 3) p.stats.tpa++; } else p.stats.fta++;
   const zk = type === 'layup' ? 'lay' : type === 'tip' ? 'tip' : type === 'dunk' ? 'dunk' : type === 'hook' ? 'hook' : zone; if (type !== 'ft') p.stats[zk + 'A']++; if (sd.fade) p.stats.fadeA++;
@@ -4429,6 +4436,7 @@ function simStep(m, dt) {
   resolveShotTouches(m, dt);
   resolveCatches(m, dt);
   updateRules(m, dt);
+  if (m.ex) extrasStep(m, dt); // L9 power-ups
   updateAnim(m, dt);
   if (m.replay) m.replay.maybeRecord();
   for (let i = 0; i < m.players.length; i++) m.players[i].input.clearEdges();
@@ -5282,6 +5290,138 @@ function checkInvariants(m) {
 }
 
 // ============================================================================
+// SECTION: EXTRAS — optional arcade extras (L9). Legends View arcade 1v1 only, and only when the match asks for them
+// (Settings → Arcade extras: quick games by default, never in the careers unless set to Everywhere). A super meter
+// fills on makes, blocks and steals; with it full, Action + Shoot fires a Fireball (a guaranteed perfect release, the
+// contest still counts), a Freeze (the opponent is iced for 0.8 s) or a Mega jump (a leap from mid-range straight into
+// a dunk). Power-ups land on the floor every 20–30 s: speed shoes, a big head, a sticky ball. Everything here runs in
+// the fixed-step sim on the match RNG, so replays and seeds stay deterministic. Off, it changes nothing.
+// ============================================================================
+Object.assign(CONFIG, { extras: {
+  meterMax: 100,        // a full super meter
+  gainMake: 25,         // meter for a make (two points)
+  gainThree: 34,        // ...for a three
+  gainBlock: 34,        // ...for a block
+  gainSteal: 34,        // ...for a steal
+  comboS: 0.14,         // Action and Shoot count as pressed together within this long (s)
+  freezeS: 0.8,         // Freeze: the opponent is iced this long (s)
+  megaOver: 0.18,       // Mega jump: the hand peaks this far over the rim (m)
+  megaStamina: 18,      // ...and costs this much stamina
+  puEvery: [20, 30],    // a power-up lands every 20–30 s of live play
+  puLifeS: 10,          // ...and stays on the floor this long
+  puPickR: 0.55,        // a player whose feet come this close (m, along the court) picks it up
+  puEdge: 2.2,          // power-ups land at least this far from either hoop (m)
+  speedS: 5,            // speed shoes last this long (s)...
+  speedMul: 1.25,       // ...and add this much top speed
+  headS: 6,             // big head lasts this long (s)...
+  headScale: 1.35,      // ...draws the head this much bigger...
+  headWindow: 1.3,      // ...and widens the perfect-release window this much ("big head, big brain")
+  stickyS: 5,           // sticky ball: swipes can't strip the handler for this long (s)
+  botDelayS: 0.5,       // a bot with a full meter waits at least this long before it looks for a use
+  botFreezeRange: 4.5,  // a defending bot freezes a handler this close to the hoop (m)
+  botFreezeShare: 0.4,  // a bot saves 40% of its full meters for a Freeze on defense, the rest for offense
+} });
+const EXTRA_KINDS = ['speed', 'head', 'sticky'];
+const EXTRA_LABEL = { speed: 'SPEED SHOES!', head: 'BIG HEAD!', sticky: 'STICKY BALL!', fireball: 'FIREBALL!', freeze: 'FREEZE!', mega: 'MEGA JUMP!' };
+const EXTRA_COLOR = { speed: '#5EE0FF', head: '#FF6FB5', sticky: '#8CFF5A', fireball: '#FF8A2A', freeze: '#9FE8FF', mega: '#FFD23F' };
+
+function extrasAllowed(m) { return !!(m.opts.extras && m.arcade && m.layoutId === 'legends' && m.perSide === 1 && !m.practice && !m.drill && !m.contest3 && !m.tutorial); }
+function initExtras(m) {
+  if (!extrasAllowed(m)) return null; const C = CONFIG.extras;
+  for (const p of m.players) p.ex = { meter: 0, fireball: false, speedT: 0, headT: 0, stickyT: 0, frozenT: 0, aT: -9, sT: -9, botT: 0, plan: null };
+  const X = { pu: null, nextT: C.puEvery[0] + m.rng.next() * (C.puEvery[1] - C.puEvery[0]), liveT: 0, uses: 0, pickups: 0 };
+  const gain = (p, v) => { if (p && p.ex) p.ex.meter = Math.min(C.meterMax, p.ex.meter + v); };
+  m.bus.on('SCORE', e => { if (e.player && !e.ft) gain(e.player, e.three ? C.gainThree : C.gainMake); });
+  m.bus.on('BLOCK', e => gain(e.player, C.gainBlock));
+  m.bus.on('STEAL', e => gain(e.player, C.gainSteal));
+  if (!m.headless) { m.bus.on('SUPER', e => pushCallout(m, EXTRA_LABEL[e.kind], EXTRA_COLOR[e.kind], true)); m.bus.on('POWERUP', e => pushCallout(m, EXTRA_LABEL[e.kind], EXTRA_COLOR[e.kind], false)); }
+  return X;
+}
+const SHOT_STATES = { gather: 1, jumpshot: 1, floater: 1, layup: 1, dunk: 1, rimhang: 1, tipin: 1 };
+// Per player, every step, right after the input buffers are set: timers, the freeze, the Action + Shoot combo.
+function extrasPlayer(p, dt) {
+  const E = p.ex, m = p.match, I = p.input, C = CONFIG.extras; if (!E) return;
+  E.speedT = Math.max(0, E.speedT - dt); E.headT = Math.max(0, E.headT - dt); E.stickyT = Math.max(0, E.stickyT - dt);
+  if (E.frozenT > 0) { E.frozenT = Math.max(0, E.frozenT - dt); if (!SHOT_STATES[p.state]) { I.moveX = 0; for (const b of BUTTONS) { I[b] = false; I[b + 'P'] = false; } p.jumpBuf = p.shootBuf = p.passBuf = p.actionBuf = 0; if (p.grounded) p.vx *= 0.5; } return; } // iced: no moves, no buttons (a shot already in the air goes on)
+  if (m.phase !== 'live') { E.botT = 0; return; }
+  if (I.actionP) E.aT = m.time; if (I.shootP) E.sT = m.time;
+  if (E.meter < C.meterMax) { E.botT = 0; return; }
+  if (p.controlled || p.isHuman) { if ((I.actionP || I.shootP) && E.aT > -1 && E.sT > -1 && Math.abs(E.aT - E.sT) <= C.comboS && useSuper(p)) { p.actionBuf = 0; E.aT = E.sT = -9; } return; }
+  if (!E.plan) E.plan = m.rng.next() < C.botFreezeShare ? 'defense' : 'offense'; // a bot decides once per full meter how it will spend it
+  E.botT += dt; if (E.botT < C.botDelayS) return; const k = botSuper(p); if (k && useSuper(p, k)) { E.botT = 0; E.plan = null; }
+}
+// Which super fits right now: Freeze on defense, a Mega jump with the ball on the ground in mid-range, else a Fireball
+// for the next (or current) shot.
+function superKind(p) {
+  const m = p.match, b = m.ball, h = b.owner; if (h && h.team !== p.team) return 'freeze'; if (h !== p || p.ex.fireball) return null;
+  const d = Math.abs(p.x - p.hoop.x); if ((p.grounded && !SHOT_STATES[p.state]) || (p.state === 'gather' && p.sd && p.sd.type === 'jumper')) { if (d > SH.dunkRange && d < SH.zoneThree) return 'mega'; }
+  return p.state === 'jumpshot' && p.sd && p.sd.released ? null : 'fireball';
+}
+function useSuper(p, kind) {
+  const m = p.match, C = CONFIG.extras; kind = kind || superKind(p); if (!kind) return false;
+  if (kind === 'freeze') { for (const o of m.opponentsOf(p)) if (o.ex) { o.ex.frozenT = C.freezeS; o.anim.expr = 'shocked'; o.anim.exprT = C.freezeS; } }
+  else if (kind === 'fireball') p.ex.fireball = true;
+  else if (kind === 'mega') megaJump(p);
+  p.ex.meter = 0; m.ex.uses++; m.bus.emit('SUPER', { player: p, kind }); return true;
+}
+// A leap from mid-range that peaks with the hand over the rim, then the normal dunk (its contest and protection rolls).
+function megaJump(p) {
+  const m = p.match, C = CONFIG.extras, hoop = p.hoop, dir = sgn(hoop.x - p.x) || p.facing; const rise = Math.max(0.6, RIM_Y + C.megaOver - p.reach - p.y), v = Math.sqrt(2 * G * rise), tApex = v / G;
+  p.grounded = false; p.coyote = 0; p.airT = 0; p.vy = v; p.vx = (hoop.x - dir * 0.25 - p.x) / tApex; p.zTarget = 0.5; p.facing = dir; p.pickedUp = true; p.stamina = Math.max(0, p.stamina - C.megaStamina); p.anim.squash = 0.8;
+  p.setState('dunk', { style: pickDunkStyle(p), dueled: false, slammed: false, wasAir: true, tApex, approach: Math.abs(p.vx), mega: true });
+  m.bus.emit('DUNK_START', { player: p }); m.bus.emit('JUMP', { player: p });
+}
+// A bot spends a full meter when it plainly helps (the same meter and rules as the human).
+function botSuper(p) {
+  const m = p.match, b = m.ball, h = b.owner, C = CONFIG.extras; const kind = superKind(p); if (!kind) return null;
+  if (kind === 'freeze') return p.ex.plan === 'defense' && h && Math.abs(h.x - h.hoop.x) < C.botFreezeRange && h.grounded ? 'freeze' : null;
+  if (p.ex.plan !== 'offense') return null;
+  if (kind === 'mega') { const o = m.nearestOpponent(p); const open = !o || (o.x - p.x) * (p.hoop.x - p.x) < 0 || Math.abs(o.x - p.x) > 1.4; return open && m.rng.next() < 0.02 ? 'mega' : null; }
+  return p.state === 'gather' || p.state === 'jumpshot' ? 'fireball' : null;
+}
+// Once a step (after the rules): power-ups land, get picked up and expire.
+function extrasStep(m, dt) {
+  const X = m.ex, C = CONFIG.extras; if (!X) return; if (m.phase !== 'live') return; X.liveT += dt;
+  if (X.pu) { const u = X.pu; u.t += dt; if (u.t > C.puLifeS) { X.pu = null; return; }
+    for (const p of m.players) { if (p.hidden || !p.ex || p.y > 0.6 || Math.abs(p.x - u.x) > C.puPickR) continue; const E = p.ex; if (u.kind === 'speed') E.speedT = C.speedS; else if (u.kind === 'head') E.headT = C.headS; else E.stickyT = C.stickyS; X.pu = null; X.pickups++; m.bus.emit('POWERUP', { player: p, kind: u.kind }); break; }
+    return; }
+  if (X.liveT < X.nextT) return; X.liveT = 0; X.nextT = C.puEvery[0] + m.rng.next() * (C.puEvery[1] - C.puEvery[0]);
+  const a = Math.min(HOOPS[0].x, HOOPS[1].x) + C.puEdge, bnd = Math.max(HOOPS[0].x, HOOPS[1].x) - C.puEdge; X.pu = { kind: EXTRA_KINDS[Math.floor(m.rng.next() * 3) % 3], x: a + m.rng.next() * Math.max(0.1, bnd - a), t: 0 };
+}
+
+// --- drawing (presentation only) ---
+// The power-up on the floor: a bobbing badge with a glow and its symbol; it blinks in its last 2 s.
+function drawPowerup(ctx, cam, m, px) {
+  const u = m.ex && m.ex.pu; if (!u) return; const C = CONFIG.extras; if (u.t > C.puLifeS - 2 && Math.floor(u.t * 8) % 2) return;
+  const s = cam.scale(0.5), r = Math.max(6, s * 0.26), x = cam.sx(u.x), y = cam.sy(0.45 + 0.08 * Math.sin(u.t * 5), 0.5), col = EXTRA_COLOR[u.kind];
+  ctx.save(); if (!px) { const g = ctx.createRadialGradient(x, y, r * 0.3, x, y, r * 2.2); g.addColorStop(0, rgba(col, 0.55)); g.addColorStop(1, rgba(col, 0)); ctx.fillStyle = g; ctx.fillRect(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4); }
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, cam.sy(0, 0.5), r, r * 0.3, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = col; ctx.strokeStyle = ART.inkLine; ctx.lineWidth = Math.max(1.5, r * 0.16); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = ART.inkLine; ctx.strokeStyle = ART.inkLine; ctx.lineJoin = 'round';
+  if (u.kind === 'speed') { ctx.beginPath(); ctx.moveTo(x + r * 0.15, y - r * 0.7); ctx.lineTo(x - r * 0.35, y + r * 0.08); ctx.lineTo(x, y + r * 0.08); ctx.lineTo(x - r * 0.15, y + r * 0.7); ctx.lineTo(x + r * 0.35, y - r * 0.08); ctx.lineTo(x, y - r * 0.08); ctx.closePath(); ctx.fill(); } // a lightning bolt
+  else if (u.kind === 'head') { ctx.fillStyle = '#FFE0C0'; ctx.beginPath(); ctx.arc(x, y - r * 0.08, r * 0.55, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = ART.inkLine; ctx.fillRect(x - r * 0.25, y - r * 0.2, r * 0.12, r * 0.14); ctx.fillRect(x + r * 0.13, y - r * 0.2, r * 0.12, r * 0.14); ctx.beginPath(); ctx.arc(x, y + r * 0.08, r * 0.22, 0.1, Math.PI - 0.1); ctx.stroke(); } // a big grinning head
+  else { ctx.fillStyle = '#F07A22'; ctx.beginPath(); ctx.arc(x, y + r * 0.1, r * 0.45, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#8CFF5A'; ctx.beginPath(); ctx.moveTo(x - r * 0.45, y); ctx.quadraticCurveTo(x - r * 0.5, y - r * 0.55, x, y - r * 0.5); ctx.quadraticCurveTo(x + r * 0.5, y - r * 0.55, x + r * 0.45, y); ctx.quadraticCurveTo(x + r * 0.2, y + r * 0.35, x + r * 0.1, y - r * 0.05); ctx.quadraticCurveTo(x - r * 0.2, y + r * 0.45, x - r * 0.45, y); ctx.fill(); ctx.stroke(); } // a ball dripping glue
+  ctx.restore();
+}
+// Over a frozen player: an ice block; over speed shoes: streaks at the feet.
+function drawExtrasOverlays(ctx, cam, m, alpha) {
+  if (!m.ex) return;
+  for (const p of m.players) { const E = p.ex; if (!E || p.hidden) continue; const x = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha)), y0 = cam.sy(lerp(p.py != null ? p.py : p.y, p.y, alpha), p.z), s = cam.scale(p.z), H = drawHeightOf(p) * s;
+    if (E.frozenT > 0) { const w = H * 0.62, h = H * 1.02, a = Math.min(1, E.frozenT / 0.15) * 0.55; ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#BFF1FF'; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = Math.max(1.5, s * 0.03); ctx.beginPath(); ctx.moveTo(x - w / 2, y0); ctx.lineTo(x - w / 2 - w * 0.06, y0 - h * 0.6); ctx.lineTo(x - w * 0.35, y0 - h); ctx.lineTo(x + w * 0.4, y0 - h * 0.97); ctx.lineTo(x + w / 2 + w * 0.05, y0 - h * 0.5); ctx.lineTo(x + w / 2, y0); ctx.closePath(); ctx.fill(); ctx.globalAlpha = Math.min(1, a * 1.8); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x - w * 0.3, y0 - h * 0.8); ctx.lineTo(x - w * 0.1, y0 - h * 0.92); ctx.moveTo(x - w * 0.34, y0 - h * 0.62); ctx.lineTo(x - w * 0.02, y0 - h * 0.84); ctx.stroke(); ctx.restore(); }
+    if (E.speedT > 0 && Math.abs(p.vx) > 1 && p.grounded) { ctx.save(); ctx.strokeStyle = rgba(EXTRA_COLOR.speed, 0.8); ctx.lineWidth = Math.max(1.5, s * 0.03); for (let i = 0; i < 3; i++) { const yy = y0 - s * (0.04 + i * 0.07), back = -sgn(p.vx) * s * (0.25 + 0.12 * i); ctx.beginPath(); ctx.moveTo(x + back * 0.4, yy); ctx.lineTo(x + back * 1.6, yy); ctx.stroke(); } ctx.restore(); } }
+}
+// The big-head power-up: how much bigger this player's head draws right now (it pops up and back over a quarter second).
+function extrasHeadScale(p) { const E = p && p.ex; if (!E || !(E.headT > 0)) return 1; const C = CONFIG.extras, k = clamp01(Math.min(E.headT, C.headS - E.headT) / 0.25); return 1 + (C.headScale - 1) * easeOutCubic(k); }
+// HUD: the super meter under a team's panel, and the chips for power-ups running.
+function drawSuperMeter(ctx, p, x, y, w, h, right, now) {
+  const E = p && p.ex; if (!E) return; const C = CONFIG.extras, k = E.meter / C.meterMax, full = k >= 1, px = uiPixel();
+  ctx.fillStyle = 'rgba(0,0,12,0.75)'; ctx.fillRect(x - 2, y - 2, w + 4, h + 4); const fw = w * k, fx = right ? x + w - fw : x;
+  ctx.fillStyle = full ? (Math.sin(now * 12) > 0 ? '#FFFFFF' : UI_GOLD) : UI_ORANGE; ctx.fillRect(fx, y, fw, h); ctx.fillStyle = 'rgba(0,0,12,0.6)'; for (let i = 1; i < 4; i++) ctx.fillRect(x + w * i / 4 - 1, y, 2, h);
+  let lw = 0; if (full) { const t = 'SUPER'; if (px) lw = pxRampDraw(ctx, t, right ? x + w : x, y + h + 11, 14, PX_RAMP, { align: right ? 'right' : 'left', outline: 1 }).w; else { ctx.font = fontStr(12, true); ctx.textAlign = right ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = ART.uiInk; ctx.strokeText(t, right ? x + w : x, y + h + 10); ctx.fillStyle = UI_GOLD; ctx.fillText(t, right ? x + w : x, y + h + 10); lw = ctx.measureText(t).width; } lw += 6; }
+  let cx = right ? x + w - lw : x + lw; for (const [key, T, kind] of [['speedT', 'SPD', 'speed'], ['headT', 'HEAD', 'head'], ['stickyT', 'GLUE', 'sticky'], ['fireball', 'FIRE', 'fireball']]) { const v = E[key]; if (!v) continue; const tw = kitChip(ctx, T + (typeof v === 'number' ? ' ' + Math.ceil(v) : ''), cx, y + h + 11, { size: 10, color: EXTRA_COLOR[kind], align: right ? 'right' : 'left' }); cx += (right ? -1 : 1) * (tw + 4); }
+}
+
+// ============================================================================
 // SECTION: EVENTS — gameplay subscribers that live inside the simulation: Heat, control switching,
 // highlight scoring, hint bookkeeping. Audio/FX/camera subscribe separately in BOOT.
 // ============================================================================
@@ -5621,6 +5761,7 @@ function drawScoreBug(ctx, m, W_, H_) {
     let fs = 17 * k; ctx.font = fontStr(fs, true); while (fs > 9 && ctx.measureText(tag).width > nMax) { fs -= 1; ctx.font = fontStr(fs, true); }
     ctx.fillStyle = ink; ctx.textAlign = side ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.fillText(tag, nx, y + 21 * k);
     if (m.arcade) { const hb = t.players.reduce((a, q) => Math.max(a, q.onFire > 0 ? 100 : q.heat || 0), 0); const fire = t.players.some(q => q.onFire > 0); const bw = Math.min(64 * k, nMax), bx = side ? nx - bw : nx; ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(bx, y + 38 * k, bw, 5 * k); ctx.fillStyle = fire ? (Math.sin(now * 16) > 0 ? '#FF8A2A' : '#FF4FA3') : '#FF8A2A'; ctx.fillRect(side ? bx + bw * (1 - hb / 100) : bx, y + 38 * k, bw * hb / 100, 5 * k); }
+    if (m.ex && solo) { const bw = pw * 0.5; drawSuperMeter(ctx, p, side ? x0 + pw - bw - 10 * k : x0 + 10 * k, y + h + 6 * k, bw, Math.max(4, 6 * k), !!side, now); } // L9 super meter under the panel
     // score by the center
     const sx = side ? x0 + 12 * k : x0 + pw - 12 * k, sy = y + h / 2 + 2 * k, sp = grin ? 1 + 0.18 * Math.max(0, (G.until - now) / ART.hudGrinS - 0.75) * 4 : 1;
     if (px) pxRampDraw(ctx, String(t.score), sx, sy, ds * sp, ['#FFFFFF', '#FFFFFF', '#F3F0FF', '#D8DCF4'], { big: true, align: side ? 'left' : 'right' }); // §8.5: the 7×11 score digits
@@ -5658,6 +5799,7 @@ function drawHints(ctx, m, input, W_, H_, offense) {
   const add = (key, label, count) => { const a = clamp01(1 - (counts[count] || 0) / N); if (a > 0.02) items.push({ text: L[key] + ' ' + label, a }); };
   if (offense) { add('move', 'Move', 'move'); add('shoot', 'Hold to shoot · tap to fake', 'shoot'); if (m.perSide > 1) add('pass', 'Pass · hold for lob', 'pass'); else add('pass', 'Fadeaway (hold)', 'pass'); add('action', 'Dribble move', 'action'); add('down', m.perSide === 1 ? 'Post up · shoot = hook' : 'Protect', 'down'); add('sprint', 'Sprint', 'sprint'); }
   else { add('move', 'Move', 'move'); add('down', 'Stance (hold)', 'down'); add('jump', 'Block', 'jump'); add('action', 'Steal', 'action'); if (m.perSide > 1) add('pass', 'Switch', 'pass'); }
+  if (m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax) items.unshift({ text: L.action + ' + ' + L.shoot + '  SUPER!', a: 1 }); // L9: the full meter's combo
   if (!items.length || input.lastDevice === 'touch' || (input.touch && input.touch.visible)) return; ctx.font = fontStr(15, false); /* no key hints on a touch screen: the touch buttons are labeled */ ctx.textBaseline = 'middle'; const pads = items.map(it => ctx.measureText(it.text).width + 22); const total = pads.reduce((a, b) => a + b, 0) + (items.length - 1) * 8; let x = W_ / 2 - total / 2; const y = input.lastDevice === 'touch' ? 102 : H_ - 26; // on touch the bottom belongs to the thumbs: hints go under the score bug
   items.forEach((it, i) => { ctx.globalAlpha = it.a * 0.9; ctx.fillStyle = 'rgba(8,12,40,0.7)'; ctx.beginPath(); roundRectPath(ctx, x, y - 13, pads[i], 26, 13); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = '#F3F0FF'; ctx.textAlign = 'left'; ctx.fillText(it.text, x + 11, y + 1); x += pads[i] + 8; }); ctx.globalAlpha = 1;
 }
@@ -5666,7 +5808,7 @@ function drawTouchControls(ctx, tc, offense) { // glassy thumb controls: dark tr
   const st = L.stick; ctx.fillStyle = 'rgba(10,14,40,0.35)'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   const kx = st.x + clamp(tc.stickDX, -st.r * 0.8, st.r * 0.8), ky = st.y + clamp(tc.stickDY, -st.r * 0.8, st.r * 0.8); ctx.fillStyle = tc.stickId >= 0 ? 'rgba(255,210,63,0.9)' : 'rgba(243,240,255,0.7)'; ctx.beginPath(); ctx.arc(kx, ky, st.r * 0.42, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(11,16,48,0.8)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(13, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ ' + (offense ? (tc.solo ? 'POST UP' : 'PROTECT') : 'STANCE'), st.x, st.y + st.r + 14);
-  for (const b of L.buttons) { const pressed = tc[b.key]; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
+  for (const b of L.buttons) { if (b.key === 'super' && !tc.superOn) continue; const pressed = b.key === 'super' ? tc.action && tc.shoot : tc[b.key]; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : b.key === 'super' ? 'rgba(255,138,42,0.85)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
     const lbl = tc.solo && b.key === 'pass' ? (offense ? 'FADE' : '—') : (offense ? b.labelO : b.labelD); ctx.font = fontStr(Math.max(12, b.r * 0.4), true); if (!pressed) { ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(5,8,24,0.75)'; ctx.strokeText(lbl, b.x, b.y + 1); } ctx.fillStyle = pressed ? '#0B1030' : '#FFFFFF'; ctx.fillText(lbl, b.x, b.y + 1); }
   const pz = L.pause; ctx.fillStyle = 'rgba(10,14,40,0.55)'; ctx.beginPath(); ctx.arc(pz.x, pz.y, pz.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(pz.x - pz.r * 0.35, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8); ctx.fillRect(pz.x + pz.r * 0.12, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8);
   ctx.restore();
@@ -6522,8 +6664,8 @@ function pxScratch(w, h) {
 // Body units → the character's drawn frame (the same order of transforms as drawCharacter).
 function pxBodyPt(gm, P, bx, byUp) { let X = bx * P.sx, Y = -byUp * P.sy; if (P.rot) { const cx = P.px, cy = -P.py, dx = X - cx, dy = Y - cy, c = Math.cos(-P.rot), s = Math.sin(-P.rot); X = cx + dx * c - dy * s; Y = cy + dx * s + dy * c; } return [gm.ox + X * gm.kx, gm.oy + Y * gm.ky]; }
 function pxBodyBox(gm, P, extraTop) {
-  const pts = [], add = (x, y) => pts.push(pxBodyPt(gm, P, x, y)), h = P.head, pad = Math.abs(P.lean || 0) > 0.08 ? 0.12 : 0.04;
-  for (const [dx, dy] of [[-0.42 - pad, -0.6], [0.42 + pad, -0.6], [-0.42 - pad, 0.6 + (extraTop || 0)], [0.42 + pad, 0.6 + (extraTop || 0)]]) add(h.x + dx, h.y + dy);
+  const pts = [], add = (x, y) => pts.push(pxBodyPt(gm, P, x, y)), h = P.head, pad = Math.abs(P.lean || 0) > 0.08 ? 0.12 : 0.04, hb = P.bigHead || 1;
+  for (const [dx, dy] of [[-0.42 - pad, -0.6], [0.42 + pad, -0.6], [-0.42 - pad, 0.6 + (extraTop || 0)], [0.42 + pad, 0.6 + (extraTop || 0)]]) add(h.x + dx * hb, h.y + (dy > 0 ? dy * (2 * hb - 1) : dy));
   for (const n of [P.handF, P.handB]) for (const [dx, dy] of [[-0.11, -0.11], [0.13, 0.11]]) add(n.x + dx, n.y + dy);
   for (const n of [P.footF, P.footB]) for (const [dx, dy] of [[-0.14, -0.03], [0.26, 0.17]]) add(n.x + dx, n.y + dy);
   for (const [dx, dy] of [[-0.24, 0.08], [0.24, 0.44]]) add(P.pelvis.x + dx, dy + P.pelvis.y - 0.24);
@@ -6665,7 +6807,7 @@ function pxVenuePalette(pctx, key, extra) {
 function pxGuard(ms, phone) { PXS.ms = PXS.ms * 0.9 + ms * 0.1; const B = ART.pxBudget[phone ? 1 : 0]; if (PXS.ms > B) { PXS.over++; PXS.under = 0; if (PXS.over > 90 && PXS.level < 3) { PXS.level++; PXS.over = 0; } } else if (PXS.ms < B * 0.5) { PXS.under++; PXS.over = 0; if (PXS.under > 240 && PXS.level > 0) { PXS.level--; PXS.under = 0; } } }
 // --- §8.5 pixel UI pieces: ramp titles, the logo, the 7×11 score digits, notched panels ---
 const PX_DIGITS = (() => { const D = {}, def = (ch, rows) => { D[ch] = rows.split(' '); };
-  def('0', '.#####. ##...## ##...## ##..### ##.#.## ##.#.## ###..## ##...## ##...## ##...## .#####.'); def('1', '...##.. ..###.. .####.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. .######');
+  def('0', '.#####. ##...## ##...## ##...## ##...## ##...## ##...## ##...## ##...## ##...## .#####.'); def('1', '...##.. ..###.. .####.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. .######');
   def('2', '.#####. ##...## .....## .....## ....##. ...##.. ..##... .##.... ##..... ##..... #######'); def('3', '######. .....## .....## .....## ..####. .....## .....## .....## .....## ##...## .#####.');
   def('4', '....##. ...###. ..####. .##.##. ##..##. ##..##. #######. ....##. ....##. ....##. ....##.'); def('5', '####### ##..... ##..... ######. .....## .....## .....## .....## .....## ##...## .#####.');
   def('6', '.#####. ##...## ##..... ##..... ######. ##...## ##...## ##...## ##...## ##...## .#####.'); def('7', '####### .....## ....##. ....##. ...##.. ...##.. ..##... ..##... ..##... ..##... ..##...');
@@ -7509,6 +7651,7 @@ function settingsScreen(game) {
     sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }),
     sel('Key preset', 0, 0, 0, 0, ['A: WASD + J K L', 'B: Arrows + Z X C'], () => S.keyPreset === 'B' ? 1 : 0, i => { S.keyPreset = i ? 'B' : 'A'; apply(); }), tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }),
     tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }),
+    sel('Arcade extras', 0, 0, 0, 0, ['Quick games', 'Everywhere', 'Off'], () => Math.max(0, ['quick', 'all', 'off'].indexOf(S.arcadeExtras || 'quick')), i => { S.arcadeExtras = ['quick', 'all', 'off'][i]; }), // L9: super meter and power-ups (Legends View arcade 1v1)
   ];
   const feel = [
     sel('Camera (1v1)', 0, 0, 0, 0, ['Legends View', 'Classic'], () => S.camera === 'classic' ? 1 : 0, i => { S.camera = i ? 'classic' : 'legends'; }), sel('Graphics', 0, 0, 0, 0, ['Pixel', 'Smooth'], () => S.graphics === 'smooth' ? 1 : 0, i => { S.graphics = i ? 'smooth' : 'pixel'; }), // §8: crisp pixel art (default) or the smooth painted renderer // §2: the whole short court on one screen, or the classic follow camera (2v2 and up are always Classic)
@@ -7517,7 +7660,7 @@ function settingsScreen(game) {
     sld('Touch size', 0, 0, 0, 0, 0.7, 1.5, 0.1, () => S.touchSize, v => { S.touchSize = v; apply(); }, v => v.toFixed(1) + 'x'), sld('Touch opacity', 0, 0, 0, 0, 0.2, 1, 0.1, () => S.touchOpacity, v => { S.touchOpacity = v; apply(); }), tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }),
   ];
   const tail = [btn('Reset all save data', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase everything, including your career and Hall of Fame?', () => { game.save.reset(); game.applySettings(); game.ui.toastMsg('Save data reset.'); game.ui.clearTo(titleScreen(game)); }))), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(play, 110, 130, 520, 40, 6); column(feel, 650, 130, 520, feel.length > 9 ? 36 : 40, feel.length > 9 ? 5 : 6); /* 11 rows fit above the buttons at 36 px */ tail[0].x = 110; tail[0].y = 560; tail[0].w = 520; tail[0].h = 46; tail[1].x = 650; tail[1].y = 560; tail[1].w = 520; tail[1].h = 46;
+  column(play, 110, 130, 520, play.length > 9 ? 36 : 40, play.length > 9 ? 5 : 6); column(feel, 650, 130, 520, feel.length > 9 ? 36 : 40, feel.length > 9 ? 5 : 6); /* 11 rows fit above the buttons at 36 px */ tail[0].x = 110; tail[0].y = 560; tail[0].w = 520; tail[0].h = 46; tail[1].x = 650; tail[1].y = 560; tail[1].w = 520; tail[1].h = 46;
   const items = play.concat(feel, tail);
   // phones: two pages of 64 px rows (gameplay; feel, sound & touch); the key preset is for keyboards, so it drops out
   play.forEach(w => { w.sect = 'Gameplay'; }); feel.forEach(w => { w.sect = 'Feel, sound & touch'; }); play[6].off = true;
@@ -9410,7 +9553,7 @@ function commitDayScreen(game, c, ev, done) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { graphics: 'pixel', difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends' },
+    settings: { graphics: 'pixel', arcadeExtras: 'quick', difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends' },
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -10843,17 +10986,19 @@ function drawMatchScene(ctx, env, m, alpha) {
     if (PXM && !reflection) { // pixelized characters, the held ball painted into its owner's sprite, pre-pixelized loose balls
       for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { pxDrawBall(g, cam, ball, alpha, m.ball.skin, false, f); ballDrawn = true; } const own = ball.owner === p, oo = Object.assign({}, o, { depth: p._depth || 0 });
         const ok = pxDrawCharacter(g, cam, p, alpha, ball, m.teams[p.team], oo, f, own ? (sg, pc) => () => drawBallNew(sg, pc, ball, alpha, m.ball.skin, p.onFire > 0, o) : null); if (!ok) drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], Object.assign({}, oo, { ballPaint: own ? () => drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o) : null })); if (own) ballDrawn = true; }
-      if (!ballDrawn) pxDrawBall(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0), f); return; }
+      if (!ballDrawn) pxDrawBall(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && ((m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0) || m.ball.shot.fireball)), f); return; }
     for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } const own = ball.owner === p; drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], Object.assign({}, o, { depth: p._depth || 0, ballPaint: own ? () => drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o) : null })); if (own) ballDrawn = true; } // the owner paints the ball between its palms and fingers
-    if (!ballDrawn) drawBallNew(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0), o);
+    if (!ballDrawn) drawBallNew(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && ((m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0) || m.ball.shot.fireball)), o);
   };
   if (!env.degraded && guard < 2) drawReflections(ctx, cam, g => { HOOPS.forEach((h, i) => drawHoopBackNew(g, cam, h, V, i, null, null)); drawAll(g, true); HOOPS.forEach((h, i) => drawHoopFrontNew(g, cam, h, V, i, null, null)); }, V && (V.kind === 'legends' || V.bright()) ? ART.lgReflectA : null); // L4 (§5: stronger in the Legends Arena and the bright career venues)
   drawShadows(ctx, cam, order, ball, alpha, rp);                                                 // L5
   HOOPS.forEach((h, i) => drawHoopBackNew(ctx, cam, h, V, i, m, world.nets[i]));                  // L6
   if (PXM) { const pal = pxVenuePalette(ctx, (V ? V.kind + V.home.join() + V.away.join() : m.courtId) + '|' + LAY.id, V ? [V.home[0], V.home[1], V.away[0], ART.rimColor] : [ART.rimColor]); pxQuantizeRect(ctx, pal, 0, 0, PXM.iw, PXM.ih, true); PXM.pal = pal; } // §8.4: the background, quantized and dithered
+  if (!rp) drawPowerup(ctx, cam, m, !!PXM);                                                       // L9: a power-up on the floor
   drawAll(ctx, false);                                                                            // L7
   HOOPS.forEach((h, i) => drawHoopFrontNew(ctx, cam, h, V, i, m, world.nets[i]));                 // L8
   if (PXM && PXM.pal) for (const h of HOOPS) { const r = RIM_R * cam.ppm * 1.25 + 3, x0 = (cam.sx(h.x) - r) * f, y0 = (cam.sy(RIM_Y) - 6) * f; pxQuantizeRect(ctx, PXM.pal, x0, y0, 2 * r * f, (W.netDepth * cam.ppm + 14) * f, false); } // the rim and the front of the net, snapped to the palette
+  if (!rp) drawExtrasOverlays(ctx, cam, m, alpha);                                               // L9: ice blocks, speed streaks
   if (env.racks) env.racks();
   if (V) V.drawForeground(ctx, cam);
   if (env.fx) { if (PXM) pxDrawParticles(ctx, cam, env.fx, f); else env.fx.draw(ctx, cam); }       // L9
@@ -10886,7 +11031,7 @@ class Game {
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
-    const S = this.save.data.settings; opts.dev = true; if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
+    const S = this.save.data.settings; opts.dev = true; if (opts.extras == null) { const X = S.arcadeExtras || 'quick', k = (after && after.kind) || 'quick'; opts.extras = X === 'all' || (X === 'quick' && (k === 'quick' || k === 'tournament')); } /* L9: quick games and the tournament by default, never the careers unless Everywhere */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
@@ -11022,7 +11167,7 @@ class Game {
     if (this.overlays.f1) drawDebugF1(ctx, cam, m); if (this.overlays.f2) drawDebugF2(ctx, cam, m); if (this.overlays.f3) drawDebugF3(ctx, m, W_);
     if (m.dev && m.invariantCount > 0) { ctx.fillStyle = '#FF4FA3'; ctx.font = fontStr(12, true); ctx.textAlign = 'left'; ctx.fillText('invariant failures: ' + m.invariantCount, 10, H_ - 20); }
     ctx.restore();
-    if (this.input.touch.visible) { const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; this.input.touch.offense = offense; this.input.touch.solo = m.perSide === 1; drawTouchControls(ctx, this.input.touch, offense); }
+    if (this.input.touch.visible) { const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; this.input.touch.offense = offense; this.input.touch.solo = m.perSide === 1; this.input.touch.superOn = !!(m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax); drawTouchControls(ctx, this.input.touch, offense); }
     if (m.ended && !this.ui.screen && this.after.kind === 'practice') { ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.fillText('Practice over · Esc for the summary', W_ / 2, H_ - 40); }
   }
   drawPosterCard(ctx, ps) { const W_ = this.W, H_ = this.H; const k = easeOutBack(clamp01((CONFIG.fx.posterMs / 1000 - ps.t) / 0.25)); ctx.fillStyle = 'rgba(30,22,51,0.5)'; ctx.fillRect(0, 0, W_, H_); const cw = Math.min(W_ * 0.7, H_ * 0.7 * ps.canvas.width / ps.canvas.height), ch = cw * ps.canvas.height / ps.canvas.width; ctx.save(); ctx.translate(W_ / 2, H_ / 2); ctx.rotate(-0.035); ctx.scale(k, k); ctx.fillStyle = '#F3F0FF'; ctx.fillRect(-cw / 2 - 14, -ch / 2 - 14, cw + 28, ch + 28); ctx.drawImage(ps.canvas, -cw / 2, -ch / 2, cw, ch); ctx.restore(); }

@@ -3,6 +3,61 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L9 — Optional arcade extras (graphics overhaul, milestone 9)
+
+A new EXTRAS section. It only runs when a match asks for it, and only for the Legends View arcade 1v1 (no practice,
+drills, the 3-point contest or the tutorial). Settings → Arcade extras: **Quick games** (the default: quick 1v1 and the
+tournament), **Everywhere** (the careers too) or **Off**. With extras off nothing changes: the §2 gate, the balance
+harness and the career simulator never turn them on, and the smoke test checks that a match without them plays out
+exactly as before. Shots: `shots/l9/` (the meter, a power-up on the floor, a frozen player in an ice block, a big head,
+the SUPER button on the phone; Pixel and Smooth).
+
+The super meter
+- Fills on your makes (+25, a three +34), blocks (+34) and steals (+34), and shows under your panel in the score bug,
+  in four segments; full, it flashes SUPER and a key hint (Action + Shoot) appears. On a phone a SUPER button appears
+  above Shoot while the meter is full (it presses both).
+- Action + Shoot together (within 0.14 s) spends it on whichever fits:
+  - **Freeze** when the opponent has the ball: they are iced for 0.8 s (no moves or buttons; a shot already in the air
+    goes on), drawn in an ice block.
+  - **Mega jump** with the ball on the ground in mid-range (past dunk range, inside the arc): a leap that peaks with
+    the hand 0.18 m over the rim, straight into the normal dunk, so the rim duel, the defender's protection roll and
+    the dunk's contest still apply. Costs 18 stamina.
+  - **Fireball** with the ball anywhere else (or in the air before release): the next release is graded perfect (the
+    contest still counts, so a smothered shot is still a hard shot); the ball flies on fire.
+- Bots use the same meter and rules: when their meter fills they decide once whether to keep it for a Freeze on
+  defense (40%) or spend it on offense (a Fireball on the next jumper, or a Mega jump when the lane is open).
+
+Power-ups
+- Every 20–30 s of live play one lands on the floor at least 2.2 m from either hoop, bobbing on a glow, for 10 s (it
+  blinks in its last 2). The first player whose feet pass within 0.55 m of it gets it:
+  - **Speed shoes** (5 s): top speed ×1.25, streaks at the feet.
+  - **Big head** (6 s): the head draws 1.35× (it pops up from the collar) and the perfect-release window is 1.3× wider.
+  - **Sticky ball** (5 s): swipes can't strip the handler.
+- Active power-ups show as chips with their seconds under the owner's meter.
+
+New constants (CONFIG.extras): every value above, one line each (`meterMax`, `gainMake`, `gainThree`, `gainBlock`,
+`gainSteal`, `comboS`, `freezeS`, `megaOver`, `megaStamina`, `puEvery`, `puLifeS`, `puPickR`, `puEdge`, `speedS`,
+`speedMul`, `headS`, `headScale`, `headWindow`, `stickyS`, `botDelayS`, `botFreezeRange`, `botFreezeShare`).
+
+Design calls (the spec names the extras but not every rule)
+- Which super fires is chosen by the situation (defense → Freeze, mid-range on the ground → Mega jump, else Fireball)
+  so Action + Shoot stays one combo.
+- The spec's big head has no stated effect beyond the look; it also widens the release window ("big head, big brain")
+  so picking it up matters. Hitboxes don't change.
+- Power-ups are picked up by walking over them; the bots don't chase them (they get them only when they pass by).
+
+Tests
+- Smoke 92 of 92. New step: extras are off in a career game and in Classic by default and on in a quick game; with a
+  full meter the combo gives a Mega jump in mid-range (and the leap ends in a dunk), a Fireball from three, a Freeze on
+  defense (the iced player doesn't move for 40 steps); a meter that isn't full isn't spent; walking over speed shoes
+  picks them up and top speed is exactly ×1.25; a seeded match with extras plays out identically twice; a match
+  without them plays out identically with the option false or absent. Modes 13 of 13, old saves 16 of 16, dev tools
+  all OK, phone audit: no errors (Settings' gameplay column now has 10 rows); zero console errors.
+- 12 bot-vs-bot games to 21 with extras (Legends View, Pro): 64 supers used (24 Mega jumps, 16 Fireballs, 24 Freezes),
+  66 power-ups picked up (20 speed shoes, 28 big heads, 28 sticky balls); points 227 to 232.
+- `balance.js 12 21`, `careersim.js 40` and the §2 gate: identical to L8 (none of them turns extras on). `perf.js`
+  (quick games now carry the extras): guard level 0 median 22.5 ms, p95 31.9 ms; 4× CPU 111.3 ms, the guard engages.
+
 ## L8 — Chunky UI, the select wall, the pixel UI and the logo (graphics overhaul, milestone 8)
 
 §6's arcade UI for both looks, and §8.5's pixel menus. Shots: `shots/l8/ui/` (title, menu, the pop-in mid-transition,

@@ -135,6 +135,23 @@ const FIX = path.join(__dirname, 'fixtures');
     await wait(300); await shot('23-chunky-ui');
     await ev(() => { const g = HH.game; g.quitToMenu(); });
   });
+  await step('arcade extras (L9): quick games only by default; Action + Shoot spends a full meter on a Mega jump, a Fireball or a Freeze; power-ups; off changes nothing', async () => {
+    await ev(() => { const g = HH.game, S = g.save.data.settings; if ((S.arcadeExtras || 'quick') !== 'quick') throw new Error('default ' + S.arcadeExtras); S.camera = 'legends';
+      const opts = () => ({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 4 });
+      g.startMatch(opts(), { kind: 'career' }); if (g.match.ex) throw new Error('extras in a career game by default');
+      g.startMatch(Object.assign(opts(), { layout: 'classic' }), { kind: 'quick' }); if (g.match.ex) throw new Error('extras in Classic');
+      g.startMatch(opts(), { kind: 'quick' }); if (!g.match.ex) throw new Error('no extras in a quick game'); g.quitToMenu();
+      const mk = () => { const m = new Match(Object.assign(opts(), { humanTeam: -1, headless: true, layout: 'legends', extras: true })); const p = m.players[0], o = m.players[1]; p.controlled = true; p.isHuman = true; let n = 0; while (m.phase !== 'live' && n++ < 120 * 20) simStep(m, STEP); if (m.phase !== 'live') throw new Error('never went live'); return [m, p, o]; };
+      const press = (m, p) => { p.input.moveX = 0; p.input.set('action', true); p.input.set('shoot', true); simStep(m, STEP); p.input.set('action', false); p.input.set('shoot', false); };
+      const place = (m, p, d) => { const dir = sgn(p.hoop.x - p.x) || 1; p.x = p.hoop.x - (sgn(p.hoop.x - COURT_L / 2) || 1) * d; p.y = 0; p.vy = 0; p.grounded = true; p.setState('idle', {}); m.giveBall(p, true); };
+      { const [m, p] = mk(); place(m, p, (SH.dunkRange + SH.zoneThree) / 2); p.ex.meter = 100; press(m, p); if (p.state !== 'dunk' || !p.sd.mega || p.ex.meter !== 0) throw new Error('no mega jump: ' + p.state); let n = 0; while (p.state === 'dunk' && n++ < 240) simStep(m, STEP); if (!m.ball.shot || m.ball.shot.type !== 'dunk') throw new Error('the mega jump never dunked (' + p.state + ')'); }
+      { const [m, p] = mk(); place(m, p, SH.zoneThree + 0.8); p.ex.meter = 100; press(m, p); if (!p.ex.fireball || p.ex.meter !== 0) throw new Error('no fireball'); }
+      { const [m, p, o] = mk(); place(m, o, 6); p.ex.meter = 100; press(m, p); if (!(o.ex.frozenT > 0.7)) throw new Error('no freeze'); const x = o.x; o.input.moveX = 1; for (let i = 0; i < 40; i++) simStep(m, STEP); if (Math.abs(o.x - x) > 0.05) throw new Error('a frozen player moved ' + Math.abs(o.x - x).toFixed(2)); }
+      { const [m, p] = mk(); p.ex.meter = 60; press(m, p); if (p.ex.meter !== 60) throw new Error('a combo spent a meter that was not full'); }
+      { const [m, p] = mk(); m.ex.pu = { kind: 'speed', x: p.x, t: 0 }; simStep(m, STEP); if (m.ex.pu || !(p.ex.speedT > 4.9) || maxSpeedOf(p, false) <= 0) throw new Error('no pickup'); const s1 = maxSpeedOf(p, true); p.ex.speedT = 0; const s0 = maxSpeedOf(p, true); if (Math.abs(s1 / s0 - CONFIG.extras.speedMul) > 1e-6) throw new Error('speed shoes x' + (s1 / s0)); }
+      { const run = ex => { const m = new Match(Object.assign(opts(), { humanTeam: -1, headless: true, layout: 'legends', seed: 11, extras: ex })); let n = 0; while (!m.ended && n++ < 120 * 600) simStep(m, STEP); return m.teams[0].score + '-' + m.teams[1].score + '@' + m.time.toFixed(2); };
+        const a = run(true), b = run(true); if (a !== b) throw new Error('extras are not deterministic: ' + a + ' vs ' + b); const plain = run(false), none = run(undefined); if (plain !== none) throw new Error('extras off changed the game'); } });
+  });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
   await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {
