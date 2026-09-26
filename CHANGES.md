@@ -3,6 +3,82 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L4 — Bodies (graphics overhaul, milestone 4)
+
+The body is redrawn to §3.1 and §3.10, and §3.11's overlap rule is in. Shots: `shots/legends/round-6/` and `round-7/`
+(the two L4 rounds) and `shots/l4/round-final/` (every Art Lab view, including Body with all seven hand poses and the
+high-tops, and the Clips filmstrips).
+
+Proportions (§3.1, H = drawn height)
+
+| Mark | Was (M3) | Now |
+| --- | --- | --- |
+| Crown / chin / head width | 1.005 / 0.43 / 0.50 H | 1.00 / 0.38 / 0.54 H (head 0.62 H tall; `headCenter` 0.69) |
+| Collar / waistband / hem | 0.44 / 0.24 / 0.12 | 0.40 (under the chin) / 0.31 / 0.20 |
+| Sock top / shoe collar | 0.095 / 0.07 | 0.15 / 0.12 (high-tops) |
+| Hands | 0.09 × 0.084 H mittens at (0.20, 0.30), (−0.18, 0.31) | 0.11 H across, open, at (±0.26, 0.26) |
+
+What is new (§3.10)
+- Jersey: a tank with 0.02 H neck and armhole trim plus 0.006 H piping in the kit's third color, 0.04 H side panels,
+  a mesh dot tile at α 0.07, a vertical sheen band (white α 0.16, 0.05 H wide, 30% in from the front edge), an invented
+  wordmark arched above the number (the team's abbreviation, 0.045 H, two-color outline), and the number with a double
+  outline (trim inside, near-black outside).
+- Shorts: long and baggy from 0.31 to 0.20 H, 15% wider at the hem, side panels with a stripe, a waistband with a
+  drawstring knot, two fold creases; the hem flares 8% on jumps.
+- Legs: short and thick, two-tone with a knee highlight; crew socks from the shoe collar to 0.15 H with a team stripe.
+- High-tops, 0.30 × 0.12 H: an #26262E outsole with tread notches, a 0.03 H white midsole with a sculpt line and toe
+  spring, a toe cap, an eyestay with 5 lace crosses, a padded collar with a pull tab, a heel counter, an original
+  emblem (a rounded 5-point star or a double chevron) in the accent color, a toe-box highlight line at α 0.45, a
+  specular dot, the far shoe 15% darker. Kit colorways by default; the pro career's signature colorways are two-tone
+  sets now: the shoe deal unlocks the first, the All-Star Game, a title, MVP, 10 posterizers and 5 seasons unlock the
+  other five (`SIGNATURE_SHOES`, `SIG_UNLOCKS`; old saves keep their chosen index).
+- Open cartoon hands (floating, no arms): a 0.055 × 0.05 H palm, three fingers 0.018 H thick and a thumb inside one bold
+  outline, key-light shading, a knuckle highlight, the wristband option; poses open (fingers fanned 25°), holding (the
+  palm behind the ball, the fingers in front of it: the game now paints a held ball between the two), fist, point, clap
+  (with an impact tick), high-five, and the relaxed rest.
+- A sharp contact shadow (0.28 × 0.04 H at α 0.55) under the shoes on top of the soft one; the body rim light #FFE2B8
+  α 0.5 on the back edge of the jersey, shorts and shoes; body outlines 0.012 H in #150B10, never under 2 px.
+- §3.11: when two drawn heads overlap by more than 20% of a head width, the farther player (the defender; with no
+  possession, the lower lane) is drawn first at 0.94 scale and 0.05 H higher, eased in and out, so the nearer
+  character's bold outline separates them. The 0.75 m Legends contact distance came in L1; the §2 gate is re-run below.
+
+Fixes the new proportions needed (visual only; the ball, the rim and every hitbox stay where they are)
+- A held or dribbled ball's drawn height folds into the short torso: drawn heights 0.30–0.80 H map to 0.30–0.36 H and
+  0.80–1.00 H open back out to the crown (`heldBall`), so the ball no longer sits on the face in a gather, a check or a
+  triple threat, and a rising shot zips past the face to its real release point. The Art Lab draws the ball the same way.
+- A dunker is drawn lifted until the chin clears the rim (at most 0.5 H), so the big head is above the rim and the hand
+  slams the real ball down; a rim-hanger is drawn lowered until the crown sits just above the rim (`visualLift`, eased
+  at 12/s). Before, the rim and the ball landed on the face.
+- The height-chart constants are re-measured on the new body: the skull top of a standing menu figure is 1.036 H
+  (median of 12 faces, 1.006–1.074 by face shape; was 1.023) and 0.994 H in a stance (was 0.99).
+
+Tuned after looking at the Art Lab
+
+| Item | Spec | Now | Why |
+| --- | --- | --- | --- |
+| Jersey number | 0.10 H | 0.08 H at 0.343 H (`numberH`, `numberY`) | only 0.07 H of jersey shows between the chin (0.38) and the waistband (0.31); at 0.10 H the number ran onto the shorts |
+| Shorts' fold shadows | two fold shadows | two thin creases from the crotch | filled folds read as parentheses on each leg |
+| Fist | — | the folded thumb is a crease line with a lit edge | a thumb capsule with a full outline read as a chain link |
+
+Rounds (no `reference/` folder; compared against §3.1 and §3.10)
+
+| Round | Biggest differences | Fixed in |
+| --- | --- | --- |
+| first render (not kept) | 1. the number ran onto the shorts; 2. fold shadows read as parentheses; 3. the fist read as a chain link; 4. the Art Lab's sneaker row overlapped itself at the new size; 5. a held ball sat on the face (gather, check, the lab's jump shot) | round 6 |
+| 6 (`shots/legends/round-6/`, L4 round 1) | 1. a dunker's face sat at rim height with the ball on the nose; 2. a rim-hanger's head covered the rim; 3. the height charts were measured on the old head; 4. the high-five was missing from the lab; 5. beards cover the number on some players (kept: the chin sits right over it) | 1–4 in round 7 |
+| 7 (`round-7/`, L4 round 2) | left for later milestones: 1. layups and tip-ins still put the rim at face height (L5); 2. the phone's big banners cover the faces (L8); 3. no pixel treatment yet (L7); 4. a close contest still shows mostly one face, as §3.11 intends; 5. celebration hands float far from the body (L5 adds the new celebrations) | L5, L7, L8 |
+
+Tests
+- Smoke 87 of 87 (new step: every hand pose and part paints, the held-ball remap is continuous and keeps chest-height
+  balls off the face, overlapping heads send the defender behind and non-overlapping ones come back, the colorway
+  unlocks). Modes 13 of 13, old saves 16 of 16, dev tools all OK, phone audit: no errors; zero console errors.
+- `balance.js 12 21`: every target passes (brute 1.28, timing 2.02, Legend beats Pro 84%). `careersim.js 40`: as in L2
+  and L3 (Hall of Fame 3 of 40 ✗, everything else ✓; the 200-career check in L3 passes).
+- §2 gate re-run after §3.11 (it only changes drawing): identical to L1 (mirror PPP 1.44 ✗, team A 50%, Legend beats
+  Pro 77%, brute 0.98, timing 2.07).
+- `perf.js` (844×390 @2x, software raster): guard level 0 median 18.5 ms, p95 23.2 ms; 4× CPU 95.1 ms. M9 measured
+  26.1 / 44.7 ms and 169.5 ms on the same test; this machine varies run to run, so the new body is at least no slower.
+
 ## L3 — Facial hair and hair (graphics overhaul, milestone 3)
 
 Hair and facial hair are redrawn to §3.8–§3.9 in the same bold, cel-shaded language as the L2 faces. Shots:

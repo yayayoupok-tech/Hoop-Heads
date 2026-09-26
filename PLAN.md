@@ -129,7 +129,9 @@ lines, new eyes and mouths, the laugh after dunks and posterizers; a 384 px face
 8 expressions; Art Lab → Legends check; three visual rounds in `shots/legends/`.)* **L3 — Facial hair and hair**
 *(done: beards follow each face shape, 3-tone cel pieces with tufted edges drawn past the jaw line, stubble fading
 toward the cheeks; every hair style a bold-outlined two-tone silhouette with one gloss band; clumped afros and curls,
-outlined locs; a higher hairline; nothing covers the eyes.)* **L4 — Bodies** (proportions, high-tops, open hands, jerseys, overlap).
+outlined locs; a higher hairline; nothing covers the eyes.)* **L4 — Bodies** *(done: §3.1 proportions, open three-finger
+hands that wrap a held ball, high-tops with an original emblem, long baggy shorts, a trimmed tank with wordmark and
+number, near-black body lines, a contact shadow, §3.11 overlap order; signature colorways unlock in the pro career.)*
 **L5 — Animation exaggeration.** **L6 — The Legends Arena** and a bright grade for career venues. **L7 — Pixel mode**
 (internal resolution, pixelized sprites, dithered backgrounds). **L8 — Chunky UI**, the select wall, the pixel font and
 logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**

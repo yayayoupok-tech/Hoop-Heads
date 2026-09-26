@@ -1868,48 +1868,78 @@ function drawFace(ctx, look, cx, cy, u, facing, expr, opts) {
 }
 
 // ============================================================================
-// SECTION: BODY — the full character: a painted big head on a stubby body with floating mitten hands (no arms), a tank
-// top, shorts, short legs and chunky brand-less sneakers. Drawn in body units: 1 = the player's visual height H (their
+// SECTION: BODY — the full character (§3.1, §3.10): a painted big head on a small body with floating open cartoon hands
+// (no arms), a trimmed tank top, long baggy shorts, short thick legs and original high-top sneakers. Drawn in body units: 1 = the player's visual height H (their
 // real height in meters), origin at the feet, +x = the way the player faces. Gameplay hitboxes and reach never change;
 // hands are placed at the real ball, rim and block positions so the picture and the physics agree.
 // ============================================================================
 Object.assign(ART, {
-  headCenter: 0.715,         // head center height (H)
-  headWidth: 0.50,           // head width (H); the head is 0.57 H tall
-  collar: 0.44,              // collar and shoulder line (H), hidden behind the chin
-  numberY: 0.34,             // jersey number center (H)
-  waist: 0.24,               // waistband (H)
-  hem: 0.12,                 // shorts hem (H)
-  sockTop: 0.095,            // top of the crew socks (H; spec 0.07 sits under the shoe collar, so it's raised to show a band)
-  sleeveSock: 0.016,         // with a leg sleeve only this much sock shows above the shoe (H)
-  shoeLen: 0.21,             // sneaker length (H)
-  shoeH: 0.07,               // sneaker height (H)
-  palmRx: 0.045,             // mitten palm half-width (H); the palm ellipse is 0.045 × 0.042 H
-  palmRy: 0.042,             // mitten palm half-height (H)
-  thumbRx: 0.02,             // thumb ellipse half-length (H)
-  thumbRy: 0.013,            // thumb ellipse half-width (H)
-  pointLen: 0.05,            // extended index finger length for the point pose (H)
-  wristW: 0.02,              // wristband half-length along the arm (H); like the palm ellipse, 0.03 × 0.02 H are half sizes
-  wristH: 0.03,              // wristband half-height across the wrist (H)
-  farDim: 0.12,              // far hand and far shoe are this much darker
-  handRest: [0.20, 0.30],    // front hand at rest (x, y) in H (the §3.7 idle clip)
-  handRestB: [-0.18, 0.31],  // back hand at rest (x, y) in H
+  // §3.1 proportions (H = the drawn height): crown 1.00, chin 0.38, collar 0.40, waistband 0.31, hem 0.20, sock top
+  // 0.15, shoe collar 0.12, hands 0.11 H across resting at (±0.26, 0.26)
+  headCenter: 0.69,          // head center height (H): the head is 0.62 H tall (1.155 head widths), chin 0.38, crown 1.00
+  headWidth: 0.54,           // head width (H)
+  collar: 0.40,              // collar line (H), hidden by the chin
+  numberY: 0.343,            // jersey number center (H): between the waistband and the chin
+  waist: 0.31,               // jersey bottom and shorts waistband (H)
+  hem: 0.20,                 // shorts hem (H): long and baggy
+  sockTop: 0.15,             // top of the crew socks (H)
+  sleeveSock: 0.012,         // with a leg sleeve only this much sock shows above the shoe (H)
+  shoeLen: 0.30,             // high-top length (H)
+  shoeH: 0.12,               // high-top collar height (H)
+  outsoleH: 0.018,           // outsole height (H)
+  midsoleH: 0.03,            // white midsole height (H)
+  palmRx: 0.055,             // palm half-width (H): §3.10's 0.055 × 0.05 palm makes a hand 0.11 H across
+  palmRy: 0.05,              // palm half-height (H)
+  fingerW: 0.018,            // finger thickness (H)
+  fingerLen: 0.04,           // finger length past the palm's edge (H)
+  thumbRx: 0.02,             // thumb half-length (H)
+  thumbRy: 0.013,            // thumb half-width (H)
+  pointLen: 0.055,           // extended index finger for the point pose (H)
+  fingerSpread: 25,          // an open hand's three fingers fan across this many degrees (a high-five: 40)
+  wristW: 0.02,              // wristband half-length along the arm (H)
+  wristH: 0.034,             // wristband half-height across the wrist (H)
+  farDim: 0.15,              // far hand, leg and shoe are this much darker (§3.10: far-side shade −15%)
+  handRest: [0.26, 0.26],    // front hand at rest (x, y) in H (§3.1)
+  handRestB: [-0.26, 0.26],  // back hand at rest (x, y) in H (§3.1)
   chestW: 0.34,              // jersey width at the chest (H)
-  waistW: 0.30,              // jersey width at the waist (H)
-  shortsW: 0.30,             // shorts width at the waist (H), flaring to hemW
-  hemW: 0.34,                // shorts width at the hem (H)
-  thighW: 0.075,             // leg width at the hem (H)
-  ankleW: 0.05,              // leg width at the ankle (H)
+  waistW: 0.31,              // jersey width at the waistband (H)
+  shortsW: 0.31,             // shorts width at the waistband (H)...
+  hemW: 0.357,               // ...widening 15% toward the hem
+  hemFlare: 0.08,            // the hem flares this much on jumps
+  thighW: 0.095,             // leg width at the hem (H): short and thick
+  ankleW: 0.075,             // leg width at the ankle (H)
   legGap: 0.075,             // each leg's center sits this far from the pelvis center (H)
-  outsole: '#2A2A33',        // sneaker outsole
+  outsole: '#26262E',        // sneaker outsole
   midsole: '#F4F4F6',        // sneaker midsole
-  bodyLine: 0.006,           // body outline width (H)
-  minBodyLinePx: 1,          // body outlines never get thinner than this on screen (px)
+  bodyLine: 0.012,           // body outline width (H), near-black (§3.5)...
+  minBodyLinePx: 2,          // ...never thinner than this on screen (px)
+  jerseyTrim: 0.02,          // neck and armhole trim (H)
+  jerseyPiping: 0.006,       // piping beside the trim, in the kit's third color (H)
+  sidePanel: 0.04,           // jersey side panels in the secondary color (H)
+  meshA: 0.07,               // mesh dot tile on the jersey
+  sheenA: 0.16,              // the jersey's vertical sheen band: white at this alpha...
+  sheenW: 0.05,              // ...this wide (H)...
+  sheenAt: 0.3,              // ...this far in from the front edge (share of the jersey width)
+  wordmarkH: 0.045,          // the invented wordmark arched above the number (H)
+  numberH: 0.08,             // jersey number height (H), double outline (spec 0.10: only 0.07 H of jersey shows between the chin and the waistband)
+  contactShadow: [0.28, 0.04, 0.55], // a sharp ellipse under the shoes: width, height (H), alpha
+  bodyRimA: 0.5,             // body rim light (#FFE2B8) on the back edge of the jersey, shorts and shoes
   glow: '#FFE9C4',           // arena backlight glow behind players
   glowAlpha: 0.25,           // backlight glow strength
   numberContrast: 0.3,       // the jersey number uses the trim color only if it is light (dark on light jerseys) and its luminance differs from the jersey by this much, else white (ink on light jerseys)
   shadowAlpha: 0.45,         // floor shadow strength
   ballViewEase: 22,          // Legends View: a held ball eases between the drawn (scaled) hands and its real place at this rate (1/s)
+  heldBall: [0.30, 0.80, 0.36, 1.00], // a held ball's drawn height (H): 0.30–0.80 folds into 0.30–0.36 (in front of the torso), 0.80–1.00 opens back out to the crown
+  chinY: 0.38,               // the chin's height (H), §3.1
+  crownY: 1.0,               // the crown's height (H), §3.1
+  dunkChinClear: 0.05,       // a dunker is drawn lifted until the chin is this far above the rim (m), visual only...
+  dunkLiftMax: 0.5,          // ...by at most this much (H)
+  hangCrownClear: 0.1,       // a rim-hanger is drawn lowered until the crown is this far above the rim (m)
+  liftEase: 12,              // the lift eases in and out at this rate (1/s)
+  overlapShare: 0.2,         // §3.11: heads overlapping by more than this share of a head width...
+  overlapScale: 0.94,        // ...draw the farther player first at this scale...
+  overlapRaise: 0.05,        // ...raised this much (H)...
+  overlapEase: 10,           // ...easing in and out at this rate (1/s), so nobody pops
 });
 // --- cached sprites ---
 let _shadowSprite = null, _glowSprite = null;
@@ -1927,146 +1957,214 @@ function restPose() { return { pelvis: { x: 0, y: 0.24, r: 0 }, chest: { x: 0, y
 function visualScaleOf(p) { return p && p.match && p.match.layoutId === 'legends' ? LAYOUT.legends.visualScale : 1; }
 function drawHeightOf(p) { return (p && p.height > 0.5 ? p.height : 1.9) * visualScaleOf(p); }
 const BALL_AT_WORLD = { dunk: 1, rimhang: 1, layup: 1, tipin: 1, catch: 1 };
+// Big heads at the rim (visual only; the player's real place never changes): on a dunk the drawn body rises until the chin
+// clears the rim, so the head sits above it and the hand slams the real ball down; on a rim hang it drops until the crown
+// sits just above the rim. Eased in and out on the match clock (a stand-in with no clock gets the target at once).
+function visualLift(p, y) {
+  const a = p.anim || (p.anim = {}), DH = drawHeightOf(p), st = p.state; let tgt = 0;
+  if (st === 'dunk') tgt = clamp(RIM_Y + ART.dunkChinClear - (y + ART.chinY * DH), 0, ART.dunkLiftMax * DH);
+  else if (st === 'rimhang') tgt = -clamp(y + ART.crownY * DH - (RIM_Y + ART.hangCrownClear), 0, Math.max(0, y));
+  if (!p.match || !isFinite(p.match.time)) return tgt;
+  const now = p.match.time, dt = clamp(now - (a.liftT == null ? now : a.liftT), 0, 0.1); a.liftT = now; a.lift = (a.lift || 0) + (tgt - (a.lift || 0)) * (1 - Math.exp(-dt * ART.liftEase)); if (!tgt && Math.abs(a.lift) < 1e-4) a.lift = 0; return a.lift;
+}
+// §3.1: with the big head the torso is short, so a held or dribbled ball is drawn in front of it, not the face. Drawn
+// heights (in H) from 0.30 to 0.80 fold into 0.30–0.36, and 0.80–1.00 open out again, so a rising shot zips past the face
+// to its real release point. Visual only: the ball's real place never changes.
+function heldBallHeight(h) { const [a, b, c, d] = ART.heldBall; if (!(h > a)) return h; if (h <= b) return a + (h - a) * (c - a) / (b - a); if (h <= d) return c + (h - b) * (d - c) / (d - b); return h; }
+function ballViewTarget(ball) {
+  const o = ball && ball.owner; if (!o || BALL_AT_WORLD[o.state]) return [0, 0]; const V = visualScaleOf(o), H = drawHeightOf(o);
+  const tx = (ball.x - o.x) * (V - 1); let ty = Math.max(0, ball.y - o.y - BALL.radius) * (V - 1); const h = (ball.y - o.y + ty) / H; ty += (heldBallHeight(h) - h) * H; return [tx, ty];
+}
 function updateBallView(ball) {
   if (!ball) return; const now = performance.now(), dt = clamp((now - (ball.visT || now)) / 1000, 0, 0.1); ball.visT = now;
-  const o = ball.owner, V = visualScaleOf(o); let tx = 0, ty = 0;
-  if (o && V !== 1 && !BALL_AT_WORLD[o.state]) { tx = (ball.x - o.x) * (V - 1); ty = Math.max(0, ball.y - o.y - BALL.radius) * (V - 1); }
+  const [tx, ty] = ballViewTarget(ball);
   const k = 1 - Math.exp(-dt * ART.ballViewEase); ball.visDX = (ball.visDX || 0) + (tx - (ball.visDX || 0)) * k; ball.visDY = (ball.visDY || 0) + (ty - (ball.visDY || 0)) * k;
 }
 // Ball position in the player's body units (the drawn height), or null.
-function ballLocal(p, ball, alpha) { if (!ball) return null; const bx = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0), by = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0); const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha); const H = drawHeightOf(p); return { x: (bx - x) * (p.facing < 0 ? -1 : 1) / H, y: (by - y) / H }; }
+function ballLocal(p, ball, alpha) { if (!ball) return null; const bx = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0), by = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0); const x = lerp(p.px, p.x, alpha), y0 = lerp(p.py, p.y, alpha), y = y0 + visualLift(p, y0); const H = drawHeightOf(p); return { x: (bx - x) * (p.facing < 0 ? -1 : 1) / H, y: (by - y) / H }; }
 function poseFor(p, alpha, ball) { return rigPoseFor(p, alpha, ball); }
 
 // --- the kit ---
 function lumGap(a, b) { return Math.abs(luminance(a) - luminance(b)); }
+// Signature colorways: [upper, accent] pairs, unlocked in the career (the shoe deal, All-Star, MVP, a title).
+const SIGNATURE_SHOES = [['#F3F0FF', '#FF4FA3'], ['#1E1633', '#B8FF5A'], ['#FFD23F', '#1E1633'], ['#8BE3FF', '#FF8A2A'], ['#E24C4C', '#F3F0FF'], ['#2E8B57', '#FFD23F']];
 function kitOf(team, L) {
   const c0 = (team && team.colors && team.colors[0]) || '#2E6FD8', c1 = (team && team.colors && team.colors[1]) || '#F3F0FF'; const light = luminance(c0) > 0.62;
-  const shoe = typeof L.shoes === 'string' && L.shoes[0] === '#' ? L.shoes : c0;
-  return { jersey: c0, trim: c1, shorts: c0, numberFill: light ? (lumGap(c1, c0) > ART.numberContrast && luminance(c1) < 0.45 ? c1 : '#1E1633') : (lumGap(c1, c0) > ART.numberContrast && luminance(c1) > 0.6 ? c1 : '#F3F0FF'), numberStroke: light ? '#F3F0FF' : ink(c0), sock: light ? c1 : '#F3F0FF', sockStripe: c0, shoe, shoeAccent: shoe === c1 ? c0 : c1, sole: luminance(c0) < 0.25 ? '#1E1E26' : ART.midsole, legSleeve: luminance(c1) > 0.75 ? '#23222C' : c1, pattern: (team && team.pattern) || 'solid' };
+  const third = (team && team.colors && team.colors[2]) || (luminance(c1) > 0.5 ? mixHex(c0, ART.inkLine, 0.55) : mixHex(c1, '#FFFFFF', 0.6)); // piping: the kit's third color
+  let shoe = c0, shoeAccent = c1; if (Array.isArray(L.shoes) && typeof L.shoes[0] === 'string') { shoe = L.shoes[0]; shoeAccent = L.shoes[1] || c1; } else if (typeof L.shoes === 'string' && L.shoes[0] === '#') { shoe = L.shoes; shoeAccent = shoe === c1 ? c0 : c1; }
+  if (lumGap(shoe, shoeAccent) < 0.12) shoeAccent = luminance(shoe) > 0.5 ? ART.inkLine : '#F3F0FF';
+  const numberFill = light ? (lumGap(c1, c0) > ART.numberContrast && luminance(c1) < 0.45 ? c1 : '#1E1633') : (lumGap(c1, c0) > ART.numberContrast && luminance(c1) > 0.6 ? c1 : '#F3F0FF');
+  const numberInner = lumGap(c1, numberFill) > 0.2 && lumGap(c1, ART.inkLine) > 0.2 ? c1 : lumGap(third, numberFill) > 0.2 ? third : shadeHex(c0, luminance(c0) > 0.5 ? -0.3 : 0.35); // the double outline: trim inside, near-black outside
+  const words = String((team && (team.abbr || team.name)) || '').toUpperCase(); const wordmark = words.length > 9 ? words.split(' ').pop().slice(0, 9) : words;
+  return { jersey: c0, trim: c1, third, shorts: c0, numberFill, numberInner, sock: light ? c1 : '#F3F0FF', sockStripe: c0, shoe, shoeAccent, sole: ART.midsole, legSleeve: luminance(c1) > 0.75 ? '#23222C' : c1, pattern: (team && team.pattern) || 'solid', wordmark, emblem: hashString(String(L.skin) + L.hair + (L.number || 0)) % 2 };
 }
+let _meshTile = null; function meshTile() { if (_meshTile) return _meshTile; const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d'); g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(2, 2, 1.1, 0, TAU); g.arc(6, 6, 1.1, 0, TAU); g.fill(); return (_meshTile = c); }
 
 // --- parts (all in body units; the caller has set the transform: 1 unit = H, +y down, +x facing) ---
-function drawHand(ctx, T, h, far, lw, kit, wrist) {
-  const x = h.x, y = -h.y, pose = h.pose || 'relaxed'; const rx = ART.palmRx, ry = ART.palmRy, tx = ART.thumbRx, ty = ART.thumbRy;
-  const skin = far ? shadeHex(T.base, -ART.farDim) : T.base, out = ink(T.shadow), crease = rgba(shadeHex(T.shadow, -0.1), 0.8);
+// §3.10 open cartoon hands: a palm, three fingers and a thumb inside one bold outline, key-light shading, a knuckle
+// highlight. part: undefined = the whole hand; 'back' = palm and thumb (behind a held ball); 'front' = the fingers that
+// wrap over it. Hand frame: +x = the fingers, −y = the thumb side.
+function drawHand(ctx, T, h, far, lw, kit, wrist, part) {
+  const x = h.x, y = -h.y, pose = h.pose || 'relaxed', rx = ART.palmRx, ry = ART.palmRy, fw = ART.fingerW, fl = ART.fingerLen, tl = ART.thumbRx * 1.7;
+  const skin = far ? shadeHex(T.base, -ART.farDim) : T.base, lit = mixHex(skin, T.light, far ? 0.25 : 0.6), shade = mixHex(skin, T.shadow, 0.55);
   ctx.save(); ctx.translate(x, y); ctx.rotate(h.r || 0); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  const skinFill = (x0, y0, r0) => { const gr = ctx.createRadialGradient(x0 - r0 * 0.35, y0 - r0 * 0.45, r0 * 0.08, x0, y0, r0 * 1.15); gr.addColorStop(0, mixHex(far ? skin : T.light, '#FFFFFF', far ? 0.04 : 0.12)); gr.addColorStop(0.55, skin); gr.addColorStop(1, shadeHex(skin, -0.16)); return gr; };
-  // blob: a skin ellipse; a0/a1 limit the outline to an arc (a thumb only shows its outer edge where it meets the palm)
-  const blob = (cx, cy, ax, ay, rot, a0, a1, col) => { ctx.beginPath(); ctx.ellipse(cx, cy, ax, ay, rot || 0, 0, TAU); ctx.fillStyle = skinFill(cx, cy, Math.max(ax, ay)); ctx.fill(); ctx.strokeStyle = col || out; ctx.lineWidth = lw; ctx.beginPath(); ctx.ellipse(cx, cy, ax, ay, rot || 0, a0 == null ? 0 : a0, a1 == null ? TAU : a1); ctx.stroke(); };
-  const lines = (segs) => { ctx.strokeStyle = crease; ctx.lineWidth = lw * 0.85; ctx.beginPath(); for (const s of segs) { ctx.moveTo(s[0] * rx, s[1] * ry); if (s.length === 6) ctx.quadraticCurveTo(s[2] * rx, s[3] * ry, s[4] * rx, s[5] * ry); else ctx.lineTo(s[2] * rx, s[3] * ry); } ctx.stroke(); };
-  // wristband on the body side of the hand (away from the fingers), drawn first so the palm overlaps it
-  if (wrist) { const al = ART.wristW * 2, ac = ART.wristH * 2, clap = pose === 'clap'; ctx.save(); if (clap) ctx.rotate(-Math.PI / 2); const bx = -rx * (clap ? 1.0 : 0.95) - al * 0.3; ctx.fillStyle = shadeHex(kit.jersey, far ? -ART.farDim : 0); ctx.strokeStyle = ink(kit.jersey); ctx.lineWidth = lw; ctx.beginPath(); roundRectPath(ctx, bx - al / 2, -ac / 2, al, ac, al * 0.3); ctx.fill(); ctx.stroke(); ctx.fillStyle = rgba(kit.trim, 0.9); ctx.fillRect(bx - al * 0.3, -ac / 2 + lw, al * 0.16, ac - lw * 2); ctx.restore(); }
+  const blobs = [], segs = [], fronts = [], polys = []; const D = Math.PI / 180;
+  const finger = (x0, y0, ang, len, w, into) => { const c = Math.cos(ang), s = Math.sin(ang); (into || segs).push([x0, y0, x0 + c * len, y0 + s * len, w || fw]); };
   if (pose === 'fist' || pose === 'point') {
-    blob(0, 0, rx * 0.9, ry * 0.94);
-    lines([[0.3, -0.78, 0.4, -0.3], [0.6, -0.66, 0.66, -0.26]]);                                            // finger divisions over the knuckles
-    if (pose === 'point') { const fl = ART.pointLen, fy = -ry * 0.42, fr = ry * 0.24; ctx.beginPath(); ctx.moveTo(rx * 0.5, fy - fr); ctx.lineTo(rx * 0.5 + fl, fy - fr); ctx.arc(rx * 0.5 + fl, fy, fr, -Math.PI / 2, Math.PI / 2); ctx.lineTo(rx * 0.5, fy + fr); ctx.fillStyle = skinFill(rx, fy, fr * 2); ctx.fill(); ctx.strokeStyle = out; ctx.lineWidth = lw; ctx.stroke(); }
-    blob(rx * 0.08, ry * 0.02, tx * 1.15, ty, 0.12, 0.05 * Math.PI, 0.95 * Math.PI, crease);               // thumb folded across the front: only its lower edge shows
-  } else if (pose === 'open' || pose === 'clap') {
-    const w = pose === 'clap' ? 0.62 : 1;                                                                   // a clap shows the palm edge-on
-    blob(-rx * 0.12, -ry * 0.98, tx * 1.05, ty, -1.1);                                                      // thumb out, behind the palm
-    blob(rx * 0.12, 0, rx * 1.12 * w, ry * 1.02);
-    lines(w < 1 ? [[0.2, -0.55, 0.62, -0.52], [0.2, 0.1, 0.62, 0.18]] : [[0.5, -0.6, 1.2, -0.66], [0.52, -0.06, 1.26, -0.03], [0.48, 0.46, 1.16, 0.6]]); // spread fingers
-  } else if (pose === 'cupped') {
-    blob(0, 0, rx * 1.02, ry * 0.92);
-    lines([[0.3, -0.5, 0.78, -0.35, 0.96, -0.02], [0.2, 0.18, 0.62, 0.3, 0.86, 0.56]]);                     // fingers curled around the ball
-    blob(rx * 0.42, -ry * 0.74, tx, ty, -0.85, Math.PI * 0.95, Math.PI * 2.1);                              // thumb spread over the ball
-  } else {                                                                                                   // relaxed
-    blob(0, 0, rx, ry);
-    lines([[0.4, -0.28, 0.94, -0.34], [0.42, 0.24, 0.92, 0.3]]);
-    blob(rx * 0.16, -ry * 0.66, tx, ty, -0.5, Math.PI * 0.9, Math.PI * 2.08);                              // thumb resting on top
+    blobs.push([0, 0, rx * 0.88, ry * 0.92, 0]); for (const [fx, fy] of [[0.72, -0.52], [0.84, 0], [0.72, 0.52]]) blobs.push([fx * rx, fy * ry, rx * 0.3, ry * 0.3, 0]);
+    if (pose === 'point') finger(rx * 0.5, -ry * 0.5, 0, rx * 0.5 + ART.pointLen, fw * 1.05);
+  } else if (pose === 'clap') {
+    blobs.push([0, 0, rx * 0.55, ry, 0]); finger(rx * 0.25, 0, 0, rx * 0.35 + fl, fw * 2.3); finger(-rx * 0.1, -ry * 0.7, -40 * D, tl * 0.8, fw);
+  } else if (pose === 'cupped') { // holding the ball: the palm behind it, the fingers curled over its edge in front
+    blobs.push([0, 0, rx, ry, 0]); finger(-rx * 0.15, -ry * 0.72, -55 * D, tl, fw * 1.05);
+    for (const [fy, k] of [[-0.42, 1], [0.02, 1.06], [0.44, 0.92]]) { const x0 = rx * 0.55, y0 = fy * ry; polys.push([[x0, y0], [rx + fl * 0.45 * k, y0 - fl * 0.12], [rx + fl * 0.75 * k, y0 - fl * 0.65]]); }
+  } else if (pose === 'relaxed') {
+    blobs.push([0, 0, rx, ry, 0]); for (const [fy, a, k] of [[-0.42, 22, 0.62], [0.02, 32, 0.66], [0.44, 44, 0.56]]) finger(rx * 0.55, fy * ry, a * D, rx * 0.45 + fl * k); finger(-rx * 0.05, -ry * 0.72, -12 * D, tl * 0.9, fw * 1.05);
+  } else { // open, and a high-five spreads wider
+    const sp = (pose === 'highfive' ? 40 : ART.fingerSpread) * D; blobs.push([0, 0, rx, ry, 0]);
+    for (const [fy, a, k] of [[-0.45, -0.5, 0.92], [0, 0, 1.0], [0.45, 0.5, 0.86]]) finger(rx * 0.5, fy * ry, a * sp, rx * 0.5 + fl * k);
+    finger(-rx * 0.1, -ry * 0.72, (pose === 'highfive' ? -95 : -68) * D, tl, fw * 1.05);
+  }
+  const showBack = part !== 'front', showFront = part !== 'back';
+  const pathBlob = b => { ctx.beginPath(); ctx.ellipse(b[0], b[1], b[2], b[3], b[4], 0, TAU); };
+  const pathPoly = q => { ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]); for (let i = 1; i < q.length; i++) ctx.lineTo(q[i][0], q[i][1]); };
+  // wristband on the body side of the palm, first, so the palm overlaps it
+  if (wrist && showBack) { const al = ART.wristW * 2, ac = ART.wristH * 2, bx = -rx * 0.95 - al * 0.3; ctx.fillStyle = shadeHex(kit.jersey, far ? -ART.farDim : 0); ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw; ctx.beginPath(); roundRectPath(ctx, bx - al / 2, -ac / 2, al, ac, al * 0.3); ctx.fill(); ctx.stroke(); ctx.fillStyle = rgba(kit.trim, 0.9); ctx.fillRect(bx - al * 0.3, -ac / 2 + lw, al * 0.18, ac - lw * 2); }
+  // one outline around everything: strokes at double width first, then the fills over their inner half
+  ctx.strokeStyle = ART.inkLine;
+  if (showBack) { for (const b of blobs) { ctx.lineWidth = lw * 2; pathBlob(b); ctx.stroke(); } for (const s of segs) { ctx.lineWidth = s[4] + lw * 2; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); ctx.stroke(); } }
+  if (showFront) for (const q of polys) { ctx.lineWidth = fw + lw * 2; pathPoly(q); ctx.stroke(); }
+  const grad = ctx.createRadialGradient(-rx * 0.4, -ry * 0.55, rx * 0.1, 0, 0, rx * 1.6); grad.addColorStop(0, lit); grad.addColorStop(0.55, skin); grad.addColorStop(1, shade);
+  if (showBack) { ctx.fillStyle = grad; for (const b of blobs) { pathBlob(b); ctx.fill(); } ctx.strokeStyle = grad; for (const s of segs) { ctx.lineWidth = s[4]; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); ctx.stroke(); } }
+  if (showFront) { ctx.strokeStyle = skin; for (const q of polys) { ctx.lineWidth = fw; pathPoly(q); ctx.stroke(); } ctx.strokeStyle = rgba(lit, 0.9); ctx.lineWidth = fw * 0.3; for (const q of polys) { ctx.beginPath(); ctx.moveTo(q[1][0] - fw * 0.1, q[1][1] - fw * 0.2); ctx.lineTo(q[2][0] - fw * 0.25, q[2][1] + fw * 0.1); ctx.stroke(); } }
+  if (showBack) {
+    // finger divisions on a fist, the thumb folded across it, the knuckle highlight
+    if (pose === 'fist' || pose === 'point') { ctx.strokeStyle = rgba(ART.inkLine, 0.6); ctx.lineWidth = lw * 0.8; ctx.beginPath(); ctx.moveTo(rx * 0.55, -ry * 0.26); ctx.lineTo(rx * 0.95, -ry * 0.26); ctx.moveTo(rx * 0.55, ry * 0.26); ctx.lineTo(rx * 0.95, ry * 0.26); ctx.stroke();
+      ctx.strokeStyle = rgba(ART.inkLine, 0.75); ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(-rx * 0.45, ry * 0.2); ctx.quadraticCurveTo(rx * 0.1, ry * 0.02, rx * 0.5, ry * 0.12); ctx.stroke(); ctx.fillStyle = rgba(lit, 0.8); ctx.beginPath(); ctx.ellipse(rx * 0.1, ry * 0.36, rx * 0.34, ry * 0.12, -0.2, 0, TAU); ctx.fill(); } // the thumb folded across the front: a crease, lit below
+    ctx.strokeStyle = rgba('#FFFFFF', far ? 0.25 : 0.5); ctx.lineWidth = Math.max(lw * 0.8, 0.005); ctx.beginPath(); ctx.arc(rx * 0.1, -ry * 0.05, rx * 0.62, -1.15, -0.35); ctx.stroke(); // knuckle highlight
+    if (pose === 'clap' && h.tick > 0) { ctx.strokeStyle = rgba(ART.inkLine, clamp01(h.tick)); ctx.lineWidth = lw * 1.2; ctx.beginPath(); for (const a of [-45, 0, 45]) { const c = Math.cos(a * D), s = Math.sin(a * D), r0 = rx * 0.9 + fl + 0.012; ctx.moveTo(c * r0, s * r0); ctx.lineTo(c * (r0 + 0.025), s * (r0 + 0.025)); } ctx.stroke(); } // the clap's impact tick
   }
   ctx.restore();
 }
-function drawSneaker(ctx, foot, far, lw, kit, stepT) {
-  const L = ART.shoeLen, S = ART.shoeH; const x0 = foot.x - L * 0.36, y0 = -foot.y; const dim = far ? -0.12 : 0;
-  ctx.save(); ctx.translate(foot.x, y0); ctx.rotate(-(foot.r || 0)); ctx.translate(-foot.x, -y0);
-  const X = u => x0 + u * L; const out = ink(kit.shoe);
-  // outsole with tread notches, then the midsole with toe spring
-  ctx.fillStyle = shadeHex(ART.outsole, dim); ctx.beginPath(); ctx.moveTo(X(0.0), y0); ctx.lineTo(X(0.96), y0); ctx.quadraticCurveTo(X(1.04), y0 - 0.004, X(1.02), y0 - 0.014); ctx.lineTo(X(0.0), y0 - 0.012); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = rgba('#000000', 0.35); ctx.lineWidth = lw * 0.7; ctx.beginPath(); for (let i = 1; i < 8; i++) { ctx.moveTo(X(i / 8), y0); ctx.lineTo(X(i / 8), y0 - 0.006); } ctx.stroke();
-  const sole = new Path2D(); sole.moveTo(X(-0.01), y0 - 0.012); sole.lineTo(X(0.9), y0 - 0.012); sole.quadraticCurveTo(X(1.05), y0 - 0.014, X(1.03), y0 - 0.034); sole.lineTo(X(0.02), y0 - 0.03); sole.quadraticCurveTo(X(-0.03), y0 - 0.028, X(-0.01), y0 - 0.012); sole.closePath();
-  ctx.fillStyle = shadeHex(kit.sole, dim); ctx.fill(sole); ctx.strokeStyle = rgba('#8A8A96', 0.8); ctx.lineWidth = lw * 0.7; ctx.beginPath(); ctx.moveTo(X(0.04), y0 - 0.021); ctx.lineTo(X(0.9), y0 - 0.022); ctx.stroke();
-  // upper: heel → collar → tongue → toe box
-  const up = new Path2D(); up.moveTo(X(0.0), y0 - 0.03); up.quadraticCurveTo(X(-0.02), y0 - 0.06, X(0.12), y0 - S); up.quadraticCurveTo(X(0.3), y0 - S * 0.93, X(0.45), y0 - S * 1.07); up.quadraticCurveTo(X(0.62), y0 - S * 0.9, X(0.95), y0 - 0.035 - 0.004); up.quadraticCurveTo(X(1.04), y0 - 0.034, X(1.0), y0 - 0.03); up.closePath();
-  const ug = ctx.createLinearGradient(0, y0 - S * 1.07, 0, y0 - 0.03); ug.addColorStop(0, shadeHex(kit.shoe, 0.18 + dim)); ug.addColorStop(1, shadeHex(kit.shoe, -0.08 + dim)); ctx.fillStyle = ug; ctx.fill(up);
-  ctx.save(); ctx.clip(up);
-  ctx.fillStyle = shadeHex(kit.shoe, 0.28 + dim); ctx.beginPath(); ctx.ellipse(X(0.9), y0 - 0.034, L * 0.2, S * 0.3, 0, 0, TAU); ctx.fill();                        // toe cap
-  ctx.fillStyle = shadeHex(kit.shoeAccent, dim); ctx.beginPath(); roundRectPath(ctx, X(0.05), y0 - S * 0.72, L * 0.42, S * 0.36, S * 0.14); ctx.fill();          // side panel (original: a plain rounded panel)
-  ctx.fillStyle = rgba(ink(kit.shoeAccent), 0.6); for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(X(0.12 + i * 0.1), y0 - S * 0.54, 0.0035, 0, TAU); ctx.fill(); } // perforation dots
-  ctx.fillStyle = shadeHex(kit.shoeAccent, 0.1 + dim); ctx.fillRect(X(-0.02), y0 - S * 0.95, L * 0.08, S * 0.55);                                                 // heel tab
-  ctx.strokeStyle = rgba('#FFFFFF', 0.35); ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(0.14), y0 - S * 0.93); ctx.quadraticCurveTo(X(0.45), y0 - S * 1.02, X(0.8), y0 - S * 0.62); ctx.stroke(); // top highlight
-  ctx.fillStyle = rgba('#000000', 0.18); ctx.fillRect(X(0), y0 - 0.04, L, 0.01); ctx.restore();
-  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = lw * 1.1; ctx.beginPath(); for (let i = 0; i < 4; i++) { const u = 0.3 + i * 0.07; ctx.moveTo(X(u), y0 - S * (1.0 - i * 0.07)); ctx.lineTo(X(u + 0.06), y0 - S * (0.88 - i * 0.07)); } ctx.stroke(); // laces
-  ctx.fillStyle = rgba(ink(kit.shoe), 0.8); for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(X(0.31 + i * 0.07), y0 - S * (0.97 - i * 0.07), 0.0028, 0, TAU); ctx.fill(); } // eyelets
-  ctx.strokeStyle = out; ctx.lineWidth = lw; ctx.stroke(up); ctx.strokeStyle = ink(kit.sole === ART.midsole ? '#8A8A96' : kit.sole); ctx.stroke(sole);
+// §3.10 high-tops, 0.30 × 0.12 H: an outsole with tread notches, a white midsole with a sculpt line and toe spring, the
+// upper with a toe cap, an eyestay with 5 lace crosses, a padded collar with a pull tab, a heel counter and an original
+// emblem (a rounded star or a double chevron); a toe-box highlight, a specular dot; the far shoe is 15% darker.
+function drawSneaker(ctx, foot, far, lw, kit) {
+  const L = ART.shoeLen, S = ART.shoeH, os = ART.outsoleH, ms = ART.midsoleH, dim = far ? -ART.farDim : 0, y0 = -foot.y, x0 = foot.x - L * 0.3;
+  ctx.save(); ctx.translate(foot.x, y0); ctx.rotate(-(foot.r || 0)); ctx.translate(-foot.x, -y0); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const X = u => x0 + u * L, Y = v => y0 - v, top = os + ms, up = shadeHex(kit.shoe, dim), acc = shadeHex(kit.shoeAccent, dim);
+  const outsole = new Path2D(); outsole.moveTo(X(0.03), Y(0)); outsole.lineTo(X(0.9), Y(0)); outsole.quadraticCurveTo(X(1.01), Y(0.004), X(1.03), Y(os + 0.014)); outsole.lineTo(X(0.0), Y(os)); outsole.quadraticCurveTo(X(-0.025), Y(os * 0.4), X(0.03), Y(0)); outsole.closePath();
+  const mid = new Path2D(); mid.moveTo(X(-0.015), Y(os)); mid.lineTo(X(0.86), Y(os)); mid.quadraticCurveTo(X(1.02), Y(os + 0.01), X(1.045), Y(top + 0.02)); mid.lineTo(X(0.02), Y(top)); mid.quadraticCurveTo(X(-0.035), Y(os + ms * 0.6), X(-0.015), Y(os)); mid.closePath(); // the toe springs up
+  const upper = new Path2D(); upper.moveTo(X(0.0), Y(top)); upper.bezierCurveTo(X(-0.05), Y(top + 0.03), X(-0.03), Y(S - 0.01), X(0.03), Y(S)); upper.lineTo(X(0.33), Y(S + 0.006)); upper.quadraticCurveTo(X(0.4), Y(S + 0.012), X(0.41), Y(S * 0.86));
+  upper.bezierCurveTo(X(0.6), Y(0.085), X(0.8), Y(0.062), X(0.94), Y(0.056)); upper.quadraticCurveTo(X(1.05), Y(0.05), X(1.04), Y(top + 0.02)); upper.lineTo(X(0.0), Y(top)); upper.closePath();
+  // one outline around the whole shoe: strokes first, then fills
+  ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw * 2; for (const p of [outsole, mid, upper]) ctx.stroke(p);
+  ctx.fillStyle = shadeHex(ART.outsole, dim); ctx.fill(outsole); ctx.fillStyle = shadeHex(kit.sole, dim); ctx.fill(mid); ctx.fillStyle = up; ctx.fill(upper);
+  ctx.strokeStyle = rgba('#000000', 0.45); ctx.lineWidth = lw * 0.7; ctx.beginPath(); for (let i = 1; i < 9; i++) { ctx.moveTo(X(i / 9), Y(0)); ctx.lineTo(X(i / 9), Y(os * 0.55)); } ctx.stroke(); // tread notches
+  ctx.strokeStyle = rgba('#8A8A96', 0.9); ctx.lineWidth = lw * 0.7; ctx.beginPath(); ctx.moveTo(X(0.03), Y(os + ms * 0.45)); for (let k = 1; k <= 8; k++) { const u = 0.03 + k * 0.1; ctx.quadraticCurveTo(X(u - 0.05), Y(os + ms * (k % 2 ? 0.7 : 0.3)), X(u), Y(os + ms * 0.45)); } ctx.stroke(); // midsole sculpt line
+  ctx.save(); ctx.clip(upper);
+  ctx.fillStyle = shadeHex(up, -0.12); ctx.fillRect(X(-0.1), Y(S + 0.02), L * 0.52, (S + 0.02) * 0.5); ctx.fillStyle = up; ctx.beginPath(); ctx.ellipse(X(0.62), Y(top), L * 0.46, 0.06, 0, 0, TAU); ctx.fill(); // shade toward the collar
+  ctx.fillStyle = acc; ctx.beginPath(); ctx.moveTo(X(-0.06), Y(top)); ctx.lineTo(X(0.2), Y(top)); ctx.quadraticCurveTo(X(0.24), Y(0.075), X(0.12), Y(0.095)); ctx.lineTo(X(-0.06), Y(0.095)); ctx.closePath(); ctx.fill(); // heel counter
+  ctx.fillStyle = shadeHex(up, 0.22); ctx.beginPath(); ctx.moveTo(X(0.78), Y(top)); ctx.quadraticCurveTo(X(0.8), Y(0.07), X(0.93), Y(0.058)); ctx.lineTo(X(1.1), Y(0.05)); ctx.lineTo(X(1.1), Y(top)); ctx.closePath(); ctx.fill(); // toe cap
+  ctx.fillStyle = shadeHex(up, -0.18); ctx.beginPath(); ctx.moveTo(X(0.34), Y(S)); ctx.lineTo(X(0.43), Y(S * 0.9)); ctx.bezierCurveTo(X(0.58), Y(0.092), X(0.7), Y(0.078), X(0.78), Y(0.068)); ctx.lineTo(X(0.72), Y(0.058)); ctx.bezierCurveTo(X(0.6), Y(0.07), X(0.44), Y(0.085), X(0.3), Y(S - 0.022)); ctx.closePath(); ctx.fill(); // the eyestay
+  ctx.fillStyle = shadeHex(up, 0.12); ctx.fillRect(X(-0.1), Y(S + 0.02), L * 0.46, 0.022); // the padded collar
+  ctx.strokeStyle = rgba(ART.inkLine, 0.55); ctx.lineWidth = lw * 0.7; ctx.beginPath(); ctx.moveTo(X(0.02), Y(S - 0.02)); ctx.lineTo(X(0.34), Y(S - 0.018)); ctx.stroke();
+  // the emblem, original: a rounded 5-point star or a double chevron, in the accent color
+  const ex = X(0.5), ey = Y(0.074), er = 0.019; ctx.fillStyle = acc; ctx.strokeStyle = rgba(ART.inkLine, 0.8); ctx.lineWidth = lw * 0.6;
+  if (kit.emblem) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? er * 0.48 : er; ctx.lineTo(ex + Math.cos(a) * rr, ey + Math.sin(a) * rr); } ctx.closePath(); ctx.lineJoin = 'round'; ctx.fill(); ctx.stroke(); }
+  else { for (const dx of [-0.012, 0.01]) { ctx.beginPath(); ctx.moveTo(ex + dx - 0.012, ey - 0.012); ctx.lineTo(ex + dx + 0.004, ey); ctx.lineTo(ex + dx - 0.012, ey + 0.012); ctx.lineTo(ex + dx - 0.004, ey + 0.012); ctx.lineTo(ex + dx + 0.012, ey); ctx.lineTo(ex + dx - 0.004, ey - 0.012); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
+  ctx.restore();
+  // 5 lace crosses on the eyestay, the pull tab, the toe-box highlight and a specular dot, the rim light on the heel
+  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = lw * 0.9; ctx.beginPath(); for (let i = 0; i < 5; i++) { const u = 0.38 + i * 0.075, v = S * 0.9 - i * 0.0105, d = 0.01; ctx.moveTo(X(u) - d, Y(v) - d * 0.6); ctx.lineTo(X(u) + d, Y(v) + d * 0.6); ctx.moveTo(X(u) - d, Y(v) + d * 0.6); ctx.lineTo(X(u) + d, Y(v) - d * 0.6); } ctx.stroke();
+  ctx.fillStyle = acc; ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw * 0.8; ctx.beginPath(); roundRectPath(ctx, X(-0.02), Y(S + 0.026), L * 0.07, 0.03, 0.006); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = rgba('#FFFFFF', 0.45); ctx.lineWidth = lw * 1.1; ctx.beginPath(); ctx.moveTo(X(0.8), Y(0.064)); ctx.quadraticCurveTo(X(0.92), Y(0.06), X(0.99), Y(0.048)); ctx.stroke();
+  ctx.fillStyle = rgba('#FFFFFF', 0.85); ctx.beginPath(); ctx.arc(X(0.95), Y(0.042), 0.006, 0, TAU); ctx.fill();
+  ctx.strokeStyle = rgba(ART.rim, ART.bodyRimA); ctx.lineWidth = lw * 1.2; ctx.beginPath(); ctx.moveTo(X(-0.005), Y(top + 0.01)); ctx.bezierCurveTo(X(-0.035), Y(top + 0.035), X(-0.02), Y(S - 0.02), X(0.03), Y(S - 0.004)); ctx.stroke();
   ctx.restore();
 }
+// Legs: short and thick from the shorts' hem into the high-top, a knee highlight, crew socks with a team stripe.
 function drawLeg(ctx, T, hip, foot, far, lw, kit, sleeve, hemY, drop) {
-  ctx.save(); ctx.beginPath(); ctx.rect(-3, (hemY == null ? -ART.hem : hemY) - 0.002, 6, 4); ctx.clip(); // legs start under the shorts hem
-  const top = { x: hip.x, y: -(ART.hem + (drop || 0)) - 0.01 }, ank = { x: foot.x, y: -(foot.y + 0.05) }; const skin = far ? shadeHex(T.base, -0.15) : T.base; const out = ink(T.shadow);
+  ctx.save(); ctx.beginPath(); ctx.rect(-3, (hemY == null ? -ART.hem : hemY) - 0.002, 6, 4); ctx.clip(); // legs start under the shorts' hem
+  const top = { x: hip.x, y: -(ART.hem + (drop || 0)) - 0.01 }, ank = { x: foot.x, y: -(foot.y + ART.shoeH * 0.7) }; const skin = far ? shadeHex(T.base, -ART.farDim) : T.base;
   const dx = ank.x - top.x, dy = ank.y - top.y, d = Math.hypot(dx, dy) || 1e-6, nx = -dy / d, ny = dx / d; const w0 = ART.thighW / 2, w1 = ART.ankleW / 2; const bend = 0.012 * Math.sign(dx || 1);
   const leg = new Path2D(); leg.moveTo(top.x + nx * w0, top.y + ny * w0); leg.quadraticCurveTo((top.x + ank.x) / 2 + nx * (w0 + w1) / 2 + bend, (top.y + ank.y) / 2 + ny * (w0 + w1) / 2, ank.x + nx * w1, ank.y + ny * w1); leg.lineTo(ank.x - nx * w1, ank.y - ny * w1); leg.quadraticCurveTo((top.x + ank.x) / 2 - nx * (w0 + w1) / 2 + bend, (top.y + ank.y) / 2 - ny * (w0 + w1) / 2, top.x - nx * w0, top.y - ny * w0); leg.closePath();
-  const lg = ctx.createLinearGradient(top.x - nx * w0, top.y - ny * w0, top.x + nx * w0, top.y + ny * w0); lg.addColorStop(0, shadeHex(skin, -0.14)); lg.addColorStop(0.5, skin); lg.addColorStop(1, shadeHex(skin, 0.06)); ctx.fillStyle = lg; ctx.fill(leg);
-  ctx.save(); ctx.clip(leg); softSpot(ctx, top.x + dx * 0.55, top.y + dy * 0.55, 0.03, '#FFFFFF', 0.18); // knee highlight
-  // crew sock with two stripes
+  ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw * 2; ctx.stroke(leg); ctx.fillStyle = skin; ctx.fill(leg);
+  ctx.save(); ctx.clip(leg); ctx.fillStyle = mixHex(skin, T.shadow, 0.5); ctx.save(); ctx.translate(-0.022, 0); ctx.fill(leg); ctx.restore(); ctx.fillStyle = skin; ctx.save(); ctx.translate(0.012, 0); ctx.fill(leg); ctx.restore(); // two-tone: the back of the leg in shadow
+  ctx.fillStyle = rgba('#FFFFFF', far ? 0.18 : 0.32); ctx.beginPath(); ctx.ellipse(top.x + dx * 0.45 + 0.012, top.y + dy * 0.45, 0.012, 0.016, 0, 0, TAU); ctx.fill(); // knee highlight
+  // crew sock: from the shoe collar up to the sock top, with a team stripe
   const sx0 = Math.min(top.x, ank.x) - 0.1, sw = 0.2 + Math.abs(dx), sockTop = sleeve ? ART.shoeH + ART.sleeveSock : ART.sockTop, sy0 = -(foot.y + sockTop), dim = far ? -ART.farDim : 0;
-  ctx.fillStyle = shadeHex(kit.sock, dim); ctx.fillRect(sx0, sy0, sw, 0.2); ctx.fillStyle = shadeHex(kit.sockStripe, dim); ctx.fillRect(sx0, sy0 + 0.006, sw, 0.005); if (!sleeve) ctx.fillRect(sx0, sy0 + 0.015, sw, 0.005);
-  if (sleeve) { ctx.fillStyle = shadeHex(kit.legSleeve, dim); ctx.fillRect(sx0, top.y - 0.03, sw, sy0 - top.y + 0.03); ctx.fillStyle = rgba('#FFFFFF', 0.14); ctx.fillRect(sx0, top.y - 0.03, sw * 0.5, sy0 - top.y + 0.03); ctx.fillStyle = rgba('#000000', 0.25); ctx.fillRect(sx0, sy0 - 0.005, sw, 0.005); } // compression leg sleeve (the sleeve cosmetic; there are no arms)
-  ctx.restore(); ctx.strokeStyle = out; ctx.lineWidth = lw; ctx.stroke(leg); ctx.restore();
+  ctx.fillStyle = shadeHex(kit.sock, dim); ctx.fillRect(sx0, sy0, sw, 0.3); ctx.fillStyle = shadeHex(kit.sockStripe, dim); ctx.fillRect(sx0, sy0 + 0.008, sw, 0.008); ctx.fillStyle = rgba('#000000', 0.12); ctx.fillRect(sx0, sy0, sw * 0.42, 0.3);
+  if (sleeve) { ctx.fillStyle = shadeHex(kit.legSleeve, dim); ctx.fillRect(sx0, top.y - 0.03, sw, sy0 - top.y + 0.03); ctx.fillStyle = rgba('#FFFFFF', 0.14); ctx.fillRect(sx0 + sw * 0.55, top.y - 0.03, sw * 0.12, sy0 - top.y + 0.03); ctx.fillStyle = rgba('#000000', 0.25); ctx.fillRect(sx0, sy0 - 0.005, sw, 0.005); } // compression leg sleeve
+  ctx.strokeStyle = rgba(ART.inkLine, 0.7); ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(sx0, sy0); ctx.lineTo(sx0 + sw, sy0); ctx.stroke();
+  ctx.restore(); ctx.restore();
 }
+// Shorts (§3.10): long and baggy from the waistband (0.31) to the hem (0.20), 15% wider at the hem, side panels with a
+// stripe, a waistband with a drawstring knot, two fold shadows; the hem flares 8% on jumps.
 function drawShorts(ctx, P, lw, kit, T) {
-  const pel = P.pelvis, dy = pel.y - 0.24, top = -(ART.waist + dy), hem = -(ART.hem + dy) + P.hemFlutter, w0 = ART.shortsW / 2, w1 = ART.hemW / 2; const lf = P.footF, lb = P.footB;
-  const legSplit = -(0.18 + dy), fx = clamp(lf.x * 0.35, -0.06, 0.08), bx = clamp(lb.x * 0.35, -0.08, 0.06);
-  const sh = new Path2D(); sh.moveTo(pel.x - w0, top); sh.lineTo(pel.x + w0, top); sh.lineTo(pel.x + w1 + fx * 0.6, hem); sh.lineTo(pel.x + 0.02 + fx * 0.4, hem + 0.004); sh.quadraticCurveTo(pel.x + 0.005, legSplit + 0.01, pel.x - 0.02 + bx * 0.4, hem + 0.004); sh.lineTo(pel.x - w1 + bx * 0.6, hem); sh.closePath();
-  const g = ctx.createLinearGradient(0, top, 0, hem); g.addColorStop(0, shadeHex(kit.shorts, 0.08)); g.addColorStop(1, shadeHex(kit.shorts, -0.14)); ctx.fillStyle = g; ctx.fill(sh);
+  const pel = P.pelvis, dy = pel.y - 0.24, top = -(ART.waist + dy), hem = -(ART.hem + dy) + P.hemFlutter, fl = 1 + ART.hemFlare * (P.hemFlare || 0), w0 = ART.shortsW / 2, w1 = ART.hemW / 2 * fl; const lf = P.footF, lb = P.footB;
+  const legSplit = hem - 0.05, fx = clamp(lf.x * 0.35, -0.06, 0.08), bx = clamp(lb.x * 0.35, -0.08, 0.06);
+  const sh = new Path2D(); sh.moveTo(pel.x - w0, top); sh.lineTo(pel.x + w0, top); sh.quadraticCurveTo(pel.x + w0 + 0.02, (top + hem) / 2, pel.x + w1 + fx * 0.6, hem); sh.lineTo(pel.x + 0.025 + fx * 0.4, hem + 0.004); sh.quadraticCurveTo(pel.x + 0.005, legSplit, pel.x - 0.025 + bx * 0.4, hem + 0.004); sh.lineTo(pel.x - w1 + bx * 0.6, hem); sh.quadraticCurveTo(pel.x - w0 - 0.02, (top + hem) / 2, pel.x - w0, top); sh.closePath();
+  ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw * 2; ctx.stroke(sh); ctx.fillStyle = kit.shorts; ctx.fill(sh);
   ctx.save(); ctx.clip(sh);
-  ctx.fillStyle = shadeHex(kit.shorts, -0.15); ctx.fillRect(pel.x - w1 - 0.02, top, (w1 + 0.02) * 2, 0.02); // waistband
-  ctx.fillStyle = kit.trim; ctx.beginPath(); ctx.moveTo(pel.x + w0 - 0.03, top); ctx.lineTo(pel.x + w0, top); ctx.lineTo(pel.x + w1 + fx * 0.6, hem); ctx.lineTo(pel.x + w1 + fx * 0.6 - 0.03, hem); ctx.closePath(); ctx.fill(); // side stripe
-  ctx.fillStyle = rgba('#000000', 0.14); ctx.fillRect(pel.x - w1 - 0.02, top, (w1 + 0.02) * 0.6, -top + hem + 0.02); // far side shade
-  ctx.restore(); ctx.strokeStyle = ink(kit.shorts); ctx.lineWidth = lw; ctx.stroke(sh);
+  ctx.fillStyle = shadeHex(kit.shorts, -0.2); ctx.fillRect(pel.x - w1 - 0.03, top, (w1 + 0.03) * 0.62, hem - top + 0.02);                                  // the far side in shadow
+  ctx.fillStyle = kit.trim; ctx.beginPath(); ctx.moveTo(pel.x + w0 - ART.sidePanel, top); ctx.lineTo(pel.x + w0 + 0.01, top); ctx.lineTo(pel.x + w1 + fx * 0.6 + 0.01, hem); ctx.lineTo(pel.x + w1 + fx * 0.6 - ART.sidePanel, hem); ctx.closePath(); ctx.fill(); // side panel...
+  ctx.strokeStyle = kit.third; ctx.lineWidth = 0.008; ctx.beginPath(); ctx.moveTo(pel.x + w0 - ART.sidePanel * 0.5, top); ctx.lineTo(pel.x + w1 + fx * 0.6 - ART.sidePanel * 0.5, hem); ctx.stroke();       // ...with a stripe
+  ctx.strokeStyle = rgba(shadeHex(kit.shorts, -0.45), 0.55); ctx.lineWidth = 0.009; ctx.beginPath(); ctx.moveTo(pel.x - 0.012, top + 0.045); ctx.quadraticCurveTo(pel.x - 0.03, (top + hem) / 2 + 0.01, pel.x - 0.075, hem - 0.012); ctx.moveTo(pel.x + 0.02, top + 0.05); ctx.quadraticCurveTo(pel.x + 0.035, (top + hem) / 2 + 0.015, pel.x + 0.08, hem - 0.014); ctx.stroke(); // two fold creases from the crotch
+  ctx.fillStyle = shadeHex(kit.shorts, -0.35); ctx.fillRect(pel.x - w1 - 0.03, top - 0.002, (w1 + 0.03) * 2, 0.024); ctx.fillStyle = rgba('#FFFFFF', 0.12); ctx.fillRect(pel.x - w1 - 0.03, top + 0.004, (w1 + 0.03) * 2, 0.004); // the waistband
+  ctx.restore();
+  const kx = pel.x + 0.03, ky = top + 0.012; ctx.strokeStyle = '#F3F0FF'; ctx.lineWidth = 0.007; ctx.beginPath(); ctx.moveTo(kx - 0.012, ky); ctx.quadraticCurveTo(kx - 0.006, ky - 0.012, kx, ky); ctx.quadraticCurveTo(kx + 0.006, ky - 0.012, kx + 0.012, ky); ctx.moveTo(kx - 0.002, ky); ctx.lineTo(kx - 0.008, ky + 0.028); ctx.moveTo(kx + 0.002, ky); ctx.lineTo(kx + 0.01, ky + 0.025); ctx.stroke(); // the drawstring knot
+  ctx.strokeStyle = rgba(ART.rim, ART.bodyRimA); ctx.lineWidth = lw * 1.1; ctx.beginPath(); ctx.moveTo(pel.x - w0 + 0.006, top + 0.02); ctx.quadraticCurveTo(pel.x - w0 - 0.012, (top + hem) / 2, pel.x - w1 + bx * 0.6 + 0.008, hem - 0.006); ctx.stroke(); // rim light on the back edge
 }
+// Jersey (§3.10): a tank with 0.02 H trim at the neck and armholes and 0.006 H piping in the third color, 0.04 H side
+// panels, a mesh dot tile, a vertical sheen band, an invented wordmark arched above the number, the number with a double
+// outline. Only the part below the chin shows.
 function drawJersey(ctx, P, lw, kit, number) {
   const c = P.chest, top = -ART.collar - (c.y - 0.36), wst = -ART.waist - (P.pelvis.y - 0.24), cw = ART.chestW / 2, ww = ART.waistW / 2, cx = c.x;
-  const J = new Path2D(); J.moveTo(cx - cw * 0.55, top); J.lineTo(cx + cw * 0.55, top); J.quadraticCurveTo(cx + cw * 0.72, top + 0.035, cx + cw, top + 0.07); J.quadraticCurveTo(cx + cw * 1.02, (top + wst) / 2, cx + ww, wst); J.lineTo(cx - ww, wst); J.quadraticCurveTo(cx - cw * 1.02, (top + wst) / 2, cx - cw, top + 0.07); J.quadraticCurveTo(cx - cw * 0.72, top + 0.035, cx - cw * 0.55, top); J.closePath();
-  const g = ctx.createLinearGradient(0, top, 0, wst); g.addColorStop(0, shadeHex(kit.jersey, 0.12)); g.addColorStop(1, shadeHex(kit.jersey, -0.12)); ctx.fillStyle = g; ctx.fill(J);
+  const J = new Path2D(); J.moveTo(cx - cw * 0.55, top); J.lineTo(cx + cw * 0.55, top); J.quadraticCurveTo(cx + cw * 0.72, top + 0.03, cx + cw, top + 0.05); J.quadraticCurveTo(cx + cw * 1.02, (top + wst) / 2, cx + ww, wst + 0.004); J.lineTo(cx - ww, wst + 0.004); J.quadraticCurveTo(cx - cw * 1.02, (top + wst) / 2, cx - cw, top + 0.05); J.quadraticCurveTo(cx - cw * 0.72, top + 0.03, cx - cw * 0.55, top); J.closePath();
+  ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw * 2; ctx.stroke(J); ctx.fillStyle = kit.jersey; ctx.fill(J);
   ctx.save(); ctx.clip(J);
-  if (kit.pattern === 'stripes') { ctx.fillStyle = rgba(kit.trim, 0.85); for (let i = 0; i < 3; i++) ctx.fillRect(cx - cw - 0.02, top + 0.06 + i * 0.045, cw * 2 + 0.04, 0.012); }
-  else if (kit.pattern === 'chevron') { ctx.fillStyle = rgba(kit.trim, 0.85); ctx.beginPath(); ctx.moveTo(cx - cw, top + 0.02); ctx.lineTo(cx, top + 0.09); ctx.lineTo(cx + cw, top + 0.02); ctx.lineTo(cx + cw, top + 0.045); ctx.lineTo(cx, top + 0.115); ctx.lineTo(cx - cw, top + 0.045); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = rgba('#000000', 0.18); ctx.fillRect(cx - cw - 0.02, top, cw * 0.6 + 0.02, wst - top); // far side (30%)
-  ctx.fillStyle = kit.trim; ctx.fillRect(cx - cw - 0.02, top, 0.025 + 0.02, wst - top); // side panel stripe on the far seam
-  ctx.strokeStyle = rgba(shadeHex(kit.jersey, -0.2), 0.5); ctx.lineWidth = 0.01; ctx.beginPath(); ctx.moveTo(cx - ww * 0.7, wst - 0.04); ctx.quadraticCurveTo(cx - ww * 0.2, wst - 0.02, cx + ww * 0.1, wst - 0.045); ctx.moveTo(cx + ww * 0.05, wst - 0.02); ctx.quadraticCurveTo(cx + ww * 0.45, wst - 0.005, cx + ww * 0.8, wst - 0.03); ctx.stroke(); // folds
+  if (kit.pattern === 'stripes') { ctx.fillStyle = rgba(kit.trim, 0.85); for (let i = 0; i < 3; i++) ctx.fillRect(cx - cw - 0.02, top + 0.03 + i * 0.03, cw * 2 + 0.04, 0.008); }
+  else if (kit.pattern === 'chevron') { ctx.fillStyle = rgba(kit.trim, 0.85); ctx.beginPath(); ctx.moveTo(cx - cw, top + 0.01); ctx.lineTo(cx, top + 0.06); ctx.lineTo(cx + cw, top + 0.01); ctx.lineTo(cx + cw, top + 0.028); ctx.lineTo(cx, top + 0.078); ctx.lineTo(cx - cw, top + 0.028); ctx.closePath(); ctx.fill(); }
+  const mp = pixelPattern(ctx, meshTile(), 1 / 0.004); if (mp) { ctx.globalAlpha = ART.meshA; ctx.fillStyle = mp; ctx.fillRect(cx - cw - 0.02, top, cw * 2 + 0.04, wst - top); ctx.globalAlpha = 1; } // mesh dots
+  ctx.fillStyle = shadeHex(kit.jersey, -0.22); ctx.fillRect(cx - cw - 0.02, top, cw * 0.62 + 0.02, wst - top); // the far 30% in shadow
+  ctx.fillStyle = kit.trim; ctx.fillRect(cx - cw - 0.02, top, ART.sidePanel + 0.01, wst - top); ctx.fillRect(cx + cw - ART.sidePanel * 0.6, top, ART.sidePanel, wst - top); // side panels
+  ctx.fillStyle = rgba('#FFFFFF', ART.sheenA); ctx.fillRect(cx + cw - 2 * cw * ART.sheenAt - ART.sheenW / 2, top, ART.sheenW, wst - top); // the vertical sheen band
   ctx.restore();
-  // armhole and neck trims, rim light on the back edge, outline
-  ctx.strokeStyle = kit.trim; ctx.lineWidth = 0.015; ctx.beginPath(); ctx.moveTo(cx + cw * 0.55, top + 0.004); ctx.quadraticCurveTo(cx + cw * 0.74, top + 0.04, cx + cw * 0.98, top + 0.07); ctx.moveTo(cx - cw * 0.55, top + 0.004); ctx.quadraticCurveTo(cx - cw * 0.74, top + 0.04, cx - cw * 0.98, top + 0.07); ctx.stroke();
-  ctx.lineWidth = 0.02; ctx.beginPath(); ctx.moveTo(cx - cw * 0.5, top + 0.004); ctx.quadraticCurveTo(cx, top + 0.05, cx + cw * 0.5, top + 0.004); ctx.stroke();
-  ctx.strokeStyle = rgba(ART.rim, 0.35); ctx.lineWidth = 0.008; ctx.beginPath(); ctx.moveTo(cx - cw, top + 0.08); ctx.quadraticCurveTo(cx - cw * 1.03, (top + wst) / 2, cx - ww, wst - 0.01); ctx.stroke();
-  ctx.strokeStyle = ink(kit.jersey); ctx.lineWidth = lw; ctx.stroke(J);
-  // the number (unmirrored)
-  if (number != null) { ctx.save(); ctx.translate(cx + 0.01, -ART.numberY - (c.y - 0.36)); ctx.scale(P._f || 1, 1); ctx.font = '900 ' + (0.12).toFixed(3) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 0.012 * 2; ctx.strokeStyle = kit.numberStroke; const n = String(number); ctx.strokeText(n, 0, 0.004); ctx.fillStyle = kit.numberFill; ctx.fillText(n, 0, 0.004); ctx.restore(); }
+  // neck and armhole trim with piping, the rim light on the back edge
+  ctx.lineCap = 'butt'; for (const [col, w, off] of [[kit.third, ART.jerseyTrim + 2 * ART.jerseyPiping, 0], [kit.trim, ART.jerseyTrim, 0]]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(cx + cw * 0.55, top + off); ctx.quadraticCurveTo(cx + cw * 0.74, top + 0.03, cx + cw * 0.98, top + 0.05); ctx.moveTo(cx - cw * 0.55, top); ctx.quadraticCurveTo(cx - cw * 0.74, top + 0.03, cx - cw * 0.98, top + 0.05); ctx.moveTo(cx - cw * 0.52, top); ctx.quadraticCurveTo(cx, top + 0.045, cx + cw * 0.52, top); ctx.stroke(); } ctx.lineCap = 'round';
+  ctx.strokeStyle = rgba(ART.rim, ART.bodyRimA); ctx.lineWidth = lw * 1.1; ctx.beginPath(); ctx.moveTo(cx - cw + 0.006, top + 0.06); ctx.quadraticCurveTo(cx - cw * 1.0, (top + wst) / 2, cx - ww + 0.006, wst - 0.006); ctx.stroke();
+  // the wordmark arched above the number, then the number (unmirrored)
+  const ny = -ART.numberY - (c.y - 0.36);
+  if (kit.wordmark) { ctx.save(); ctx.translate(cx + 0.01, ny - ART.numberH * 0.5 - ART.wordmarkH * 0.55); ctx.scale(P._f || 1, 1); const w = kit.wordmark, n = w.length, fs = ART.wordmarkH; ctx.font = '900 ' + fs.toFixed(3) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    const span = Math.min(0.2, n * fs * 0.62), R = 0.26; for (let i = 0; i < n; i++) { const a = (n > 1 ? (i / (n - 1) - 0.5) : 0) * span / R; ctx.save(); ctx.translate(Math.sin(a) * R, R - Math.cos(a) * R); ctx.rotate(a); ctx.lineWidth = fs * 0.34; ctx.strokeStyle = ART.inkLine; ctx.strokeText(w[i], 0, 0); ctx.lineWidth = fs * 0.16; ctx.strokeStyle = kit.numberInner; ctx.strokeText(w[i], 0, 0); ctx.fillStyle = kit.numberFill; ctx.fillText(w[i], 0, 0); ctx.restore(); }
+    ctx.restore(); }
+  if (number != null) { ctx.save(); ctx.translate(cx + 0.01, ny); ctx.scale(P._f || 1, 1); ctx.font = '900 ' + ART.numberH.toFixed(3) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; const n = String(number); ctx.lineWidth = ART.numberH * 0.3; ctx.strokeStyle = ART.inkLine; ctx.strokeText(n, 0, 0.004); ctx.lineWidth = ART.numberH * 0.15; ctx.strokeStyle = kit.numberInner; ctx.strokeText(n, 0, 0.004); ctx.fillStyle = kit.numberFill; ctx.fillText(n, 0, 0.004); ctx.restore(); }
 }
 
 // --- the whole character ---
 function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   opts = opts || {}; const a = p.anim || (p.anim = {}); const H = drawHeightOf(p); const f = p.facing < 0 ? -1 : 1;
   const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
-  const s = cam.scale(z), k = s * H, ox = cam.sx(x), oy = cam.sy(y, z); if (!isFinite(ox) || !isFinite(oy) || !(k > 2)) return;
-  const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k);
+  const lift = visualLift(p, y), s = cam.scale(z), k = s * H, ox = cam.sx(x), oy = cam.sy(y + lift, z); if (!isFinite(ox) || !isFinite(oy) || !(k > 2)) return;
+  const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k); P.hemFlare = p.grounded === false ? clamp01(y / 0.35) : 0;
+  const dk = clamp01(opts.depth || 0), dS = 1 - (1 - ART.overlapScale) * dk, dR = ART.overlapRaise * dk * k; // §3.11: the farther of two overlapping players is drawn smaller and higher
   // a turn (spin move, 360 dunk) narrows the body side-on and shows the other side halfway round; the head narrows less
   let fv = f, ts = 1, hs = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -f; ts = Math.max(ART.turnMin, Math.abs(cs)); hs = Math.max(ART.headTurnMin, Math.abs(cs)) / ts; } P._f = fv;
   if (!opts.reflection) {
-    const floorY = cam.sy(0, z), hgt = Math.max(0, y), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1);
-    if (!opts.noShadow) { ctx.globalAlpha = fade; ctx.drawImage(shadowSprite(), ox - 0.45 * k * sc, floorY - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); ctx.globalAlpha = 1; } // soft floor shadow (the match scene draws all shadows first, in L5)
+    const floorY = cam.sy(0, z), hgt = Math.max(0, y + lift), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1);
+    if (!opts.noShadow) { ctx.globalAlpha = fade; ctx.drawImage(shadowSprite(), ox - 0.45 * k * sc, floorY - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); drawContactShadow(ctx, ox, floorY, k, fade * sc); ctx.globalAlpha = 1; } // soft floor shadow and the sharp contact shadow (the match scene draws all shadows first, in L5)
     if (p.controlled && !opts.replay && !opts.noShadow) { ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, floorY + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; }
     if (opts.glow) { ctx.globalAlpha = ART.glowAlpha; ctx.globalCompositeOperation = 'lighter'; const gs = 0.9 * k; ctx.drawImage(glowSprite(), ox - gs / 2, oy - 0.36 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
     if (p.onFire > 0) { ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = 'lighter'; const gs = 1.1 * k; ctx.drawImage(radialFire(), ox - gs / 2, oy - 0.5 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
     drawTrail(ctx, cam, p, (team && team.colors && team.colors[0]) || '#F3F0FF', rigNow(p, alpha));
   }
-  ctx.save(); ctx.translate(ox, oy); ctx.scale(fv * k * ts, k); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  const base = ctx.getTransform(); ctx.save(); ctx.translate(ox, oy - dR); ctx.scale(fv * k * ts * dS, k * dS); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   if (P.rot) { ctx.translate(P.px, -P.py); ctx.rotate(-P.rot); ctx.translate(-P.px, P.py); } // falls tip backward about the feet; a rim hang swings under the hands
   ctx.scale(P.sx, P.sy); // squash and stretch about the feet
   const dy = P.pelvis.y - 0.24, hemY = -(ART.hem + dy) + P.hemFlutter; // crouching lowers the shorts
   const hipF = { x: P.pelvis.x + ART.legGap, y: P.pelvis.y }, hipB = { x: P.pelvis.x - ART.legGap, y: P.pelvis.y };
-  drawHand(ctx, T, P.handB, true, lw, kit, L.acc.wristband);
+  const bp = typeof opts.ballPaint === 'function' ? opts.ballPaint : null, wrapB = bp && P.handB.pose === 'cupped', wrapF = bp && P.handF.pose === 'cupped'; // a held ball sits between the palm and the fingers
+  drawHand(ctx, T, P.handB, true, lw, kit, L.acc.wristband, wrapB ? 'back' : undefined);
   drawLeg(ctx, T, hipB, P.footB, true, lw, kit, false, hemY, dy); drawSneaker(ctx, P.footB, true, lw, kit);
   drawShorts(ctx, P, lw, kit, T);
   drawLeg(ctx, T, hipF, P.footF, false, lw, kit, L.acc.sleeve, hemY, dy); drawSneaker(ctx, P.footF, false, lw, kit);
@@ -2078,7 +2176,8 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   if (hs !== 1) { ctx.translate(hx, 0); ctx.scale(hs, 1); ctx.translate(-hx, 0); }
   drawFace(ctx, L, hx, hy, ART.headWidth, 1, (a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k * ts * hs, sim: opts.reflection ? null : a, warm: !opts.reflection && !!(p.match && p.match.players), vx: (p.vx || 0) * fv, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
   ctx.restore();
-  drawHand(ctx, T, P.handF, false, lw, kit, L.acc.wristband);
+  drawHand(ctx, T, P.handF, false, lw, kit, L.acc.wristband, wrapF ? 'back' : undefined);
+  if (bp) { ctx.save(); ctx.setTransform(base); try { bp(); } catch (e) { reportFrameError(e); } ctx.restore(); if (wrapB) drawHand(ctx, T, P.handB, true, lw, kit, false, 'front'); if (wrapF) drawHand(ctx, T, P.handF, false, lw, kit, false, 'front'); }
   ctx.restore();
   // gameplay-facing overlays
   if (!opts.reflection && !opts.replay) {
@@ -2088,6 +2187,23 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
     if (p.callingForBall && !p.hasBall) { const bx = ox + f * k * 0.2, by = topY; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(bx, by, k * 0.06, 0, TAU); ctx.fill(); ctx.strokeStyle = '#1E1633'; ctx.lineWidth = Math.max(1.2, k * 0.006); ctx.stroke(); ctx.fillStyle = '#1E1633'; ctx.font = fontStr(k * 0.09, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', bx, by + 1); }
   }
   if (p.hand) { p.hand.x = x + P.handF.x * H * fv * ts; p.hand.y = y + P.handF.y * H; }
+}
+// §3.10: a sharp contact shadow under the shoes (0.28 × 0.04 H at α 0.55), on top of the soft one.
+function drawContactShadow(ctx, ox, floorY, k, a) { const [w, h, al] = ART.contactShadow; ctx.save(); ctx.globalAlpha = clamp01(al * (a == null ? 1 : a)); ctx.fillStyle = '#0A0612'; ctx.beginPath(); ctx.ellipse(ox, floorY, w * k / 2, h * k / 2, 0, 0, TAU); ctx.fill(); ctx.restore(); }
+// §3.11: when two players' drawn heads overlap by more than 20% of a head width, the farther one (the defender, else the
+// lower lane) is drawn first, at 0.94 scale and 0.05 H higher, so the nearer character's bold outline separates them.
+// The depth eases in and out. Returns the draw order; each player's depth (0…1) is in p._depth.
+function overlapOrder(m, players, alpha) {
+  const now = performance.now(), dt = clamp((now - (m._ovT || now)) / 1000, 0, 0.1); m._ovT = now; const k = 1 - Math.exp(-dt * ART.overlapEase);
+  const ps = players.filter(p => !p.hidden), tgt = new Map(ps.map(p => [p, 0]));
+  const head = p => { const H = drawHeightOf(p); return { x: lerp(p.px != null ? p.px : p.x, p.x, alpha), y: lerp(p.py != null ? p.py : p.y, p.y, alpha) + ((p.anim && p.anim.lift) || 0) + ART.headCenter * H, w: ART.headWidth * H, h: 0.62 * H }; };
+  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+    const a = ps[i], b = ps[j], A = head(a), B = head(b); const ox = (A.w + B.w) / 2 - Math.abs(A.x - B.x), oy = (A.h + B.h) / 2 - Math.abs(A.y - B.y);
+    if (!(ox > ART.overlapShare * Math.min(A.w, B.w) && oy > 0)) continue;
+    const off = m.possession, far = off != null && a.team !== b.team ? (a.team === off ? b : a) : (a.z < b.z ? a : b); tgt.set(far, 1);
+  }
+  for (const p of ps) { const t = tgt.get(p) || 0; p._depth = (p._depth || 0) + (t - (p._depth || 0)) * k; if (p._depth < 0.002 && !t) p._depth = 0; }
+  return ps.slice().sort((a, b) => (b._depth || 0) - (a._depth || 0) || a.z - b.z);
 }
 let _fireSprite = null; function radialFire() { return _fireSprite || (_fireSprite = radialSprite('#FF8A2A', 0.7)); }
 
@@ -2175,7 +2291,7 @@ function gripCarry(P, c, follow) { if (!c.holding) return; if (c.dribbling) grip
 function rigNow(p, alpha) { return p.rigTime != null ? p.rigTime : (p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : performance.now() / 1000); }
 function rigContext(p, alpha, ball, now) {
   const a = p.anim || (p.anim = {}), H = drawHeightOf(p), f = p.facing < 0 ? -1 : 1; // body units are the drawn height: world anchors (rim, ball, reach) land on their real points
-  const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
+  const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y0 = lerp(p.py != null ? p.py : p.y, p.y, alpha), y = y0 + visualLift(p, y0), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); // anchors (ball, rim) are measured from the drawn place
   const bl = ballLocal(p, ball, alpha), holding = !!(ball && ball.owner === p && bl), sd = p.sd || {}, hoop = p.hoop;
   const rim = hoop && isFinite(hoop.x) ? { x: (hoop.x - f * W.rimInnerRadius * 0.8 - x) * f / H, y: (RIM_Y - y) / H } : null;
   return { p, a, H, f, x, y, z, st: p.state || 'move', sd, T: p.stateT || 0, now, sp: Math.abs(p.vx || 0), vxf: (p.vx || 0) * f, vy: p.vy || 0, grounded: p.grounded !== false,
@@ -6160,7 +6276,7 @@ function drawBallNew(ctx, cam, b, alpha, skin, onFire, opts) {
 function drawShadows(ctx, cam, players, ball, alpha, replay) {
   const spr = shadowSprite();
   if (!replay) for (const p of players) { if (!p.controlled || p.hidden) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), k = cam.scale(z) * drawHeightOf(p), ox = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha)), fy = cam.sy(0, z); ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, fy + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; } // the ring under your player
-  for (const p of players) { if (p.hidden) continue; const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); const k = cam.scale(z) * drawHeightOf(p), hgt = Math.max(0, y), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1); const ox = cam.sx(x), fy = cam.sy(0, z); if (!isFinite(ox + fy)) continue; ctx.globalAlpha = fade; ctx.drawImage(spr, ox - 0.45 * k * sc, fy - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); }
+  for (const p of players) { if (p.hidden) continue; const x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); const k = cam.scale(z) * drawHeightOf(p), hgt = Math.max(0, y + ((p.anim && p.anim.lift) || 0)), sc = clamp(1 - hgt / 3, 0.35, 1), fade = clamp(1 - hgt / 2.5, 0.2, 1); const ox = cam.sx(x), fy = cam.sy(0, z) - ART.overlapRaise * (p._depth || 0) * k; if (!isFinite(ox + fy)) continue; ctx.globalAlpha = fade; ctx.drawImage(spr, ox - 0.45 * k * sc, fy - 0.08 * k * sc, 0.9 * k * sc, 0.16 * k * sc); drawContactShadow(ctx, ox, fy, k * (1 - (1 - ART.overlapScale) * (p._depth || 0)), fade * sc); }
   if (ball) { const x = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0), y = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0), z = lerp(ball.pz != null ? ball.pz : ball.z, ball.z, alpha); const r = BALL.radius * cam.scale(z) * 1.15, sc = clamp(1 - y / 6, 0.35, 1); ctx.globalAlpha = clamp(1 - y / 5, 0.15, 0.9); ctx.drawImage(spr, cam.sx(x) - r * 1.3 * sc, cam.sy(0, z) - r * 0.35 * sc, r * 2.6 * sc, r * 0.7 * sc); }
   ctx.globalAlpha = 1;
 }
@@ -6425,8 +6541,8 @@ Object.assign(ART, {
   foilPeriod: 3.2,                  // the foil sheen crosses a gold or diamond card every this many seconds
   cardCacheN: 16,                   // trading cards kept baked (LRU)
   iconBudget: 2,                    // swatch icons (faces with a hairstyle) painted per frame at most
-  crownStand: 1.023,                // the skull top of a standing menu figure, as a multiple of its height (measured)
-  crownStance: 0.99,                // the same in a defensive stance (measured)
+  crownStand: 1.036,                // the skull top of a standing menu figure, as a multiple of its height (measured on the L4 body: median of 12 faces, 1.006–1.074 by face shape)
+  crownStance: 0.994,               // the same in a defensive stance (measured on the L4 body)
 });
 const TIER_NAMES = ['bronze', 'silver', 'gold', 'diamond'];
 const TIER_METAL = { // frame metal: dark edge, face, light, shine
@@ -7172,7 +7288,7 @@ function managementScreen(game) {
   if (st.tab === 4) { const C = M.cosmetics, P_ = CR.cosmeticCosts; const buy = (key, fn) => { if (M.money < P_[key]) { game.ui.toastMsg('Not enough money.'); return; } M.money -= P_[key]; fn(); game.save.save(); game.audio.ui('coin'); refresh(); };
     items.push(btn(C.headband ? 'Headband: ' + (C.headbandOn ? 'on' : 'off') : 'Headband · ' + fmtMoney(P_.headband), 60, 160, 520, 44, () => { if (C.headband) { C.headbandOn = !C.headbandOn; game.save.save(); refresh(); } else buy('headband', () => { C.headband = true; C.headbandOn = true; }); }, { align: 'left' }));
     items.push(btn(C.sleeves ? 'Arm sleeve: ' + (C.sleevesOn ? 'on' : 'off') : 'Arm sleeve · ' + fmtMoney(P_.sleeves), 60, 214, 520, 44, () => { if (C.sleeves) { C.sleevesOn = !C.sleevesOn; game.save.save(); refresh(); } else buy('sleeves', () => { C.sleeves = true; C.sleevesOn = true; }); }, { align: 'left' }));
-    items.push(btn(C.shoes ? 'Signature shoes: color ' + C.shoes : 'Signature shoes · ' + fmtMoney(P_.shoes), 60, 268, 520, 44, () => { if (C.shoes) { C.shoes = C.shoes % CR.shoeColors.length + 1; game.save.save(); refresh(); } else buy('shoes', () => { C.shoes = 1; }); }, { align: 'left' }));
+    { const u = signatureUnlocked(M), nu = u.filter(Boolean).length; items.push(btn(C.shoes ? 'Signature shoes: ' + SIG_UNLOCKS[(C.shoes - 1) % SIG_UNLOCKS.length][0] + ' colorway (' + nu + ' of ' + SIGNATURE_SHOES.length + ' unlocked)' : 'Signature shoes · ' + fmtMoney(P_.shoes), 60, 268, 520, 44, () => { if (C.shoes) { C.shoes = nextSignature(M); game.save.save(); refresh(); } else buy('shoes', () => { C.shoes = 1; }); }, { align: 'left', sub: C.shoes ? 'More colorways unlock at the All-Star Game, a title, MVP, 10 posters and 5 seasons' : null })); }
     items.push(btn(C.ballskin ? 'Ball skin ' + C.ballskin : 'Custom ball skins · ' + fmtMoney(P_.ballskin), 60, 322, 520, 44, () => { if (C.ballskin) { C.ballskin = C.ballskin % 4 + 1; game.save.save(); refresh(); } else buy('ballskin', () => { C.ballskin = 1; }); }, { align: 'left' }));
     if (P) phoneGrid(game.ui, items.slice(1), 40, 96, 660, 2, 0, 8); }
   items.push(btn('Back', 40, 650, 200, 40, () => game.ui.pop())); phoneBar(game.ui, [items[0], items[items.length - 1]], [2.4, 1]);
@@ -7680,8 +7796,9 @@ function labDrawFigure(ctx, c, i, x, yFloor, pxPerM, facing, pose, t, legends) {
   try {
     const { p, ball } = labStandIn(c, i, pose, facing, t, legends);
     const cam = { scale: () => pxPerM, sx: wx => x + wx * pxPerM, sy: (wy, z) => yFloor - wy * pxPerM, ppm: pxPerM, W: 0, H: 0 };
+    if (ball) { const [tx, ty] = ballViewTarget(ball); ball.visDX = tx; ball.visDY = ty; } // the ball where the game would draw it
     drawPlayer(ctx, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true });
-    if (ball) { const r = BALL.radius * pxPerM * 1.15; ctx.fillStyle = '#E8742C'; ctx.beginPath(); ctx.arc(cam.sx(ball.x), cam.sy(ball.y), r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke(); }
+    if (ball) { const r = BALL.radius * pxPerM * 1.15; ctx.fillStyle = '#E8742C'; ctx.beginPath(); ctx.arc(cam.sx(ball.x + ball.visDX), cam.sy(ball.y + ball.visDY), r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke(); }
   } catch (e) { labFail(e); }
 }
 let _labFails = 0;
@@ -7775,18 +7892,18 @@ function labViewBody(ctx, ui, st, t) {
   const ppm = 128, yF = 420; ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.moveTo(30, yF); ctx.lineTo(660, yF); ctx.stroke();
   const geared = Object.assign({}, LAB_CAST[4], { look: Object.assign({}, LAB_CAST[4].look, { acc: { headband: true, sleeve: true, wristband: true, earring: true } }) });
   [[LAB_CAST[0], 0, 1, 'idle'], [geared, 4, 1, 'idle'], [LAB_CAST[11], 11, 1, 'idle'], [LAB_CAST[6], 6, -1, 'defense']].forEach(([c, i, fc, pose], k) => { const x = 95 + k * 160; labDrawFigure(ctx, c, i, x, yF, ppm, fc, pose, t); labCaption(ctx, c.name.split(' ')[0] + ' · ' + fmtHeight(c.h) + (c === geared ? ' · all cosmetics' : ''), x, yF + 16, 11, UI_TEXT); });
-  const poses = ['relaxed', 'fist', 'cupped', 'open', 'point', 'clap'], k = 620;
-  poses.forEach((p, j) => labCaption(ctx, p, 740 + j * 88, 88, 12, UI_TEXT));
+  const poses = ['relaxed', 'open', 'cupped', 'fist', 'point', 'clap', 'highfive'], k = 470;
+  poses.forEach((p, j) => labCaption(ctx, p === 'cupped' ? 'holding' : p === 'highfive' ? 'high-five' : p, 714 + j * 72, 88, 12, UI_TEXT));
   [[LAB_CAST[0], false, false], [LAB_CAST[11], false, true], [LAB_CAST[5], true, true]].forEach(([c, far, wrist], r) => {
     const L = normLook(c.look, c.name), T = skinToneOf(L), kit = kitOf({ colors: c.colors, pattern: 'solid' }, L);
     labCaption(ctx, far ? 'far hand' : wrist ? 'wristband' : 'near hand', 1236, 140 + r * 100, 11, UI_DIM, 'right');
-    poses.forEach((p, j) => { try { ctx.save(); ctx.translate(730 + j * 88, 140 + r * 100); ctx.scale(k, k); drawHand(ctx, T, { x: 0, y: 0, pose: p, r: p === 'clap' ? 0 : -0.2 }, far, Math.max(ART.bodyLine, 1 / k), kit, wrist); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); } });
+    poses.forEach((p, j) => { try { ctx.save(); ctx.translate(704 + j * 72, 140 + r * 100); ctx.scale(k, k); drawHand(ctx, T, { x: 0, y: 0, pose: p, r: p === 'clap' ? 0 : p === 'highfive' ? -Math.PI / 2 : -0.2, tick: p === 'clap' ? 1 : 0 }, far, Math.max(ART.bodyLine, 2 / k), kit, wrist); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); } });
   });
-  labCaption(ctx, 'Sneakers · team colorways · the far shoe is 12% darker', 40, 470, 12, UI_DIM, 'left');
-  const ks = 900; [LAB_CAST[0], LAB_CAST[3], LAB_CAST[5], LAB_CAST[11], LAB_CAST[9]].forEach((c, j) => {
-    const L = normLook(c.look, c.name), kit = kitOf({ colors: c.colors, pattern: 'solid' }, L);
-    try { ctx.save(); ctx.translate(90 + j * 240, 600); ctx.scale(ks, ks); drawSneaker(ctx, { x: 0, y: 0 }, j === 4, Math.max(ART.bodyLine, 1 / ks), kit); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); }
-    labCaption(ctx, c.colors[0] + ' / ' + c.colors[1] + (j === 4 ? ' · far' : ''), 90 + j * 240 + 60, 625, 11, UI_TEXT);
+  labCaption(ctx, 'High-tops · team colorways and signature colorways · the far shoe is 15% darker', 40, 470, 12, UI_DIM, 'left');
+  const ks = 640; [LAB_CAST[0], LAB_CAST[3], LAB_CAST[5], LAB_CAST[11], LAB_CAST[9]].forEach((c, j) => {
+    const L = Object.assign({}, normLook(c.look, c.name)); if (j === 3) L.shoes = SIGNATURE_SHOES[1]; const kit = kitOf({ colors: c.colors, pattern: 'solid' }, L);
+    try { ctx.save(); ctx.translate(100 + j * 240, 612); ctx.scale(ks, ks); drawSneaker(ctx, { x: 0, y: 0 }, j === 4, Math.max(ART.bodyLine, 2 / ks), kit); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); }
+    labCaption(ctx, j === 3 ? 'signature ' + SIGNATURE_SHOES[1].join(' / ') : c.colors[0] + ' / ' + c.colors[1] + (j === 4 ? ' · far' : ''), 100 + j * 240 + 30, 632, 11, UI_TEXT);
   });
 }
 // §10 the Legends check (see LEGENDS_CHECK). In-game scale = Legends View at 1280×720: 1280 px ÷ 14.8 m.
@@ -7870,8 +7987,9 @@ function labDrawClipFigure(ctx, c, i, x, yFloor, ppm, clip, t) {
   try {
     const { p, ball } = labClipStandIn(c, i, clip, t); const lift = p.y; const cam = { scale: () => ppm, sx: wx => x + wx * ppm, sy: (wy, z) => yFloor - (wy - lift) * ppm, ppm, W: 0, H: 0 };
     if (p.hoop) { const hx = p.hoop.x; ctx.strokeStyle = '#FF8A2A'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cam.sx(hx - W.rimInnerRadius), cam.sy(RIM_Y)); ctx.lineTo(cam.sx(hx + W.rimInnerRadius), cam.sy(RIM_Y)); ctx.stroke(); } // the rim
+    if (ball) { const [tx, ty] = ballViewTarget(ball); ball.visDX = tx; ball.visDY = ty; } // the ball where the game would draw it
     drawPlayer(ctx, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true });
-    if (ball) { const r = BALL.radius * ppm * 1.15; ctx.fillStyle = '#E8742C'; ctx.beginPath(); ctx.arc(cam.sx(ball.x), cam.sy(ball.y), r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke(); }
+    if (ball) { const r = BALL.radius * ppm * 1.15; ctx.fillStyle = '#E8742C'; ctx.beginPath(); ctx.arc(cam.sx(ball.x + ball.visDX), cam.sy(ball.y + ball.visDY), r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = Math.max(1, r * 0.12); ctx.stroke(); }
   } catch (e) { labFail(e); }
 }
 function labViewClips(ctx, ui, st, t) {
@@ -8872,6 +8990,11 @@ const CLUB_COURT = { prophets: 'blacktop', ballers: 'blacktop', legends: 'gym', 
 function emptySeasonStats() { return { g: 0, w: 0, l: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0, to: 0, dunk: 0, ank: 0, hi: 0 }; }
 // Money in: pay, prizes and sponsors all count toward career earnings (§8: contracts and career earnings).
 function earn(c, amount) { const M = c.me; M.money += amount; M.earned = (M.earned || 0) + amount; }
+// §3.10 signature colorways: the shoe deal unlocks the first; the career unlocks the rest (All-Star, a title, MVP, ten
+// posterizers, five seasons). me.cosmetics.shoes is the chosen one, 1-based (0 = no deal yet).
+const SIG_UNLOCKS = [['Rookie deal', me => (me.cosmetics.shoes || 0) > 0], ['All-Star', me => (me.allStar || 0) > 0], ['Champion', me => ((me.careerStats || {}).titles || 0) > 0], ['MVP', me => (me.awards || []).some(a => a && a.name === 'MVP')], ['Poster', me => ((me.careerStats || {}).posters || 0) >= 10], ['Veteran', me => (me.seasonLog || []).length >= 5]];
+function signatureUnlocked(me) { return SIG_UNLOCKS.map(([, f]) => { try { return !!f(me); } catch (e) { return false; } }); }
+function nextSignature(me) { const u = signatureUnlocked(me), n = SIGNATURE_SHOES.length, cur = (me.cosmetics.shoes || 1) - 1; for (let k = 1; k <= n; k++) { const i = (cur + k) % n; if (u[i] || i === 0) return i + 1; } return cur + 1; }
 function defaultMeShape() { return { earned: 0, fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, fame: 5, money: 25000, gym: 0, contract: null, endorsements: [], offers: [], staff: { shooting: 0, skills: 0, strength: 0, physio: 0 }, cosmetics: { headband: false, sleeves: false, shoes: 0, ballskin: 0, headbandOn: true, sleevesOn: true }, careerStats: { g: 0, w: 0, l: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0, to: 0, dunk: 0, ank: 0, posters: 0, titles: 0, playoffW: 0, playoffL: 0 }, seasonLog: [], log: [], awards: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, traits: {}, prevOvr: 0, xpSeason: 0, allStar: 0, potw: 0, startOvr: 0 }; }
 function genVet(def, id, rng, age) {
   const target = clamp(CR.proMean + CR.proSd * rng.gauss() - (age >= 32 ? 2 : 0), 62, 93); const h = def.height || heightForArch(def.arch, rng); const r = genProRatings(def.arch, h, target, rng);
@@ -8951,7 +9074,7 @@ function engineDef(c, id, opts) {
   let look = Object.assign({}, p.look); if (!p.isMe && opts.fire) for (const k of RATING_KEYS) attrs[k] = ratingToAttr(effRatings(p.r, p.h)[k] + opts.fire); // a rival you trash-talked
   if (p.isMe) { const me = c.me;
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
-    look = Object.assign(look, { headband: !!me.cosmetics.headband && me.cosmetics.headbandOn, sleeves: !!me.cosmetics.sleeves && me.cosmetics.sleevesOn, shoes: me.cosmetics.shoes ? CR.shoeColors[me.cosmetics.shoes % CR.shoeColors.length] : null });
+    look = Object.assign(look, { headband: !!me.cosmetics.headband && me.cosmetics.headbandOn, sleeves: !!me.cosmetics.sleeves && me.cosmetics.sleevesOn, shoes: me.cosmetics.shoes ? SIGNATURE_SHOES[(me.cosmetics.shoes - 1) % SIGNATURE_SHOES.length] : null });
   }
   return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p), isMe: !!p.isMe, traits: p.isMe ? Object.assign({}, c.me.traits) : {}, id: p.id };
 }
@@ -10182,12 +10305,12 @@ const TUTORIAL_STEPS = [
 function drawMatchScene(ctx, env, m, alpha) {
   ensureLayout(m); const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop, rp = env.rp, guard = env.guard || 0; const V = world.venueFor(m);
   const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball; updateBallView(ball);
-  const order = players.filter(p => !p.hidden).slice().sort((a, b) => a.z - b.z);
+  const order = overlapOrder(m, players, alpha); // §3.11 (the defender behind when heads overlap), else by lane
   if (V) V.drawBack(ctx, cam, m, guard); else world.drawBackdrop(ctx, cam, court, m);        // L0–L2
   if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } if (m.halfCourt && LAY.legends) drawHalfCourtLine(ctx, cam); // L3
   const drawAll = (g, reflection) => {
     const o = { replay: !!rp, reflection, glow: !!(V && V.kind === 'pro'), noShadow: true }; let ballDrawn = false;
-    for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], o); if (ball.owner === p) { drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o); ballDrawn = true; } }
+    for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } const own = ball.owner === p; drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], Object.assign({}, o, { depth: p._depth || 0, ballPaint: own ? () => drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o) : null })); if (own) ballDrawn = true; } // the owner paints the ball between its palms and fingers
     if (!ballDrawn) drawBallNew(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0), o);
   };
   if (!env.degraded && guard < 2) drawReflections(ctx, cam, g => { HOOPS.forEach((h, i) => drawHoopBackNew(g, cam, h, V, i, null, null)); drawAll(g, true); HOOPS.forEach((h, i) => drawHoopFrontNew(g, cam, h, V, i, null, null)); }); // L4
