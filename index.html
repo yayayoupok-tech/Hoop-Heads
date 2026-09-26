@@ -747,7 +747,7 @@ const CONFIG = {
   },
   perf: {
     slowFrameMs: 20,           // frames over this are "slow"
-    slowSeconds: 2,            // this many seconds of slow frames trips the guard (one level at a time: crowd at 15 Hz, then no reflections, then no bloom or beam dust, then a lower resolution)
+    slowSeconds: 2,            // this many seconds of slow frames trips the guard (one level at a time: crowd at 15 Hz and half resolution, then no reflections, then no bloom or beam dust, then a lower resolution)
     maxLevel: 4,               // the guard's last level: a match renders at lowDpr
     lowDpr: 1.25,              // pixel ratio of a match at guard level 4 (normally the device's, capped at ui.dprCap): 39% of the pixels at 2×
     recoverSeconds: 6,         // this many seconds of smooth frames restores one level
@@ -5491,10 +5491,10 @@ function extrasStep(m, dt) {
 
 // --- drawing (presentation only) ---
 // The power-up on the floor: a bobbing badge with a glow and its symbol; it blinks in its last 2 s.
-function drawPowerup(ctx, cam, m, px) {
+function drawPowerup(ctx, cam, m) {
   const u = m.ex && m.ex.pu; if (!u) return; const C = CONFIG.extras; if (u.t > C.puLifeS - 2 && Math.floor(u.t * 8) % 2) return;
   const s = cam.scale(0.5), r = Math.max(6, s * 0.26), x = cam.sx(u.x), y = cam.sy(0.45 + 0.08 * Math.sin(u.t * 5), 0.5), col = EXTRA_COLOR[u.kind];
-  ctx.save(); if (!px) { const g = ctx.createRadialGradient(x, y, r * 0.3, x, y, r * 2.2); g.addColorStop(0, rgba(col, 0.55)); g.addColorStop(1, rgba(col, 0)); ctx.fillStyle = g; ctx.fillRect(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4); }
+  ctx.save(); { const g = ctx.createRadialGradient(x, y, r * 0.3, x, y, r * 2.2); g.addColorStop(0, rgba(col, 0.55)); g.addColorStop(1, rgba(col, 0)); ctx.fillStyle = g; ctx.fillRect(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4); }
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(x, cam.sy(0, 0.5), r, r * 0.3, 0, 0, TAU); ctx.fill();
   ctx.fillStyle = col; ctx.strokeStyle = ART.inkLine; ctx.lineWidth = Math.max(1.5, r * 0.16); ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
   ctx.fillStyle = ART.inkLine; ctx.strokeStyle = ART.inkLine; ctx.lineJoin = 'round';
@@ -5514,10 +5514,10 @@ function drawExtrasOverlays(ctx, cam, m, alpha) {
 function extrasHeadScale(p) { const E = p && p.ex; if (!E || !(E.headT > 0)) return 1; const C = CONFIG.extras, k = clamp01(Math.min(E.headT, C.headS - E.headT) / 0.25); return 1 + (C.headScale - 1) * easeOutCubic(k); }
 // HUD: the super meter under a team's panel, and the chips for power-ups running.
 function drawSuperMeter(ctx, p, x, y, w, h, right, now) {
-  const E = p && p.ex; if (!E) return; const C = CONFIG.extras, k = E.meter / C.meterMax, full = k >= 1, px = uiPixel();
+  const E = p && p.ex; if (!E) return; const C = CONFIG.extras, k = E.meter / C.meterMax, full = k >= 1;
   ctx.fillStyle = 'rgba(0,0,12,0.75)'; ctx.fillRect(x - 2, y - 2, w + 4, h + 4); const fw = w * k, fx = right ? x + w - fw : x;
   ctx.fillStyle = full ? (Math.sin(now * 12) > 0 ? '#FFFFFF' : UI_GOLD) : UI_ORANGE; ctx.fillRect(fx, y, fw, h); ctx.fillStyle = 'rgba(0,0,12,0.6)'; for (let i = 1; i < 4; i++) ctx.fillRect(x + w * i / 4 - 1, y, 2, h);
-  let lw = 0; if (full) { const t = 'SUPER'; if (px) lw = pxRampDraw(ctx, t, right ? x + w : x, y + h + 11, 14, PX_RAMP, { align: right ? 'right' : 'left', outline: 1 }).w; else { ctx.font = fontStr(12, true); ctx.textAlign = right ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = ART.uiInk; ctx.strokeText(t, right ? x + w : x, y + h + 10); ctx.fillStyle = UI_GOLD; ctx.fillText(t, right ? x + w : x, y + h + 10); lw = ctx.measureText(t).width; } lw += 6; }
+  let lw = 0; if (full) { const t = 'SUPER'; { ctx.font = fontStr(12, true); ctx.textAlign = right ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3; ctx.strokeStyle = ART.uiInk; ctx.strokeText(t, right ? x + w : x, y + h + 10); ctx.fillStyle = UI_GOLD; ctx.fillText(t, right ? x + w : x, y + h + 10); lw = ctx.measureText(t).width; } lw += 6; }
   let cx = right ? x + w - lw : x + lw; for (const [key, T, kind] of [['speedT', 'SPD', 'speed'], ['headT', 'HEAD', 'head'], ['stickyT', 'GLUE', 'sticky'], ['fireball', 'FIRE', 'fireball']]) { const v = E[key]; if (!v) continue; const tw = kitChip(ctx, T + (typeof v === 'number' ? ' ' + Math.ceil(v) : ''), cx, y + h + 11, { size: 10, color: EXTRA_COLOR[kind], align: right ? 'right' : 'left' }); cx += (right ? -1 : 1) * (tw + 4); }
 }
 
@@ -5838,8 +5838,8 @@ function drawShotMeter(ctx, cam, p, alpha, setting, lastShot, time) {
 function glassPanel(ctx, x, y, w, h, r) { ctx.fillStyle = 'rgba(8,12,40,0.82)'; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); roundRectPath(ctx, x + 2, y + 2, w - 4, h * 0.45, r); ctx.fill(); }
 const _hudGrin = new WeakMap(); // team → { score, until }: the portrait grins for ART.hudGrinS after a score (L8 §6)
 function drawScoreBug(ctx, m, W_, H_) {
-  const k = Math.min(1, W_ / 1100), w = 600 * k, h = 62 * k, cx = W_ / 2, y = 10, cw = 132 * k, pw = (w - cw) / 2, now = performance.now() / 1000, px = uiPixel();
-  const rr = (x, yy, ww, hh, r) => { ctx.beginPath(); if (px) pxNotchPath(ctx, x, yy, ww, hh, Math.max(2, r * 0.5)); else roundRectPath(ctx, x, yy, ww, hh, r); };
+  const k = Math.min(1, W_ / 1100), w = 600 * k, h = 62 * k, cx = W_ / 2, y = 10, cw = 132 * k, pw = (w - cw) / 2, now = performance.now() / 1000;
+  const rr = (x, yy, ww, hh, r) => { ctx.beginPath(); roundRectPath(ctx, x, yy, ww, hh, r); };
   const ds = Math.max(40 * k, ART.hudScoreH * (H_ || 720)); // §6: score digits at least 6% of the screen height
   ctx.fillStyle = 'rgba(0,0,12,0.35)'; rr(cx - w / 2 + 2, y + 4, w, h, 14 * k); ctx.fill();
   ctx.fillStyle = 'rgba(8,12,36,0.92)'; rr(cx - cw / 2 - 6 * k, y, cw + 12 * k, h + 8 * k, 12 * k); ctx.fill(); // the center block hangs a little lower
@@ -5864,8 +5864,7 @@ function drawScoreBug(ctx, m, W_, H_) {
     if (m.ex && solo) { const bw = pw * 0.5; drawSuperMeter(ctx, p, side ? x0 + pw - bw - 10 * k : x0 + 10 * k, y + h + 6 * k, bw, Math.max(4, 6 * k), !!side, now); } // L9 super meter under the panel
     // score by the center
     const sx = side ? x0 + 12 * k : x0 + pw - 12 * k, sy = y + h / 2 + 2 * k, sp = grin ? 1 + 0.18 * Math.max(0, (G.until - now) / ART.hudGrinS - 0.75) * 4 : 1;
-    if (px) pxRampDraw(ctx, String(t.score), sx, sy, ds * sp, ['#FFFFFF', '#FFFFFF', '#F3F0FF', '#D8DCF4'], { big: true, align: side ? 'left' : 'right' }); // §8.5: the 7×11 score digits
-    else { ctx.save(); ctx.translate(sx, sy); ctx.scale(sp, sp); ctx.font = fontStr(ds, true); ctx.textAlign = side ? 'left' : 'right'; ctx.lineJoin = 'round'; ctx.fillStyle = ctx.strokeStyle = ART.uiInk; ctx.lineWidth = ds * 0.2; ctx.strokeText(String(t.score), ds * 0.05, ds * 0.07); ctx.fillText(String(t.score), ds * 0.05, ds * 0.07); ctx.strokeText(String(t.score), 0, 0); ctx.fillStyle = '#FFFFFF'; ctx.fillText(String(t.score), 0, 0); ctx.restore(); } // bold digits: an ink outline and a drop shadow
+    { ctx.save(); ctx.translate(sx, sy); ctx.scale(sp, sp); ctx.font = fontStr(ds, true); ctx.textAlign = side ? 'left' : 'right'; ctx.lineJoin = 'round'; ctx.fillStyle = ctx.strokeStyle = ART.uiInk; ctx.lineWidth = ds * 0.2; ctx.strokeText(String(t.score), ds * 0.05, ds * 0.07); ctx.fillText(String(t.score), ds * 0.05, ds * 0.07); ctx.strokeText(String(t.score), 0, 0); ctx.fillStyle = '#FFFFFF'; ctx.fillText(String(t.score), 0, 0); ctx.restore(); } // bold digits: an ink outline and a drop shadow
     if (m.possession === t.index && m.phase !== 'postgame' && !m.ended) { const bx = side ? cx + cw / 2 - 1 : cx - cw / 2 + 1, by = y + h + 4 * k; ctx.fillStyle = '#FF8A2A'; ctx.beginPath(); ctx.arc(bx, by, 5 * k, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = 1; ctx.stroke(); } // possession: the ball by the side that has it
   }
   // center: clock (or the target score), the period, the shot clock
@@ -5956,12 +5955,14 @@ function buildPoster(src, headline, sub, palette, scoreText) {
 
 // ============================================================================
 // SECTION: VENUES — the pro arena, college arena, high school gym and blacktop (§4), drawn as parallax layers back to
-// front (§2). L0 (the far layer) and L1 (the crowd tiers) render into half-resolution buffers redrawn at 30 Hz and blitted
-// every frame with the camera's latest position; L2 (LED ribbon, courtside, walls in front of the crowd) and the lighting
+// front (§2). L0 (the far layer) and L1 (the crowd tiers) render into one buffer (full resolution since L15; half from guard
+// level 1) redrawn at 30 Hz and blitted every frame with the camera's latest position; L2 (LED ribbon, courtside, walls in front of the crowd) and the lighting
 // overlay (L10) draw at full resolution. The rooftop and beach exhibition courts keep their original painters.
 // ============================================================================
 Object.assign(ART, {
-  layerRes: 0.5,               // far layer and crowd buffers render at this fraction of the screen resolution
+  layerRes: 1,                 // far layer and crowd buffer resolution, as a fraction of the screen's (L15: full resolution, so banners and faces are crisp; was 0.5)...
+  layerResLow: 0.5,            // ...from performance-guard level 1
+  reflectRes: 0.5,             // floor reflections render at this fraction of the screen resolution (they are blurred and faded anyway)
   layerHz: 30,                 // ...and redraw this often (the performance guard drops the crowd to 15)
   layerMargin: 0.08,           // buffers overscan each screen edge by this fraction so camera moves between redraws never show an edge
   squashFrom: { pro: 4.2, college: 3.0, hs: 2.9, street: 2.4 }, // above this height (the top of the crowd or wall), heights are squashed...
@@ -6018,8 +6019,8 @@ function parView(cam, f, res, padX, padY) {
 // its last camera state to the current one (so it scrolls and zooms smoothly between redraws).
 class LayerBuffer {
   constructor(f) { this.f = f; this.c = document.createElement('canvas'); this.g = this.c.getContext('2d'); this.t = -1; this.v = null; }
-  update(cam, now, hz, paint) {
-    const r = ART.layerRes, px = cam.W * ART.layerMargin, py = cam.H * ART.layerMargin; const W_ = Math.max(8, Math.round((cam.W + 2 * px) * r * (cam.dpr || 1))), H_ = Math.max(8, Math.round((cam.H + 2 * py) * r * (cam.dpr || 1)));
+  update(cam, now, hz, paint, res) {
+    const r = res || ART.layerRes, px = cam.W * ART.layerMargin, py = cam.H * ART.layerMargin; const W_ = Math.max(8, Math.round((cam.W + 2 * px) * r * (cam.dpr || 1))), H_ = Math.max(8, Math.round((cam.H + 2 * py) * r * (cam.dpr || 1)));
     let stale = !this.v || this.c.width !== W_ || this.c.height !== H_ || now - this.t >= 1 / hz || now < this.t;
     if (!stale) { const cur = parView(cam, this.f, 1), k = cam.ppm / this.v.ppm; stale = Math.abs(k - 1) > 0.04 || Math.abs(cur.ax - k * this.v.ax) > px * 0.8 || Math.abs(cur.ay - k * this.v.ay) > py * 0.8; } // zoomed or scrolled past the overscan
     if (!stale) return;
@@ -6029,7 +6030,11 @@ class LayerBuffer {
   }
   blit(ctx, cam, clipBottom) {
     if (!this.v) return; const cur = parView(cam, this.f, 1), k = cam.ppm / this.v.ppm, s = k / this.v.r;
-    ctx.save(); ctx.imageSmoothingEnabled = true; if (clipBottom != null) { ctx.beginPath(); ctx.rect(0, 0, cam.W, Math.max(0, clipBottom)); ctx.clip(); } /* nothing below the floor line shows */ ctx.translate(cur.ax - k * (this.v.ax + this.v.px), cur.ay - k * (this.v.ay + this.v.py)); ctx.scale(s, s); ctx.drawImage(this.c, 0, 0); ctx.restore();
+    const X = cur.ax - k * (this.v.ax + this.v.px), Y = cur.ay - k * (this.v.ay + this.v.py), M = ctx.getTransform ? ctx.getTransform() : null;
+    if (M && !M.b && !M.c && Math.abs(M.a * s - 1) < 1e-3 && Math.abs(M.d * s - 1) < 1e-3) { // L15: a full-resolution buffer lands 1:1 on the device pixel grid: a straight copy, no resampling
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); if (clipBottom != null) { ctx.beginPath(); ctx.rect(0, 0, ctx.canvas.width, Math.max(0, M.d * clipBottom + M.f)); ctx.clip(); } ctx.imageSmoothingEnabled = false; ctx.drawImage(this.c, Math.round(M.a * X + M.e), Math.round(M.d * Y + M.f)); ctx.restore(); return;
+    }
+    ctx.save(); ctx.imageSmoothingEnabled = true; if (clipBottom != null) { ctx.beginPath(); ctx.rect(0, 0, cam.W, Math.max(0, clipBottom)); ctx.clip(); } /* nothing below the floor line shows */ ctx.translate(X, Y); ctx.scale(s, s); ctx.drawImage(this.c, 0, 0); ctx.restore();
   }
 }
 function reportFrameError(e) { try { (window.HH_ERRORS = window.HH_ERRORS || []).push(String(e && e.message || e)); if (window.HH_ERRORS.length > 50) window.HH_ERRORS.shift(); } catch (x) { /* never throw from the reporter */ } }
@@ -6077,7 +6082,7 @@ class Venue {
   // L0–L2: everything behind the floor
   drawBack(ctx, cam, m, guard) {
     const t = m ? m.time : this.time, hz = ART.layerHz;
-    this.back.update(cam, t, guard >= 1 ? ART.layerHz / 2 : hz, (g, v) => { this.paintFar(g, v.at(this.farF), m, t); for (const T of this.tiers) this.paintTier(g, v.at(T.f), T, m, t); if (this.kind === 'pro') this.drawBeams(g, v.at(0.3), t, guard < 3); if (this.kind === 'legends') this.drawCones(g, v.at(0.3), t); if (guard < 3) this.paintBloom(g, v); this.paintVignette(g, v); if (this.bright()) brightGrade(g, this.kind === 'hs' ? ART.brightGradeHs : ART.brightGrade); }); this.back.blit(ctx, cam, cam.sy(0) + 2);
+    this.back.update(cam, t, guard >= 1 ? ART.layerHz / 2 : hz, (g, v) => { this.paintFar(g, v.at(this.farF), m, t); for (const T of this.tiers) this.paintTier(g, v.at(T.f), T, m, t); if (this.kind === 'pro') this.drawBeams(g, v.at(0.3), t, guard < 3); if (this.kind === 'legends') this.drawCones(g, v.at(0.3), t); if (guard < 3) this.paintBloom(g, v); this.paintVignette(g, v); if (this.bright()) brightGrade(g, this.kind === 'hs' ? ART.brightGradeHs : ART.brightGrade); }, guard >= 1 ? ART.layerResLow : ART.layerRes); this.back.blit(ctx, cam, cam.sy(0) + 2);
     if (this.kind === 'pro' || this.kind === 'legends') this.drawJumbotron(ctx, cam, m);
     this.drawNear(ctx, cam, m, t);
   }
@@ -6660,7 +6665,7 @@ function drawShadows(ctx, cam, players, ball, alpha, replay) {
 // L4: floor reflections from a half-resolution buffer, faded out with depth.
 let _reflBuf = null;
 function drawReflections(ctx, cam, paintMirrored, alpha) {
-  const { top, bottom } = floorBandOf(cam), W_ = cam.W, h = bottom - top; if (h < 4) return; const r = ART.layerRes * (cam.dpr || 1);
+  const { top, bottom } = floorBandOf(cam), W_ = cam.W, h = bottom - top; if (h < 4) return; const r = ART.reflectRes * (cam.dpr || 1);
   const B = _reflBuf || (_reflBuf = document.createElement('canvas')); const bw = Math.max(8, Math.round(W_ * r)), bh = Math.max(8, Math.round(h * r)); if (B.width !== bw || B.height !== bh) { B.width = bw; B.height = bh; }
   const g = B.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bw, bh); g.save(); g.scale(r, r); g.translate(0, top); g.scale(1, -1); g.translate(0, -top); try { paintMirrored(g); } catch (e) { reportFrameError(e); } g.restore();
   g.globalCompositeOperation = 'destination-in'; g.drawImage(vGradSprite('reflfade', [[0, 'rgba(0,0,0,1)'], [1, 'rgba(0,0,0,0)']]), 0, 0, bw, bh); g.globalCompositeOperation = 'source-over';
@@ -6676,7 +6681,7 @@ function drawMiniScene(g, cam, m, reader) {
 }
 
 // --- the performance guard: watches real frame intervals and sheds cost in the spec's order ---
-// Level 1: crowd buffers at 15 Hz and fewer particles; 2: no floor reflections; 3: no bloom or beam dust.
+// Level 1: crowd buffers at 15 Hz and half resolution (L15), and fewer particles; 2: no floor reflections; 3: no bloom or beam dust.
 class FrameGuard {
   constructor() { this.level = 0; this.lock = false; this.slowT = 0; this.fastT = 0; this.avg = 16.7; this.last = 0; }
   frame(now) {
@@ -6688,28 +6693,24 @@ class FrameGuard {
 }
 
 // ============================================================================
-// SECTION: PIXEL MODE (§8) — a pipeline on top of the painted art, not a second art set. The match renders into a small
-// internal buffer (k = max(2, round(device height / 240)) device pixels per internal pixel) that is blitted at exactly
-// k× with smoothing off. The background (venue, floor, reflections, shadows, the hoop's back) is quantized to a
-// 32-color palette with 4×4 Bayer dithering; each character is painted at 3× into a scratch canvas, box-filtered down,
-// alpha-thresholded, quantized to its own palette (a cached 15-bit LUT), cleaned up and outlined 1 px in #150B10.
-// The ball has 8 pre-pixelized rotation frames; particles are 1–3 px squares with dither-mask fades; callouts use the
-// 5×7 pixel font. Settings → Graphics switches between Pixel (default) and Smooth.
+// SECTION: PIXEL MODE (§8, L15) — the characters and the ball only. The match renders at full resolution with the
+// Smooth renderer; each character is painted at 3× into a scratch canvas, box-filtered down to sprite pixels,
+// alpha-thresholded, quantized to its own palette (a cached 15-bit LUT), cleaned up and outlined 1 px in #150B10, and the
+// ball has 8 pre-pixelized rotation frames. Sprites are composited at an integer scale (k = max(2, round(device height /
+// 240)) device pixels per sprite pixel), snapped to that pixel grid, with smoothing off. Settings → Graphics switches
+// between Pixel (default) and Smooth.
 // ============================================================================
 Object.assign(ART, {
-  pxRows: 240,                 // k = max(2, round(device height / pxRows))
+  pxRows: 240,                 // sprite pixels: k = max(2, round(device height / pxRows)) device pixels each
   pxSuper: 3,                  // characters are painted at this supersample and box-filtered down (the guard drops to 2)
   pxSuperPhone: 2,             // ...on a phone (L10: the 3× paint cost 11.8 ms a frame at 844×390 @2x; 2× looks the same at that size)
   pxAlphaCut: 0.45,            // a filtered pixel at least this opaque becomes opaque; the rest become transparent
-  pxVenueColors: 32,           // background palette size
-  pxDither: 14,                // Bayer 4×4 amplitude on the background (0–255 per channel; 26 made the floor grainy)
   pxInner: 0.32,               // selective inner lines: an opaque pixel whose 4-neighbor is this much lighter (luma 0–1) darkens a step
   pxInnerMix: 0.4,             // ...by mixing this much toward the ink before re-quantizing
   pxBudget: [4, 8],            // ms of pixel work per frame on desktop / phone before the guard sheds (§8.6)
   pxBallFrames: 8,             // pre-pixelized ball rotation frames
 });
-const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-const PXS = { buf: null, ctx: null, k: 2, f: 0.5, iw: 0, ih: 0, ss: ART.pxSuper, level: 0, ms: 0, over: 0, under: 0, frame: 0, sc: null, sctx: null, sprites: new WeakMap(), last: new WeakMap(), luts: new Map(), balls: new Map(), texts: new Map(), idx: null, tmp: null, on: false };
+const PXS = { k: 2, f: 0.5, ss: ART.pxSuper, level: 0, ms: 0, over: 0, under: 0, frame: 0, work: 0, sc: null, sctx: null, sprites: new WeakMap(), last: new WeakMap(), luts: new Map(), balls: new Map(), idx: null, tmp: null, ballBox: null };
 function pixelSetting(game) { try { return game.save.data.settings.graphics !== 'smooth'; } catch (e) { return true; } }
 
 // --- palettes and the 15-bit LUT (filled lazily: each 5-5-5 bin is matched the first time it is seen) ---
@@ -6726,30 +6727,6 @@ function pxNearest(P, r, g, b) {
   for (let i = 0, j = 0; i < P.n; i++, j += 3) { const dr = R - p[j], dg = G - p[j + 1], db = B - p[j + 2], d = dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11; if (d < bd) { bd = d; best = i; } }
   P.lut[bin] = best; return best;
 }
-// A background palette from a frame: the most common 5-5-5 colors, greedily kept at least a minimum distance apart.
-function pxBuildPalette(data, n, extra) {
-  const cnt = new Uint32Array(32768); for (let i = 0; i < data.length; i += 12) cnt[((data[i] >> 3) << 10) | ((data[i + 1] >> 3) << 5) | (data[i + 2] >> 3)]++;
-  const bins = []; for (let i = 0; i < 32768; i++) if (cnt[i]) bins.push(i); bins.sort((a, b) => cnt[b] - cnt[a]);
-  const out = [[21, 11, 16], [255, 255, 255]]; for (const h of extra || []) out.push(hexToRgb(h));
-  let minD = 1600; while (out.length < n && minD > 4) { for (const bi of bins) { if (out.length >= n) break; const r = ((bi >> 10) & 31) * 8 + 4, g = ((bi >> 5) & 31) * 8 + 4, b = (bi & 31) * 8 + 4; if (out.every(q => (q[0] - r) ** 2 * 0.3 + (q[1] - g) ** 2 * 0.59 + (q[2] - b) ** 2 * 0.11 > minD)) out.push([r, g, b]); } minD *= 0.5; }
-  return out.slice(0, n).map(q => rgbToHex(q[0], q[1], q[2]));
-}
-// Quantize a rectangle of the internal buffer (internal px), with or without ordered dithering (the hot loop: no calls
-// on a LUT hit, 32-bit writes).
-function pxQuantizeRect(ctx, P, x0, y0, w, h, dither) {
-  x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0)); w = Math.min(PXS.iw - x0, Math.ceil(w)); h = Math.min(PXS.ih - y0, Math.ceil(h)); if (w < 1 || h < 1) return;
-  const img = ctx.getImageData(x0, y0, w, h), t0 = performance.now(), d = img.data, u32 = new Uint32Array(d.buffer), lut = P.lut, amp = dither ? ART.pxDither : 0; // (the read flushes the scene's own raster work; timing starts after it)
-  if (!P.u32) { P.u32 = new Uint32Array(P.n); for (let i = 0; i < P.n; i++) P.u32[i] = (255 << 24 | P.rgb[i * 3 + 2] << 16 | P.rgb[i * 3 + 1] << 8 | P.rgb[i * 3]) >>> 0; }
-  const pal = P.u32, off = new Int16Array(16); for (let i = 0; i < 16; i++) off[i] = Math.round((BAYER4[i] / 16 - 0.47) * amp);
-  const ax = x0 + (PXS.dx | 0), ay = y0 + (PXS.dy | 0); // the pattern is anchored to the court, so it moves with the camera instead of crawling
-  for (let y = 0; y < h; y++) { const row = ((y + ay) & 3) * 4; let o = y * w * 4, q = y * w;
-    for (let x = 0; x < w; x++, o += 4, q++) { const t = off[row + ((x + ax) & 3)]; let r = d[o] + t, g = d[o + 1] + t, b = d[o + 2] + t;
-      if (r & ~255) r = r < 0 ? 0 : 255; if (g & ~255) g = g < 0 ? 0 : 255; if (b & ~255) b = b < 0 ? 0 : 255;
-      let v = lut[((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3)]; if (v === 255) v = pxNearest(P, r, g, b); u32[q] = pal[v]; } }
-  ctx.putImageData(img, x0, y0); PXS.work = (PXS.work || 0) + performance.now() - t0;
-}
-
-// --- the per-character palette (at most about 26 colors plus the ball) ---
 function pxCharPaletteKey(L, kit, age) { return 'c|' + lookKey(L) + '|' + ageStageOf(age) + '|' + kit.jersey + kit.trim + kit.shoe + kit.shoeAccent + kit.sock; }
 function pxCharPalette(L, kit, age) {
   const key = pxCharPaletteKey(L, kit, age); if (PXS.luts.has(key)) return PXS.luts.get(key);
@@ -6775,12 +6752,13 @@ function pxBodyBox(gm, P, extraTop) {
   for (const [dx, dy] of [[-0.24, 0.08], [0.24, 0.44]]) add(P.pelvis.x + dx, dy + P.pelvis.y - 0.24);
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of pts) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return [x0, y0, x1, y1];
 }
-// Paints one character pixelized onto the internal buffer. cam and the character's own drawing work in CSS px; f maps
-// CSS px to internal px. Returns false if nothing was drawn.
+// Paints one character as a pixel sprite onto the (full-resolution) canvas. cam and the character's own drawing work in
+// CSS px; f maps CSS px to sprite px; the sprite lands at PXS.k device px per sprite px on that grid. Returns false if
+// nothing was drawn.
 function pxDrawCharacter(pctx, cam, p, alpha, ball, team, opts, f, ballPaintFor) {
   const H = drawHeightOf(p), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), x = lerp(p.px != null ? p.px : p.x, p.x, alpha), y = lerp(p.py != null ? p.py : p.y, p.y, alpha); const k = cam.scale(z) * H; if (!(k > 2) || !isFinite(k)) return false;
   const lift = (p.anim && p.anim.lift) || 0, ox = cam.sx(x), oy = cam.sy(y + lift, z); if (!isFinite(ox + oy)) return false;
-  const last = PXS.last.get(p); if (PXS.level >= 3 && last && (PXS.frame & 1) && last.frame === PXS.frame - 1) { pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.imageSmoothingEnabled = false; pctx.drawImage(last.spr, Math.round(ox * f) + last.dx, Math.round(oy * f) + last.dy); pctx.restore(); return true; } // guard level 3: sprites update at 30 Hz
+  const last = PXS.last.get(p); if (PXS.level >= 3 && last && (PXS.frame & 1) && last.frame === PXS.frame - 1) { pctx.save(); pctx.setTransform(PXS.k, 0, 0, PXS.k, 0, 0); pctx.imageSmoothingEnabled = false; pctx.drawImage(last.spr, Math.round(ox * f) + last.dx, Math.round(oy * f) + last.dy); pctx.restore(); return true; } // guard level 3: sprites update at 30 Hz
   const ss = PXS.ss, K = f * ss, wide = p.inState && p.inState('knocked', 'stumble', 'stagger', 'rimhang', 'celebrate') ? 1.3 : 0.9;
   const bx0 = Math.floor((ox - wide * k) * f) / f, by0 = Math.floor((oy - 1.75 * k) * f) / f, sw = Math.ceil(2 * wide * k * f + 2) * ss, sh = Math.ceil(2.05 * k * f + 2) * ss;
   if (sw * sh > 4e6) return false; const g = pxScratch(sw, sh);
@@ -6792,7 +6770,7 @@ function pxDrawCharacter(pctx, cam, p, alpha, ball, team, opts, f, ballPaintFor)
   if (x1 - x0 < ss || y1 - y0 < ss) return false;
   const L = normLook(p.look, p.name), kit = kitOf(team, L), pal = pxCharPalette(L, kit, p.def && p.def.age);
   const spr = pxPixelize(g, x0, y0, x1 - x0, y1 - y0, ss, pal, PXS.level < 2, p), X = Math.round(bx0 * f + x0 / ss), Y = Math.round(by0 * f + y0 / ss);
-  pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.imageSmoothingEnabled = false; pctx.drawImage(spr, X, Y); pctx.restore(); PXS.last.set(p, { spr, dx: X - Math.round(ox * f), dy: Y - Math.round(oy * f), frame: PXS.frame }); return true;
+  pctx.save(); pctx.setTransform(PXS.k, 0, 0, PXS.k, 0, 0); pctx.imageSmoothingEnabled = false; pctx.drawImage(spr, X, Y); pctx.restore(); PXS.last.set(p, { spr, dx: X - Math.round(ox * f), dy: Y - Math.round(oy * f), frame: PXS.frame, box: [X * PXS.k, Y * PXS.k, (X + spr.width) * PXS.k, (Y + spr.height) * PXS.k] }); return true;
 }
 // The §8.3 steps on a scratch rectangle: box-filter by ss, alpha threshold, palette LUT, orphan and hole cleanup,
 // the 1-px outline, selective inner lines. Returns a canvas (one per owner, reused).
@@ -6836,138 +6814,20 @@ function pxDrawBall(pctx, cam, b, alpha, skin, onFire, f) {
   const x = lerp(b.px != null ? b.px : b.x, b.x, alpha) + (b.visDX || 0), y = lerp(b.py != null ? b.py : b.y, b.y, alpha) + (b.visDY || 0), z = lerp(b.pz != null ? b.pz : b.z, b.z, alpha);
   const r = BALL.radius * cam.scale(z) * 1.15 * f, sx = cam.sx(x) * f, sy = cam.sy(y, z) * f; if (!isFinite(sx + sy) || !(r > 0.4)) return;
   const fr = ((Math.floor((((b.spin || 0) * 0.25 + (b.rot || 0)) % TAU + TAU) % TAU / (TAU / ART.pxBallFrames))) % ART.pxBallFrames + ART.pxBallFrames) % ART.pxBallFrames, spr = pxBallSprite(r, fr, skin);
-  pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.imageSmoothingEnabled = false;
+  pctx.save(); pctx.setTransform(PXS.k, 0, 0, PXS.k, 0, 0); pctx.imageSmoothingEnabled = false;
   if (onFire) { const vx = b.vx || 0, vy = b.vy || 0, sp = Math.hypot(vx, vy) || 1; for (let i = 1; i <= 3; i++) { const s = Math.max(1, Math.round(r * (1 - i * 0.22))); pctx.fillStyle = i === 1 ? '#FFD23F' : i === 2 ? '#FF8A2A' : '#E0431A'; pctx.fillRect(Math.round(sx - vx / sp * r * 1.1 * i - s / 2), Math.round(sy + vy / sp * r * 1.1 * i - s / 2), s, s); } }
-  pctx.drawImage(spr, Math.round(sx - spr.width / 2), Math.round(sy - spr.height / 2)); pctx.restore();
+  const X = Math.round(sx - spr.width / 2), Y = Math.round(sy - spr.height / 2); pctx.drawImage(spr, X, Y); pctx.restore(); PXS.ballBox = [X * PXS.k, Y * PXS.k, (X + spr.width) * PXS.k, (Y + spr.height) * PXS.k];
 }
 
-// --- particles: 1–3 px squares; fades by dither masks, never by alpha ---
-function pxDrawParticles(pctx, cam, fx, f) {
-  const P = fx.pool, fr = PXS.frame; pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0);
-  for (let i = 0; i < P.count; i++) { const p = P.items[i], s = cam.scale(p.z), a = clamp01(p.life / p.max); const X = Math.round(cam.sx(p.x) * f), Y = Math.round(cam.sy(p.y, p.z) * f); if (!isFinite(X + Y)) continue;
-    const mask = a > 0.55 ? 0 : a > 0.25 ? 1 : 2; const show = (x, y) => mask === 0 || (mask === 1 ? ((x + y + fr) & 1) === 0 : ((x & 1) === 0 && ((y + fr) & 1) === 0));
-    const col = p.kind === 'puff' || p.kind === 'dust' ? '#E8E0D0' : p.kind === 'shock' ? '#FFFFFF' : p.kind === 'star' ? '#FFD23F' : p.color || '#FFFFFF'; pctx.fillStyle = col;
-    if (p.kind === 'shock' || p.kind === 'ring') { const r = Math.max(1, Math.round(p.size * s * f * (p.kind === 'shock' ? 1 + (1 - a) * 2 : 1))), ry = Math.max(1, Math.round(r * 0.45)), n = Math.max(8, r * 3); for (let k = 0; k < n; k++) { const t = k / n * TAU, x = X + Math.round(Math.cos(t) * r), y = Y + Math.round(Math.sin(t) * ry); if (show(x, y)) pctx.fillRect(x, y, 1, 1); } continue; }
-    const sz = clamp(Math.round(p.size * s * f * (p.kind === 'confetti' ? 1 : 0.8)), 1, 3); if (show(X, Y)) pctx.fillRect(X - (sz >> 1), Y - (sz >> 1), sz, sz);
-  }
-  pctx.restore();
-}
 
-// --- the 5×7 pixel font (A–Z, 0–9 and . , ! ? ' - : / + % # ( ) and space) ---
-const PX_FONT = (() => { const G = {}, def = (ch, rows) => { G[ch] = rows.split(' '); };
-  def('A', '.###. #...# #...# ##### #...# #...# #...#'); def('B', '####. #...# #...# ####. #...# #...# ####.'); def('C', '.###. #...# #.... #.... #.... #...# .###.'); def('D', '####. #...# #...# #...# #...# #...# ####.');
-  def('E', '##### #.... #.... ####. #.... #.... #####'); def('F', '##### #.... #.... ####. #.... #.... #....'); def('G', '.###. #...# #.... #.### #...# #...# .####'); def('H', '#...# #...# #...# ##### #...# #...# #...#');
-  def('I', '.###. ..#.. ..#.. ..#.. ..#.. ..#.. .###.'); def('J', '..### ...#. ...#. ...#. #..#. #..#. .##..'); def('K', '#...# #..#. #.#.. ##... #.#.. #..#. #...#'); def('L', '#.... #.... #.... #.... #.... #.... #####');
-  def('M', '#...# ##.## #.#.# #.#.# #...# #...# #...#'); def('N', '#...# #...# ##..# #.#.# #..## #...# #...#'); def('O', '.###. #...# #...# #...# #...# #...# .###.'); def('P', '####. #...# #...# ####. #.... #.... #....');
-  def('Q', '.###. #...# #...# #...# #.#.# #..#. .##.#'); def('R', '####. #...# #...# ####. #.#.. #..#. #...#'); def('S', '.#### #.... #.... .###. ....# ....# ####.'); def('T', '##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..');
-  def('U', '#...# #...# #...# #...# #...# #...# .###.'); def('V', '#...# #...# #...# #...# #...# .#.#. ..#..'); def('W', '#...# #...# #...# #.#.# #.#.# #.#.# .#.#.'); def('X', '#...# #...# .#.#. ..#.. .#.#. #...# #...#');
-  def('Y', '#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..'); def('Z', '##### ....# ...#. ..#.. .#... #.... #####');
-  def('0', '.###. #...# #..## #.#.# ##..# #...# .###.'); def('1', '..#.. .##.. ..#.. ..#.. ..#.. ..#.. .###.'); def('2', '.###. #...# ....# ...#. ..#.. .#... #####'); def('3', '####. ....# ....# .###. ....# ....# ####.');
-  def('4', '...#. ..##. .#.#. #..#. ##### ...#. ...#.'); def('5', '##### #.... ####. ....# ....# #...# .###.'); def('6', '.###. #.... #.... ####. #...# #...# .###.'); def('7', '##### ....# ...#. ..#.. .#... .#... .#...');
-  def('8', '.###. #...# #...# .###. #...# #...# .###.'); def('9', '.###. #...# #...# .#### ....# ....# .###.');
-  def('.', '..... ..... ..... ..... ..... .##.. .##..'); def(',', '..... ..... ..... ..... .##.. ..#.. .#...'); def('!', '..#.. ..#.. ..#.. ..#.. ..#.. ..... ..#..'); def('?', '.###. #...# ....# ...#. ..#.. ..... ..#..');
-  def("'", '..#.. ..#.. .#... ..... ..... ..... .....'); def('-', '..... ..... ..... .###. ..... ..... .....'); def(':', '..... .##.. .##.. ..... .##.. .##.. .....'); def('/', '....# ....# ...#. ..#.. .#... #.... #....');
-  def('+', '..... ..#.. ..#.. ##### ..#.. ..#.. .....'); def('%', '##..# ##..# ...#. ..#.. .#... #..## #..##'); def('#', '.#.#. .#.#. ##### .#.#. ##### .#.#. .#.#.'); def('(', '...#. ..#.. .#... .#... .#... ..#.. ...#.');
-  def(')', '.#... ..#.. ...#. ...#. ...#. ..#.. .#...'); def(' ', '..... ..... ..... ..... ..... ..... .....'); return G; })();
-function pxGlyph(ch) { ch = String(ch).toUpperCase(); if (ch === '–' || ch === '—') ch = '-'; if (ch === '’') ch = "'"; return PX_FONT[ch] || PX_FONT['?']; }
-function pxTextWidth(str, scale) { return (String(str).length * 6 - 1) * (scale || 1); }
-// Text in the pixel font on a canvas at 1 unit per pixel (the internal buffer, or any nearest-scaled layer): scale is an
-// integer; outline adds a 1-px ring; shadow a 1-px drop shadow down-right. Cached per string and style.
-function pxTextCanvas(str, scale, color, outline, shadow) {
-  str = String(str); scale = Math.max(1, Math.round(scale || 1)); const key = str + '|' + scale + '|' + color + '|' + (outline || '') + '|' + (shadow || ''); let c = PXS.texts.get(key); if (c) return c;
-  const w = pxTextWidth(str, scale) + 4, h = 7 * scale + 4; c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = h; const g = c.getContext('2d');
-  const paint = (col, dx, dy) => { g.fillStyle = col; for (let i = 0; i < str.length; i++) { const G = pxGlyph(str[i]); for (let r = 0; r < 7; r++) for (let q = 0; q < 5; q++) if (G[r][q] === '#') g.fillRect(1 + i * 6 * scale + q * scale + dx, 1 + r * scale + dy, scale, scale); } };
-  if (shadow) paint(shadow, 1, 1); if (outline) for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) paint(outline, dx, dy); paint(color, 0, 0);
-  if (PXS.texts.size > 300) PXS.texts.clear(); PXS.texts.set(key, c); return c;
-}
-function pxText(ctx, str, x, y, scale, color, outline, shadow, align) { const c = pxTextCanvas(str, scale, color, outline, shadow); const X = align === 'left' ? x : align === 'right' ? x - c.width : x - c.width / 2; ctx.drawImage(c, Math.round(X), Math.round(y - c.height / 2)); }
-// Callouts in Pixel mode: the pixel font at 2–3× with a 1-px outline and drop shadow; the pop steps through whole scales.
-function pxDrawCallouts(pctx, m, dt) {
-  pctx.save(); pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.imageSmoothingEnabled = false;
-  for (let i = m.callouts.length - 1; i >= 0; i--) { const c = m.callouts[i]; c.t += dt; if (c.t > c.life) { m.callouts.splice(i, 1); continue; } const kk = calloutScale(c.t); if (kk < 0.3) continue; const base = c.big ? 3 : 2, sc = Math.max(1, Math.round(base * Math.min(kk, 1.34)));
-    if (c.t > c.life - 0.3 && ((PXS.frame + i) & 1)) continue; // the fade-out flickers instead of blending
-    pxText(pctx, c.text, PXS.iw / 2, Math.round(PXS.ih * 0.3 + i * 10 * base), sc, mixHex(c.color || CALLOUT.make, '#FFFFFF', 0.15), ART.inkLine, ART.inkLine); }
-  pctx.restore();
-}
-
-// --- the frame ---
-function pxBegin(game) {
-  const devW = game.canvas.width, devH = game.canvas.height, k = Math.max(2, Math.round(devH / ART.pxRows)), iw = Math.ceil(devW / k), ih = Math.ceil(devH / k);
-  if (!PXS.buf) { PXS.buf = document.createElement('canvas'); PXS.ctx = PXS.buf.getContext('2d', { willReadFrequently: true }); }
-  if (PXS.buf.width !== iw || PXS.buf.height !== ih) { PXS.buf.width = iw; PXS.buf.height = ih; }
-  PXS.k = k; PXS.iw = iw; PXS.ih = ih; PXS.f = game.dpr / k; PXS.frame++; PXS.ss = PXS.level >= 1 ? 2 : (game.ui && game.ui.phone ? ART.pxSuperPhone : ART.pxSuper);
-  const c = PXS.ctx; c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.imageSmoothingEnabled = true; c.fillStyle = '#000'; c.fillRect(0, 0, iw, ih); c.setTransform(PXS.f, 0, 0, PXS.f, 0, 0); return c;
-}
-function pxBlit(game) { const ctx = game.ctx; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(PXS.buf, 0, 0, PXS.iw * PXS.k, PXS.ih * PXS.k); ctx.restore(); }
-// No shimmer: the camera snaps to whole internal pixels while a frame renders.
-function pxSnapCam(cam, f) { const s = { x: cam.x.x, y: cam.y.x, sx: cam.shakeX, sy: cam.shakeY }, q = cam.ppm * f; if (q > 0) { cam.x.x = Math.round(cam.x.x * q) / q; cam.y.x = Math.round(cam.y.x * q) / q; PXS.dx = Math.round(cam.x.x * q); PXS.dy = -Math.round(cam.y.x * q); cam.shakeX = Math.round((cam.shakeX || 0) * q) / q; cam.shakeY = Math.round((cam.shakeY || 0) * q) / q; } return () => { cam.x.x = s.x; cam.y.x = s.y; cam.shakeX = s.sx; cam.shakeY = s.sy; }; }
-// The background palette for a venue or court, built once from its first frame.
-function pxVenuePalette(pctx, key, extra) {
-  const k = 'v|' + key; if (PXS.luts.has(k)) return PXS.luts.get(k);
-  const d = pctx.getImageData(0, 0, PXS.iw, PXS.ih).data; return pxPalette(k, pxBuildPalette(d, ART.pxVenueColors, extra));
+// --- the frame (L15): no buffer, no quantized background; just the sprite scale for this frame ---
+function pxSetup(game) {
+  const k = Math.max(2, Math.round(game.canvas.height / ART.pxRows)); PXS.k = k; PXS.f = game.dpr / k; PXS.frame++; PXS.ballBox = null;
+  PXS.ss = PXS.level >= 1 ? 2 : (game.ui && game.ui.phone ? ART.pxSuperPhone : ART.pxSuper); return PXS;
 }
 // The guard (§8.6): pixel work over budget sheds, in order: characters at 2× instead of 3×, then no selective inner
 // lines, then character sprites redrawn at 30 Hz.
 function pxGuard(ms, phone) { PXS.ms = PXS.ms * 0.9 + ms * 0.1; const B = ART.pxBudget[phone ? 1 : 0]; if (PXS.ms > B) { PXS.over++; PXS.under = 0; if (PXS.over > 90 && PXS.level < 3) { PXS.level++; PXS.over = 0; } } else if (PXS.ms < B * 0.5) { PXS.under++; PXS.over = 0; if (PXS.under > 240 && PXS.level > 0) { PXS.level--; PXS.under = 0; } } }
-// --- §8.5 pixel UI pieces: ramp titles, the logo, the 7×11 score digits, notched panels ---
-const PX_DIGITS = (() => { const D = {}, def = (ch, rows) => { D[ch] = rows.split(' '); };
-  def('0', '.#####. ##...## ##...## ##...## ##...## ##...## ##...## ##...## ##...## ##...## .#####.'); def('1', '...##.. ..###.. .####.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. .######');
-  def('2', '.#####. ##...## .....## .....## ....##. ...##.. ..##... .##.... ##..... ##..... #######'); def('3', '######. .....## .....## .....## ..####. .....## .....## .....## .....## ##...## .#####.');
-  def('4', '....##. ...###. ..####. .##.##. ##..##. ##..##. #######. ....##. ....##. ....##. ....##.'); def('5', '####### ##..... ##..... ######. .....## .....## .....## .....## .....## ##...## .#####.');
-  def('6', '.#####. ##...## ##..... ##..... ######. ##...## ##...## ##...## ##...## ##...## .#####.'); def('7', '####### .....## ....##. ....##. ...##.. ...##.. ..##... ..##... ..##... ..##... ..##...');
-  def('8', '.#####. ##...## ##...## ##...## .#####. ##...## ##...## ##...## ##...## ##...## .#####.'); def('9', '.#####. ##...## ##...## ##...## ##...## .######. .....## .....## .....## ##...## .#####.');
-  return D; })();
-const PX_RAMP = ['#FFF6B0', '#FFE45A', '#FFC928', '#FFA41E', '#F57F16', '#D95A10']; // the logo's 6-step yellow → orange ramp
-// §8.5 menus: while PXUI.on the UI kit draws its Pixel versions. Menus render into a layer at 2× the internal
-// resolution (one UI pixel = k/2 device pixels, rounded down so every UI pixel is the same size) and blit with smoothing
-// off; PXUI.u is one UI pixel in the current drawing units.
-const PXUI = { on: false, u: 1, U: 1, buf: null, ctx: null };
-function uiPixel() { return PXUI.on; }
-function pxUIUnit(game) { const k = Math.max(2, Math.round(((game.canvas && game.canvas.height) || 720) / ART.pxRows)); return Math.max(1, Math.floor(k / 2)); }
-function pxUIDraw(game, fn, unitScale) {
-  const U = pxUIUnit(game), dpr = game.dpr || 1; PXUI.on = true; PXUI.U = U; PXUI.u = U / Math.max(0.01, dpr * (unitScale || 1));
-  if (U < 2) { try { fn(game.ctx); } finally { PXUI.on = false; } return; } // one UI pixel is one device pixel: draw straight to the screen
-  const w = Math.ceil(game.canvas.width / U), h = Math.ceil(game.canvas.height / U); if (!PXUI.buf) { PXUI.buf = document.createElement('canvas'); PXUI.ctx = PXUI.buf.getContext('2d'); }
-  if (PXUI.buf.width !== w || PXUI.buf.height !== h) { PXUI.buf.width = w; PXUI.buf.height = h; }
-  const g = PXUI.ctx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, w, h); g.setTransform(dpr / U, 0, 0, dpr / U, 0, 0);
-  try { fn(g); } finally { PXUI.on = false; const ctx = game.ctx; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = false; ctx.drawImage(PXUI.buf, 0, 0, w * U, h * U); ctx.restore(); }
-}
-// The logo's basketball in pixels: 7 font pixels across, painted in cells a third of a font pixel (so it reads as a
-// ball, still in chunky pixels): three oranges lit from the top left, a seam cross and two side seams, an ink ring.
-function pxBallIcon(ctx, x, y, size, op, u) {
-  u = u || 1; const cs = Math.max(1, Math.round(size / u / 3)), key = 'ballicon|' + op; let c = PXS.texts.get(key);
-  if (!c) { const R = 10.5, ring = Math.max(1, op), N = Math.ceil(2 * (R + ring)) + 2; c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const dx = i + 0.5 - N / 2, dy = j + 0.5 - N / 2, d = Math.hypot(dx, dy); let col = null;
-      if (d <= R) { const l = (dx + dy) / R, side = Math.abs(Math.hypot(Math.abs(dx) - R * 1.25, dy) - R * 0.95); col = Math.abs(dx) < 0.6 || Math.abs(dy) < 0.6 || side < 0.55 ? ART.inkLine : l < -0.75 ? '#FFB866' : l < 0.45 ? '#F07A22' : '#B4480F'; if (Math.hypot(dx + R * 0.42, dy + R * 0.48) < R * 0.2 && col !== ART.inkLine) col = '#FFE0B0'; }
-      else if (d <= R + ring) col = ART.inkLine; if (col) { g.fillStyle = col; g.fillRect(i, j, 1, 1); } }
-    PXS.texts.set(key, c); }
-  const k = cs * u; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, x - c.width * k / 2, y - c.height * k / 2, c.width * k, c.height * k); ctx.restore();
-}
-
-
-// Text in the 5×7 pixel font (or the 7×11 digits when every character is a digit and big is set): m canvas pixels per
-// font pixel, colored band by band from a ramp, an ink outline op pixels wide and a drop shadow down-right. One canvas per
-// style, drawn at one UI pixel per canvas pixel.
-function pxRampCanvas(str, ramp, op, shadow, big, m) {
-  str = String(str).toUpperCase(); m = Math.max(1, Math.round(m || 1)); const digits = big && /^[0-9]+$/.test(str); const gw = digits ? 7 : 5, gh = digits ? 11 : 7, adv = gw + 1;
-  const key = 'ramp|' + str + '|' + ramp.join() + '|' + op + '|' + (shadow ? 1 : 0) + '|' + (digits ? 1 : 0) + '|' + m; let c = PXS.texts.get(key); if (c) return c;
-  const sh = shadow ? op + 1 : 0, pad = op + sh + 1, w = (str.length * adv - 1) * m + pad * 2, h = gh * m + pad * 2; c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = h; const g = c.getContext('2d');
-  const on = []; for (let i = 0; i < str.length; i++) { const G = digits ? PX_DIGITS[str[i]] : pxGlyph(str[i]); if (!G) continue; for (let r = 0; r < gh; r++) for (let q = 0; q < gw; q++) if (G[r] && G[r][q] === '#') on.push([pad + (i * adv + q) * m, pad + r * m]); }
-  const blob = (dx, dy) => { for (const [x, y] of on) g.fillRect(x + dx, y + dy, m, m); };
-  g.fillStyle = ART.inkLine; for (let dy = -op; dy <= op; dy++) for (let dx = -op; dx <= op; dx++) { if (Math.abs(dx) + Math.abs(dy) > op * 1.5) continue; blob(dx, dy); if (sh) blob(dx + sh, dy + sh); } // outline and shadow
-  for (const [x, y] of on) for (let j = 0; j < m; j++) { g.fillStyle = ramp[Math.min(ramp.length - 1, Math.floor((y - pad + j) / (gh * m) * ramp.length))]; g.fillRect(x, y + j, m, 1); } // the ramp, band by band
-  if (m >= 3) { g.fillStyle = 'rgba(255,255,255,0.45)'; for (const [x, y] of on) if ((y - pad) / m === 0) g.fillRect(x, y, m, 1); } // a 1-px shine on the top row
-  if (PXS.texts.size > 300) PXS.texts.clear(); PXS.texts.set(key, c); return c;
-}
-// Draws ramp text about px tall at a point: whole canvas pixels per font pixel, one UI pixel per canvas pixel. Returns
-// the layout ({ w, m, pad, u }) so callers can place things on the letters.
-function pxRampDraw(ctx, str, x, y, px, ramp, opts) {
-  opts = opts || {}; const digits = opts.big && /^[0-9]+$/.test(String(str)), gh = digits ? 11 : 7, u = PXUI.on ? PXUI.u : 1, op = opts.outline != null ? opts.outline : 2, shadow = opts.shadow !== false;
-  const m = Math.max(1, Math.round(px / (gh + 2) / u)), c = pxRampCanvas(str, ramp || PX_RAMP, op, shadow, opts.big, m), w = c.width * u, h = c.height * u, X = opts.align === 'left' ? x : opts.align === 'right' ? x - w : x - w / 2;
-  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, X, y - h / 2, w, h); ctx.restore(); return { w, m, pad: op + (shadow ? op + 1 : 0) + 1, u, x0: X };
-}
-// A panel with square corners cut by a 2-step notch and a crisp border (§8.5).
-function pxNotchPath(ctx, x, y, w, h, n) { ctx.beginPath(); ctx.moveTo(x + n, y); ctx.lineTo(x + w - n, y); ctx.lineTo(x + w - n, y + n / 2); ctx.lineTo(x + w - n / 2, y + n / 2); ctx.lineTo(x + w - n / 2, y + n); ctx.lineTo(x + w, y + n); ctx.lineTo(x + w, y + h - n); ctx.lineTo(x + w - n / 2, y + h - n); ctx.lineTo(x + w - n / 2, y + h - n / 2); ctx.lineTo(x + w - n, y + h - n / 2); ctx.lineTo(x + w - n, y + h); ctx.lineTo(x + n, y + h); ctx.lineTo(x + n, y + h - n / 2); ctx.lineTo(x + n / 2, y + h - n / 2); ctx.lineTo(x + n / 2, y + h - n); ctx.lineTo(x, y + h - n); ctx.lineTo(x, y + n); ctx.lineTo(x + n / 2, y + n); ctx.lineTo(x + n / 2, y + n / 2); ctx.lineTo(x + n, y + n / 2); ctx.closePath(); }
 
 // ============================================================================
 // SECTION: FX — pooled particles, hit-stop, slow-mo, screen shake, callouts, posters; all driven by events
@@ -7241,9 +7101,6 @@ function uiReduceMotion() { try { return !!(game && game.save && game.save.data.
 // --- panels ---
 function kitPanel(ctx, x, y, w, h, fill, opts) {
   opts = opts || {}; const r = opts.radius != null ? opts.radius : ART.uiRadius;
-  if (uiPixel()) { const u = PXUI.u, n = 2 * u; ctx.fillStyle = 'rgba(0,0,12,0.4)'; pxNotchPath(ctx, x + u, y + 2 * u, w, h, n); ctx.fill(); ctx.fillStyle = fill || ART.uiPanel; pxNotchPath(ctx, x, y, w, h, n); ctx.fill(); // §8.5: a notched panel with 1-px borders
-    ctx.fillStyle = 'rgba(94,224,255,0.55)'; ctx.fillRect(x + n, y, w - 2 * n, u); ctx.fillRect(x + n, y + h - u, w - 2 * n, u); ctx.fillRect(x, y + n, u, h - 2 * n); ctx.fillRect(x + w - u, y + n, u, h - 2 * n); ctx.fillRect(x + n / 2, y + n / 2, n / 2, u); ctx.fillRect(x + n / 2, y + n / 2, u, n / 2); ctx.fillRect(x + w - n, y + n / 2, n / 2, u); ctx.fillRect(x + w - n / 2 - u, y + n / 2, u, n / 2); ctx.fillRect(x + n / 2, y + h - n / 2 - u, n / 2, u); ctx.fillRect(x + n / 2, y + h - n, u, n / 2); ctx.fillRect(x + w - n, y + h - n / 2 - u, n / 2, u); ctx.fillRect(x + w - n / 2 - u, y + h - n, u, n / 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(x + n, y + u, w - 2 * n, u); if (opts.accent) { ctx.fillStyle = opts.accent; ctx.fillRect(x + n + 4 * u, y, w - 2 * n - 8 * u, 2 * u); } return; }
   if (!opts.flat) { ctx.fillStyle = 'rgba(0,0,12,0.32)'; ctx.beginPath(); roundRectPath(ctx, x + 2, y + 5, w, h, r); ctx.fill(); } // a soft drop under the glass
   ctx.fillStyle = fill || ART.uiPanel; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.fill();
   const gl = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 140)); gl.addColorStop(0, 'rgba(255,255,255,0.05)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gl; ctx.beginPath(); roundRectPath(ctx, x, y, w, Math.min(h, 140), r); ctx.fill();
@@ -7270,8 +7127,6 @@ function kitStamp(ctx, text, x, y, px, fill, opts) {
 // Pixel mode sets them in the pixel font on the logo's 6-step ramp instead.
 function kitTitle(ctx, text, x, y, px, opts) {
   opts = opts || {}; text = String(text); const align = opts.align || 'left';
-  if (uiPixel() && !opts.smooth) { const hole = opts.ballAt != null ? text.slice(0, opts.ballAt) + ' ' + text.slice(opts.ballAt + 1) : text; const L = pxRampDraw(ctx, hole, x, y, px, opts.ramp || PX_RAMP, { align, outline: opts.pxOutline || 2 });
-    if (opts.ballAt != null) pxBallIcon(ctx, L.x0 + (L.pad + (opts.ballAt * 6 + 2.5) * L.m) * L.u, y, L.m * L.u, opts.pxOutline || 2, L.u); return; }
   const chars = [...text]; ctx.save(); ctx.translate(x, y); if (opts.tilt) ctx.rotate(opts.tilt * Math.PI / 180); if (opts.scale != null) ctx.scale(opts.scale, opts.scale);
   ctx.font = fontStr(px, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
   const ws = chars.map(ch => ctx.measureText(ch).width), total = ws.reduce((a, b) => a + b, 0), x0 = align === 'left' ? 0 : align === 'right' ? -total : -total / 2, half = Math.max(1, total / 2);
@@ -7296,7 +7151,7 @@ function drawBallIcon(ctx, x, y, r, rot) {
   ctx.strokeStyle = ART.uiInk; ctx.lineWidth = Math.max(2, r * 0.12); ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); ctx.restore();
 }
 // The game's logo: HOOP HEADS with the first O as a basketball.
-function kitLogo(ctx, x, y, px, opts) { kitTitle(ctx, 'HOOP HEADS', x, y, px, Object.assign({ ballAt: 1, align: 'center', pxOutline: 2, ramp: uiPixel() ? PX_RAMP : ['#FFF6B0', '#FFE45A', '#FFC928', '#FFA41E', '#F57F16', '#D95A10'] }, opts || {})); }
+function kitLogo(ctx, x, y, px, opts) { kitTitle(ctx, 'HOOP HEADS', x, y, px, Object.assign({ ballAt: 1, align: 'center', pxOutline: 2, ramp: ['#FFF6B0', '#FFE45A', '#FFC928', '#FFA41E', '#F57F16', '#D95A10'] }, opts || {})); }
 
 // --- buttons and chips ---
 // §6 press: squash to 0.94, overshoot to 1.03, settle (instant with Reduce Motion).
@@ -7310,18 +7165,18 @@ function kitBtnLip(w) { return Math.min(ART.uiBtnLip, w.h * 0.12); }
 // §6 buttons: a 3 px ink outline and a 6 px darker lip under the face; primary gold → orange, secondary blue. Pixel mode
 // cuts the corners in notches and drops the glow.
 function kitButton(ctx, w, focused, t, opts) {
-  opts = opts || {}; const disabled = w.enabled === false, primary = !!w.primary, px = uiPixel(), hot = focused && !disabled; const s = btnScale(w, hot, t);
-  const lip = kitBtnLip(w), ol = ART.uiBtnOutline, r = Math.min(ART.uiBtnR, w.h / 2), n = Math.min(4 * PXUI.u, w.h / 4);
-  const path = (xx, yy, ww, hh) => { if (px) pxNotchPath(ctx, xx, yy, ww, hh, n); else { ctx.beginPath(); roundRectPath(ctx, xx, yy, ww, hh, Math.min(r, hh / 2)); } };
+  opts = opts || {}; const disabled = w.enabled === false, primary = !!w.primary, hot = focused && !disabled; const s = btnScale(w, hot, t);
+  const lip = kitBtnLip(w), ol = ART.uiBtnOutline, r = Math.min(ART.uiBtnR, w.h / 2);
+  const path = (xx, yy, ww, hh) => { ctx.beginPath(); roundRectPath(ctx, xx, yy, ww, hh, Math.min(r, hh / 2)); };
   const C = disabled ? ['#4A5274', '#3A4264', '#2C3350'] : primary ? (hot ? ['#FFF3A6', '#FFCB3E', '#FF9A22'] : ['#FFE680', '#FFBE34', '#F58C1C']) : (hot ? ['#79A8FF', '#4C80F4', '#3462DA'] : ['#5A8CF0', '#3A6FE0', '#2A55C4']);
   const LIP = disabled ? '#1E2238' : primary ? '#A8480E' : '#1E3FA8';
   ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(s, s); const x = -w.w / 2, y = -w.h / 2;
   ctx.fillStyle = 'rgba(0,0,12,0.35)'; path(x + 2, y + 4, w.w, w.h); ctx.fill(); // drop
-  if (hot && !px) { ctx.shadowColor = 'rgba(255,210,63,0.75)'; ctx.shadowBlur = 16; }
+  if (hot) { ctx.shadowColor = 'rgba(255,210,63,0.75)'; ctx.shadowBlur = 16; }
   ctx.fillStyle = LIP; path(x, y, w.w, w.h); ctx.fill(); ctx.shadowBlur = 0; // the lip: the whole shape in the dark color, the face on top of it
   const g = ctx.createLinearGradient(0, y, 0, y + w.h - lip); g.addColorStop(0, C[0]); g.addColorStop(0.5, C[1]); g.addColorStop(1, C[2]); ctx.fillStyle = g; path(x, y, w.w, w.h - lip); ctx.fill();
-  ctx.fillStyle = primary && !disabled ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)'; if (px) ctx.fillRect(x + n, y + ol + PXUI.u, w.w - 2 * n, 2 * PXUI.u); else { ctx.beginPath(); roundRectPath(ctx, x + 5, y + 3, w.w - 10, Math.max(2, (w.h - lip) * 0.3), Math.max(1, r - 4)); ctx.fill(); } // top sheen
-  ctx.lineJoin = px ? 'miter' : 'round'; ctx.lineWidth = ol; ctx.strokeStyle = ART.uiInk; path(x, y, w.w, w.h); ctx.stroke();
+  ctx.fillStyle = primary && !disabled ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)'; ctx.beginPath(); roundRectPath(ctx, x + 5, y + 3, w.w - 10, Math.max(2, (w.h - lip) * 0.3), Math.max(1, r - 4)); ctx.fill(); // top sheen
+  ctx.lineJoin = 'round'; ctx.lineWidth = ol; ctx.strokeStyle = ART.uiInk; path(x, y, w.w, w.h); ctx.stroke();
   if (hot) { ctx.lineWidth = 2; ctx.strokeStyle = primary ? '#FFFFFF' : UI_GOLD; path(x + ol, y + ol, w.w - 2 * ol, w.h - lip - ol); ctx.stroke(); }
   ctx.restore();
   if (hot && !opts.noPointer) { ctx.fillStyle = UI_GOLD; ctx.beginPath(); ctx.moveTo(w.x - 16, w.y + w.h / 2 - 7); ctx.lineTo(w.x - 6, w.y + w.h / 2); ctx.lineTo(w.x - 16, w.y + w.h / 2 + 7); ctx.fill(); }
@@ -7330,10 +7185,10 @@ function kitButton(ctx, w, focused, t, opts) {
 // §6 select wall: a head in a grid. The hovered one bobbles and grins; the selected one is 1.15× with a gold ring.
 function drawSelectHead(ctx, w, def, colors, focused, selected, t) {
   const reduce = uiReduceMotion(), sc = selected ? ART.selHeadScale : 1, bob = focused && !reduce ? Math.sin(t * ART.selBobHz * TAU) * ART.selBobDeg * Math.PI / 180 : 0, hop = focused && !reduce ? Math.abs(Math.sin(t * ART.selBobHz * Math.PI)) * w.h * 0.04 : 0;
-  const cx = w.x + w.w / 2, cy = w.y + w.h / 2 - hop, S = w.w * sc, px = uiPixel(); ctx.save(); ctx.translate(cx, cy + S * 0.3); ctx.rotate(bob); ctx.translate(0, -S * 0.3);
-  if (selected) { if (!px) { ctx.shadowColor = 'rgba(255,210,63,0.9)'; ctx.shadowBlur = 14; } ctx.fillStyle = UI_GOLD; if (px) pxNotchPath(ctx, -S / 2 - 4, -S / 2 - 4, S + 8, S + 8, 6); else { ctx.beginPath(); roundRectPath(ctx, -S / 2 - 4, -S / 2 - 4, S + 8, S + 8, 13); } ctx.fill(); ctx.shadowBlur = 0; }
+  const cx = w.x + w.w / 2, cy = w.y + w.h / 2 - hop, S = w.w * sc; ctx.save(); ctx.translate(cx, cy + S * 0.3); ctx.rotate(bob); ctx.translate(0, -S * 0.3);
+  if (selected) { ctx.shadowColor = 'rgba(255,210,63,0.9)'; ctx.shadowBlur = 14; ctx.fillStyle = UI_GOLD; ctx.beginPath(); roundRectPath(ctx, -S / 2 - 4, -S / 2 - 4, S + 8, S + 8, 13); ctx.fill(); ctx.shadowBlur = 0; }
   try { ctx.drawImage(portraitOf(def, colors, 96, focused || selected ? 'hyped' : 'neutral'), -S / 2, -S / 2, S, S); } catch (e) { /* decoration */ }
-  ctx.lineWidth = selected ? 3 : focused ? 3 : 1.5; ctx.strokeStyle = selected ? ART.uiInk : focused ? UI_CYAN : 'rgba(255,255,255,0.25)'; if (px) pxNotchPath(ctx, -S / 2, -S / 2, S, S, 4); else { ctx.beginPath(); roundRectPath(ctx, -S / 2, -S / 2, S, S, 10); } ctx.stroke();
+  ctx.lineWidth = selected ? 3 : focused ? 3 : 1.5; ctx.strokeStyle = selected ? ART.uiInk : focused ? UI_CYAN : 'rgba(255,255,255,0.25)'; ctx.beginPath(); roundRectPath(ctx, -S / 2, -S / 2, S, S, 10); ctx.stroke();
   ctx.restore();
 }
 function kitChip(ctx, text, x, y, opts) {
@@ -7600,7 +7455,7 @@ class UI {
     return best;
   }
   // --- drawing ---
-  drawBackground(ctx, W_, H_) { kitBackdrop(ctx, W_, H_, this.t, (this.game.dpr || 1) / (PXUI.on ? PXUI.U : 1)); }
+  drawBackground(ctx, W_, H_) { kitBackdrop(ctx, W_, H_, this.t, this.game.dpr || 1); }
   begin(ctx) { ctx.save(); ctx.translate(this.ox, this.oy); ctx.scale(this.scale, this.scale); }
   end(ctx) { ctx.restore(); }
   panel(ctx, x, y, w, h, color) { kitPanel(ctx, x, y, w, h, color); }
@@ -8500,7 +8355,7 @@ const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd'
 const LEGENDS_CHECK = [[0, 0, 0], [2, 3, 1], [3, 1, 3], [5, 5, 2], [6, 2, 4], [8, 4, 1], [9, 0, 3], [11, 1, 2]];
 const LEGENDS_POSES = ['run', 'jumpshot', 'dunk', 'flipdunk', 'knockdown', 'celebrate'];
 function labLegendsCast(k) { const [i, shape, nose] = LEGENDS_CHECK[k]; const c = LAB_CAST[i]; const face = faceParamsFromSeed(hashString(c.name + '|')); face.shape = shape; face.nose = nose; return Object.assign({}, c, { look: Object.assign({}, c.look, { face }), idx: i }); }
-function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 4 : view === 11 ? 6 : 1; }
+function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 2 : view === 11 ? 6 : 1; }
 const LAB_HAIR_NAMES = ['Buzz', 'Taper fade', 'High top', 'Afro', 'Curly top', 'Twists', 'Locs', 'Cornrows', 'Box braids', 'Bun', 'Side part', 'Mohawk', 'Long', 'Bald'];
 const LAB_FACIAL_NAMES = ['None', 'Stubble', 'Mustache', 'Goatee', 'Chin strap', 'Full beard'];
 
@@ -8664,45 +8519,32 @@ function labViewLegends(ctx, ui, st, t) {
     LEGENDS_POSES.forEach((pose, k) => { const c = labLegendsCast([3, 6, 1, 5, 2, 7][k]), x = 115 + k * 210; labDrawFigure(ctx, c, c.idx, x, yF, ppm, 1, pose, t, true); labCaption(ctx, pose + ' · ' + c.name.split(' ')[0], x, yF + 40, 13, '#3A1E0A'); }); // one player per pose, spread over the cast
   }
 }
-// §8.7 Pixel check: page 1 the 8 Legends-check characters pixelized at game size (1280×720: k = 3) with the ball's 8
-// rotation frames and the pixel font; page 2 the same sprites at 4 screen px per sprite pixel; page 3 the Legends Arena
-// through the background pipeline (32 colors, Bayer 4×4).
+// §8.7 Pixel check (L15: the characters and the ball only): page 1 the 8 Legends-check characters pixelized at game size
+// (1280×720: k = 3) with the ball's 8 rotation frames; page 2 the same sprites at 4 screen px per sprite pixel.
 let _labPx = null;
 function labPxSprites(t) {
   const f = 1 / 3, ppm = 1280 / (CONFIG.layout.legends.courtLength + 2 * CONFIG.layout.legends.wallPad), W_ = 430, H_ = 150; if (!_labPx) { _labPx = document.createElement('canvas'); _labPx.width = W_; _labPx.height = H_; }
   const g = _labPx.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W_, H_); g.setTransform(f, 0, 0, f, 0, 0); const floor = (H_ - 8) / f, out = [];
   LEGENDS_CHECK.forEach((q, k) => { const c = labLegendsCast(k), X = 95 + k * 156; const { p, ball } = labStandIn(c, c.idx, k % 3 === 1 ? 'dribble' : 'idle', k % 2 ? -1 : 1, t, true); if (ball) { const [tx, ty] = ballViewTarget(ball); ball.visDX = tx; ball.visDY = ty; }
     const cam = { scale: () => ppm, sx: wx => X + wx * ppm, sy: wy => floor - wy * ppm, ppm, W: 1280, H: floor + 10, zoom: { x: 1 } };
-    PXS.ss = ART.pxSuper; pxDrawCharacter(g, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true, noShadow: true }, f, ball ? (sg, pc) => () => drawBallNew(sg, pc, ball, 1, 0, false, {}) : null); out.push([c, X * f]); });
+    PXS.ss = ART.pxSuper; const k0 = PXS.k; PXS.k = 1; try { pxDrawCharacter(g, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true, noShadow: true }, f, ball ? (sg, pc) => () => drawBallNew(sg, pc, ball, 1, 0, false, {}) : null); } finally { PXS.k = k0; } out.push([c, X * f]); }); // (the lab's canvas is in sprite pixels)
   return out;
 }
-let _labPxUi = null;
 // One sheet of the UI kit in 620×612 design px: the logo, headings, the five button states, a select wall row, big digits.
 function labUiSample(ctx, ui, x, y, t) {
   kitPanel(ctx, x, y, 610, 606); kitLogo(ctx, x + 305, y + 64, 64); kitTitle(ctx, 'SETTINGS', x + 30, y + 150, 44); kitTitle(ctx, 'THE SELECT WALL', x + 30, y + 206, 26);
   const B = [['PLAY', true, true], ['CONTINUE', true, false], ['Quick 1v1', false, true], ['Extras', false, false], ['Locked', false, false, false]];
   B.forEach(([label, primary, focused, enabled], i) => { try { ui.drawWidget(ctx, { kind: 'button', label, primary, enabled: enabled !== false, x: x + 40 + (i % 2) * 280, y: y + 250 + Math.floor(i / 2) * 70, w: 250, h: 54 }, focused); } catch (e) { /* decoration */ } });
   for (let i = 0; i < 3; i++) drawSelectHead(ctx, { x: x + 330 + i * 90, y: y + 400, w: 70, h: 70 }, { name: 'p' + i, look: PRESET_LOOKS[i + 3] }, NEUTRAL_KIT.colors, i === 1, i === 2, t);
-  if (uiPixel()) pxRampDraw(ctx, '21', x + 300, y + 540, 90, ['#FFFFFF', '#FFFFFF', '#F3F0FF', '#D8DCF4'], { big: true, align: 'center' }); else kitTitle(ctx, '21', x + 300, y + 540, 80, { align: 'center', ramp: ['#FFFFFF', '#E8ECFF'], arch: 0 });
+  kitTitle(ctx, '21', x + 300, y + 540, 80, { align: 'center', ramp: ['#FFFFFF', '#E8ECFF'], arch: 0 });
 }
 function labViewPixel(ctx, ui, st, t) {
-  const page = clamp(st.page | 0, 0, 3); ctx.imageSmoothingEnabled = false;
-  if (page === 3) { ctx.imageSmoothingEnabled = true; labCaption(ctx, 'Pixel check 4 / 4 · the §6/§8.5 UI kit: Smooth (left) and Pixel (right, drawn in a 2× UI layer as on a phone)', 640, 70, 13, UI_TEXT);
-    labUiSample(ctx, ui, 20, 96, t); const c = _labPxUi || (_labPxUi = document.createElement('canvas')); c.width = 310; c.height = 306; const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 310, 306); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
-    const was = [PXUI.on, PXUI.u]; PXUI.on = true; PXUI.u = 2; try { labUiSample(g, ui, 0, 0, t); } finally { PXUI.on = was[0]; PXUI.u = was[1]; } ctx.imageSmoothingEnabled = false; ctx.drawImage(c, 650, 96, 620, 612); ctx.imageSmoothingEnabled = true; return; }
-  if (page < 2) {
-    const list = labPxSprites(t), yTop = page ? 90 : 130;
-    if (!page) { labCaption(ctx, 'Pixel check 1 / 4 · game size (1280×720, k = 3) · per-character palettes, 1-px outlines', 640, 70, 13, UI_TEXT); labLegendsFloor(ctx, 130 + 150 * 3 - 24, 590); ctx.drawImage(_labPx, 0, 0, 430, 150, 0, yTop, 1290, 450); list.forEach(([c, x]) => labCaption(ctx, c.name.split(' ')[0], x * 3, 590, 11, '#3A1E0A'));
-      for (let i = 0; i < ART.pxBallFrames; i++) { const b = pxBallSprite(4, i, 0), bz = pxBallSprite(12, i, 0); ctx.drawImage(b, 40 + i * 30, 610, b.width * 3, b.height * 3); ctx.drawImage(bz, 330 + i * 60, 604, bz.width * 2, bz.height * 2); }
-      labCaption(ctx, 'ball frames: game size and 2×', 40, 700, 11, UI_DIM, 'left');
-      const tc = pxTextCanvas('HOOP HEADS 0123456789 .,!?\'-:/+%#()', 1, '#FFD23F', ART.inkLine, null), tb = pxTextCanvas('BONK! SPLASH!', 3, '#FFFFFF', ART.inkLine, ART.inkLine); ctx.drawImage(tc, 850, 612, tc.width * 2, tc.height * 2); ctx.drawImage(tb, 850, 650, tb.width, tb.height); }
-    else { labCaption(ctx, 'Pixel check 2 / 4 · 4 screen px per sprite pixel', 640, 70, 13, UI_TEXT); list.forEach(([c, x], k) => { const sx = Math.max(0, x - 20), w = 39; ctx.drawImage(_labPx, sx, 0, w, 150, 4 + k * 159, yTop, w * 4, 600); labCaption(ctx, c.name.split(' ')[0], 4 + k * 159 + 72, 700, 11, UI_TEXT); }); }
-  } else {
-    labCaption(ctx, 'Pixel check 3 / 4 · the Legends Arena through the background pipeline (32 colors, Bayer 4×4)', 640, 70, 13, UI_TEXT);
-    const src = labVenueShot('legends', 1280, 720), c = document.createElement('canvas'); c.width = 427; c.height = 240; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, 427, 240);
-    const save = [PXS.iw, PXS.ih]; PXS.iw = 427; PXS.ih = 240; const pal = pxPalette('lab-venue', pxBuildPalette(g.getImageData(0, 0, 427, 240).data, ART.pxVenueColors, [ART.rimColor])); pxQuantizeRect(g, pal, 0, 0, 427, 240, true); [PXS.iw, PXS.ih] = save;
-    ctx.drawImage(c, 0, 0, 427, 240, 106, 96, 1068, 600);
-  }
+  const page = clamp(st.page | 0, 0, 1); ctx.imageSmoothingEnabled = false;
+  const list = labPxSprites(t), yTop = page ? 90 : 130;
+  if (!page) { labCaption(ctx, 'Pixel check 1 / 2 · game size (1280×720, k = 3) · per-character palettes, 1-px outlines', 640, 70, 13, UI_TEXT); labLegendsFloor(ctx, 130 + 150 * 3 - 24, 590); ctx.drawImage(_labPx, 0, 0, 430, 150, 0, yTop, 1290, 450); list.forEach(([c, x]) => labCaption(ctx, c.name.split(' ')[0], x * 3, 590, 11, '#3A1E0A'));
+    for (let i = 0; i < ART.pxBallFrames; i++) { const b = pxBallSprite(4, i, 0), bz = pxBallSprite(12, i, 0); ctx.drawImage(b, 40 + i * 30, 610, b.width * 3, b.height * 3); ctx.drawImage(bz, 330 + i * 60, 604, bz.width * 2, bz.height * 2); }
+    labCaption(ctx, 'ball frames: game size and 2×', 40, 700, 11, UI_DIM, 'left'); }
+  else { labCaption(ctx, 'Pixel check 2 / 2 · 4 screen px per sprite pixel', 640, 70, 13, UI_TEXT); list.forEach(([c, x], k) => { const sx = Math.max(0, x - 20), w = 39; ctx.drawImage(_labPx, sx, 0, w, 150, 4 + k * 159, yTop, w * 4, 600); labCaption(ctx, c.name.split(' ')[0], 4 + k * 159 + 72, 700, 11, UI_TEXT); }); }
   ctx.imageSmoothingEnabled = true;
 }
 function labLegendsFloor(ctx, y0, y1) { ctx.fillStyle = '#E0A865'; ctx.fillRect(0, y0, 1280, y1 - y0); ctx.fillStyle = 'rgba(120,70,25,0.18)'; for (let y = y0 + 6; y < y1; y += 9) ctx.fillRect(0, y, 1280, 1); for (let k = 0; k < 60; k++) ctx.fillRect((k * 173) % 1280, y0 + ((k * 37) % Math.max(1, y1 - y0)), 1, 9); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(0, y0, 1280, 3); }
@@ -11120,7 +10962,7 @@ function drawMatchScene(ctx, env, m, alpha) {
   const order = overlapOrder(m, players, alpha); // §3.11 (the defender behind when heads overlap), else by lane
   if (V) V.drawBack(ctx, cam, m, guard); else world.drawBackdrop(ctx, cam, court, m);        // L0–L2
   if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } if (m.halfCourt && LAY.legends) drawHalfCourtLine(ctx, cam); // L3
-  const PXM = env.pixel && !env.pixelOff ? env.pixel : null, f = PXM ? PXM.f : 1; // §8: Pixel mode draws into the internal buffer (1 CSS px = f internal px)
+  const PXM = env.pixel && !env.pixelOff ? env.pixel : null, f = PXM ? PXM.f : 1; // §8/L15: Pixel mode swaps the characters and the ball for sprites (1 CSS px = f sprite px); the rest is the Smooth scene
   const drawAll = (g, reflection) => {
     const o = { replay: !!rp, reflection, glow: !!(V && V.kind === 'pro'), noShadow: true }; let ballDrawn = false;
     if (PXM && !reflection) { // pixelized characters, the held ball painted into its owner's sprite, pre-pixelized loose balls
@@ -11133,16 +10975,13 @@ function drawMatchScene(ctx, env, m, alpha) {
   if (!env.degraded && guard < 2) drawReflections(ctx, cam, g => { HOOPS.forEach((h, i) => drawHoopBackNew(g, cam, h, V, i, null, null)); drawAll(g, true); HOOPS.forEach((h, i) => drawHoopFrontNew(g, cam, h, V, i, null, null)); }, V && (V.kind === 'legends' || V.bright()) ? ART.lgReflectA : null); // L4 (§5: stronger in the Legends Arena and the bright career venues)
   drawShadows(ctx, cam, order, ball, alpha, rp);                                                 // L5
   HOOPS.forEach((h, i) => drawHoopBackNew(ctx, cam, h, V, i, m, world.nets[i]));                  // L6
-  if (PXM) { const pal = pxVenuePalette(ctx, (V ? V.kind + V.home.join() + V.away.join() : m.courtId) + '|' + LAY.id, V ? [V.home[0], V.home[1], V.away[0], ART.rimColor] : [ART.rimColor]); pxQuantizeRect(ctx, pal, 0, 0, PXM.iw, PXM.ih, true); PXM.pal = pal; } // §8.4: the background, quantized and dithered
-  if (!rp) drawPowerup(ctx, cam, m, !!PXM);                                                       // L9: a power-up on the floor
+  if (!rp) drawPowerup(ctx, cam, m);                                                       // L9: a power-up on the floor
   drawAll(ctx, false);                                                                            // L7
   HOOPS.forEach((h, i) => drawHoopFrontNew(ctx, cam, h, V, i, m, world.nets[i]));                 // L8
-  if (PXM && PXM.pal) for (const h of HOOPS) { const r = RIM_R * cam.ppm * 1.25 + 3, x0 = (cam.sx(h.x) - r) * f, y0 = (cam.sy(RIM_Y) - 6) * f; pxQuantizeRect(ctx, PXM.pal, x0, y0, 2 * r * f, (W.netDepth * cam.ppm + 14) * f, false); } // the rim and the front of the net, snapped to the palette
   if (!rp) drawExtrasOverlays(ctx, cam, m, alpha);                                               // L9: ice blocks, speed streaks
   if (env.racks) env.racks();
   if (V) V.drawForeground(ctx, cam);
-  if (env.fx) { if (PXM) pxDrawParticles(ctx, cam, env.fx, f); else env.fx.draw(ctx, cam); }       // L9
-  if (PXM) return; // no smooth gradients in Pixel mode
+  if (env.fx) env.fx.draw(ctx, cam);                                                              // L9
   if (V) V.drawLights(ctx, cam, m, guard); else { const vg = ctx.createRadialGradient(env.W / 2, env.H / 2, env.H * 0.45, env.W / 2, env.H / 2, env.H * 1.05); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.35)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, env.W, env.H); } // L10
 }
 
@@ -11248,13 +11087,12 @@ class Game {
     if (this.posterPending) { this.posterPending.t -= dt; if (this.posterPending.t <= 0) { this.posterShow = this.posterPending.show; this.posterPending = null; fx.hitStopMs = Math.max(fx.hitStopMs, CONFIG.fx.posterMs); } } // a posterizer's card waits for its slow motion
     this.renderSceneAny(ctx, m, alpha, dt);
     if (fx.blur && !this.replayPlayer) drawRadialBlur(ctx, this, fx.blur);
-    if (this.pixelFrame) pxUIDraw(this, g => this.drawHUD(g, m, alpha, dt), 1); else this.drawHUD(ctx, m, alpha, dt);
+    this.drawHUD(ctx, m, alpha, dt);
     if (this.posterShow) { this.posterShow.t -= dt; this.drawPosterCard(ctx, this.posterShow); if (this.posterShow.t <= 0) this.posterShow = null; }
     this.drawWipe(ctx, W_, H_, dt);
     if (this.ui.screen) this.drawUI(ctx, W_, H_);
   }
-  // §8.5: in Pixel mode menus draw into the UI layer (the Art Lab stays smooth: it shows both looks itself).
-  drawUI(ctx, W_, H_) { const s = this.ui.screen; if (pixelSetting(this) && !(s && s.name === 'artlab')) pxUIDraw(this, g => this.ui.draw(g, W_, H_), this.ui.scale); else this.ui.draw(ctx, W_, H_); }
+  drawUI(ctx, W_, H_) { this.ui.draw(ctx, W_, H_); } // L15: menus are always the full-resolution Smooth UI
   // §6: a match opens with a diagonal wipe in the human side's team color (none with Reduce Motion).
   drawWipe(ctx, W_, H_, dt) {
     const w = this.wipe; if (!w) return; w.t += Math.min(dt, 0.1); const k = w.t / (ART.wipeMs / 1000); if (k >= 1) { this.wipe = null; return; }
@@ -11274,14 +11112,14 @@ class Game {
   }
   // ---- rendering ----
   renderScene(ctx, m, alpha) { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null }, m, alpha); faceWarmTick(); }
-  // §8: in Pixel mode the scene renders into the internal buffer (the camera snapped to whole internal pixels), the
-  // callouts are stamped in the pixel font, and the buffer is blitted at exactly k× with smoothing off.
+  // §8/L15: Pixel mode is the characters and the ball: the scene renders at full resolution with the Smooth renderer and
+  // they land as sprites at k device pixels per sprite pixel, on that grid.
   renderSceneAny(ctx, m, alpha, dt) {
     this.pixelFrame = pixelSetting(this); if (!this.pixelFrame) { this.renderScene(ctx, m, alpha); return; }
-    const pctx = pxBegin(this), restore = pxSnapCam(this.cam, PXS.f); PXS.work = 0;
-    try { drawMatchScene(pctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(pctx, this.cam, m) : null, pixel: PXS }, m, alpha); pxDrawCallouts(pctx, m, dt || 0); }
-    catch (e) { reportFrameError(e); } finally { restore(); }
-    faceWarmTick(); pxBlit(this); pxGuard(PXS.work, this.input && this.input.hasTouch);
+    pxSetup(this); PXS.work = 0;
+    try { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null, pixel: PXS }, m, alpha); }
+    catch (e) { reportFrameError(e); }
+    faceWarmTick(); pxGuard(PXS.work, this.input && this.input.hasTouch);
   }
   drawRacks(ctx, cam, m) { const c = m.contest3; c.racks.forEach((r, i) => { const s = cam.scale(r.z); const x = cam.sx(r.x), y = cam.sy(0, r.z); const used = i < c.rack ? CONFIG.contest3.ballsPerRack : (i === c.rack ? c.ball : 0); inkShape(ctx, cc => cc.rect(x - s * 0.3, y - s * 0.55, s * 0.6, s * 0.55), i === c.rack ? '#FFD23F' : '#F3F0FF', INK, 2); for (let k = 0; k < CONFIG.contest3.ballsPerRack; k++) { const bx = x - s * 0.24 + k * s * 0.12, by = y - s * 0.62; ctx.fillStyle = k < used ? 'rgba(20,12,40,0.2)' : (k === 4 ? '#FF4FA3' : '#FF8A2A'); ctx.beginPath(); ctx.arc(bx, by, s * 0.05, 0, TAU); ctx.fill(); } }); }
   drawHUD(ctx, m, alpha, dt) {
@@ -11295,7 +11133,7 @@ class Game {
     if (m.practice && m.practice.chart) { const pr = m.practice; const hoop = m.human.hoop; const x0 = W_ - 250, y0 = 10, w = 240, h = 70; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(x0, y0, w, h); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(12, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('SHOT CHART (distance)', x0 + 6, y0 + 4); for (const s of pr.chart.slice(-60)) { const px = x0 + 10 + clamp01(s.d / 13) * (w - 20), py = y0 + 40 + ((s.id * 7) % 20); ctx.fillStyle = s.make ? '#B8FF5A' : '#FF4FA3'; ctx.beginPath(); ctx.arc(px, py, 3, 0, TAU); ctx.fill(); } ctx.fillStyle = '#F3F0FF'; ctx.fillText('0 m', x0 + 6, y0 + 56); ctx.textAlign = 'right'; ctx.fillText('13 m', x0 + w - 6, y0 + 56); }
     // shot meter for the controlled player (and any shooter when the meter is on)
     for (const p of m.players) if (p.controlled || (p.inState('jumpshot', 'floater') && S.meter === 'on' && false)) drawShotMeter(ctx, cam, p, alpha, S.meter, m.lastShot, m.time);
-    if (!this.pixelFrame) drawCallouts(ctx, m, W_, H_, dt); // (Pixel mode stamps them into the internal buffer)
+    drawCallouts(ctx, m, W_, H_, dt); // (L15: the display font in both modes)
     // off-screen arrow for high lobs / balls
     const b = m.ball; const bsx = cam.sx(b.x), bsy = cam.sy(b.y, b.z); if ((bsy < -10 || bsx < -10 || bsx > W_ + 10) && !b.owner && !LAY.legends) { const ax = clamp(bsx, 30, W_ - 30), ay = clamp(bsy, CONFIG.camera.lobArrowMargin + 70, H_ - 30); inkShape(ctx, c => c.arc(ax, ay, 14, 0, TAU), '#FF8A2A', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(ax, ay - 22); ctx.lineTo(ax - 8, ay - 12); ctx.lineTo(ax + 8, ay - 12); ctx.fill(); }
     { const me = m.controlledPlayer; if (me && !me.hidden && !LAY.legends) { const psx = cam.sx(me.x); if (psx < 6 || psx > W_ - 6) { const left = psx < 6, ax = left ? 28 : W_ - 28, ay = clamp(cam.sy(me.y + me.height * 0.6, me.z), 96, H_ - 120); inkShape(ctx, c => c.arc(ax, ay, 17, 0, TAU), '#FFD23F', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); const tip = left ? ax - 26 : ax + 26, base = left ? ax - 16 : ax + 16; ctx.moveTo(tip, ay); ctx.lineTo(base, ay - 8); ctx.lineTo(base, ay + 8); ctx.fill(); ctx.font = fontStr(11, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('YOU', ax, ay + 1); } } } // off-screen marker for the player you control

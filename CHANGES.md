@@ -3,6 +3,69 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L15 — Pixel mode is for the players and the ball only (playtest pass, milestone 15)
+
+The playtest: Pixel mode pixelized and dithered everything. Banner text ("POSTER NIGHT"), the LED ribbon and the
+jumbotron came out in chunky pixels, as did the crowd, the floor and the backgrounds, and menus drew with 2-pixel pixels
+on phones and 1080p screens.
+
+What changed
+- **Pixel mode pixelizes only the characters and the ball.** The match renders with the Smooth renderer at full
+  resolution: the HUD, menus, callouts, banners, the LED ribbon, the jumbotron, the crowd, the court, the hoops and the
+  backgrounds. The bright Legends look is kept.
+  - Each character is painted at 3× (2× on a phone) into a scratch canvas. It is box-filtered down to sprite pixels,
+    alpha-thresholded, quantized to its own palette and outlined 1 px, as before. The ball keeps its 8 pre-pixelized
+    rotation frames.
+  - Sprites are composited into the full-resolution scene at an integer scale: each sprite pixel is
+    k = max(2, round(device height ÷ 240)) device pixels, drawn with smoothing off. A sprite's corner is snapped to that
+    k-pixel grid (k = 3 at 1280×720 and at 844×390 @2x).
+- **Deleted:**
+  - the 32-color venue quantizer and its Bayer dithering (`pxQuantizeRect`, `pxVenuePalette`, `pxBuildPalette`, `BAYER4`);
+  - the low-resolution scene buffer (`pxBegin`, `pxBlit`, `pxSnapCam`) and pixel particles;
+  - the pixel font, pixel callouts and pixel digits (`PX_FONT`, `pxText*`, `pxDrawCallouts`, `PX_DIGITS`);
+  - the pixel menus (`PXUI`, `uiPixel`, `pxUIDraw`, `pxRamp*`, `pxNotchPath`, `pxBallIcon`).
+  Callouts use the display font and menus are always Smooth. The title logo is crisp again.
+- **Crisp venue layers.** The far layer and the crowd were painted into a half-resolution buffer (L10), so banner text and
+  fans' faces came out soft in both modes. The buffer is now full resolution (`ART.layerRes` 0.5 → 1). Its blit lands 1:1
+  on the device pixel grid: a straight copy, not a resampled one. Performance-guard level 1 falls back to the half-resolution
+  buffer (`ART.layerResLow` 0.5). The floor reflections stay at half resolution (`ART.reflectRes`).
+- Art Lab → Pixel check has 2 pages (was 4); the pixel-font and pixel-menu pages are gone.
+
+**The test** (smoke, "pixel mode (L15)"). One frame is rendered twice with the same seed and time, in Pixel and in Smooth
+(1280×720, `performance.now` and the camera frozen). Every pixel outside the players' and the ball's boxes is compared
+(the boxes are padded by 2k).
+
+| | L14 | L15 |
+| --- | --- | --- |
+| pixels outside the sprite boxes that differ | (the whole venue was quantized and dithered) | **0.000%** of 873,954 px (mean \|Δ\| 0.000%) |
+| sprite scale | the whole frame at k = 3 | characters and ball at k = 3, on the k-pixel grid |
+
+Zoomed crops (3×, nearest neighbor) of the scoreboard, a banner, the LED ribbon and a menu are in `shots/l15/`
+(`before-crop-*` on L14, `after-crop-*` on L15). Also there: the desktop and phone match frames and the main menu. All
+shots are at guard level 0.
+
+**Performance** (tests/perf.js: 844×390 @2x in the pro arena, headless Chromium, which rasterizes the canvas on the
+CPU). Pixel mode now costs what Smooth always did, because the venue is drawn at full resolution. L14's Pixel mode drew
+the whole scene into a buffer about a ninth of the screen's pixels. The full-resolution venue buffer adds its repaint
+every other frame at 30 Hz, which shows in the p95. Level 1 of the guard goes back to the half-resolution buffer.
+
+| Guard level | L14 median / p95 | L15 median / p95 |
+| --- | --- | --- |
+| 0 (1× CPU) | 18.1 / 26.9 ms | 23.4 / 41.3 ms |
+| 1 | 14.4 / 23.5 ms | 20.8 / 29.3 ms |
+| 4 (1.25×) | 10.5 / 17.3 ms | 11.4 / 19.3 ms |
+| 0 at 4× CPU | 92.2 ms | 124.5 ms |
+| 4 at 4× CPU | 59.9 ms | 71.8 ms |
+
+On the same machine and match, L14's Smooth mode measures 21.8 ms and its Pixel mode 17.8 ms. L15 Pixel measures
+21.9 ms with the half-resolution venue and 21.6–22.3 ms at full resolution, thanks to the 1:1 blit. At 4× CPU the guard
+still engages by itself (level 4).
+
+Tests: smoke 96/96, with the new L15 step. The first run failed "phone: stick drag moves the player": the player moved
+0.28 m. The step held the stick for a fixed 0.84 s of wall-clock time, so a loaded machine gave it less play. It now holds
+for 0.84 s of game time. Two diagnostic runs moved the player 1.3 m. Also: modes 13/13, old saves 16/16, dev tools OK,
+phone audit no errors, Art Lab 50 shots with no errors.
+
 ## L14 — Faces front-on and symmetric (playtest pass, milestone 14)
 
 The playtest: faces were painted in a three-quarter view (a near eye bigger than the far one, the nose in profile with

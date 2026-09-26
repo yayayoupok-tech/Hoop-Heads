@@ -17,7 +17,7 @@ has no build step. New sections:
 | **ART** | palettes (12 skin tones × base/light/shadow/warm, 14 hair colors, 6 irises), `mixHex`/`rgba`/`ink`, the look model v2 and its migration, `faceParamsFromSeed`, the LRU face cache `getFaceCanvas`, `paintFaceBase`, the 14 hair painters, `drawEyesLive` | `drawHead`, `portraitOf` internals |
 | **BODY** | jersey, shorts, legs, sneakers, mitten hands, shadow sprite, backlight glow; `drawCharacter(ctx, cam, player, alpha, opts)` | `drawPlayer`'s visuals (same call site) |
 | **RIG** | pose nodes (pelvis, chest, head, hands, feet, squash), keyframe clips with easing, 80 ms blending, `poseFor(player, t)`, secondary motion, trails, expression triggers | the IK arm/leg code |
-| **VENUE**, **CROWD**, **COURT** (built in M5) | VENUE: the `Venue` class per match (layers L0–L2 and L10 with parallax, one shared half-res `LayerBuffer` at 30 Hz, banners, jumbotron, ribbon, benches, pep band, lighting). CROWD: `fanAtlasFor` (32 fans × 6 poses), `buildSeats`, `CrowdState` reactions, `drawCrowdRows`. COURT: `floorTexture` bake, hoops, `Net12`, ball sprite, shadows, reflections, `FrameGuard` | `WorldRenderer` backdrops, `buildFanAtlas` |
+| **VENUE**, **CROWD**, **COURT** (built in M5) | VENUE: the `Venue` class per match (layers L0–L2 and L10 with parallax, one shared `LayerBuffer` at 30 Hz (half resolution until L15, full since), banners, jumbotron, ribbon, benches, pep band, lighting). CROWD: `fanAtlasFor` (32 fans × 6 poses), `buildSeats`, `CrowdState` reactions, `drawCrowdRows`. COURT: `floorTexture` bake, hoops, `Net12`, ball sprite, shadows, reflections, `FrameGuard` | `WorldRenderer` backdrops, `buildFanAtlas` |
 | **FX2** (built in M6) | the §5 painters: dust puffs, sweat teardrops, the block impact star, the posterizer's radial blur, the callout pop and colors; new particle kinds in `FXSystem` (spark streaks, dunk shockwave, fluttering confetti) | parts of `FXSystem` |
 | **UIKIT** (built in M6) | glass panels, gold and navy buttons, swatch selects, chips, the hexagon OVR badge, trading cards (tier frames, foil, card back), the menu backdrop, count-ups and flips, `tapH`/`phoneGrid` for 64 px phone targets; transitions live in the `UI` class | ad-hoc panel drawing |
 | **UI part 6** (built in M6) | the key screens: title face-off, create, genes chart, the hub, season recap, draft night, retirement | the old versions in UI parts 1–4 |
@@ -162,7 +162,9 @@ dribble, and 5 s held while closely guarded is a turnover. Bots follow the same 
 the floor at 70%; a 2 m player is 1/9.0 of the court, was 1/5. h is 0.78 and the AI spots and contest reach are retuned;
 the gate passes except mirror PPP (L19). The All-Star fan vote counts star power.)* **L14 — Symmetric front-facing faces** *(done: faces are built front-on to the spec's construction as one half
 mirrored; the 12 cast faces mirror within 0.12% at 256 px (L13: up to 18.8%), and facing slides the features 0.04; three
-visual rounds against reference/face-construction.png.)* **L15 — Pixel mode for the players only.** **L16 — Stop the 1v1 blob.** **L17 — Players read against the
+visual rounds against reference/face-construction.png.)* **L15 — Pixel mode for the players only** *(done: Pixel mode pixelizes only the characters and the
+ball, composited at an integer scale on the pixel grid; everything else is the Smooth frame at full resolution, 0.000%
+different outside the sprite boxes; the venue dithering, pixel font and pixel menus are gone.)* **L16 — Stop the 1v1 blob.** **L17 — Players read against the
 crowd.** **L18 — Phone layout.** **L19 — Balance the Legends mirror.**
 
 ## Testing every milestone
