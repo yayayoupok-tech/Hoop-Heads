@@ -33,9 +33,11 @@ The gallery
   the match and pause on a phone. Notes in `shots/before-after-legends/NOTES.md`.
 
 Tests
-- Smoke 93 of 93 on this build (new phone step: Pixel on a phone paints characters at the 2× supersample). The rest of
-  the suite (modes, old saves, dev tools, phone audit, balance, careersim, the §2 gate, perf) is recorded in the next
-  commit.
+- Smoke 93 of 93 (new phone step: Pixel on a phone paints characters at the 2× supersample). Modes 13 of 13, old saves
+  16 of 16, dev tools all OK, phone audit: no errors; zero console errors.
+- `balance.js 12 21`, `careersim.js 40` and the §2 gate: identical to L9.
+- `perf.js` (844×390 @2x, the pro arena, Pixel): guard level 0 median 19.0 ms, p95 28.5 ms (L9: 22.5 / 31.9 ms); 4× CPU
+  81.9 ms (L9: 111.3 ms), and the guard still engages at 4×.
 
 ## L9 — Optional arcade extras (graphics overhaul, milestone 9)
 
