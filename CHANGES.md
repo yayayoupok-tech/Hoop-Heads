@@ -3,6 +3,57 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L17 — The players read against the crowd (playtest pass, milestone 17)
+
+The playtest: the players got lost in the crowd. Bright shirts, lettered LED boards and the scorer's table sat right
+behind the bodies, and the crowd was as vivid as the players.
+
+What changed
+- **The crowd is 20% less saturated and 20% less contrasty.** The fan atlas is baked through `saturate(1.08)
+  contrast(0.8)` (`ART.crowdSat`, `ART.crowdContrast`). The saturate amount is above 1 because contrast() already pulls
+  colors toward gray: `saturate(0.8) contrast(0.8)` measured −34% saturation. With 1.08 both land at −20% on the atlas.
+- **A soft dark band behind the players** (Legends View; `ART.bodyBand`, `ART.bodyBandA`): full strength (0.6) up to
+  0.9 m, 0.38 by the head zone at 2.05 m, and gone by 2.4 m.
+- **The LED ribbon and the scorer's table go above the lowest crowd row.**
+  - The ribbon runs at 2.22–2.58 m (`ART.lgLedY`; it was the courtside board at 0.6–1.0 m), above the players' heads.
+  - The scorer's panel moves into the ribbon at midcourt (`ART.lgTable`).
+  - Courtside becomes a dark padded wall with the benches in shadow and a plain table (`drawCourtsidePlain`).
+  - Nothing lettered or brightly colored stands behind the bodies.
+- **Bigger fans, three rows** (the Legends spec's §5 crowd). Fans are 1.45 m tall (`ART.lgFanM`; was 0.95), 0.72 of a
+  2.0 m player: a little smaller than the players, with readable faces.
+  - The seats are at 0.85, 2.45 and 3.35 m (`ART.lgRowY`): one row under the ribbon (the upper deck's front) and two
+    above it.
+  - The Legends Arena and the pro arena in Legends View use these stands. The college arena and the gym keep their
+    crowds, get the band, and in Legends View the college arena gets the plain courtside.
+  - To make room, the Legends Arena's banners hang from 6.0 m (was 4.6) and the upper bowl's dot crowd starts at 4.8 m
+    (was 3.3; `squashFrom.legends` 5.0).
+- In Legends View the pro arena's foreground silhouettes (fans in front of the court) are gone. They stood over the
+  bottom of the court and the phone's controls.
+
+**Measured** (`l17/measure.js`: 1280×720 Legends View frames with the players and the ball hidden, guard level 0).
+Zones are heights above the floor line, between the hoop stanchions (1 m in from each baseline). Atlas numbers are over
+its opaque pixels. "Bright" = HSV value over 0.75 and saturation over 0.45. "Lettering edges" = neighbor luma steps over
+0.35.
+
+| | Legends Arena L16 → L17 | Pro arena (Legends View) L16 → L17 | College | Gym |
+| --- | --- | --- | --- | --- |
+| crowd atlas saturation | 0.543 → 0.433 (**−20.3%**) | 0.511 → 0.405 (**−20.7%**) | 0.509 → 0.400 | 0.539 → 0.417 |
+| crowd atlas contrast (luma RMS) | 0.248 → 0.198 (**−20.2%**) | 0.268 → 0.214 (**−20.1%**) | 0.272 → 0.217 | 0.258 → 0.206 |
+| behind the bodies (0.2–1.5 m): bright pixels | 3.32% → **0.00%** | 3.38% → **0.00%** | 1.36% → 0.10% | 26.4% → 0.10% |
+| behind the bodies: lettering edges | 3.41% → **0.00%** | 4.36% → **0.00%** | 2.64% → 0.01% | 2.45% → 0.00% |
+| behind the bodies: mean luma | 0.267 → 0.133 | 0.234 → 0.131 | 0.304 → 0.106 | 0.570 → 0.261 |
+| behind the heads (1.5–2.4 m): bright · edges | 6.70% · 2.81% → 0.00% · 0.05% | 6.88% · 5.31% → 0.00% · 0.05% | 6.39% · 4.96% → 0.27% · 0.72% | 0.41% · 1.22% → 0.00% · 0.01% |
+| fans (m) · rows | 0.95 · 3 → **1.45 · 3** | 0.63 · 8 → **1.45 · 3** | 0.61 (unchanged) | 0.63 (unchanged) |
+| LED ribbon | 0.6–1.0 m (behind the bodies) → **2.22–2.58 m**, over the lowest row (seated at 0.85 m) | same | — | — |
+
+The new smoke step "players read against the crowd (L17)" renders the Legends Arena and the pro arena and asserts these
+(saturation and contrast ×0.80 ± 0.03, under 0.5% bright or lettered behind the bodies, a darker head zone than the
+crowd, three rows of 1.2–1.8 m fans, the ribbon over the lowest row). Before and after frames of all four venues
+(desktop) and the phone are in `shots/l17/`.
+
+Tests: smoke 98/98, with the new L17 step; phone audit no errors; Art Lab 50 shots with no errors. This is a rendering-only
+milestone, so the modes, old saves and gate runs wait for L19.
+
 ## L16 — Stop the 1v1 blob (playtest pass, milestone 16)
 
 The playtest: when one player guards the other, the front player's head almost completely hides the other face.

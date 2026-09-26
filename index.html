@@ -5977,7 +5977,7 @@ Object.assign(ART, {
   layerHz: 30,                 // ...and redraw this often (the performance guard drops the crowd to 15)
   layerMargin: 0.08,           // buffers overscan each screen edge by this fraction so camera moves between redraws never show an edge
   reflectRes: 0.5,             // floor reflections render at this fraction of the screen resolution (they are blurred and faded anyway)
-  squashFrom: { pro: 4.2, college: 3.0, hs: 2.9, street: 2.4 }, // above this height (the top of the crowd or wall), heights are squashed...
+  squashFrom: { pro: 4.2, college: 3.0, hs: 2.9, street: 2.4, legends: 5.0 }, // above this height (the top of the crowd or wall), heights are squashed...
   squash: { pro: 0.12, college: 0.15, hs: 0.5, street: 0.6 },       // ...by this, so the spec's far layout (jumbotron at 6.8 m, banners at 6.5 m) fits the game camera, which shows about 8 m of height
   crowdDim: { pro: 0.24, college: 0.2, hs: 0.06, street: 0 }, // the stands sit in shadow so the lit court stays the focus
   muralTint: 0.38,             // the blacktop mural is dimmed toward dusk purple by this much
@@ -6003,11 +6003,16 @@ Object.assign(ART, {
   lgCones: 5,                  // warm light cones from the rafters...
   lgConeColor: '#FFE9B8',      // ...this color...
   lgConeA: 0.14,               // ...this strong
-  lgRows: 3,                   // crowd rows...
-  lgRowGap: 0.62,              // ...this far apart (m)...
-  lgFanM: 0.95,                // ...fans this tall (m), bobbleheads
+  lgRows: 3,                   // crowd rows (L17: one below the LED ribbon, two above it)...
+  lgRowY: [0.85, 2.45, 3.35],  // ...their seats at these heights (m)...
+  lgFanM: 1.45,                // ...fans this tall (m), bobbleheads a little smaller than the players (L17: was 0.95 in rows 0.62 m apart)
   lgBanners: [['HOOP', 'HEADS', 'LEGENDS'], ['BIG', 'HEAD', 'CLUB'], ['POSTER', 'NIGHT', '★'], ['BONK', 'ZONE', '!']], // invented banner text
-  lgLedY: [0.6, 1.0],          // the courtside LED board (m)
+  lgLedY: [2.22, 2.58],        // the LED ribbon (m): above the lowest crowd row and the players' heads (L17: was the courtside board at 0.6–1.0)
+  lgTable: [1.1, 0.32],        // the scorer's panel, now in the ribbon: half-width and extra height above it (m)
+  bodyBand: [0.9, 2.05, 2.4],  // L17 (Legends View): a soft dark band behind the players: full strength up to the body line, then the head zone, fading out by the top (m)...
+  bodyBandA: [0.6, 0.38],      // ...at these strengths (behind the bodies, behind the heads)
+  lgBannerY: 6.0,              // L17: the Legends Arena's banners hang from here (m), above the taller stands (was 4.6)
+  lgBowlDots: 4.8,             // ...and the upper bowl's dot crowd starts here (m; was 3.3)
   lgVignette: 0.2,             // the vignette at the corners (the other venues: `vignette`)
   lgReflectA: 0.32,            // floor reflections in the Legends Arena and the bright career venues (others: reflectAlpha)
   lgHoopScale: 1.15,           // the backboard is drawn 1.15× about the rim (rim height and collision unchanged)
@@ -6066,10 +6071,11 @@ class Venue {
     const mid = COURT_L / 2, X0 = WALL_L - 12, X1 = WALL_R + 12, sq = y => this.y(y);
     this.tiers = [];
     const FS = ART.fanScale;
-    if (kind === 'pro') { this.tiers.push({ f: 0.45, scale: FS.upper, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 2.6, y1: 4.2, rows: 4, scale: FS.upper, aisles: true }, mid, this.seed + ':u'), fill: r => shadeHex('#1B2350', -0.06 * r) });
+    if (kind === 'pro' && LAY.legends) this.lgStands(X0, X1, mid, '#222B5E'); // L17: the pro arena in Legends View gets the same three rows of bigger fans
+    else if (kind === 'pro') { this.tiers.push({ f: 0.45, scale: FS.upper, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 2.6, y1: 4.2, rows: 4, scale: FS.upper, aisles: true }, mid, this.seed + ':u'), fill: r => shadeHex('#1B2350', -0.06 * r) });
       this.tiers.push({ f: 0.6, scale: FS.lower, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 1.1, y1: 2.6, rows: 4, scale: FS.lower, aisles: true }, mid, this.seed + ':l'), fill: r => shadeHex('#222B5E', -0.06 * r) }); }
     else if (kind === 'college') { this.student = [mid + 2.5, mid + 11]; this.band = [mid - 10, mid - 6]; /* the band sits in the corner behind the left basket */ this.tiers.push({ f: 0.55, scale: FS.bowl, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 1.2, y1: 3.0, rows: 4, scale: FS.bowl, student: this.student, band: this.band, aisles: true, fill: 0.88 }, mid, this.seed + ':b'), fill: r => shadeHex('#3A2230', -0.06 * r), student: this.student }); }
-    else if (kind === 'legends') { const y0 = 1.15, rows = ART.lgRows; this.tiers.push({ f: 0.62, scale: ART.lgFanM / 1.02, aisles: true, lg: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0, y1: y0 + rows * ART.lgRowGap, rows, scale: ART.lgFanM / 1.02, aisles: true }, mid, this.seed + ':lg'), fill: r => shadeHex('#1E3A8E', -0.07 * r) }); }
+    else if (kind === 'legends') this.lgStands(X0, X1, mid, '#1E3A8E');
     else if (kind === 'hs') { this.tiers.push({ f: 0.6, scale: FS.bleachers, bleach: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 0.3, y1: 0.3 + 6 * 0.4, rows: 6, scale: FS.bleachers, fill: 0.4 }, mid, this.seed + ':h') }); }
     this.farF = kind === 'hs' ? 0.4 : 0.3; this.back = new LayerBuffer(this.tiers.length ? this.tiers[this.tiers.length - 1].f : this.farF); // L0 and L1 share one half-res buffer, blitted with the front tier's parallax (sub-layers are placed at their own factors at each redraw)
     this.cs = [{ f: 0.9, fans: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 0.05, y1: 0.8, rows: 1, scale: FS.courtside }, mid, this.seed + ':c')[0] }]; // courtside row
@@ -6078,6 +6084,13 @@ class Venue {
     this.attached = false; this.shake = [{ t: 0 }, { t: 0 }];
   }
   y(wy) { return wy <= this.sqFrom ? wy : this.sqFrom + (wy - this.sqFrom) * this.sq; } // the vertical squash above the crowd
+  // L17: three rows of bigger fans: the lowest below the LED ribbon (the upper deck's front), two above it; the upper
+  // tier is painted first, so the lower row sits in front.
+  lgStands(X0, X1, mid, fill) {
+    const sc = ART.lgFanM / 1.02, Y = ART.lgRowY, row = (y, h, key) => { const r = buildSeats(this.atlas, { x0: X0, x1: X1, y0: y, y1: y + h, rows: 1, scale: sc, aisles: true }, mid, this.seed + key)[0]; r.h = h; return r; };
+    this.tiers.push({ f: 0.6, scale: sc, aisles: true, lg: true, rows: [row(Y[1], Y[2] - Y[1], ':lg2'), row(Y[2], 1.0, ':lg3')], fill: r => shadeHex(fill, -0.07 * (r + 1)) });
+    this.tiers.push({ f: 0.62, scale: sc, aisles: true, lg: true, rows: [row(Y[0], ART.lgLedY[0] - Y[0], ':lg1')], fill: () => fill });
+  }
   attach(m) { // crowd reactions from gameplay events
     if (this.attached || !m.bus) return; this.attached = true; const cs = this.crowd, T = () => m.time;
     m.bus.on('SCORE', e => { const sh = e.shot && e.shot.shooter; if (e.dunk && sh && sh.hoop) { const i = HOOPS.indexOf(sh.hoop); if (i >= 0) this.shake[i].t = ART.boardShakeS; } }); // big dunks shake the backboard
@@ -6120,8 +6133,8 @@ class Venue {
       const top = v.sy(this.y(10)), bot = v.sy(this.y(1.2)), gr = g.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, ART.lgBowl[0]); gr.addColorStop(1, ART.lgBowl[1]); g.fillStyle = gr; g.fillRect(0, 0, W_, H_);
       g.strokeStyle = 'rgba(200,215,255,0.16)'; g.lineWidth = Math.max(1, P * 0.05); g.beginPath(); for (let x = -30; x < 60; x += 3) { g.moveTo(v.sx(x), v.sy(this.y(9.4))); g.lineTo(v.sx(x + 1.5), v.sy(this.y(8.6))); g.lineTo(v.sx(x + 3), v.sy(this.y(9.4))); } g.stroke(); // roof trusses
       const dots = vSprite('dotsLg' + this.home[0] + this.away[0], 96, 8, (dg, w, h) => { let s = this.seed; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; for (let x = 0; x < w; x += 3) { const u = rnd(); dg.fillStyle = u < 0.5 ? this.home[0] : u < 0.8 ? this.away[0] : '#F3F0FF'; dg.fillRect(x, 2, 2, 3); dg.fillStyle = ART.skin[Math.floor(rnd() * 12)][0]; dg.fillRect(x, 0, 2, 2); } });
-      for (let r = 0; r < 3; r++) { const y = v.sy(this.y(3.3 + r * 0.34)); const pat = g.createPattern(dots, 'repeat'); if (pat) { g.save(); g.translate(v.sx(0) % 96, y); g.fillStyle = pat; g.fillRect(-v.sx(0) % 96 - 96, 0, W_ + 192, 8); g.restore(); } } // the upper bowl
-      ART.lgBanners.forEach((L, i) => { const x = COURT_L / 2 + (i - 1.5) * 4.6 + (i > 1 ? 1.8 : -1.8), y = this.sqFrom + 1.6; this.paintBanner(g, v, x, y, L, false, 1.35, i % 2); }); // big team-color banners with invented text
+      for (let r = 0; r < 3; r++) { const y = v.sy(this.y(ART.lgBowlDots + r * 0.34)); const pat = g.createPattern(dots, 'repeat'); if (pat) { g.save(); g.translate(v.sx(0) % 96, y); g.fillStyle = pat; g.fillRect(-v.sx(0) % 96 - 96, 0, W_ + 192, 8); g.restore(); } } // the upper bowl
+      ART.lgBanners.forEach((L, i) => { const x = COURT_L / 2 + (i - 1.5) * 4.6 + (i > 1 ? 1.8 : -1.8), y = ART.lgBannerY; this.paintBanner(g, v, x, y, L, false, 1.35, i % 2); }); // big team-color banners with invented text
     } else if (K === 'hs') this.paintGymWall(g, v, m, t);
     else if (K === 'street') this.paintStreetFar(g, v, t);
   }
@@ -6170,10 +6183,11 @@ class Venue {
   // --- L2: in front of the crowd ---
   drawNear(ctx, cam, m, t) {
     const K = this.kind;
-    if (K === 'pro') { this.drawRibbon(ctx, cam, t); this.drawCourtside(ctx, cam, m, t); }
-    else if (K === 'legends') { this.drawRibbon(ctx, cam, t, ART.lgLedY); this.drawCourtside(ctx, cam, m, t, false, true); }
-    else if (K === 'college') { this.drawBrick(ctx, cam); this.drawCourtside(ctx, cam, m, t, true); }
-    else if (K === 'hs') this.drawGymFloorEdge(ctx, cam);
+    const lg = !!(LAY && LAY.legends); // L17: in Legends View nothing with text or a bright color stands behind the bodies
+    if (K === 'legends' || (K === 'pro' && lg)) { this.drawCourtside(ctx, cam, m, t, false, false, true); this.drawBodyBand(ctx, cam); this.drawRibbon(ctx, cam, t, ART.lgLedY); this.drawTablePanel(ctx, cam); }
+    else if (K === 'pro') { this.drawRibbon(ctx, cam, t); this.drawCourtside(ctx, cam, m, t); }
+    else if (K === 'college') { this.drawBrick(ctx, cam); this.drawCourtside(ctx, cam, m, t, true, false, lg); if (lg) this.drawBodyBand(ctx, cam); }
+    else if (K === 'hs') { this.drawGymFloorEdge(ctx, cam); if (lg) this.drawBodyBand(ctx, cam); }
     else if (K === 'street') this.drawStreetNear(ctx, cam, t);
   }
   drawRibbon(ctx, cam, t, ys) {
@@ -6190,7 +6204,21 @@ class Venue {
     const pat = ctx.createPattern(tile, 'repeat'); if (pat) { const k = 0.5 * v.m / 32; ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W_, y1 - y0); ctx.clip(); ctx.translate(v.sx(0) % (64 * k), y0); ctx.scale(k, k); ctx.fillStyle = pat; ctx.fillRect(-128, 0, W_ / k + 256, (y1 - y0) / k + 2); ctx.restore(); }
     ctx.fillStyle = this.home[0]; ctx.fillRect(0, y0, W_, Math.max(2, v.m * 0.08)); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y1 - v.m * 0.15, W_, v.m * 0.15);
   }
-  drawCourtside(ctx, cam, m, t, lowChairs, glowTable) {
+  // L17: a soft dark band behind the players (Legends View): strongest behind the bodies, softer behind the heads, gone
+  // above them, so a player never stands in front of text, a bright shirt or a busy row of faces.
+  drawBodyBand(ctx, cam) {
+    const v = parView(cam, 1, 1), B = ART.bodyBand, A = ART.bodyBandA, y0 = v.sy(B[2]), y1 = v.sy(0), h = y1 - y0; if (!(h > 2)) return; const at = y => (y0 - v.sy(y)) / -h;
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(6,8,22,0)'); g.addColorStop(clamp01(at(B[1])), 'rgba(6,8,22,' + A[1] + ')'); g.addColorStop(clamp01(at(B[0])), 'rgba(6,8,22,' + A[0] + ')'); g.addColorStop(1, 'rgba(6,8,22,' + A[0] + ')');
+    ctx.fillStyle = g; ctx.fillRect(0, y0, cam.W, h);
+  }
+  // L17: the scorer's panel moves up into the LED ribbon, a little taller than it, at midcourt.
+  drawTablePanel(ctx, cam) {
+    const v = parView(cam, 0.75, 1), T = ART.lgTable, x0 = v.sx(COURT_L / 2 - T[0]), x1 = v.sx(COURT_L / 2 + T[0]), y0 = v.sy(ART.lgLedY[1] + T[1] / 2), y1 = v.sy(ART.lgLedY[0] - T[1] / 2); if (!(y1 - y0 > 2)) return;
+    ctx.fillStyle = '#0B0D1C'; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); const led = this._led || (this._led = ledPanel(this.home, this.homeName)); ctx.drawImage(led, x0 + 2, y0 + (y1 - y0) * 0.16, x1 - x0 - 4, (y1 - y0) * 0.68);
+    ctx.strokeStyle = shadeHex(this.home[0], 0.2); ctx.lineWidth = 1.5; ctx.strokeRect(x0 + 0.75, y0 + 0.75, x1 - x0 - 1.5, y1 - y0 - 1.5);
+  }
+  drawCourtside(ctx, cam, m, t, lowChairs, glowTable, plain) {
+    if (plain) return this.drawCourtsidePlain(ctx, cam); // L17: Legends View
     const v = parView(cam, 0.9, 1), row = this.cs[0].fans, A = this.atlas, fh = v.m * ART.fanScale.courtside, fw = fh * A.w / A.h, mid = COURT_L / 2, ySeat = v.sy(0.1);
     const chair = vSprite('chair', 32, 40, (g) => { g.fillStyle = '#1C1C28'; g.fillRect(4, 0, 24, 22); g.fillStyle = '#2A2A3A'; g.fillRect(2, 20, 28, 6); g.fillStyle = '#111118'; g.fillRect(4, 26, 3, 14); g.fillRect(25, 26, 3, 14); });
     for (const s of row.seats) { if (Math.abs(s.x - mid) < ART.benchEnd) continue; /* the scorer's table and the benches */ const x = v.sx(s.x); if (x < -fw || x > cam.W + fw) continue; ctx.drawImage(chair, x - fw * 0.45, ySeat - fh * 0.5, fw * 0.9, fh * 0.55); const pose = this.crowd.pose(s, s.x, t, this.clapping(m)); const bob = Math.sin((t * ART.fanBobHz + s.ph) * TAU) * ART.fanBobPx * fh / A.h; ctx.drawImage(A.canvas, s.fan * A.w, pose * A.h, A.w, A.h, x - fw / 2, ySeat - fh * 0.95 - bob, fw, fh); }
@@ -6204,6 +6232,13 @@ class Venue {
     const led = this._led || (this._led = ledPanel(this.home, this.homeName)); ctx.drawImage(led, tx0 + 2, ty0 + (ty1 - ty0) * 0.18, tx1 - tx0 - 4, (ty1 - ty0) * 0.64);
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(tx0, ty0, tx1 - tx0, 1.5);
     if (glowTable) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45; ctx.drawImage(glowSpriteOf(this.home[0]), tx0 - (tx1 - tx0) * 0.25, ty0 - (ty1 - ty0) * 0.6, (tx1 - tx0) * 1.5, (ty1 - ty0) * 2.2); ctx.restore(); } // the glowing front
+  }
+  // L17: courtside in Legends View: a dark padded wall and the team benches in shadow, empty seats, a plain table.
+  drawCourtsidePlain(ctx, cam) {
+    const v = parView(cam, 0.9, 1), y0 = v.sy(0.85), y1 = v.sy(0), mid = COURT_L / 2, W_ = cam.W; if (!(y1 - y0 > 2)) return;
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#171C36'); g.addColorStop(1, '#0C0F20'); ctx.fillStyle = g; ctx.fillRect(0, y0, W_, y1 - y0);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(0, y0, W_, Math.max(1, (y1 - y0) * 0.05)); ctx.fillStyle = 'rgba(0,0,0,0.3)'; for (let x = -30; x < 50; x += 1.5) { const px = v.sx(x); if (px > -4 && px < W_ + 4) ctx.fillRect(px, y0, 1, y1 - y0); } // the pads' seams
+    const tx0 = v.sx(mid - 2), tx1 = v.sx(mid + 2), ty0 = v.sy(0.72); ctx.fillStyle = '#0A0C18'; ctx.fillRect(tx0, ty0, tx1 - tx0, y1 - ty0); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(tx0, ty0, tx1 - tx0, 1.5); // the scorer's table, plain (its panel is up in the ribbon)
   }
   drawGymFloorEdge(ctx, cam) { const v = parView(cam, 0.9, 1); ctx.fillStyle = shadeHex(this.home[0], -0.35); ctx.fillRect(0, v.sy(0.18), cam.W, v.sy(0) - v.sy(0.18) + 1); } // a padded wall base in the school color
   drawStreetNear(ctx, cam, t) {
@@ -6265,6 +6300,7 @@ class Venue {
   paintVignette(g, v) { const x0 = v.pad[0] * v.r, y0 = v.pad[1] * v.r, w = v.W - 2 * x0, h = v.H - 2 * y0; g.save(); g.globalAlpha = this.kind === 'legends' || this.bright() ? ART.lgVignette / ART.vignette : 1; g.drawImage(vSprite('vignette', 256, 144, (vg, sw, sh) => { const gr = vg.createRadialGradient(sw / 2, sh / 2, sh * 0.45, sw / 2, sh / 2, sh * 1.05); gr.addColorStop(0, 'rgba(0,0,10,0)'); gr.addColorStop(1, 'rgba(0,0,10,' + ART.vignette + ')'); vg.fillStyle = gr; vg.fillRect(0, 0, sw, sh); }), x0, y0, w, h); g.restore(); }
   // L2.5: the near-side foreground (pro): photographer and fan silhouettes when the camera shows the front of the court
   drawForeground(ctx, cam) {
+    if (LAY && LAY.legends) return; // L17: no foreground silhouettes over the court in Legends View
     if (this.kind !== 'pro' && this.kind !== 'college') return; const v = parView(cam, 1.25, 1), y = v.sy(-1.62); if (y > cam.H + 4) return;
     const sil = this._sil || (this._sil = silhouetteStrip(this.seed)); const k = (v.m * 1.3) / sil.height, sw = sil.width * k; let off = v.sx(-6); off = ((off % sw) + sw) % sw - sw;
     ctx.save(); ctx.globalAlpha = 0.85; for (let x = off; x < cam.W; x += sw) ctx.drawImage(sil, x, y, sw, sil.height * k); ctx.restore();
@@ -6337,6 +6373,8 @@ Object.assign(ART, {
   fanHeadRBig: 18,             // Legends Arena fans are mini bobbleheads: the head is 38% of the fan (px radius in the 96 px cell)
   fanHomeLg: 0.5,              // Legends Arena shirts: 50% home...
   fanAwayLg: 0.3,              // ...30% away, 20% neutral
+  crowdSat: 1.08,              // L17: the crowd atlas's saturate() amount: its contrast() already pulls colors toward gray, so with 1.08 the mean saturation lands at −20% (measured on the atlas)...
+  crowdContrast: 0.8,          // ...and its contrast(): −20%, so the players read against the crowd (both baked into the atlas)
 });
 const FAN_POSE = { seat: 0, cheer: 1, stand: 2, clapA: 3, clapB: 4, oooh: 5 }; // oooh (hands on heads) is a 6th pose for the near-miss reaction
 const FAN_NEUTRAL = ['#F3F0FF', '#C9C9D6', '#8A8FA3', '#3A3F4A', '#23233A', '#46607E', '#7A5230', '#5B6B3A', '#B5A58A', '#9E4B4B'];
@@ -6358,7 +6396,8 @@ function fanAtlasFor(venue, home, away) {
       capC: T ? T[0] : pick(FAN_NEUTRAL), prop, sign: pick(FAN_SIGNS), sc: 0.9 + rnd() * 0.14, wide: 0.92 + rnd() * 0.18, big: lg });
   }
   for (let i = 0; i < N; i++) for (let p = 0; p < P; p++) { g.save(); g.beginPath(); g.rect(i * CW, p * CH, CW, CH); g.clip(); g.translate(i * CW + CW / 2, p * CH + CH - 1); try { paintFan(g, fans[i], p); } catch (e) { /* a fan never breaks the atlas */ } g.restore(); }
-  A = { canvas: c, w: CW, h: CH, n: N, fans, home: fans.map((f, i) => f.side === 0 ? i : -1).filter(i => i >= 0), away: fans.map((f, i) => f.side === 1 ? i : -1).filter(i => i >= 0), neutral: fans.map((f, i) => f.side === 2 ? i : -1).filter(i => i >= 0) };
+  let cv = c; try { const c2 = document.createElement('canvas'); c2.width = c.width; c2.height = c.height; const g2 = c2.getContext('2d'); if ('filter' in g2) { g2.filter = 'saturate(' + ART.crowdSat + ') contrast(' + ART.crowdContrast + ')'; g2.drawImage(c, 0, 0); g2.filter = 'none'; cv = c2; } } catch (e) { /* no canvas filters: the atlas stays as painted */ } // L17
+  A = { canvas: cv, w: CW, h: CH, n: N, fans, home: fans.map((f, i) => f.side === 0 ? i : -1).filter(i => i >= 0), away: fans.map((f, i) => f.side === 1 ? i : -1).filter(i => i >= 0), neutral: fans.map((f, i) => f.side === 2 ? i : -1).filter(i => i >= 0) };
   if (_fanAtlases.size > 6) _fanAtlases.clear(); _fanAtlases.set(key, A); return A;
 }
 // One fan in one pose, drawn with the cell's bottom center at the origin (+y down).

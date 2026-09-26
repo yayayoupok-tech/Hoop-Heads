@@ -166,8 +166,9 @@ visual rounds against reference/face-construction.png.)* **L15 — Pixel mode fo
 ball, composited at an integer scale on the pixel grid; everything else is the Smooth frame at full resolution, 0.000%
 different outside the sprite boxes; the venue dithering, pixel font and pixel menus are gone.)* **L16 — Stop the 1v1 blob** *(done: close players are drawn pushed apart up to 0.25 m each, the one farther
 from the ball behind at 0.92 and 0.1 H higher, contact 0.95 m; 60 s Pro vs Pro: median close-play head overlap 0%,
-no face over 49% hidden, was up to 100%.)* **L17 — Players read against the
-crowd.** **L18 — Phone layout.** **L19 — Balance the Legends mirror.**
+no face over 49% hidden, was up to 100%.)* **L17 — Players read against the crowd** *(done: the crowd is 20% less saturated and
+contrasty, a dark band sits behind the players, the LED ribbon and the scorer's table moved above the lowest row, and
+three rows of 1.45 m fans; nothing bright or lettered behind the bodies.)* **L18 — Phone layout.** **L19 — Balance the Legends mirror.**
 
 ## Testing every milestone
 
