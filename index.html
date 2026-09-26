@@ -3204,8 +3204,9 @@ const COURTS = {
   beach: { short: 'Beach', name: 'Beach Court at Sunset', palette: { floor: '#E9C98A', accent: '#FF6B6B', chalk: '#FFF7E6', ink: '#3A2A3F', pop: '#FFB347', sky: '#FF9A6C', sky2: '#6D3B8A', lines: '#3A2A3F' }, unlocked: true },
   arena: { short: 'Pro Arena', name: 'Pro Arena', palette: { floor: '#C98B4A', accent: '#E63946', chalk: '#FFFFFF', ink: '#1A1A2E', pop: '#FFD23F', sky: '#1A1A2E', sky2: '#0A0A14', lines: '#FFFFFF' }, unlocked: false },
   college: { short: 'College', name: 'College Arena', palette: { floor: '#C98B4A', accent: '#7A1F2B', chalk: '#FFF4E0', ink: '#2A1A1A', pop: '#FFD23F', sky: '#2A1C2A', sky2: '#140E18', lines: '#FFF4E0' }, unlocked: true },
+  legends: { short: 'Legends Arena', name: 'Legends Arena', palette: { floor: '#E0A865', accent: '#2446A8', chalk: '#FFFFFF', ink: '#13245E', pop: '#FFD23F', sky: '#2446A8', sky2: '#13245E', lines: '#FFFFFF' }, unlocked: true }, // §5: the bright big-crowd arena, the default in Legends View
 };
-const COURT_ORDER = ['blacktop', 'gym', 'rooftop', 'beach', 'arena', 'college'];
+const COURT_ORDER = ['blacktop', 'gym', 'rooftop', 'beach', 'arena', 'college', 'legends'];
 
 // Attribute-derived numbers.
 function speedOf(p) { const s = CONFIG.player; return (1 - s.speedRatingSpread + 2 * s.speedRatingSpread * (p.attrs.spd - 1) / 9); }
@@ -5734,9 +5735,24 @@ Object.assign(ART, {
   benchEnd: 5.6,               // and end here; courtside seats resume past it (m)
   jumboGap: 10,                // the jumbotron hangs at least this far below the score bug (px)
   jumboFps: 15,                // jumbotron replay frame rate
+  // §5 the Legends Arena
+  lgBowl: ['#2446A8', '#13245E'], // the bowl gradient, top to bottom
+  lgCones: 5,                  // warm light cones from the rafters...
+  lgConeColor: '#FFE9B8',      // ...this color...
+  lgConeA: 0.14,               // ...this strong
+  lgRows: 3,                   // crowd rows...
+  lgRowGap: 0.62,              // ...this far apart (m)...
+  lgFanM: 0.95,                // ...fans this tall (m), bobbleheads
+  lgBanners: [['HOOP', 'HEADS', 'LEGENDS'], ['BIG', 'HEAD', 'CLUB'], ['POSTER', 'NIGHT', '★'], ['BONK', 'ZONE', '!']], // invented banner text
+  lgLedY: [0.6, 1.0],          // the courtside LED board (m)
+  lgVignette: 0.2,             // the vignette at the corners (the other venues: `vignette`)
+  lgReflectA: 0.32,            // floor reflections in the Legends Arena and the bright career venues (others: reflectAlpha)
+  lgHoopScale: 1.15,           // the backboard is drawn 1.15× about the rim (rim height and collision unchanged)
+  brightGrade: [1.25, 1.15],   // career venues in Legends View: background brightness and saturation
+  brightCrowdDim: 0.4,         // ...and the stands' shadow at this share of normal
 });
-const VENUE_OF = { arena: 'pro', college: 'college', gym: 'hs', blacktop: 'street' }; // court id → venue kind (rooftop and beach keep the old painters)
-const VENUE_COURT = { pro: 'arena', college: 'college', hs: 'gym', street: 'blacktop' };
+const VENUE_OF = { arena: 'pro', college: 'college', gym: 'hs', blacktop: 'street', legends: 'legends' }; // court id → venue kind (rooftop and beach keep the old painters)
+const VENUE_COURT = { pro: 'arena', college: 'college', hs: 'gym', street: 'blacktop', legends: 'legends' };
 function venueKind(courtId) { return VENUE_OF[courtId] || null; }
 
 // --- parallax views ---
@@ -5785,6 +5801,7 @@ class Venue {
     if (kind === 'pro') { this.tiers.push({ f: 0.45, scale: FS.upper, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 2.6, y1: 4.2, rows: 4, scale: FS.upper, aisles: true }, mid, this.seed + ':u'), fill: r => shadeHex('#1B2350', -0.06 * r) });
       this.tiers.push({ f: 0.6, scale: FS.lower, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 1.1, y1: 2.6, rows: 4, scale: FS.lower, aisles: true }, mid, this.seed + ':l'), fill: r => shadeHex('#222B5E', -0.06 * r) }); }
     else if (kind === 'college') { this.student = [mid + 2.5, mid + 11]; this.band = [mid - 10, mid - 6]; /* the band sits in the corner behind the left basket */ this.tiers.push({ f: 0.55, scale: FS.bowl, aisles: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 1.2, y1: 3.0, rows: 4, scale: FS.bowl, student: this.student, band: this.band, aisles: true, fill: 0.88 }, mid, this.seed + ':b'), fill: r => shadeHex('#3A2230', -0.06 * r), student: this.student }); }
+    else if (kind === 'legends') { const y0 = 1.15, rows = ART.lgRows; this.tiers.push({ f: 0.62, scale: ART.lgFanM / 1.02, aisles: true, lg: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0, y1: y0 + rows * ART.lgRowGap, rows, scale: ART.lgFanM / 1.02, aisles: true }, mid, this.seed + ':lg'), fill: r => shadeHex('#1E3A8E', -0.07 * r) }); }
     else if (kind === 'hs') { this.tiers.push({ f: 0.6, scale: FS.bleachers, bleach: true, rows: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 0.3, y1: 0.3 + 6 * 0.4, rows: 6, scale: FS.bleachers, fill: 0.4 }, mid, this.seed + ':h') }); }
     this.farF = kind === 'hs' ? 0.4 : 0.3; this.back = new LayerBuffer(this.tiers.length ? this.tiers[this.tiers.length - 1].f : this.farF); // L0 and L1 share one half-res buffer, blitted with the front tier's parallax (sub-layers are placed at their own factors at each redraw)
     this.cs = [{ f: 0.9, fans: buildSeats(this.atlas, { x0: X0, x1: X1, y0: 0.05, y1: 0.8, rows: 1, scale: FS.courtside }, mid, this.seed + ':c')[0] }]; // courtside row
@@ -5805,11 +5822,12 @@ class Venue {
   }
   update(dt, m) { this.time += dt; if (m) this.attach(m); const J = this.jumbo; if (m && m.replay && m.replay.lastClip && m.replay.lastClip !== J.clip) { J.clip = m.replay.lastClip; J.clipT = 0; J.frameT = 1; } J.clipT += dt; J.chantT += dt; J.frameT += dt; for (const s of this.shake) s.t = Math.max(0, s.t - dt); }
   clapping(m) { return !!(m && (m.phase === 'ft' || (m.ft && m.ft.active))); }
+  bright() { return !!(LAY && LAY.legends) && (this.kind === 'pro' || this.kind === 'college' || this.kind === 'hs'); } // §5: career venues get the bright grade in Legends View
   // L0–L2: everything behind the floor
   drawBack(ctx, cam, m, guard) {
     const t = m ? m.time : this.time, hz = ART.layerHz;
-    this.back.update(cam, t, guard >= 1 ? ART.layerHz / 2 : hz, (g, v) => { this.paintFar(g, v.at(this.farF), m, t); for (const T of this.tiers) this.paintTier(g, v.at(T.f), T, m, t); if (this.kind === 'pro') this.drawBeams(g, v.at(0.3), t, guard < 3); if (guard < 3) this.paintBloom(g, v); this.paintVignette(g, v); }); this.back.blit(ctx, cam, cam.sy(0) + 2);
-    if (this.kind === 'pro') this.drawJumbotron(ctx, cam, m);
+    this.back.update(cam, t, guard >= 1 ? ART.layerHz / 2 : hz, (g, v) => { this.paintFar(g, v.at(this.farF), m, t); for (const T of this.tiers) this.paintTier(g, v.at(T.f), T, m, t); if (this.kind === 'pro') this.drawBeams(g, v.at(0.3), t, guard < 3); if (this.kind === 'legends') this.drawCones(g, v.at(0.3), t); if (guard < 3) this.paintBloom(g, v); this.paintVignette(g, v); if (this.bright()) brightGrade(g); }); this.back.blit(ctx, cam, cam.sy(0) + 2);
+    if (this.kind === 'pro' || this.kind === 'legends') this.drawJumbotron(ctx, cam, m);
     this.drawNear(ctx, cam, m, t);
   }
   // L10: beams, dust, bloom and the vignette (guard level 3 drops beams' dust and bloom)
@@ -5830,11 +5848,17 @@ class Venue {
       // banners hanging from the rafters
       const labels = K === 'pro' ? [['HHL', 'CHAMPIONS', '2019'], ['HHL', 'CHAMPIONS', '2022'], ['CONF', 'CHAMPS', '2024'], ['84', '', '']] : [['CONF', 'TITLE', '2021'], ['FINAL', 'FOUR', '2018'], ['CONF', 'TITLE', '2023'], ['12', '', '']];
       labels.forEach((L, i) => { const x = COURT_L / 2 + (i - 1.5) * 5.2 + (i > 1 ? 1.4 : -1.4), y = this.sqFrom + 1.9 * ART.farObj * 0.9; this.paintBanner(g, v, x, y, L, i === 3); }); /* banners hang just above the crowd, clear of the jumbotron */
+    } else if (K === 'legends') {
+      const top = v.sy(this.y(10)), bot = v.sy(this.y(1.2)), gr = g.createLinearGradient(0, top, 0, bot); gr.addColorStop(0, ART.lgBowl[0]); gr.addColorStop(1, ART.lgBowl[1]); g.fillStyle = gr; g.fillRect(0, 0, W_, H_);
+      g.strokeStyle = 'rgba(200,215,255,0.16)'; g.lineWidth = Math.max(1, P * 0.05); g.beginPath(); for (let x = -30; x < 60; x += 3) { g.moveTo(v.sx(x), v.sy(this.y(9.4))); g.lineTo(v.sx(x + 1.5), v.sy(this.y(8.6))); g.lineTo(v.sx(x + 3), v.sy(this.y(9.4))); } g.stroke(); // roof trusses
+      const dots = vSprite('dotsLg' + this.home[0] + this.away[0], 96, 8, (dg, w, h) => { let s = this.seed; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; for (let x = 0; x < w; x += 3) { const u = rnd(); dg.fillStyle = u < 0.5 ? this.home[0] : u < 0.8 ? this.away[0] : '#F3F0FF'; dg.fillRect(x, 2, 2, 3); dg.fillStyle = ART.skin[Math.floor(rnd() * 12)][0]; dg.fillRect(x, 0, 2, 2); } });
+      for (let r = 0; r < 3; r++) { const y = v.sy(this.y(3.3 + r * 0.34)); const pat = g.createPattern(dots, 'repeat'); if (pat) { g.save(); g.translate(v.sx(0) % 96, y); g.fillStyle = pat; g.fillRect(-v.sx(0) % 96 - 96, 0, W_ + 192, 8); g.restore(); } } // the upper bowl
+      ART.lgBanners.forEach((L, i) => { const x = COURT_L / 2 + (i - 1.5) * 4.6 + (i > 1 ? 1.8 : -1.8), y = this.sqFrom + 1.6; this.paintBanner(g, v, x, y, L, false, 1.35, i % 2); }); // big team-color banners with invented text
     } else if (K === 'hs') this.paintGymWall(g, v, m, t);
     else if (K === 'street') this.paintStreetFar(g, v, t);
   }
-  paintBanner(g, v, x, y, L, retired) {
-    const s = ART.farObj, w = 1.3 * s * v.m, h = 1.9 * s * v.m, cx = v.sx(x), top = v.sy(y) - h * 0.2; const c0 = retired ? this.home[1] : this.home[0], c1 = retired ? this.home[0] : this.home[1];
+  paintBanner(g, v, x, y, L, retired, big, away) {
+    const s = ART.farObj * (big || 1), w = 1.3 * s * v.m, h = 1.9 * s * v.m, cx = v.sx(x), top = v.sy(y) - h * 0.2; const T = away ? this.away : this.home, c0 = retired ? T[1] : T[0], c1 = retired ? T[0] : T[1];
     g.fillStyle = c0; g.strokeStyle = ink(c0); g.lineWidth = Math.max(1, v.m * 0.02); g.beginPath(); g.moveTo(cx - w / 2, top); g.lineTo(cx + w / 2, top); g.lineTo(cx + w / 2, top + h * 0.85); g.lineTo(cx, top + h); g.lineTo(cx - w / 2, top + h * 0.85); g.closePath(); g.fill(); g.stroke();
     g.strokeStyle = c1; g.lineWidth = Math.max(1, w * 0.05); g.beginPath(); g.moveTo(cx - w / 2 + w * 0.08, top + h * 0.06); g.lineTo(cx + w / 2 - w * 0.08, top + h * 0.06); g.stroke();
     g.fillStyle = c1; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -5869,22 +5893,23 @@ class Venue {
     if (T.bleach) { // wooden bleachers: 6 tiers of planks
       for (let r = T.rows.length - 1; r >= 0; r--) { const row = T.rows[r], y0 = v.sy(row.y + row.h), y1 = v.sy(row.y); g.fillStyle = shadeHex('#C99A5B', -0.05 * r); g.fillRect(0, y0, v.W, y1 - y0); g.fillStyle = shadeHex('#C99A5B', 0.12 - 0.05 * r); g.fillRect(0, y0, v.W, Math.max(1, (y1 - y0) * 0.22)); g.fillStyle = 'rgba(60,35,15,0.35)'; g.fillRect(0, y1 - Math.max(1, (y1 - y0) * 0.1), v.W, Math.max(1, (y1 - y0) * 0.1)); }
       drawCrowdRows(g, v, this.atlas, T.rows, this.crowd, t, { scale: T.scale, clapping });
-      const dim = ART.crowdDim.hs; if (dim > 0) { g.fillStyle = 'rgba(40,30,20,' + dim + ')'; g.fillRect(0, 0, v.W, v.H); }
+      const dim = ART.crowdDim.hs * (this.bright() ? ART.brightCrowdDim : 1); if (dim > 0) { g.fillStyle = 'rgba(40,30,20,' + dim + ')'; g.fillRect(0, 0, v.W, v.H); }
       return;
     }
     drawCrowdRows(g, v, this.atlas, T.rows, this.crowd, t, { scale: T.scale, clapping, rowFill: T.fill, student: T.student, aisles: T.aisles });
-    const dim = ART.crowdDim[this.kind] || 0; if (dim > 0) { g.fillStyle = 'rgba(6,8,26,' + dim + ')'; g.fillRect(0, 0, v.W, v.H); }
+    const dim = (ART.crowdDim[this.kind] || 0) * (this.bright() ? ART.brightCrowdDim : 1); if (dim > 0) { g.fillStyle = 'rgba(6,8,26,' + dim + ')'; g.fillRect(0, 0, v.W, v.H); }
   }
   // --- L2: in front of the crowd ---
   drawNear(ctx, cam, m, t) {
     const K = this.kind;
     if (K === 'pro') { this.drawRibbon(ctx, cam, t); this.drawCourtside(ctx, cam, m, t); }
+    else if (K === 'legends') { this.drawRibbon(ctx, cam, t, ART.lgLedY); this.drawCourtside(ctx, cam, m, t, false, true); }
     else if (K === 'college') { this.drawBrick(ctx, cam); this.drawCourtside(ctx, cam, m, t, true); }
     else if (K === 'hs') this.drawGymFloorEdge(ctx, cam);
     else if (K === 'street') this.drawStreetNear(ctx, cam, t);
   }
-  drawRibbon(ctx, cam, t) {
-    const v = parView(cam, 0.75, 1), y0 = v.sy(1.1), y1 = v.sy(0.85), h = y1 - y0, W_ = cam.W; if (h < 2) return;
+  drawRibbon(ctx, cam, t, ys) {
+    const v = parView(cam, 0.75, 1), y0 = v.sy(ys ? ys[1] : 1.1), y1 = v.sy(ys ? ys[0] : 0.85), h = y1 - y0, W_ = cam.W; if (h < 2) return;
     ctx.fillStyle = '#05060C'; ctx.fillRect(0, y0, W_, h);
     const strip = this._ribbon || (this._ribbon = ribbonStrip(this.home, this.away, this.homeName)); const sh = h * 0.8, k = sh / strip.height, sw = strip.width * k; let off = (-(t * ART.ribbonSpeed * v.m) - v.sx(0)) % sw; if (off > 0) off -= sw;
     for (let x = off; x < W_; x += sw) ctx.drawImage(strip, x, y0 + h * 0.1, sw, sh);
@@ -5897,7 +5922,7 @@ class Venue {
     const pat = ctx.createPattern(tile, 'repeat'); if (pat) { const k = 0.5 * v.m / 32; ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W_, y1 - y0); ctx.clip(); ctx.translate(v.sx(0) % (64 * k), y0); ctx.scale(k, k); ctx.fillStyle = pat; ctx.fillRect(-128, 0, W_ / k + 256, (y1 - y0) / k + 2); ctx.restore(); }
     ctx.fillStyle = this.home[0]; ctx.fillRect(0, y0, W_, Math.max(2, v.m * 0.08)); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y1 - v.m * 0.15, W_, v.m * 0.15);
   }
-  drawCourtside(ctx, cam, m, t, lowChairs) {
+  drawCourtside(ctx, cam, m, t, lowChairs, glowTable) {
     const v = parView(cam, 0.9, 1), row = this.cs[0].fans, A = this.atlas, fh = v.m * ART.fanScale.courtside, fw = fh * A.w / A.h, mid = COURT_L / 2, ySeat = v.sy(0.1);
     const chair = vSprite('chair', 32, 40, (g) => { g.fillStyle = '#1C1C28'; g.fillRect(4, 0, 24, 22); g.fillStyle = '#2A2A3A'; g.fillRect(2, 20, 28, 6); g.fillStyle = '#111118'; g.fillRect(4, 26, 3, 14); g.fillRect(25, 26, 3, 14); });
     for (const s of row.seats) { if (Math.abs(s.x - mid) < ART.benchEnd) continue; /* the scorer's table and the benches */ const x = v.sx(s.x); if (x < -fw || x > cam.W + fw) continue; ctx.drawImage(chair, x - fw * 0.45, ySeat - fh * 0.5, fw * 0.9, fh * 0.55); const pose = this.crowd.pose(s, s.x, t, this.clapping(m)); const bob = Math.sin((t * ART.fanBobHz + s.ph) * TAU) * ART.fanBobPx * fh / A.h; ctx.drawImage(A.canvas, s.fan * A.w, pose * A.h, A.w, A.h, x - fw / 2, ySeat - fh * 0.95 - bob, fw, fh); }
@@ -5910,6 +5935,7 @@ class Venue {
     const tx0 = v.sx(mid - 2), tx1 = v.sx(mid + 2), ty0 = v.sy(0.78), ty1 = v.sy(0.02); ctx.fillStyle = '#0B0D1C'; ctx.fillRect(tx0, ty0, tx1 - tx0, ty1 - ty0);
     const led = this._led || (this._led = ledPanel(this.home, this.homeName)); ctx.drawImage(led, tx0 + 2, ty0 + (ty1 - ty0) * 0.18, tx1 - tx0 - 4, (ty1 - ty0) * 0.64);
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(tx0, ty0, tx1 - tx0, 1.5);
+    if (glowTable) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.45; ctx.drawImage(glowSpriteOf(this.home[0]), tx0 - (tx1 - tx0) * 0.25, ty0 - (ty1 - ty0) * 0.6, (tx1 - tx0) * 1.5, (ty1 - ty0) * 2.2); ctx.restore(); } // the glowing front
   }
   drawGymFloorEdge(ctx, cam) { const v = parView(cam, 0.9, 1); ctx.fillStyle = shadeHex(this.home[0], -0.35); ctx.fillRect(0, v.sy(0.18), cam.W, v.sy(0) - v.sy(0.18) + 1); } // a padded wall base in the school color
   drawStreetNear(ctx, cam, t) {
@@ -5951,6 +5977,12 @@ class Venue {
       ctx.restore(); }
     ctx.restore();
   }
+  // §5: 5 warm cones of light from the rafters onto the floor (into the half-res buffer)
+  drawCones(ctx, v, t) {
+    const H_ = v.H, W_ = v.W, grad = vGradSprite('cone', [[0, rgba(ART.lgConeColor, ART.lgConeA * 1.6)], [0.7, rgba(ART.lgConeColor, ART.lgConeA)], [1, rgba(ART.lgConeColor, 0)]]); ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < ART.lgCones; i++) { const x0 = v.sx(COURT_L / 2 + (i - (ART.lgCones - 1) / 2) * 3.4), sway = Math.sin(t * 0.3 + i * 1.3) * W_ * 0.01, len = H_, w0 = W_ * 0.008, w1 = W_ * 0.085; ctx.save(); ctx.beginPath(); ctx.moveTo(x0 - w0, 0); ctx.lineTo(x0 + w0, 0); ctx.lineTo(x0 + sway + w1, len); ctx.lineTo(x0 + sway - w1, len); ctx.closePath(); ctx.clip(); ctx.drawImage(grad, x0 - w1 - Math.abs(sway) - 2, 0, 2 * w1 + 2 * Math.abs(sway) + 4, len); ctx.restore(); }
+    ctx.restore();
+  }
   // Bloom on the lights, the jumbotron and the LED ribbon, then the vignette: painted into the half-res back buffer,
   // where they cost almost nothing (a full-frame vignette cost about 6 ms a frame in software rendering).
   paintBloom(g, v) {
@@ -5959,9 +5991,10 @@ class Venue {
     else if (K === 'hs') { const r = at(this.farF); for (let i = -3; i < 12; i++) { const x = r.sx(COURT_L / 2 + i * 4 - 20) + 1.2 * r.m, y = r.sy(this.y(7)); g.drawImage(glowSpriteOf('#EAF2FF'), x - 2 * r.m, y - r.m, 4 * r.m, 2 * r.m); } }
     else if (K === 'street') { const f = at(0.9); for (const lx of [-2.4, COURT_L / 2, COURT_L + 2.4]) { const x = f.sx(lx) - f.m * 0.4, y = f.sy(5.2); g.drawImage(glowSpriteOf('#FFD39A'), x - 2.5 * f.m, y - 2 * f.m, 5 * f.m, 4.5 * f.m); } }
     else if (K === 'college') { const r = at(0.3); for (let i = 0; i < 6; i++) { const x = r.sx(COURT_L / 2 + (i - 2.5) * 5), y = r.sy(this.y(9)); g.drawImage(glowSpriteOf('#FFE9C4'), x - 2 * r.m, y - r.m, 4 * r.m, 2 * r.m); } }
+    else if (K === 'legends') { const r = at(0.75), y = r.sy(0.8), h = r.m * 0.9; g.drawImage(glowSpriteOf(this.home[0]), -W_ * 0.1, y - h / 2, W_ * 1.2, h); const j = at(0.5), jw = 4.4 * ART.jumboScale * j.m; g.drawImage(glowSpriteOf('#BFD0FF'), j.sx(COURT_L / 2) - jw, j.sy(this.y(6.8)) - jw * 0.5, jw * 2, jw); const c = at(0.3); for (let i = 0; i < ART.lgCones; i++) { const x = c.sx(COURT_L / 2 + (i - (ART.lgCones - 1) / 2) * 3.4); g.drawImage(glowSpriteOf(ART.lgConeColor), x - c.m, -c.m * 0.4, 2 * c.m, 1.2 * c.m); } }
     g.restore();
   }
-  paintVignette(g, v) { const x0 = v.pad[0] * v.r, y0 = v.pad[1] * v.r, w = v.W - 2 * x0, h = v.H - 2 * y0; g.drawImage(vSprite('vignette', 256, 144, (vg, sw, sh) => { const gr = vg.createRadialGradient(sw / 2, sh / 2, sh * 0.45, sw / 2, sh / 2, sh * 1.05); gr.addColorStop(0, 'rgba(0,0,10,0)'); gr.addColorStop(1, 'rgba(0,0,10,' + ART.vignette + ')'); vg.fillStyle = gr; vg.fillRect(0, 0, sw, sh); }), x0, y0, w, h); }
+  paintVignette(g, v) { const x0 = v.pad[0] * v.r, y0 = v.pad[1] * v.r, w = v.W - 2 * x0, h = v.H - 2 * y0; g.save(); g.globalAlpha = this.kind === 'legends' || this.bright() ? ART.lgVignette / ART.vignette : 1; g.drawImage(vSprite('vignette', 256, 144, (vg, sw, sh) => { const gr = vg.createRadialGradient(sw / 2, sh / 2, sh * 0.45, sw / 2, sh / 2, sh * 1.05); gr.addColorStop(0, 'rgba(0,0,10,0)'); gr.addColorStop(1, 'rgba(0,0,10,' + ART.vignette + ')'); vg.fillStyle = gr; vg.fillRect(0, 0, sw, sh); }), x0, y0, w, h); g.restore(); }
   // L2.5: the near-side foreground (pro): photographer and fan silhouettes when the camera shows the front of the court
   drawForeground(ctx, cam) {
     if (this.kind !== 'pro' && this.kind !== 'college') return; const v = parView(cam, 1.25, 1), y = v.sy(-1.62); if (y > cam.H + 4) return;
@@ -5969,6 +6002,8 @@ class Venue {
     ctx.save(); ctx.globalAlpha = 0.85; for (let x = off; x < cam.W; x += sw) ctx.drawImage(sil, x, y, sw, sil.height * k); ctx.restore();
   }
 }
+// §5 bright grade: the finished back buffer brightened and saturated in place (once per buffer redraw, at half resolution).
+function brightGrade(g) { const [b, sat] = ART.brightGrade; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy'; g.filter = 'brightness(' + b + ') saturate(' + sat + ')'; g.drawImage(g.canvas, 0, 0); g.restore(); }
 // 7-segment digits for the gym scoreboard.
 function sevenSeg(g, str, cx, cy, h, col) {
   const SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' }; const w = h * 0.55, t = h * 0.12, gap = w * 0.35; const x0 = cx - (str.length * (w + gap) - gap) / 2;
@@ -6031,6 +6066,9 @@ Object.assign(ART, {
   sousaR: 0.15,                // sousaphone bell radius (× fan height)
   hornLen: 0.13,               // trumpet length (× fan height)
   glintHz: 1.1,                // brass glint rate (Hz); each instrument flashes once per cycle
+  fanHeadRBig: 18,             // Legends Arena fans are mini bobbleheads: the head is 38% of the fan (px radius in the 96 px cell)
+  fanHomeLg: 0.5,              // Legends Arena shirts: 50% home...
+  fanAwayLg: 0.3,              // ...30% away, 20% neutral
 });
 const FAN_POSE = { seat: 0, cheer: 1, stand: 2, clapA: 3, clapB: 4, oooh: 5 }; // oooh (hands on heads) is a 6th pose for the near-miss reaction
 const FAN_NEUTRAL = ['#F3F0FF', '#C9C9D6', '#8A8FA3', '#3A3F4A', '#23233A', '#46607E', '#7A5230', '#5B6B3A', '#B5A58A', '#9E4B4B'];
@@ -6043,13 +6081,13 @@ function fanAtlasFor(venue, home, away) {
   const key = venue + '|' + home.join() + '|' + away.join(); let A = _fanAtlases.get(key); if (A) return A;
   const N = ART.fanCount, CW = ART.fanW, CH = ART.fanH, P = 6; const c = document.createElement('canvas'); c.width = N * CW; c.height = P * CH; const g = c.getContext('2d');
   let seed = hashString(key); const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; const pick = a => a[Math.floor(rnd() * a.length) % a.length];
-  const nHome = Math.round(N * ART.fanHome), nAway = Math.round(N * ART.fanAway), fans = [];
+  const lg = venue === 'legends', nHome = Math.round(N * (lg ? ART.fanHomeLg : ART.fanHome)), nAway = Math.round(N * (lg ? ART.fanAwayLg : ART.fanAway)), fans = [];
   for (let i = 0; i < N; i++) {
     const side = i < nHome ? 0 : i < nHome + nAway ? 1 : 2, T = side === 0 ? home : side === 1 ? away : null; const sk = ART.skin[Math.floor(rnd() * 12)];
     const shirt = T ? (rnd() < 0.25 ? T[1] : T[0]) : (venue === 'hs' ? pick(FAN_COATS) : pick(FAN_NEUTRAL));
     const pr = rnd(), O = ART.props; const prop = pr < O.finger ? 'finger' : pr < O.finger + O.sign ? 'sign' : pr < O.finger + O.sign + O.phone ? 'phone' : pr < O.finger + O.sign + O.phone + O.popcorn ? 'popcorn' : null;
     const acc = rnd(); fans.push({ side, team: T, skin: sk, shirt, coat: venue === 'hs' && !T, hair: Math.floor(rnd() * 10), hairC: ART.hair[pick([0, 0, 1, 1, 2, 3, 4, 5, 6, 13])], acc: acc < 0.14 ? 'cap' : acc < 0.28 ? 'glasses' : acc < 0.35 ? 'phones' : acc < 0.45 && T ? 'paint' : null,
-      capC: T ? T[0] : pick(FAN_NEUTRAL), prop, sign: pick(FAN_SIGNS), sc: 0.9 + rnd() * 0.14, wide: 0.92 + rnd() * 0.18 });
+      capC: T ? T[0] : pick(FAN_NEUTRAL), prop, sign: pick(FAN_SIGNS), sc: 0.9 + rnd() * 0.14, wide: 0.92 + rnd() * 0.18, big: lg });
   }
   for (let i = 0; i < N; i++) for (let p = 0; p < P; p++) { g.save(); g.beginPath(); g.rect(i * CW, p * CH, CW, CH); g.clip(); g.translate(i * CW + CW / 2, p * CH + CH - 1); try { paintFan(g, fans[i], p); } catch (e) { /* a fan never breaks the atlas */ } g.restore(); }
   A = { canvas: c, w: CW, h: CH, n: N, fans, home: fans.map((f, i) => f.side === 0 ? i : -1).filter(i => i >= 0), away: fans.map((f, i) => f.side === 1 ? i : -1).filter(i => i >= 0), neutral: fans.map((f, i) => f.side === 2 ? i : -1).filter(i => i >= 0) };
@@ -6057,8 +6095,8 @@ function fanAtlasFor(venue, home, away) {
 }
 // One fan in one pose, drawn with the cell's bottom center at the origin (+y down).
 function paintFan(g, F, pose) {
-  const out = 'rgba(14,10,26,0.92)', up = pose === FAN_POSE.stand || pose === FAN_POSE.cheer, b = up ? -12 : 0, R = ART.fanHeadR; g.scale(F.sc, F.sc); g.lineJoin = 'round'; g.lineCap = 'round';
-  const skin = F.skin[0], skinD = F.skin[2], hy = b - 54;
+  const out = 'rgba(14,10,26,0.92)', up = pose === FAN_POSE.stand || pose === FAN_POSE.cheer, b = up ? -12 : 0, R = F.big ? ART.fanHeadRBig : ART.fanHeadR; g.scale(F.sc, F.sc); g.lineJoin = 'round'; g.lineCap = 'round';
+  const skin = F.skin[0], skinD = F.skin[2], hy = F.big ? b - 42 - R * 0.78 : b - 54;
   const hands = pose === FAN_POSE.cheer ? [[-17, b - 84], [17, b - 84]] : pose === FAN_POSE.clapA ? [[-2, b - 36], [2, b - 36]] : pose === FAN_POSE.clapB ? [[-11, b - 40], [11, b - 40]] : pose === FAN_POSE.oooh ? [[-10, hy - 8], [10, hy - 8]] : pose === FAN_POSE.stand ? [[-15, b - 16], [15, b - 16]] : [[-11, b - 12], [11, b - 12]];
   const arm = (sx, h, front) => { g.strokeStyle = out; g.lineWidth = 8.5; g.beginPath(); g.moveTo(sx, b - 38); g.lineTo(h[0], h[1]); g.stroke(); g.strokeStyle = F.shirt; g.lineWidth = 6; g.beginPath(); g.moveTo(sx, b - 38); g.lineTo(h[0], h[1]); g.stroke(); if (front !== false) { g.fillStyle = skin; g.strokeStyle = out; g.lineWidth = 1.4; g.beginPath(); g.arc(h[0], h[1], 3.6, 0, TAU); g.fill(); g.stroke(); } };
   const armsBehind = pose === FAN_POSE.cheer || pose === FAN_POSE.oooh; if (armsBehind) { arm(-10, hands[0]); arm(10, hands[1]); }
@@ -6071,10 +6109,10 @@ function paintFan(g, F, pose) {
   // head with two-tone skin shading, ears, eyes, mouth
   g.fillStyle = skin; g.strokeStyle = out; g.lineWidth = 1.5; g.beginPath(); g.arc(0, hy, R, 0, TAU); g.fill(); g.save(); g.clip(); g.fillStyle = rgba(skinD, 0.55); g.beginPath(); g.arc(7, hy + 3, R, 0, TAU); g.fill(); g.fillStyle = rgba(F.skin[1], 0.5); g.beginPath(); g.arc(-4, hy - 5, 4.5, 0, TAU); g.fill(); g.restore(); g.beginPath(); g.arc(0, hy, R, 0, TAU); g.stroke();
   paintFanHair(g, F, hy, R, out);
-  const open = pose === FAN_POSE.cheer || pose === FAN_POSE.oooh; g.fillStyle = '#1A1020'; for (const ex of [-4, 4]) { g.beginPath(); g.arc(ex, hy + (open ? -1 : 0), 1.5, 0, TAU); g.fill(); } g.fillStyle = 'rgba(255,255,255,0.9)'; for (const ex of [-4.5, 3.5]) g.fillRect(ex, hy - 1.2 + (open ? -1 : 0), 0.9, 0.9);
+  const open = pose === FAN_POSE.cheer || pose === FAN_POSE.oooh; if (F.big) paintBigFanFace(g, F, pose, hy, R, open); else { g.fillStyle = '#1A1020'; for (const ex of [-4, 4]) { g.beginPath(); g.arc(ex, hy + (open ? -1 : 0), 1.5, 0, TAU); g.fill(); } g.fillStyle = 'rgba(255,255,255,0.9)'; for (const ex of [-4.5, 3.5]) g.fillRect(ex, hy - 1.2 + (open ? -1 : 0), 0.9, 0.9);
   if (pose === FAN_POSE.oooh) { g.fillStyle = '#3B0E1D'; g.beginPath(); g.ellipse(0, hy + 5.5, 2.2, 3, 0, 0, TAU); g.fill(); }
   else if (open) { g.fillStyle = '#3B0E1D'; g.beginPath(); g.ellipse(0, hy + 5, 3.6, 3, 0, 0, TAU); g.fill(); g.fillStyle = '#F3F0FF'; g.fillRect(-2.5, hy + 2.4, 5, 1.2); }
-  else { g.strokeStyle = '#1A1020'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-3, hy + 5); g.quadraticCurveTo(0, hy + (pose === FAN_POSE.seat ? 6.2 : 7), 3, hy + 5); g.stroke(); }
+  else { g.strokeStyle = '#1A1020'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-3, hy + 5); g.quadraticCurveTo(0, hy + (pose === FAN_POSE.seat ? 6.2 : 7), 3, hy + 5); g.stroke(); } }
   if (F.acc === 'glasses') { g.strokeStyle = '#141018'; g.lineWidth = 1.1; g.beginPath(); g.arc(-4, hy, 2.8, 0, TAU); g.moveTo(6.8, hy); g.arc(4, hy, 2.8, 0, TAU); g.moveTo(-1.2, hy); g.lineTo(1.2, hy); g.stroke(); }
   if (F.acc === 'paint' && F.team) { g.fillStyle = F.team[0]; g.fillRect(-8.5, hy + 1.5, 3, 1.4); g.fillRect(5.5, hy + 1.5, 3, 1.4); g.fillStyle = F.team[1]; g.fillRect(-8.5, hy + 3.2, 3, 1.2); g.fillRect(5.5, hy + 3.2, 3, 1.2); }
   if (F.acc === 'phones') { g.strokeStyle = '#1C1C24'; g.lineWidth = 2.2; g.beginPath(); g.arc(0, hy - 1, R + 1.2, Math.PI * 1.05, Math.PI * 1.95); g.stroke(); g.fillStyle = '#2A2A36'; g.beginPath(); g.ellipse(-R, hy + 1, 2.8, 4, 0, 0, TAU); g.ellipse(R, hy + 1, 2.8, 4, 0, 0, TAU); g.fill(); }
@@ -6084,6 +6122,16 @@ function paintFan(g, F, pose) {
   if (F.prop === 'sign' && pose === FAN_POSE.cheer) { g.fillStyle = '#F3F0FF'; g.strokeStyle = out; g.lineWidth = 1.3; g.fillRect(-22, b - 96, 44, 17); g.strokeRect(-22, b - 96, 44, 17); g.fillStyle = F.team ? F.team[0] : '#E63946'; g.font = '900 10px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(F.sign, 0, b - 87); }
   if (F.prop === 'phone' && (pose === FAN_POSE.seat || pose === FAN_POSE.stand)) { g.fillStyle = '#15151E'; g.fillRect(8, hy + 2, 6, 10); g.fillStyle = '#9FE3FF'; g.fillRect(9, hy + 3, 4, 8); g.fillStyle = 'rgba(159,227,255,0.35)'; g.beginPath(); g.arc(11, hy + 7, 7, 0, TAU); g.fill(); }
   if (F.prop === 'popcorn' && pose !== FAN_POSE.cheer && pose !== FAN_POSE.stand) { g.fillStyle = '#F3F0FF'; g.strokeStyle = out; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-9, b - 22); g.lineTo(-2, b - 22); g.lineTo(-3, b - 10); g.lineTo(-8, b - 10); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#E63946'; g.fillRect(-7, b - 21, 1.6, 10); g.fillRect(-4.5, b - 21, 1.6, 10); g.fillStyle = '#FFE9A8'; g.beginPath(); g.arc(-5.5, b - 23, 3.4, Math.PI, TAU); g.fill(); }
+}
+// §5 bobblehead fans: two eyes with whites and pupils, brows, and a big open smile when cheering (a D with teeth).
+function paintBigFanFace(g, F, pose, hy, R, open) {
+  const INKF = '#1A1020', cheer = pose === FAN_POSE.cheer, oooh = pose === FAN_POSE.oooh, ey = hy - R * 0.08;
+  for (const ex of [-R * 0.36, R * 0.36]) { g.fillStyle = '#FAF8F4'; g.strokeStyle = INKF; g.lineWidth = 1.1; g.beginPath(); g.ellipse(ex, ey, R * 0.2, R * (oooh ? 0.28 : 0.24), 0, 0, TAU); g.fill(); g.stroke(); g.fillStyle = INKF; g.beginPath(); g.arc(ex + R * 0.03, ey + R * 0.03, R * 0.11, 0, TAU); g.fill(); g.fillStyle = '#FFFFFF'; g.fillRect(ex - R * 0.02, ey - R * 0.06, 1.2, 1.2); }
+  g.strokeStyle = rgba(ink(F.hairC || '#2E1C12'), 0.9); g.lineWidth = 2; g.beginPath(); for (const s of [-1, 1]) { const x = s * R * 0.36, lift = cheer ? -2 : oooh ? -3 : 0; g.moveTo(x - R * 0.2, ey - R * 0.34 + lift + (s < 0 ? 1 : 0)); g.lineTo(x + R * 0.2, ey - R * 0.36 + lift + (s > 0 ? 1 : 0)); } g.stroke(); // brows
+  const my = hy + R * 0.42;
+  if (cheer) { g.fillStyle = '#3B0E1D'; g.beginPath(); g.moveTo(-R * 0.42, my - R * 0.08); g.quadraticCurveTo(0, my - R * 0.02, R * 0.42, my - R * 0.08); g.quadraticCurveTo(R * 0.36, my + R * 0.36, 0, my + R * 0.38); g.quadraticCurveTo(-R * 0.36, my + R * 0.36, -R * 0.42, my - R * 0.08); g.closePath(); g.fill(); g.strokeStyle = INKF; g.lineWidth = 1.1; g.stroke(); g.fillStyle = '#FAF8F2'; g.fillRect(-R * 0.34, my - R * 0.06, R * 0.68, R * 0.12); g.fillStyle = '#D46272'; g.beginPath(); g.ellipse(0, my + R * 0.26, R * 0.2, R * 0.08, 0, 0, TAU); g.fill(); }
+  else if (oooh) { g.fillStyle = '#3B0E1D'; g.beginPath(); g.ellipse(0, my + R * 0.06, R * 0.13, R * 0.18, 0, 0, TAU); g.fill(); }
+  else { g.strokeStyle = INKF; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-R * 0.26, my); g.quadraticCurveTo(0, my + R * (open ? 0.2 : 0.14), R * 0.26, my - R * 0.02); g.stroke(); }
 }
 function paintFanHair(g, F, hy, R, out) {
   const c = F.hairC; g.fillStyle = c; g.strokeStyle = rgba(ink(c), 0.6); g.lineWidth = 1;
@@ -6181,7 +6229,7 @@ function drawCrowdRows(g, view, A, rows, cs, t, opts) {
 // flame trail), soft shadows, half-resolution floor reflections, and the jumbotron's mini replay scene (§4.6).
 // ============================================================================
 Object.assign(ART, {
-  floorPxPerM: 48,             // baked floor texture resolution (px per meter)
+  floorPxPerM: 64,             // baked floor texture resolution (px per meter; §9: 64, was 48)
   floorDepthM: 1.5,            // the floor band's depth on screen (m below the far sideline)
   lineW: 0.05,                 // court lines (m)
   keyAlpha: 0.85,              // key paint in the home color
@@ -6207,6 +6255,11 @@ Object.assign(ART, {
   seamM: 0.012,                // ball seam width (m)
   pebbleAlpha: 0.1,            // ball pebble texture
   flameFrames: 3,              // baked flame frames in the on-fire trail
+  lgFloor: '#E0A865',          // §5 Legends Arena: honey maple...
+  lgPlankTone: 0.06,           // ...planks ±6%...
+  lgKeyAlpha: 0.9,             // ...painted team-color keys
+  lgPoolAlpha: 0.3,            // two big soft light pools (the Legends Arena and bright career venues)...
+  lgPoolR: 6.5,                // ...this wide (m)
 });
 
 // --- the floor texture, baked once per venue and colors ---
@@ -6215,17 +6268,17 @@ function floorTexture(kind, home, courtId) {
   const key = kind + '|' + home.join() + '|' + courtId + '|' + LAY.id; let T = _floorTex.get(key); if (T) return T; // the court lines follow the layout
   const PX = ART.floorPxPerM, X0 = WALL_L - 3, X1 = WALL_R + 3, Wm = X1 - X0, D = ART.floorDepthM; const c = document.createElement('canvas'); c.width = Math.ceil(Wm * PX); c.height = Math.ceil(D * PX); const g = c.getContext('2d');
   let s = hashString(key); const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; const X = x => (x - X0) * PX, H_ = c.height;
-  const street = kind === 'street', base = kind === 'hs' ? '#E3B87C' : kind === 'college' ? '#C98B4A' : street ? '#3A3A44' : '#C98B4A';
+  const street = kind === 'street', lg = kind === 'legends', bright = LAY.legends && !street, base = lg ? ART.lgFloor : kind === 'hs' ? '#E3B87C' : kind === 'college' ? '#C98B4A' : street ? '#3A3A44' : '#C98B4A'; // §5: honey maple in the Legends Arena
   if (!street) { // maple planks along x, 2–3 m long, rows 8 cm deep
     const rowH = Math.max(3, Math.round(0.08 * PX));
-    for (let y = 0; y < H_; y += rowH) { let x = -rnd() * 2 * PX; while (x < c.width) { const w = (ART.plankM[0] + rnd() * (ART.plankM[1] - ART.plankM[0])) * PX; g.fillStyle = shadeHex(base, (rnd() * 2 - 1) * ART.plankTone); g.fillRect(x, y, w, rowH); g.fillStyle = 'rgba(60,30,10,0.25)'; g.fillRect(x + w - 1, y, 1, rowH); x += w; } g.fillStyle = 'rgba(60,30,10,0.18)'; g.fillRect(0, y + rowH - 1, c.width, 1); }
+    for (let y = 0; y < H_; y += rowH) { let x = -rnd() * 2 * PX; while (x < c.width) { const w = (ART.plankM[0] + rnd() * (ART.plankM[1] - ART.plankM[0])) * PX; g.fillStyle = shadeHex(base, (rnd() * 2 - 1) * (lg ? ART.lgPlankTone : ART.plankTone)); g.fillRect(x, y, w, rowH); g.fillStyle = 'rgba(60,30,10,0.25)'; g.fillRect(x + w - 1, y, 1, rowH); x += w; } g.fillStyle = 'rgba(60,30,10,0.18)'; g.fillRect(0, y + rowH - 1, c.width, 1); }
     for (let i = 0; i < c.width * 0.6; i++) { g.fillStyle = 'rgba(70,35,10,' + ART.grainAlpha + ')'; g.fillRect(rnd() * c.width, rnd() * H_, 6 + rnd() * 30, 1); }
     const vg = g.createLinearGradient(0, 0, 0, H_); vg.addColorStop(0, 'rgba(255,255,255,0)'); vg.addColorStop(0.35, 'rgba(255,255,255,' + ART.varnishAlpha + ')'); vg.addColorStop(0.6, 'rgba(255,255,255,0)'); g.fillStyle = vg; g.fillRect(0, 0, c.width, H_);
   } else { g.fillStyle = base; g.fillRect(0, 0, c.width, H_); for (let i = 0; i < c.width * H_ * 0.08; i++) { g.fillStyle = 'rgba(' + (rnd() < 0.5 ? '255,255,255' : '0,0,0') + ',' + (0.04 + rnd() * 0.1) + ')'; g.fillRect(rnd() * c.width, rnd() * H_, 1 + rnd(), 1 + rnd()); } g.fillStyle = 'rgba(0,0,0,0.2)'; for (let i = 0; i < 14; i++) { const x = rnd() * c.width, y = rnd() * H_; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) g.lineTo(x + (rnd() - 0.2) * 40, y + (rnd() - 0.5) * 14); g.lineWidth = 1; g.strokeStyle = 'rgba(0,0,0,0.3)'; g.stroke(); } }
   // paint: keys in the home color, lines, arcs and circles (worn on the blacktop)
   const lw = ART.lineW * PX, mid = H_ / 2, wornA = street ? 0.6 : 1; const white = street ? 'rgba(236,234,226,' + wornA + ')' : '#F7F4EC';
   for (const h of HOOPS) { const dir = sgn(COURT_L / 2 - h.x), base0 = dir > 0 ? 0 : COURT_L, ft = h.x + dir * W.ftLine; const kx0 = X(Math.min(base0, ft)), kx1 = X(Math.max(base0, ft)), ky0 = H_ * 0.18, ky1 = H_ * 0.82;
-    if (!street) { g.globalAlpha = ART.keyAlpha; g.fillStyle = home[0]; g.fillRect(kx0, ky0, kx1 - kx0, ky1 - ky0); g.globalAlpha = 1; }
+    if (!street) { g.globalAlpha = lg ? ART.lgKeyAlpha : ART.keyAlpha; g.fillStyle = home[0]; g.fillRect(kx0, ky0, kx1 - kx0, ky1 - ky0); g.globalAlpha = 1; }
     g.strokeStyle = white; g.lineWidth = lw; g.strokeRect(kx0, ky0, kx1 - kx0, ky1 - ky0); g.beginPath(); g.ellipse(X(ft), mid, 1.8 * PX * 0.62, (ky1 - ky0) * 0.5, 0, 0, TAU); g.stroke();
     g.beginPath(); g.ellipse(X(h.x), mid, W.threeLine * PX, H_ * 0.47, 0, dir > 0 ? -Math.PI / 2 : Math.PI / 2, dir > 0 ? Math.PI / 2 : Math.PI * 1.5); g.stroke(); }
   g.strokeStyle = white; g.lineWidth = lw; g.beginPath(); g.moveTo(X(0), 0); g.lineTo(X(0), H_); g.moveTo(X(COURT_L), 0); g.lineTo(X(COURT_L), H_); g.moveTo(X(COURT_L / 2), 0); g.lineTo(X(COURT_L / 2), H_); g.moveTo(X(0), lw / 2); g.lineTo(X(COURT_L), lw / 2); g.stroke();
@@ -6234,7 +6287,7 @@ function floorTexture(kind, home, courtId) {
   const cx = X(COURT_L / 2), r = H_ * 0.3; g.save(); g.globalAlpha = street ? 0.4 : 0.55; g.fillStyle = home[0]; g.beginPath(); g.ellipse(cx, mid, r * 2.2, r, 0, 0, TAU); g.fill(); g.globalAlpha = street ? 0.5 : 0.8; g.strokeStyle = home[1]; g.lineWidth = lw; g.stroke();
   g.fillStyle = luminance(home[1]) > 0.35 ? home[1] : '#F7F4EC'; g.font = '900 ' + Math.round(r * 1.25) + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.setTransform(1, 0, 0, 0.62, 0, mid * 0.38); g.fillText(kind === 'hs' ? 'M' : 'HH', cx, mid + r * 0.08); g.restore();
   // the static lighting, baked in: warm light pools at a third and two thirds of the court, and the gloss band
-  if (!street) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = ART.poolAlpha; const pool = glowSpriteOf(ART.poolColor), rx = ART.poolR * PX; for (const fr of [1 / 3, 2 / 3]) g.drawImage(pool, X(COURT_L * fr) - rx, -H_ * 0.4, rx * 2, H_ * 1.8); g.restore(); }
+  if (!street) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = bright ? ART.lgPoolAlpha : ART.poolAlpha; const pool = glowSpriteOf(ART.poolColor), rx = (bright ? ART.lgPoolR : ART.poolR) * PX; for (const fr of [1 / 3, 2 / 3]) g.drawImage(pool, X(COURT_L * fr) - rx, -H_ * 0.4, rx * 2, H_ * 1.8); g.restore(); }
   const gl = g.createLinearGradient(0, 0, 0, H_); gl.addColorStop(0, 'rgba(0,0,0,0.22)'); gl.addColorStop(0.25, 'rgba(0,0,0,0)'); gl.addColorStop(0.4, 'rgba(255,255,255,' + (kind === 'hs' ? 0.04 : street ? 0.02 : 0.09) + ')'); gl.addColorStop(1, 'rgba(255,255,255,0.02)'); g.fillStyle = gl; g.fillRect(0, 0, c.width, H_);
   // worn patches on the blacktop
   if (street) { g.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(0,0,0,' + (0.1 + rnd() * 0.25) + ')'; g.fillRect(rnd() * c.width, rnd() * H_, 10 + rnd() * 40, 2 + rnd() * 5); } g.globalCompositeOperation = 'source-over'; g.fillStyle = base; }
@@ -6246,7 +6299,7 @@ function drawHalfCourtLine(ctx, cam) { const { top, bottom } = floorBandOf(cam),
 // L3: the floor (texture blit), light pools and specular bars; `back` is the floor color below the band.
 function drawCourtFloor(ctx, cam, V, courtId) {
   const T = floorTexture(V.kind, V.home, courtId), { top, bottom } = floorBandOf(cam), W_ = cam.W;
-  ctx.fillStyle = V.kind === 'street' ? '#24242C' : shadeHex(V.kind === 'hs' ? '#E3B87C' : '#C98B4A', -0.45); ctx.fillRect(0, top, W_, cam.H - top);
+  ctx.fillStyle = V.kind === 'street' ? '#24242C' : shadeHex(V.kind === 'legends' ? ART.lgFloor : V.kind === 'hs' ? '#E3B87C' : '#C98B4A', -0.45); ctx.fillRect(0, top, W_, cam.H - top);
   const x0 = cam.sx(T.x0), x1 = cam.sx(T.x1); ctx.drawImage(T.canvas, x0, top, x1 - x0, bottom - top);
   if (V.kind !== 'street') { // soft specular bars mirroring the arena lights (parallax 0.8); the light pools and gloss are baked into the texture
     ctx.save();
@@ -6266,15 +6319,17 @@ function drawHoopBackNew(ctx, cam, hoop, V, idx, m, net) {
   const armX = cam.sx(bx0 + dir * 0.45), armTop = cam.sy(hoop.boardTop + 0.1) + shake; const steel = vGradSprite('steel', [[0, '#9AA0AE'], [0.5, '#D7DCE6'], [1, '#6B7080']]);
   ctx.save(); ctx.translate(armX, 0); ctx.rotate(-Math.PI / 2); ctx.drawImage(steel, -(cam.sy(1.0)), -P * 0.09, cam.sy(1.0) - armTop, P * 0.18); ctx.restore(); // the pole
   ctx.strokeStyle = '#8A90A0'; ctx.lineWidth = Math.max(2, P * 0.09); ctx.beginPath(); ctx.moveTo(armX, cam.sy(hoop.boardTop - 0.2) + shake); ctx.lineTo(cam.sx(hoop.boardX), cam.sy(hoop.boardTop - 0.2) + shake); ctx.moveTo(armX, cam.sy(hoop.boardBottom + 0.25) + shake); ctx.lineTo(cam.sx(hoop.boardX), cam.sy(hoop.boardBottom + 0.3) + shake); ctx.stroke();
-  // glass seen at 3/4: border, inner square and streaks
+  // glass seen at 3/4: border, inner square and streaks (§5: in the Legends Arena the board is drawn 1.15× about the rim, thick glass, a red inner square)
+  const lgH = V && V.kind === 'legends'; ctx.save(); if (lgH) { const rx0 = cam.sx(hoop.x), ry0 = cam.sy(RIM_Y) + shake, k = ART.lgHoopScale; ctx.translate(rx0, ry0); ctx.scale(k, k); ctx.translate(-rx0, -ry0); }
   const fx0 = cam.sx(hoop.boardX), fx1 = cam.sx(hoop.boardX - dir * ART.boardFaceM), y0 = cam.sy(hoop.boardTop) + shake, y1 = cam.sy(hoop.boardBottom) + shake, gx = Math.min(fx0, fx1), gw = Math.max(3, Math.abs(fx1 - fx0));
-  ctx.fillStyle = rgba(ART.glass, ART.glassAlpha + 0.1); ctx.fillRect(gx, y0, gw, y1 - y0); ctx.strokeStyle = '#F7F7FA'; ctx.lineWidth = Math.max(1.5, 0.05 * P); ctx.strokeRect(gx, y0, gw, y1 - y0);
-  const iy0 = cam.sy(RIM_Y + 0.15 + 0.45) + shake, iy1 = cam.sy(RIM_Y + 0.15) + shake; ctx.lineWidth = Math.max(1, 0.035 * P); ctx.strokeRect(gx + gw * 0.25, iy0, gw * 0.5, iy1 - iy0);
+  ctx.fillStyle = rgba(ART.glass, ART.glassAlpha + (lgH ? 0.22 : 0.1)); ctx.fillRect(gx, y0, gw, y1 - y0); ctx.strokeStyle = '#F7F7FA'; ctx.lineWidth = Math.max(1.5, 0.05 * P); ctx.strokeRect(gx, y0, gw, y1 - y0);
+  const iy0 = cam.sy(RIM_Y + 0.15 + 0.45) + shake, iy1 = cam.sy(RIM_Y + 0.15) + shake; ctx.lineWidth = Math.max(1, 0.035 * P); if (lgH) ctx.strokeStyle = '#E8322E'; ctx.strokeRect(gx + gw * 0.25, iy0, gw * 0.5, iy1 - iy0);
   ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = Math.max(1, gw * 0.2); ctx.beginPath(); ctx.moveTo(gx, y0 + (y1 - y0) * 0.55); ctx.lineTo(gx + gw, y0 + (y1 - y0) * 0.25); ctx.moveTo(gx, y0 + (y1 - y0) * 0.9); ctx.lineTo(gx + gw, y0 + (y1 - y0) * 0.6); ctx.stroke();
   ctx.fillStyle = '#E8E8EE'; ctx.fillRect(Math.min(fx0, cam.sx(hoop.boardX + dir * 0.05)), y0, Math.max(2, 0.05 * P), y1 - y0); // the board's edge
   // shot clock on top
   const sw = 0.4 * P, sh = 0.25 * P, scx = fx0 - sw / 2; ctx.fillStyle = '#0A0D1E'; ctx.beginPath(); roundRectPath(ctx, scx, y0 - sh - 2, sw, sh, 3); ctx.fill();
   if (m && m.phase === 'live' && isFinite(m.shotClock) && m.shotClock < 90) { ctx.fillStyle = m.shotClock <= 4 ? '#FF3030' : '#FF5A2A'; ctx.font = fontStr(sh * 0.8, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(Math.max(0, Math.ceil(m.shotClock))), scx + sw / 2, y0 - sh / 2 - 1); }
+  ctx.restore();
   // the rim's back half and the back of the net
   const cx = cam.sx(hoop.x), ry = Math.max(2, P * 0.06), rx = RIM_R * P, ryy = cam.sy(RIM_Y) + shake;
   ctx.save(); rimBendXf(ctx, cam, hoop, m, ryy); ctx.strokeStyle = ART.rimLo; ctx.lineWidth = Math.max(2, P * 0.045); ctx.beginPath(); ctx.ellipse(cx, ryy, rx, ry, 0, Math.PI, TAU); ctx.stroke(); ctx.restore();
@@ -6351,12 +6406,12 @@ function drawShadows(ctx, cam, players, ball, alpha, replay) {
 }
 // L4: floor reflections from a half-resolution buffer, faded out with depth.
 let _reflBuf = null;
-function drawReflections(ctx, cam, paintMirrored) {
+function drawReflections(ctx, cam, paintMirrored, alpha) {
   const { top, bottom } = floorBandOf(cam), W_ = cam.W, h = bottom - top; if (h < 4) return; const r = ART.layerRes * (cam.dpr || 1);
   const B = _reflBuf || (_reflBuf = document.createElement('canvas')); const bw = Math.max(8, Math.round(W_ * r)), bh = Math.max(8, Math.round(h * r)); if (B.width !== bw || B.height !== bh) { B.width = bw; B.height = bh; }
   const g = B.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bw, bh); g.save(); g.scale(r, r); g.translate(0, top); g.scale(1, -1); g.translate(0, -top); try { paintMirrored(g); } catch (e) { reportFrameError(e); } g.restore();
   g.globalCompositeOperation = 'destination-in'; g.drawImage(vGradSprite('reflfade', [[0, 'rgba(0,0,0,1)'], [1, 'rgba(0,0,0,0)']]), 0, 0, bw, bh); g.globalCompositeOperation = 'source-over';
-  ctx.save(); ctx.globalAlpha = ART.reflectAlpha; ctx.drawImage(B, 0, top, W_, h); ctx.restore();
+  ctx.save(); ctx.globalAlpha = alpha != null ? alpha : ART.reflectAlpha; ctx.drawImage(B, 0, top, W_, h); ctx.restore();
 }
 // The jumbotron replay: a small scene (floor, hoops, the replay's players and ball) at 320×180.
 function drawMiniScene(g, cam, m, reader) {
@@ -7432,7 +7487,7 @@ function soloTeam(entry, away) { const t = entry.club; const kit = Object.assign
 const HALF_SCORING = [{ label: '2s and 3s', v: '2s3s' }, { label: '1s and 2s', v: '1s2s' }];
 const FORMAT_OPTS = [{ label: 'Timed 1:30 halves', f: { type: 'timed', half: 90 } }, { label: 'Timed 2:00 halves', f: { type: 'timed', half: 120 } }, { label: 'Timed 3:00 halves', f: { type: 'timed', half: 180 } }, { label: 'First to 11', f: { type: 'first', target: 11, winBy2: false } }, { label: 'First to 21', f: { type: 'first', target: 21, winBy2: false } }, { label: 'First to 21 · win by 2', f: { type: 'first', target: 21, winBy2: true } }, { label: 'First to 11 · win by 2', f: { type: 'first', target: 11, winBy2: true } }, { label: 'First to 15 · win by 2', f: { type: 'first', target: 15, winBy2: true } }];
 function quickPlayScreen(game) {
-  const S = game.save.data.settings; const pool = extrasPool(game); const st = game.quickOpts || (game.quickOpts = { me: 0, opp: 5, diff: DIFF_IDS.indexOf(S.difficulty), court: 0, ruleset: 0, format: 1 }); st.me = Math.min(st.me, pool.length - 1); st.opp = Math.min(st.opp, pool.length - 1); const courts = courtOptions(); let t = 0;
+  const S = game.save.data.settings; const pool = extrasPool(game); const st = game.quickOpts || (game.quickOpts = { me: 0, opp: 5, diff: DIFF_IDS.indexOf(S.difficulty), court: S.camera === 'classic' ? 0 : Math.max(0, courtOptions().indexOf('legends')), /* §5: the Legends Arena is the default in Legends View */ ruleset: 0, format: 1 }); st.me = Math.min(st.me, pool.length - 1); st.opp = Math.min(st.opp, pool.length - 1); const courts = courtOptions(); let t = 0;
   const label = e => e.def.name + (e.me ? ' (you)' : '');
   const items = [sel('You play', 0, 0, 0, 0, pool.map(label), () => st.me, i => { st.me = i; if (st.opp === i) st.opp = (i + 1) % pool.length; }), sel('Opponent', 0, 0, 0, 0, pool.map(label), () => st.opp, i => { st.opp = i; if (st.me === i) st.me = (i + 1) % pool.length; }), sel('Difficulty', 0, 0, 0, 0, DIFF_LABELS, () => st.diff, i => { st.diff = i; }), sel('Court', 0, 0, 0, 0, courts.map(c => COURTS[c].short), () => st.court, i => { st.court = i; }), sel('Ruleset', 0, 0, 0, 0, ['Arcade full court', 'Street Sim', 'Street half court'], () => st.ruleset, i => { st.ruleset = i; if (i === 2 && !FORMAT_OPTS[st.format].f.winBy2) st.format = FORMAT_OPTS.findIndex(f => f.f.winBy2 && f.f.target === 11); }), sel('Format', 0, 0, 0, 0, FORMAT_OPTS.map(f => f.label), () => st.format, i => { st.format = i; }),
     sel('Half court: scoring', 0, 0, 0, 0, HALF_SCORING.map(h => h.label), () => st.halfScoring || 0, i => { st.halfScoring = i; }), tgl('Half court: make-it-take-it', 0, 0, 0, 0, () => !!st.mitt, v => { st.mitt = v; }),
@@ -7471,7 +7526,7 @@ function tournamentAdvance(game, humanWon) {
 }
 // Extras practice: free shooting against an optional dummy (the career practice week is practiceScreen in 157).
 function freePracticeScreen(game) {
-  const st = game.practiceOpts || (game.practiceOpts = { def: 0, court: 1, stamina: true, slow: false, breakdown: true, chart: true }); const courts = courtOptions(); const pool = extrasPool(game);
+  const st = game.practiceOpts || (game.practiceOpts = { def: 0, court: game.save.data.settings.camera === 'classic' ? 1 : Math.max(0, courtOptions().indexOf('legends')), stamina: true, slow: false, breakdown: true, chart: true }); const courts = courtOptions(); const pool = extrasPool(game);
   const items = [sel('Defender dummy', 0, 0, 0, 0, ['None', 'Rookie', 'Pro', 'All-Star', 'Legend'], () => st.def, i => { st.def = i; }), sel('Court', 0, 0, 0, 0, courts.map(cc => COURTS[cc].short), () => Math.min(st.court, courts.length - 1), i => { st.court = i; }), tgl('Infinite stamina', 0, 0, 0, 0, () => st.stamina, v => { st.stamina = v; }), tgl('Slow motion', 0, 0, 0, 0, () => st.slow, v => { st.slow = v; }), tgl('Shot % breakdown', 0, 0, 0, 0, () => st.breakdown, v => { st.breakdown = v; }), tgl('Shot chart', 0, 0, 0, 0, () => st.chart, v => { st.chart = v; }),
     btn('START', 0, 0, 0, 0, () => { const a = soloTeam(pool[0], false), b = soloTeam(pool[1], true); game.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: st.def ? DIFF_IDS[st.def - 1] : 'rookie', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: courts[Math.min(st.court, courts.length - 1)], seed: (Date.now() % 100000) >>> 0, controlMode: 'lock', practice: { noDefender: st.def === 0, infiniteStamina: st.stamina, slowMo: st.slow, breakdown: st.breakdown, chart: st.chart } }, { kind: 'practice' }); }, { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
   column(items, 340, 110, 600, 42, 8); const PG = phonePager(game.ui, items.slice(0, 6), items.slice(6), { x: 40, y: 84, w: 1200, h: 372 }, 2);
@@ -7875,7 +7930,7 @@ function labFail(e) { if (_labFails++ < 3) console.warn('[art lab] draw failed:'
 
 // --- venue previews: a real match scene rendered offscreen by the same scene painter the game uses ---
 const _labVenueCache = {};
-function labVenueIds() { return ['gym', 'college', 'arena', 'blacktop', 'rooftop', 'beach']; }
+function labVenueIds() { return ['gym', 'college', 'arena', 'blacktop', 'rooftop', 'beach', 'legends']; }
 function labVenueShot(courtId, W, H) {
   const key = courtId + W + 'x' + H; if (_labVenueCache[key]) return _labVenueCache[key];
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d');
@@ -7954,7 +8009,7 @@ function labViewCrowd(ctx, ui, st, t) {
   labCaption(ctx, 'Crowd atlas · ' + A.n + ' fans × 6 poses · ' + A.w + '×' + A.h + ' cells · baked per match in the two teams' + "'" + ' colors (40% home, 25% away, 35% neutral)', 640, 640, 13, UI_TEXT);
 }
 function labViewVenues(ctx, ui, st, t) {
-  labVenueIds().forEach((id, k) => { const col = k % 3, row = Math.floor(k / 3); const x = 20 + col * 416, y = 110 + row * 250; const img = labVenueShot(id, 1280, 720); ctx.drawImage(img, x, y, 400, 225); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, 400, 225); labCaption(ctx, (COURTS[id] ? COURTS[id].name || id : id), x + 8, y + 14, 13, UI_GOLD, 'left'); });
+  labVenueIds().forEach((id, k) => { const col = k % 4, row = Math.floor(k / 4); const x = 20 + col * 312, y = 110 + row * 250; const img = labVenueShot(id, 1280, 720); ctx.drawImage(img, x, y, 300, 169); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, 300, 169); labCaption(ctx, (COURTS[id] ? COURTS[id].name || id : id), x + 8, y + 14, 13, UI_GOLD, 'left'); });
 }
 // Body close-up: full figures at 150 px per meter (one wearing every cosmetic), the six hand poses and sneaker colorways.
 function labViewBody(ctx, ui, st, t) {
@@ -10382,7 +10437,7 @@ function drawMatchScene(ctx, env, m, alpha) {
     for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } const own = ball.owner === p; drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], Object.assign({}, o, { depth: p._depth || 0, ballPaint: own ? () => drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o) : null })); if (own) ballDrawn = true; } // the owner paints the ball between its palms and fingers
     if (!ballDrawn) drawBallNew(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0), o);
   };
-  if (!env.degraded && guard < 2) drawReflections(ctx, cam, g => { HOOPS.forEach((h, i) => drawHoopBackNew(g, cam, h, V, i, null, null)); drawAll(g, true); HOOPS.forEach((h, i) => drawHoopFrontNew(g, cam, h, V, i, null, null)); }); // L4
+  if (!env.degraded && guard < 2) drawReflections(ctx, cam, g => { HOOPS.forEach((h, i) => drawHoopBackNew(g, cam, h, V, i, null, null)); drawAll(g, true); HOOPS.forEach((h, i) => drawHoopFrontNew(g, cam, h, V, i, null, null)); }, V && (V.kind === 'legends' || V.bright()) ? ART.lgReflectA : null); // L4 (§5: stronger in the Legends Arena and the bright career venues)
   drawShadows(ctx, cam, order, ball, alpha, rp);                                                 // L5
   HOOPS.forEach((h, i) => drawHoopBackNew(ctx, cam, h, V, i, m, world.nets[i]));                  // L6
   drawAll(ctx, false);                                                                            // L7

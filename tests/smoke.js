@@ -92,6 +92,18 @@ const FIX = path.join(__dirname, 'fixtures');
     const q = m.players[0]; q.attrs.jmp = 9.5; q.sd = { style: 0 }; const a = q.anim; let flips = 0; for (let i = 0; i < 40; i++) { q.stats = { pts: i }; rigEnter({ a, p: q, sd: q.sd }, 'dunk'); if (a.dunkVar === 'flip') flips++; } if (!flips || flips === 40) throw new Error('flip dunks ' + flips + ' of 40');
     const cv = document.createElement('canvas'); cv.width = cv.height = 200; const g = cv.getContext('2d'); for (const clip of ['dunk:flip', 'dunk:spin360', 'rimhang', 'celebrate:jumpClap', 'celebrate:airGuitar', 'celebrate:laugh', 'fall', 'idle', 'run', 'land']) for (const t of [0, 0.1, 0.3, 0.6]) labDrawClipFigure(g, LAB_CAST[3], 3, 100, 190, 60, clip, t);
   }));
+  await step('venues (L6): the Legends Arena builds and draws; quick play and practice default to it in Legends View; career venues get the bright grade only in Legends View', async () => {
+    await ev(() => {
+      const g = HH.game, S = g.save.data.settings; S.camera = 'legends'; g.quickOpts = null; g.practiceOpts = null; const q = quickPlayScreen(g); if (courtOptions()[g.quickOpts.court] !== 'legends') throw new Error('quick play court ' + courtOptions()[g.quickOpts.court]); freePracticeScreen(g); if (courtOptions()[g.practiceOpts.court] !== 'legends') throw new Error('practice court');
+      S.camera = 'classic'; g.quickOpts = null; quickPlayScreen(g); if (courtOptions()[g.quickOpts.court] === 'legends') throw new Error('classic defaults to the Legends Arena'); S.camera = 'legends'; g.quickOpts = null;
+      const mk = court => ({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court, seed: 3, controlMode: 'lock' });
+      g.startMatch(mk('legends'), { kind: 'quick' }); for (let i = 0; i < 30; i++) simStep(g.match, STEP); const V = g.world.venueFor(g.match); if (!V || V.kind !== 'legends') throw new Error('venue ' + (V && V.kind)); g.quitToMenu();
+      g.startMatch(mk('arena'), { kind: 'quick' }); const A = g.world.venueFor(g.match); if (!A.bright()) throw new Error('no bright grade in Legends View'); g.quitToMenu();
+      S.camera = 'classic'; g.startMatch(mk('arena'), { kind: 'quick' }); const B = g.world.venueFor(g.match); if (B.bright()) throw new Error('bright grade in Classic'); g.quitToMenu(); S.camera = 'legends';
+    });
+    await ev(() => { const g = HH.game; g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 4, controlMode: 'lock' }, { kind: 'quick' }); });
+    await wait(1200); await shot('21-legends-arena'); await ev(() => HH.game.quitToMenu());
+  });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
   await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {

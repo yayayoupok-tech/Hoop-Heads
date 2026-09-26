@@ -3,6 +3,54 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L6 — The Legends Arena and the bright grade (graphics overhaul, milestone 6)
+
+A new venue, the Legends Arena (court id `legends`, venue kind `legends`), and a bright grade for the career venues when
+Legends View is on. Shots: `shots/l6/` (the venue in-game on desktop and phone, the bright pro arena, gym and college,
+and every Art Lab view; the Venues page now shows all seven venues in a 4-column grid).
+
+The Legends Arena (§5)
+- It is the default court for quick play and practice in Legends View (Classic keeps the blacktop and the gym). The
+  career keeps the gym, the college arena and the pro arena; the tournament keeps its blacktop and arena rounds.
+- Background: a bowl gradient #2446A8 → #13245E with roof trusses, an upper bowl of tiny fans, 5 warm light cones
+  #FFE9B8 at α 0.14 swaying slowly, four big banners in the team colors with invented text (HOOP HEADS LEGENDS, BIG HEAD
+  CLUB, POSTER NIGHT, BONK ZONE), the jumbotron with score, portraits, chants and replays.
+- Crowd: 3 rows 0.62 m apart, fans 0.95 m tall, mini bobbleheads (the head is 38% of the fan: radius 18 px in the
+  96 px atlas cell against 11), bold outlines and flat shading, eyes with whites and pupils, brows, a big open D smile
+  with teeth when cheering, an O when groaning; shirts 50% home, 30% away, 20% neutral. Poses, props and reactions are
+  the M5 crowd's (seated, cheering, standing, clapping, hands on heads; foam fingers, signs, phones, popcorn; big plays
+  stand the section up, near misses get the "ohhh", a win drops confetti).
+- Courtside: the LED board at 0.6–1.0 m scrolling the invented sponsors, with bloom; the scorer's table with a glowing
+  front in the home color; the benches.
+- Floor: honey maple #E0A865, planks ±6%, crisp plank lines, painted team-color keys at α 0.9, the invented HH center
+  monogram, two big soft light pools; reflections at α 0.32 fading over the floor band.
+- Hoops: the backboard is drawn 1.15× about the rim (rim height and collision unchanged), thicker glass, a white frame,
+  a red inner square; the padded stanchion in the home color and the red-digit shot clock as before.
+- Lighting: a bright even key, the vignette at α 0.2, bloom on the cones, the jumbotron and the LED board.
+
+The bright grade (§5): in Legends View the pro arena, the college arena and the gym get their background buffer
+brightened 25% and saturated 15% (a filter pass on the half-resolution buffer at each redraw, not every frame), their
+stands' shadow cut to 40%, the vignette at α 0.2, bigger and brighter light pools (α 0.30, 6.5 m) and floor reflections
+at the Legends level (α 0.32). Classic is unchanged.
+
+Deviations
+- "The floor band takes 35% of screen height": §2's own camera puts the floor line at 80% of the screen so the players
+  stay big, which leaves 20% for the floor band (plus the reflections under the players). The §2 camera wins.
+- Crowd atlas: the spec's cells are 80 × 150 px, 24 fans × 5 poses; the M5 atlas (48 × 96, 32 fans × 6 poses) is kept
+  and drawn with the bigger heads. At the half-resolution crowd buffer the extra size would not show, and L7's pixel
+  mode rebakes fans at about 22 × 38 px anyway.
+- Reflections stay in the M5 half-resolution buffer (the spec asks for full resolution): the guard's first step already
+  halves them, and at full resolution they cost about as much as the players.
+- Floor texture: baked at 64 px per meter (§9; was 48) for every venue.
+
+Tests (L6 changes no gameplay)
+- Smoke 89 of 89 (new step: quick play and practice default to the Legends Arena in Legends View and not in Classic;
+  the venue builds and draws; the bright grade is on for career venues in Legends View and off in Classic). Modes 13 of
+  13, old saves 16 of 16, dev tools all OK, phone audit: no errors; zero console errors.
+- `balance.js 12 21`, `careersim.js 40` and the §2 gate: unchanged from L5. `perf.js` (the pro arena, which now gets the
+  bright grade in Legends View): guard level 0 median 19.5 ms, p95 28.1 ms; 4× CPU 103.5 ms (L5: 20.6 / 29.9 and 89.6 ms).
+
+
 ## L5 — Animation (graphics overhaul, milestone 5)
 
 §4's exaggeration, all in the RIG section (visual only: clips read the simulation and never change it). Shots:

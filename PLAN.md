@@ -134,7 +134,9 @@ hands that wrap a held ball, high-tops with an original emblem, long baggy short
 number, near-black body lines, a contact shadow, §3.11 overlap order; signature colorways unlock in the pro career.)*
 **L5 — Animation exaggeration** *(done: bigger squash and stretch, a springier head bobble with a landing lag,
 runs that tilt and flap, front-flip and card-thin spin dunks, rim-hang kicks and a bending rim, knockdowns with orbiting
-stars, the BONK!, jump-and-clap, air guitar and laugh celebrations, idle weight shifts and crowd glances.)* **L6 — The Legends Arena** and a bright grade for career venues. **L7 — Pixel mode**
+stars, the BONK!, jump-and-clap, air guitar and laugh celebrations, idle weight shifts and crowd glances.)* **L6 — The Legends Arena** *(done: a bright blue bowl with warm light cones, big invented banners, bobblehead fans,
+the LED board and glowing scorer's table, honey maple with team keys, 1.15× backboards; the default court in Legends
+View. Career venues get a brighter, more saturated grade in Legends View.)* **L7 — Pixel mode**
 (internal resolution, pixelized sprites, dithered backgrounds). **L8 — Chunky UI**, the select wall, the pixel font and
 logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
 
