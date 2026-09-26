@@ -1,6 +1,6 @@
 // Art Lab screenshots for a visual round: node tests/artlab.js <milestone> <round>
 // Saves every Art Lab view plus in-match frames (desktop and phone) to shots/<milestone>/round-<round>/.
-// LAB_ONLY=legends: only the Legends check pages and in-game Legends View frames (the §10 rounds in shots/legends/).
+// LAB_ONLY=legends: only the Legends check pages, the Hair page and in-game Legends View frames (the §10 rounds in shots/legends/).
 const path = require('path'), fs = require('fs');
 const { ROOT, launch, openPage } = require('./lib');
 (async () => {
@@ -11,7 +11,7 @@ const { ROOT, launch, openPage } = require('./lib');
   const views = await ev(() => LAB_VIEWS.slice()), only = process.env.LAB_ONLY || '';
   const shot = async name => { await page.waitForTimeout(350); await P.shot(path.join(out, name + '.jpg')); n++; };
   for (let v = 0; v < views.length; v++) {
-    if (only === 'legends' && views[v] !== 'Legends check') continue;
+    if (only === 'legends' && views[v] !== 'Legends check' && views[v] !== 'Hair') continue;
     await ev(v => HH.game.ui.screen.setView(v), v);
     if (views[v] === 'Legends check') { const n = await ev(v => labPageCount(v), v); for (let pg = 0; pg < n; pg++) { await ev(q => { const s = HH.game.ui.screen; s.setPage(q); s.setChar(q); }, pg); await shot('lab-' + v + '-legends-p' + pg); } continue; }
     if (v === 1) { for (const ch of (process.env.LAB_CHARS || '0,3,7,11').split(',').map(Number)) { await ev(c => HH.game.ui.screen.setChar(c), ch); await shot('lab-' + v + '-faces250-p' + (ch + 1)); } }

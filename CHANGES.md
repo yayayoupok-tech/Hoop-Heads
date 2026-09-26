@@ -3,6 +3,70 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L3 — Facial hair and hair (graphics overhaul, milestone 3)
+
+Hair and facial hair are redrawn to §3.8–§3.9 in the same bold, cel-shaded language as the L2 faces. Shots:
+`shots/legends/round-4/` and `round-5/` (the two L3 rounds: Legends check pages, the Hair page and in-game frames) and
+`shots/l3/round-final/` (every Art Lab view).
+
+What is new
+- Facial hair (§3.8, `paintFacialHair` rewritten). The regions now follow each head archetype's own outline and the
+  mouth instead of fixed polygons, so a Long face's beard reaches its long chin and a Heart face's goatee sits on its
+  pointed one. Every solid piece (mustache, goatee, chin strap, full beard) is a solid fill in the hair color with a
+  3-tone cel treatment (base, a far-side shadow band, a top highlight band), tufted edges (triangles 0.02–0.03 pointing
+  along the growth direction), 22–66 flow strokes in hairDark α 0.5 and hairLight α 0.35, and the bold outline around
+  the piece and its tufts as one shape. A full beard grows 0.07 past the jaw line under the chin.
+- Paint order: the stubble sits in the skin; the solid pieces are painted after the head's outline (so a beard can
+  grow past the jaw); the nose and the mouth are painted after the beard, so the lips and their outline sit on top. The
+  mustache's lower edge follows the expression's upper lip (higher over a grin, lower over pressed lips).
+- Stubble: a new tile of 1,200 dots per 64 × 64 at 0.8 px, laid twice along the jaw line (densest there), fading to
+  nothing toward the cheeks through an offscreen layer.
+- Hair (§3.9): every style is a solid silhouette with the bold near-black outline (0.03 head widths, never under 2.2 px),
+  two-tone cel shading (the shadow band is what the mass shifted toward the key light leaves uncovered, so it always
+  sits on the lower back edge) and one curved gloss band at α 0.6. Black and near-black hair gets a lit tone mixed
+  halfway toward #3E3C4E so the two tones read.
+- Fades and line-ups (buzz, taper, and the faded sides under high tops, curly tops, twists, locs, cornrows and the bun):
+  a crisp 0.012 hairDark hairline edge; the fade gradient runs only down the sides.
+- Afro, curly top and twists: outlined clumps, each with its own shadow crescent, highlight arc and curl mark; the afro
+  is 37 clumps, drawn behind the head and again over the crown, with a scalloped fringe along the hairline. Twists are
+  outlined tubes with a highlight line.
+- Locs and box braids keep their verlet chains; each strand is an outlined tube (0.016 each side) with a highlight line.
+- Bald: the §3.4 scalp gloss; 30% of bald heads keep a faint stubble shadow on the sides.
+
+Tuned after looking at the Art Lab
+
+| Item | Before (M2) or spec | Now | Why |
+| --- | --- | --- | --- |
+| Hairline | M2's hairline | 0.05 higher (`hairlineLift`); the afro's fringe and the cornrows' starts move with it | the 1.4× brows and bigger L2 eyes ran into the hair (round 2 of L2) |
+| Front locs | anchored at x 0.30–0.38, kept right of 0.27 | anchored under the temple's hair at x 0.43–0.475, kept right of 0.46 (`frontLocX`) | they covered the near eye |
+| Long hair's front lock | x 0.34–0.56 | 0.08 further out (`frontLockDX`) | it covered the facing cheek |
+| Buzz cut's window highlight | α 0.8 (§3.4) | α 0.45 on a buzz (`buzzWindowA`); bald heads keep 0.8 | over hair it read as a shiny cap |
+| Full beard's facing side | — | it meets the silhouette on a diagonal 0.03 below the cheek line (`beardCheekDrop`) | a horizontal sideburn edge made a boxy notch |
+| Stubble | even density | fades in from y 0.04 to 0.30 (`stubbleFade`) | "fading toward the cheeks"; a hard top edge read as a mask |
+| Afro | one blob with curl marks | 37 outlined clumps, redrawn over the crown | the head's outline cut a dark ring through the hair |
+
+New constants (all in ART): `hairOutline` 0.03, `strandOutline` 0.016, `hairShadeShift` [0.05, −0.045], `hairGlossA`
+0.6, `blackHairBase` #3E3C4E, `hairlineLift` 0.05, `hairlineEdgeW` 0.012, `baldStubbleRate` 0.3, `frontLocX` 0.48,
+`frontLockDX` 0.08, `beardShade` 0.06, `beardGrow` 0.07, `mustacheH` 0.055, `chinStrapW` 0.055, `stubbleDots` 1200,
+`stubbleFade` [0.04, 0.30], `beardCheekDrop` 0.03, `buzzWindowA` 0.45.
+
+Rounds (no `reference/` folder; compared against §3.8–§3.9 and the L2 notes)
+
+| Round | Biggest differences | Fixed in |
+| --- | --- | --- |
+| first render (not kept) | 1. a boxy notch where the full beard met the facing sideburn; 2. stubble had a hard top edge; 3. loc root strokes poked out above the head; 4. a strand highlight was swallowed by a comment (the build lint caught it); 5. the front locs bunched into one stick | round 4 |
+| 4 (`shots/legends/round-4/`, L3 round 1) | 1. the head's outline cut a dark ring through the afro; 2. the afro fringe read as a separate roll; 3. the buzz cut read as a shiny cap; 4. front locs started above the head, detached; 5. the phone's big banners cover the faces (UI, L8) | 1–4 in round 5; 5 in L8 |
+| 5 (`round-5/`, L3 round 2) | what is left is outside hair: 1. heads pile up in contests (L4, §3.11); 2. bodies are small next to the heads (L4, §3.1); 3. hands are mittens (L4, §3.10); 4. the phone banners (L8); 5. hair has no pixel treatment yet (L7) | L4, L7, L8 |
+
+Tests (L3 changes no gameplay)
+- Smoke 86 of 86, modes 13 of 13, old saves 16 of 16, dev tools all OK, phone audit: no errors; zero console errors.
+- `balance.js 12 21`: brute force 1.28 PPP against Pro, perfect timing 2.02, Legend beats Pro 84%. Every target passes.
+- `careersim.js 40`: every target passes except the Hall of Fame, 3 of 40 (8%, as in L2). `careersim.js 200 4`: 26 of
+  200 (13%) and every other target passes too (OVR 56 / 68 / 76 at 17 / 21 / 25, peak 78, 0.95 titles per career),
+  so the 40-career miss is sampling noise.
+- §2 gate: identical to L1 and L2 (Legends mirror PPP 1.44 ✗ against 0.90–1.25; team A 50%; Legend beats Pro 77%;
+  brute force 0.98; timing 2.07).
+
 ## L2 — Faces (graphics overhaul, milestone 2)
 
 The face painter is rewritten to the spec's §3.2–§3.7: bigger features, six head archetypes, five nose types, cel
