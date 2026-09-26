@@ -3,6 +3,71 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L8 — Chunky UI, the select wall, the pixel UI and the logo (graphics overhaul, milestone 8)
+
+§6's arcade UI for both looks, and §8.5's pixel menus. Shots: `shots/l8/ui/` (title, menu, the pop-in mid-transition,
+create, settings, the match wipe, the HUD with a grinning scorer, pause; desktop and phone, Pixel and Smooth) and
+`shots/l8/round-final/` (every Art Lab view; Pixel check page 4 puts the kit side by side, Smooth and Pixel).
+
+What's new
+- Headings: weight 900, a yellow → orange gradient (#FFF3A0 → #FFD23F → #FF9A1F → #F07A1A), a 4 px near-black
+  (#150B10) outline and a 4 px drop shadow down-right; 40 px and up they arch (letters ride a parabola 9% of the size
+  high and lean with it). A 1-px shine on the top fifth.
+- The logo: HOOP HEADS with the first O drawn as a basketball in code (pebbled orange, highlight, four seams), on a
+  6-step yellow → orange ramp, on the title screen and the main menu.
+- Buttons: a 3 px ink outline and a 6 px darker lip under the face (at most 12% of the button's height, so small buttons
+  keep their label room); a press squashes to 0.94, overshoots to 1.03 and settles over 240 ms; primary gold → orange
+  (lip #A8480E), secondary blue #5A8CF0 → #2A55C4 (lip #1E3FA8); the focused one is brighter with an inner ring.
+- The select wall (the create screens' face grids, both careers): the hovered head bobbles (±7° at 2.4 Hz with a small
+  hop) and grins; the selected one is drawn 1.15× with a gold ring.
+- HUD: score digits at least 6% of the screen height (43 px at 720 rows), white with an ink outline and drop shadow;
+  the team panels get an ink edge; the scorer's portrait grins for 1.6 s and the number pops; the shot-clock pill is
+  1.4× bigger with a gold edge. Portraits take an expression (cached per expression).
+- Transitions: screens pop in 0.8 → 1.06 → 1.0 over 280 ms while the old one fades; overlays pop the same way; a match
+  opens with a diagonal wipe in the human side's team colors (460 ms). Reduce Motion skips all of it.
+- Pixel mode (§8.5): menus draw into a UI layer at twice the internal resolution and blit with smoothing off; panels
+  are notched (2-UI-pixel corner steps) with 1-UI-pixel borders; buttons are notched with no glow; headings use the
+  pixel font on the logo's 6-color ramp with a 2-UI-pixel outline and drop shadow; the logo gets a pixel ball; the
+  score uses a new 7×11 digit set. In a match the HUD draws through the same layer.
+
+New constants (ART, UIKIT section)
+
+| Constant | Value | Was | What it does |
+| --- | --- | --- | --- |
+| `uiTransMs` | 280 | 200 | screen pop-in length (§6) |
+| `uiPressMs` | 240 | 110 | a press's squash, overshoot and settle |
+| `uiPressDown` / `uiPressOver` | 0.94 / 1.03 | 0.96 / – | the press curve (§6) |
+| `uiPopFrom` / `uiPopOver` | 0.8 / 1.06 | – | the pop-in curve (§6) |
+| `uiBtnOutline` / `uiBtnLip` | 3 / 6 px | – | button outline and lip (§6) |
+| `uiTitleRamp` | 4 stops | 3-stop gold | heading gradient |
+| `uiTitleOutline` / `uiTitleShadow` | 4 / 4 px | 14% / 5% of size | heading outline and shadow (§6) |
+| `uiTitleArch` / `uiTitleArchMin` | 0.09 / 40 px | – | how much big headings arch, from what size |
+| `uiInk` | #150B10 | – | button and heading outlines |
+| `selHeadScale` | 1.15 | – | the selected head (§6) |
+| `selBobHz` / `selBobDeg` | 2.4 / 7° | – | the hovered head's bobble |
+| `wipeMs` | 460 | – | the match-start wipe |
+| `hudScoreH` | 0.06 | – | score digits' minimum share of the screen height (§6) |
+| `hudGrinS` | 1.6 s | – | how long a scorer's portrait grins |
+| `hudClockPill` | 1.4 | – | shot-clock pill size |
+
+Deviations
+- The UI layer's pixel is k/2 device pixels rounded down, so every UI pixel is the same size. At 1280×720 (k = 3) that
+  is one device pixel, so the layer is full resolution there and the pixel look comes from the notches, the pixel-font
+  headings and the digits; phones (k = 5 at 390 px @3x) and 1080p screens get 2-pixel UI pixels.
+- Body text and button labels stay in the system font: the 5×7 font has no lowercase and is too small for paragraphs.
+  Headings, the logo, callouts and the score digits use the pixel fonts.
+- Selects, sliders and toggles keep their M6 rows; the chunky style is for buttons.
+- The select wall is the two create screens' face grids (no other screen has a grid of heads).
+
+Tests (L8 changes no gameplay)
+- Smoke 91 of 91 (new step: the press curve hits 0.94 and 1.03, the pop-in 0.8 and 1.06 over 280 ms, the 7×11 digits
+  are complete, a scorer's grinning portrait is a different bake, the pixel kit draws, a match opens with a wipe in the
+  human side's color and it ends). Modes 13 of 13, old saves 16 of 16, dev tools all OK, phone audit: no errors (every
+  menu keeps its 64 px targets); zero console errors.
+- `balance.js 12 21`, `careersim.js 40` and the §2 gate: identical to L7. `perf.js` (844×390 @2x, Pixel, the HUD now
+  drawn through the UI layer): guard level 0 median 23.3 ms, p95 33.6 ms; 4× CPU 106.5 ms and the guard engages (L7:
+  23.1 / 31.3 ms, 99.8 ms).
+
 ## L7 — Pixel mode (graphics overhaul, milestone 7)
 
 Settings → Graphics: **Pixel** (the new default) or **Smooth** (everything up to L6). Pixel mode renders the match

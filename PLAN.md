@@ -140,8 +140,11 @@ View. Career venues get a brighter, more saturated grade in Legends View.)* **L7
 Graphics, Pixel by default; the scene renders at 240-ish rows and blits at a whole-number scale; a per-venue 32-color
 palette with camera-anchored Bayer dither; characters pixelized from a 3× paint with a per-character palette, a 1-px ink
 outline and selective inner lines; 8 pre-pixelized ball frames; square particles; a pixel font for callouts; a guard that
-sheds pixel work over 4/8 ms.)* **L8 — Chunky UI**, the select wall, the pixel font and
-logo. **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
+sheds pixel work over 4/8 ms.)* **L8 — Chunky UI** *(done: 900-weight gradient
+headings with a 4 px outline, drop shadow and an arch; the logo with a code-drawn basketball; buttons with a 3 px outline,
+a 6 px lip and a squash-overshoot press; the select wall's bobbling, grinning heads; a bigger score, grinning scorer
+portraits, a bigger shot-clock pill; pop-in transitions and a team-color wipe into matches. Pixel mode: menus and the
+HUD in a UI layer at 2× internal resolution, notched panels, pixel-font headings on a 6-color ramp, 7×11 score digits.)* **L9 — Optional arcade extras.** **L10 — Performance, phone, before/after gallery, final report.**
 
 ## Testing every milestone
 

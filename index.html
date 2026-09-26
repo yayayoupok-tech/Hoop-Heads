@@ -5549,16 +5549,16 @@ function drawHead(ctx, cx, cy, R, look, expr, f, teamColors, lw, opts) {
 
 // Portrait cache for menus and rosters.
 const _portraits = new Map();
-function portraitOf(def, teamColors, size) {
-  def = def || {}; const L = normLook(def.look, def.name); const age = def.age || 24; size = Math.max(16, Math.round(size) || 96);
-  const key = lookKey(L) + '|' + ageStageOf(age) + '|' + (teamColors ? teamColors[0] + teamColors[1] : '') + '|' + size;
+function portraitOf(def, teamColors, size, expr) {
+  def = def || {}; const L = normLook(def.look, def.name); const age = def.age || 24; size = Math.max(16, Math.round(size) || 96); expr = EXPRS.includes(expr) ? expr : 'neutral';
+  const key = lookKey(L) + '|' + ageStageOf(age) + '|' + (teamColors ? teamColors[0] + teamColors[1] : '') + '|' + size + (expr !== 'neutral' ? '|' + expr : '');
   let c = _portraits.get(key); if (c) return c;
   c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
   try {
     const grd = g.createLinearGradient(0, 0, 0, size); grd.addColorStop(0, teamColors ? shadeHex(teamColors[0], 0.1) : '#2A3F7A'); grd.addColorStop(1, teamColors ? shadeHex(teamColors[0], -0.5) : '#101A3A'); g.fillStyle = grd; g.beginPath(); roundRectPath(g, 0, 0, size, size, size * 0.12); g.fill();
     g.save(); g.beginPath(); roundRectPath(g, 0, 0, size, size, size * 0.12); g.clip();
     const jersey = teamColors ? teamColors[0] : '#3D6EA8'; g.fillStyle = jersey; g.beginPath(); g.moveTo(size * 0.12, size); g.quadraticCurveTo(size * 0.5, size * 0.7, size * 0.88, size); g.fill(); g.strokeStyle = teamColors ? teamColors[1] : '#F3F0FF'; g.lineWidth = Math.max(1, size * 0.03); g.beginPath(); g.moveTo(size * 0.36, size * 0.86); g.quadraticCurveTo(size * 0.5, size * 0.96, size * 0.64, size * 0.86); g.stroke();
-    drawFace(g, L, size * 0.5, size * 0.56, size * 0.5, 1, 'neutral', { name: def.name, age, team: teamColors, noBlink: true, force: true });
+    drawFace(g, L, size * 0.5, size * 0.56, size * 0.5, 1, expr, { name: def.name, age, team: teamColors, noBlink: true, force: true });
     g.restore();
   } catch (e) { /* a portrait never throws */ }
   g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = Math.max(1, size * 0.02); g.beginPath(); roundRectPath(g, 1, 1, size - 2, size - 2, size * 0.12); g.stroke();
@@ -5596,29 +5596,35 @@ function drawShotMeter(ctx, cam, p, alpha, setting, lastShot, time) {
 // The score bug (§6): a team-color panel on each side with the player's mini portrait, name and score; the game clock,
 // the shot clock and the period sit in the center. It scales down on narrow screens.
 function glassPanel(ctx, x, y, w, h, r) { ctx.fillStyle = 'rgba(8,12,40,0.82)'; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); roundRectPath(ctx, x + 2, y + 2, w - 4, h * 0.45, r); ctx.fill(); }
-function drawScoreBug(ctx, m, W_) {
-  const k = Math.min(1, W_ / 1100), w = 600 * k, h = 62 * k, cx = W_ / 2, y = 10, cw = 132 * k, pw = (w - cw) / 2, now = performance.now() / 1000;
-  ctx.fillStyle = 'rgba(0,0,12,0.35)'; ctx.beginPath(); roundRectPath(ctx, cx - w / 2 + 2, y + 4, w, h, 14 * k); ctx.fill();
-  ctx.fillStyle = 'rgba(8,12,36,0.92)'; ctx.beginPath(); roundRectPath(ctx, cx - cw / 2 - 6 * k, y, cw + 12 * k, h + 8 * k, 12 * k); ctx.fill(); // the center block hangs a little lower
+const _hudGrin = new WeakMap(); // team → { score, until }: the portrait grins for ART.hudGrinS after a score (L8 §6)
+function drawScoreBug(ctx, m, W_, H_) {
+  const k = Math.min(1, W_ / 1100), w = 600 * k, h = 62 * k, cx = W_ / 2, y = 10, cw = 132 * k, pw = (w - cw) / 2, now = performance.now() / 1000, px = uiPixel();
+  const rr = (x, yy, ww, hh, r) => { ctx.beginPath(); if (px) pxNotchPath(ctx, x, yy, ww, hh, Math.max(2, r * 0.5)); else roundRectPath(ctx, x, yy, ww, hh, r); };
+  const ds = Math.max(40 * k, ART.hudScoreH * (H_ || 720)); // §6: score digits at least 6% of the screen height
+  ctx.fillStyle = 'rgba(0,0,12,0.35)'; rr(cx - w / 2 + 2, y + 4, w, h, 14 * k); ctx.fill();
+  ctx.fillStyle = 'rgba(8,12,36,0.92)'; rr(cx - cw / 2 - 6 * k, y, cw + 12 * k, h + 8 * k, 12 * k); ctx.fill(); // the center block hangs a little lower
   for (const side of [0, 1]) {
     const t = m.teams[side], dir = side ? 1 : -1, x0 = side ? cx + cw / 2 : cx - w / 2, col = t.colors || ['#3D6EA8', '#F3F0FF'];
     const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, shadeHex(col[0], 0.18)); g.addColorStop(0.55, col[0]); g.addColorStop(1, shadeHex(col[0], -0.35));
-    ctx.fillStyle = g; ctx.beginPath(); if (side) roundRectPath(ctx, x0, y, pw, h, 14 * k); else roundRectPath(ctx, x0, y, pw, h, 14 * k); ctx.fill();
+    ctx.fillStyle = g; rr(x0, y, pw, h, 14 * k); ctx.fill(); ctx.strokeStyle = ART.uiInk; ctx.lineWidth = Math.max(2, 3 * k); ctx.stroke(); // team-color panel with an ink edge
     ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(x0 + 8 * k, y + 2, pw - 16 * k, Math.max(1, 2 * k)); // top sheen
     ctx.fillStyle = rgba(col[1], 0.9); ctx.fillRect(side ? x0 : x0 + pw - 4 * k, y + 6 * k, 4 * k, h - 12 * k);   // a stripe in the second color by the center
     const light = luminance(col[0]) > 0.55, ink = light ? '#0B1030' : '#FFFFFF', p = t.players && t.players[0], solo = m.perSide === 1 && p;
     // portrait (or the team's letters in a team game) at the outer edge
-    const ps = h - 12 * k, px = side ? x0 + pw - ps - 6 * k : x0 + 6 * k, py = y + 6 * k;
-    if (solo) { try { ctx.drawImage(portraitOf(p, col, 96), px, py, ps, ps); } catch (e) { /* portrait is decoration */ } }
-    else { ctx.fillStyle = shadeHex(col[0], -0.45); ctx.beginPath(); roundRectPath(ctx, px, py, ps, ps, 8 * k); ctx.fill(); ctx.fillStyle = col[1]; ctx.font = fontStr(ps * 0.42, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(t.abbr || '').slice(0, 3), px + ps / 2, py + ps / 2 + 1); }
-    ctx.strokeStyle = rgba(col[1], 0.85); ctx.lineWidth = Math.max(1, 1.5 * k); ctx.beginPath(); roundRectPath(ctx, px, py, ps, ps, 8 * k); ctx.stroke();
+    const ps = h - 12 * k, ppx = side ? x0 + pw - ps - 6 * k : x0 + 6 * k, py = y + 6 * k;
+    let G = _hudGrin.get(t); if (!G) { G = { score: t.score, until: -1 }; _hudGrin.set(t, G); } if (t.score > G.score) G.until = now + ART.hudGrinS; G.score = t.score; const grin = now < G.until;
+    if (solo) { try { const pop = grin ? 1 + 0.08 * Math.max(0, Math.sin(Math.min(1, (G.until - now) / ART.hudGrinS) * Math.PI * 6)) : 1; ctx.drawImage(portraitOf(p, col, 96, grin ? 'hyped' : 'neutral'), ppx - ps * (pop - 1) / 2, py - ps * (pop - 1) / 2, ps * pop, ps * pop); } catch (e) { /* portrait is decoration */ } }
+    else { ctx.fillStyle = shadeHex(col[0], -0.45); rr(ppx, py, ps, ps, 8 * k); ctx.fill(); ctx.fillStyle = col[1]; ctx.font = fontStr(ps * 0.42, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(t.abbr || '').slice(0, 3), ppx + ps / 2, py + ps / 2 + 1); }
+    ctx.strokeStyle = rgba(col[1], 0.85); ctx.lineWidth = Math.max(1, 1.5 * k); rr(ppx, py, ps, ps, 8 * k); ctx.stroke();
     // name and heat
-    const tag = (solo ? (p.nick || p.name || '') : (t.abbr || t.name || '')).toUpperCase(); const nx = side ? px - 8 * k : px + ps + 8 * k, nMax = pw - ps - 70 * k;
+    const tag = (solo ? (p.nick || p.name || '') : (t.abbr || t.name || '')).toUpperCase(); const nx = side ? ppx - 8 * k : ppx + ps + 8 * k, nMax = pw - ps - 70 * k;
     let fs = 17 * k; ctx.font = fontStr(fs, true); while (fs > 9 && ctx.measureText(tag).width > nMax) { fs -= 1; ctx.font = fontStr(fs, true); }
     ctx.fillStyle = ink; ctx.textAlign = side ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.fillText(tag, nx, y + 21 * k);
     if (m.arcade) { const hb = t.players.reduce((a, q) => Math.max(a, q.onFire > 0 ? 100 : q.heat || 0), 0); const fire = t.players.some(q => q.onFire > 0); const bw = Math.min(64 * k, nMax), bx = side ? nx - bw : nx; ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(bx, y + 38 * k, bw, 5 * k); ctx.fillStyle = fire ? (Math.sin(now * 16) > 0 ? '#FF8A2A' : '#FF4FA3') : '#FF8A2A'; ctx.fillRect(side ? bx + bw * (1 - hb / 100) : bx, y + 38 * k, bw * hb / 100, 5 * k); }
     // score by the center
-    ctx.font = fontStr(40 * k, true); ctx.textAlign = side ? 'left' : 'right'; ctx.lineJoin = 'round'; ctx.lineWidth = 4 * k; ctx.strokeStyle = light ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,12,0.35)'; const sx = side ? x0 + 12 * k : x0 + pw - 12 * k; ctx.strokeText(String(t.score), sx, y + h / 2 + 2 * k); ctx.fillStyle = ink; ctx.fillText(String(t.score), sx, y + h / 2 + 2 * k);
+    const sx = side ? x0 + 12 * k : x0 + pw - 12 * k, sy = y + h / 2 + 2 * k, sp = grin ? 1 + 0.18 * Math.max(0, (G.until - now) / ART.hudGrinS - 0.75) * 4 : 1;
+    if (px) pxRampDraw(ctx, String(t.score), sx, sy, ds * sp, ['#FFFFFF', '#FFFFFF', '#F3F0FF', '#D8DCF4'], { big: true, align: side ? 'left' : 'right' }); // §8.5: the 7×11 score digits
+    else { ctx.save(); ctx.translate(sx, sy); ctx.scale(sp, sp); ctx.font = fontStr(ds, true); ctx.textAlign = side ? 'left' : 'right'; ctx.lineJoin = 'round'; ctx.fillStyle = ctx.strokeStyle = ART.uiInk; ctx.lineWidth = ds * 0.2; ctx.strokeText(String(t.score), ds * 0.05, ds * 0.07); ctx.fillText(String(t.score), ds * 0.05, ds * 0.07); ctx.strokeText(String(t.score), 0, 0); ctx.fillStyle = '#FFFFFF'; ctx.fillText(String(t.score), 0, 0); ctx.restore(); } // bold digits: an ink outline and a drop shadow
     if (m.possession === t.index && m.phase !== 'postgame' && !m.ended) { const bx = side ? cx + cw / 2 - 1 : cx - cw / 2 + 1, by = y + h + 4 * k; ctx.fillStyle = '#FF8A2A'; ctx.beginPath(); ctx.arc(bx, by, 5 * k, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = 1; ctx.stroke(); } // possession: the ball by the side that has it
   }
   // center: clock (or the target score), the period, the shot clock
@@ -5627,7 +5633,7 @@ function drawScoreBug(ctx, m, W_) {
   const per = m.overtime > 0 ? 'OT' + (m.overtime > 1 ? m.overtime : '') : (timed ? (m.period === 1 ? '1ST HALF' : '2ND HALF') : (m.halfCourt ? (m.format.winBy2 ? 'HALF · WIN BY 2' : 'HALF COURT') : (m.format.winBy2 ? 'WIN BY 2' : (m.arcade ? 'ARCADE' : 'STREET SIM'))));
   const sc = m.phase === 'live' && m.shotClock < 90 ? Math.max(0, Math.ceil(m.shotClock)) : null;
   ctx.font = fontStr(11 * k, true); ctx.fillStyle = 'rgba(243,240,255,0.75)';
-  if (sc !== null) { ctx.textAlign = 'right'; ctx.fillText(per, cx + 6 * k, y + 46 * k); const bw = 26 * k, bh = 18 * k, bx = cx + 12 * k, by = y + 37 * k; ctx.fillStyle = sc <= 4 ? '#C62828' : '#1A1A2A'; ctx.beginPath(); roundRectPath(ctx, bx, by, bw, bh, 4 * k); ctx.fill(); ctx.strokeStyle = sc <= 4 ? '#FF8A80' : 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = sc <= 4 ? '#FFFFFF' : '#FFB347'; ctx.font = fontStr(14 * k, true); ctx.textAlign = 'center'; ctx.fillText(String(sc), bx + bw / 2, by + bh / 2 + 1); }
+  if (sc !== null) { ctx.textAlign = 'right'; ctx.fillText(per, cx + 6 * k, y + 46 * k); const P = ART.hudClockPill, bw = 26 * k * P, bh = 18 * k * P, bx = cx + 10 * k, by = y + 37 * k - (bh - 18 * k) / 2; ctx.fillStyle = sc <= 4 ? '#C62828' : '#1A1A2A'; rr(bx, by, bw, bh, bh / 2); ctx.fill(); ctx.strokeStyle = sc <= 4 ? '#FF8A80' : UI_GOLD; ctx.lineWidth = Math.max(1.5, 2 * k); ctx.stroke(); ctx.fillStyle = sc <= 4 ? '#FFFFFF' : '#FFB347'; ctx.font = fontStr(14 * k * P, true); ctx.textAlign = 'center'; ctx.fillText(String(sc), bx + bw / 2, by + bh / 2 + 1); }
   else { ctx.textAlign = 'center'; ctx.fillText(per, cx, y + 46 * k); }
   // street half court: after a stop the ball has to go back past the arc before anyone can score
   if (m.halfCourt && m.mustClear >= 0 && m.phase === 'live') { const t = m.teams[m.mustClear], col = (t.colors || ['#FF8A2A'])[0], txt = 'CLEAR IT PAST THE ARC', fs = 13 * Math.max(0.8, k); ctx.font = fontStr(fs, true); const tw = ctx.measureText(txt).width + 22, ty = y + h + 20 * k; ctx.fillStyle = 'rgba(8,12,36,0.88)'; ctx.beginPath(); roundRectPath(ctx, cx - tw / 2, ty, tw, fs + 12, (fs + 12) / 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty + (fs + 12) / 2); }
@@ -6657,6 +6663,65 @@ function pxVenuePalette(pctx, key, extra) {
 // The guard (§8.6): pixel work over budget sheds, in order: characters at 2× instead of 3×, then no selective inner
 // lines, then character sprites redrawn at 30 Hz.
 function pxGuard(ms, phone) { PXS.ms = PXS.ms * 0.9 + ms * 0.1; const B = ART.pxBudget[phone ? 1 : 0]; if (PXS.ms > B) { PXS.over++; PXS.under = 0; if (PXS.over > 90 && PXS.level < 3) { PXS.level++; PXS.over = 0; } } else if (PXS.ms < B * 0.5) { PXS.under++; PXS.over = 0; if (PXS.under > 240 && PXS.level > 0) { PXS.level--; PXS.under = 0; } } }
+// --- §8.5 pixel UI pieces: ramp titles, the logo, the 7×11 score digits, notched panels ---
+const PX_DIGITS = (() => { const D = {}, def = (ch, rows) => { D[ch] = rows.split(' '); };
+  def('0', '.#####. ##...## ##...## ##..### ##.#.## ##.#.## ###..## ##...## ##...## ##...## .#####.'); def('1', '...##.. ..###.. .####.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. ...##.. .######');
+  def('2', '.#####. ##...## .....## .....## ....##. ...##.. ..##... .##.... ##..... ##..... #######'); def('3', '######. .....## .....## .....## ..####. .....## .....## .....## .....## ##...## .#####.');
+  def('4', '....##. ...###. ..####. .##.##. ##..##. ##..##. #######. ....##. ....##. ....##. ....##.'); def('5', '####### ##..... ##..... ######. .....## .....## .....## .....## .....## ##...## .#####.');
+  def('6', '.#####. ##...## ##..... ##..... ######. ##...## ##...## ##...## ##...## ##...## .#####.'); def('7', '####### .....## ....##. ....##. ...##.. ...##.. ..##... ..##... ..##... ..##... ..##...');
+  def('8', '.#####. ##...## ##...## ##...## .#####. ##...## ##...## ##...## ##...## ##...## .#####.'); def('9', '.#####. ##...## ##...## ##...## ##...## .######. .....## .....## .....## ##...## .#####.');
+  return D; })();
+const PX_RAMP = ['#FFF6B0', '#FFE45A', '#FFC928', '#FFA41E', '#F57F16', '#D95A10']; // the logo's 6-step yellow → orange ramp
+// §8.5 menus: while PXUI.on the UI kit draws its Pixel versions. Menus render into a layer at 2× the internal
+// resolution (one UI pixel = k/2 device pixels, rounded down so every UI pixel is the same size) and blit with smoothing
+// off; PXUI.u is one UI pixel in the current drawing units.
+const PXUI = { on: false, u: 1, U: 1, buf: null, ctx: null };
+function uiPixel() { return PXUI.on; }
+function pxUIUnit(game) { const k = Math.max(2, Math.round(((game.canvas && game.canvas.height) || 720) / ART.pxRows)); return Math.max(1, Math.floor(k / 2)); }
+function pxUIDraw(game, fn, unitScale) {
+  const U = pxUIUnit(game), dpr = game.dpr || 1; PXUI.on = true; PXUI.U = U; PXUI.u = U / Math.max(0.01, dpr * (unitScale || 1));
+  if (U < 2) { try { fn(game.ctx); } finally { PXUI.on = false; } return; } // one UI pixel is one device pixel: draw straight to the screen
+  const w = Math.ceil(game.canvas.width / U), h = Math.ceil(game.canvas.height / U); if (!PXUI.buf) { PXUI.buf = document.createElement('canvas'); PXUI.ctx = PXUI.buf.getContext('2d'); }
+  if (PXUI.buf.width !== w || PXUI.buf.height !== h) { PXUI.buf.width = w; PXUI.buf.height = h; }
+  const g = PXUI.ctx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, w, h); g.setTransform(dpr / U, 0, 0, dpr / U, 0, 0);
+  try { fn(g); } finally { PXUI.on = false; const ctx = game.ctx; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = false; ctx.drawImage(PXUI.buf, 0, 0, w * U, h * U); ctx.restore(); }
+}
+// The logo's basketball in pixels: 7 font pixels across, painted in cells a third of a font pixel (so it reads as a
+// ball, still in chunky pixels): three oranges lit from the top left, a seam cross and two side seams, an ink ring.
+function pxBallIcon(ctx, x, y, size, op, u) {
+  u = u || 1; const cs = Math.max(1, Math.round(size / u / 3)), key = 'ballicon|' + op; let c = PXS.texts.get(key);
+  if (!c) { const R = 10.5, ring = Math.max(1, op), N = Math.ceil(2 * (R + ring)) + 2; c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d');
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const dx = i + 0.5 - N / 2, dy = j + 0.5 - N / 2, d = Math.hypot(dx, dy); let col = null;
+      if (d <= R) { const l = (dx + dy) / R, side = Math.abs(Math.hypot(Math.abs(dx) - R * 1.25, dy) - R * 0.95); col = Math.abs(dx) < 0.6 || Math.abs(dy) < 0.6 || side < 0.55 ? ART.inkLine : l < -0.75 ? '#FFB866' : l < 0.45 ? '#F07A22' : '#B4480F'; if (Math.hypot(dx + R * 0.42, dy + R * 0.48) < R * 0.2 && col !== ART.inkLine) col = '#FFE0B0'; }
+      else if (d <= R + ring) col = ART.inkLine; if (col) { g.fillStyle = col; g.fillRect(i, j, 1, 1); } }
+    PXS.texts.set(key, c); }
+  const k = cs * u; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, x - c.width * k / 2, y - c.height * k / 2, c.width * k, c.height * k); ctx.restore();
+}
+
+
+// Text in the 5×7 pixel font (or the 7×11 digits when every character is a digit and big is set): m canvas pixels per
+// font pixel, colored band by band from a ramp, an ink outline op pixels wide and a drop shadow down-right. One canvas per
+// style, drawn at one UI pixel per canvas pixel.
+function pxRampCanvas(str, ramp, op, shadow, big, m) {
+  str = String(str).toUpperCase(); m = Math.max(1, Math.round(m || 1)); const digits = big && /^[0-9]+$/.test(str); const gw = digits ? 7 : 5, gh = digits ? 11 : 7, adv = gw + 1;
+  const key = 'ramp|' + str + '|' + ramp.join() + '|' + op + '|' + (shadow ? 1 : 0) + '|' + (digits ? 1 : 0) + '|' + m; let c = PXS.texts.get(key); if (c) return c;
+  const sh = shadow ? op + 1 : 0, pad = op + sh + 1, w = (str.length * adv - 1) * m + pad * 2, h = gh * m + pad * 2; c = document.createElement('canvas'); c.width = Math.max(1, w); c.height = h; const g = c.getContext('2d');
+  const on = []; for (let i = 0; i < str.length; i++) { const G = digits ? PX_DIGITS[str[i]] : pxGlyph(str[i]); if (!G) continue; for (let r = 0; r < gh; r++) for (let q = 0; q < gw; q++) if (G[r] && G[r][q] === '#') on.push([pad + (i * adv + q) * m, pad + r * m]); }
+  const blob = (dx, dy) => { for (const [x, y] of on) g.fillRect(x + dx, y + dy, m, m); };
+  g.fillStyle = ART.inkLine; for (let dy = -op; dy <= op; dy++) for (let dx = -op; dx <= op; dx++) { if (Math.abs(dx) + Math.abs(dy) > op * 1.5) continue; blob(dx, dy); if (sh) blob(dx + sh, dy + sh); } // outline and shadow
+  for (const [x, y] of on) for (let j = 0; j < m; j++) { g.fillStyle = ramp[Math.min(ramp.length - 1, Math.floor((y - pad + j) / (gh * m) * ramp.length))]; g.fillRect(x, y + j, m, 1); } // the ramp, band by band
+  if (m >= 3) { g.fillStyle = 'rgba(255,255,255,0.45)'; for (const [x, y] of on) if ((y - pad) / m === 0) g.fillRect(x, y, m, 1); } // a 1-px shine on the top row
+  if (PXS.texts.size > 300) PXS.texts.clear(); PXS.texts.set(key, c); return c;
+}
+// Draws ramp text about px tall at a point: whole canvas pixels per font pixel, one UI pixel per canvas pixel. Returns
+// the layout ({ w, m, pad, u }) so callers can place things on the letters.
+function pxRampDraw(ctx, str, x, y, px, ramp, opts) {
+  opts = opts || {}; const digits = opts.big && /^[0-9]+$/.test(String(str)), gh = digits ? 11 : 7, u = PXUI.on ? PXUI.u : 1, op = opts.outline != null ? opts.outline : 2, shadow = opts.shadow !== false;
+  const m = Math.max(1, Math.round(px / (gh + 2) / u)), c = pxRampCanvas(str, ramp || PX_RAMP, op, shadow, opts.big, m), w = c.width * u, h = c.height * u, X = opts.align === 'left' ? x : opts.align === 'right' ? x - w : x - w / 2;
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, X, y - h / 2, w, h); ctx.restore(); return { w, m, pad: op + (shadow ? op + 1 : 0) + 1, u, x0: X };
+}
+// A panel with square corners cut by a 2-step notch and a crisp border (§8.5).
+function pxNotchPath(ctx, x, y, w, h, n) { ctx.beginPath(); ctx.moveTo(x + n, y); ctx.lineTo(x + w - n, y); ctx.lineTo(x + w - n, y + n / 2); ctx.lineTo(x + w - n / 2, y + n / 2); ctx.lineTo(x + w - n / 2, y + n); ctx.lineTo(x + w, y + n); ctx.lineTo(x + w, y + h - n); ctx.lineTo(x + w - n / 2, y + h - n); ctx.lineTo(x + w - n / 2, y + h - n / 2); ctx.lineTo(x + w - n, y + h - n / 2); ctx.lineTo(x + w - n, y + h); ctx.lineTo(x + n, y + h); ctx.lineTo(x + n, y + h - n / 2); ctx.lineTo(x + n / 2, y + h - n / 2); ctx.lineTo(x + n / 2, y + h - n); ctx.lineTo(x, y + h - n); ctx.lineTo(x, y + n); ctx.lineTo(x + n / 2, y + n); ctx.lineTo(x + n / 2, y + n / 2); ctx.lineTo(x + n, y + n / 2); ctx.closePath(); }
 
 // ============================================================================
 // SECTION: FX — pooled particles, hit-stop, slow-mo, screen shake, callouts, posters; all driven by events
@@ -6879,11 +6944,30 @@ Object.assign(ART, {
   uiBtnR: 12,                       // button corner radius (design px)
   uiMargin: 24,                     // grid margin in the 1280×720 design space (px)
   uiGutter: 16,                     // grid gutter (px)
-  uiTransMs: 200,                   // screen transitions slide and fade over this long (ms)
+  uiTransMs: 280,                   // screen transitions pop in over this long (ms) (L8 §6: 280, was 200)
   uiSlidePx: 56,                    // how far a screen slides in (design px)
   uiFlipMs: 350,                    // card flips (ms)
   uiCountMs: 600,                   // numbers count up over this long (ms)
-  uiPressMs: 110,                   // a pressed button shrinks for this long (ms)
+  uiPressMs: 240,                   // a pressed button squashes, overshoots and settles over this long (ms) (L8: was a 110 ms shrink)
+  uiBtnOutline: 3,                  // §6 button ink outline (design px)
+  uiBtnLip: 6,                      // the darker lip under a button's face (design px; at most 12% of the button's height)
+  uiPressDown: 0.94,                // a press squashes a button to this scale...
+  uiPressOver: 1.03,                // ...then overshoots to this before settling
+  uiPopFrom: 0.8,                   // screens pop in from this scale...
+  uiPopOver: 1.06,                  // ...through this one to 1.0 over uiTransMs
+  uiTitleRamp: ['#FFF3A0', '#FFD23F', '#FF9A1F', '#F07A1A'], // §6 headings: yellow → orange top to bottom
+  uiTitleOutline: 4,                // heading ink outline (design px)
+  uiTitleShadow: 4,                 // heading drop shadow, down-right (design px)
+  uiTitleArch: 0.09,                // big headings rise this much (× size) at their middle
+  uiTitleArchMin: 40,               // headings this size and up are arched
+  uiInk: '#150B10',                 // near-black for button and heading outlines
+  selHeadScale: 1.15,               // the selected head on a select wall
+  selBobHz: 2.4,                    // the hovered head bobbles at this rate
+  selBobDeg: 7,                     // ...by this many degrees
+  wipeMs: 460,                      // the team-color wipe into a match (ms)
+  hudScoreH: 0.06,                  // §6 HUD: score digits at least this share of the screen height
+  hudGrinS: 1.6,                    // a scorer's HUD portrait grins (and the score pops) for this long (s)
+  hudClockPill: 1.4,                // the shot-clock pill is this much bigger than before L8
   uiBeamHz: 0.07,                   // menu backdrop spotlights sweep at this rate (Hz)
   cardTiers: [60, 75, 85],          // card frames: bronze under 60, silver 60–74, gold 75–84, diamond 85 and up
   foilPeriod: 3.2,                  // the foil sheen crosses a gold or diamond card every this many seconds
@@ -6911,6 +6995,9 @@ function uiReduceMotion() { try { return !!(game && game.save && game.save.data.
 // --- panels ---
 function kitPanel(ctx, x, y, w, h, fill, opts) {
   opts = opts || {}; const r = opts.radius != null ? opts.radius : ART.uiRadius;
+  if (uiPixel()) { const u = PXUI.u, n = 2 * u; ctx.fillStyle = 'rgba(0,0,12,0.4)'; pxNotchPath(ctx, x + u, y + 2 * u, w, h, n); ctx.fill(); ctx.fillStyle = fill || ART.uiPanel; pxNotchPath(ctx, x, y, w, h, n); ctx.fill(); // §8.5: a notched panel with 1-px borders
+    ctx.fillStyle = 'rgba(94,224,255,0.55)'; ctx.fillRect(x + n, y, w - 2 * n, u); ctx.fillRect(x + n, y + h - u, w - 2 * n, u); ctx.fillRect(x, y + n, u, h - 2 * n); ctx.fillRect(x + w - u, y + n, u, h - 2 * n); ctx.fillRect(x + n / 2, y + n / 2, n / 2, u); ctx.fillRect(x + n / 2, y + n / 2, u, n / 2); ctx.fillRect(x + w - n, y + n / 2, n / 2, u); ctx.fillRect(x + w - n / 2 - u, y + n / 2, u, n / 2); ctx.fillRect(x + n / 2, y + h - n / 2 - u, n / 2, u); ctx.fillRect(x + n / 2, y + h - n, u, n / 2); ctx.fillRect(x + w - n, y + h - n / 2 - u, n / 2, u); ctx.fillRect(x + w - n / 2 - u, y + h - n, u, n / 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(x + n, y + u, w - 2 * n, u); if (opts.accent) { ctx.fillStyle = opts.accent; ctx.fillRect(x + n + 4 * u, y, w - 2 * n - 8 * u, 2 * u); } return; }
   if (!opts.flat) { ctx.fillStyle = 'rgba(0,0,12,0.32)'; ctx.beginPath(); roundRectPath(ctx, x + 2, y + 5, w, h, r); ctx.fill(); } // a soft drop under the glass
   ctx.fillStyle = fill || ART.uiPanel; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.fill();
   const gl = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 140)); gl.addColorStop(0, 'rgba(255,255,255,0.05)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gl; ctx.beginPath(); roundRectPath(ctx, x, y, w, Math.min(h, 140), r); ctx.fill();
@@ -6932,24 +7019,76 @@ function kitStamp(ctx, text, x, y, px, fill, opts) {
   ctx.fillText(text, 0, 0); ctx.restore();
 }
 
-// --- buttons and chips ---
-function kitButton(ctx, w, focused, t, opts) {
-  opts = opts || {}; const disabled = w.enabled === false, primary = !!w.primary; const r = Math.min(ART.uiBtnR, w.h / 2);
-  const pressK = w._pressT != null ? clamp01((t - w._pressT) / (ART.uiPressMs / 1000)) : 1; const s = pressK < 1 ? 0.96 + 0.04 * pressK : (focused && !disabled ? 1.02 : 1);
-  ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(s, s); const x = -w.w / 2, y = -w.h / 2;
-  ctx.fillStyle = 'rgba(0,0,12,0.35)'; ctx.beginPath(); roundRectPath(ctx, x, y + 3, w.w, w.h, r); ctx.fill(); // drop
-  let g;
-  if (disabled) g = 'rgba(52,60,96,0.7)';
-  else if (primary) { g = ctx.createLinearGradient(0, y, 0, y + w.h); g.addColorStop(0, focused ? '#FFF0A8' : '#FFE58A'); g.addColorStop(0.5, focused ? '#FFDB52' : '#FFD23F'); g.addColorStop(1, focused ? '#F7B52A' : '#EBA41A'); }
-  else { g = ctx.createLinearGradient(0, y, 0, y + w.h); g.addColorStop(0, focused ? '#2A3C8E' : '#1C2766'); g.addColorStop(1, focused ? '#1A2766' : '#10184A'); }
-  if (focused && !disabled) { ctx.shadowColor = primary ? 'rgba(255,210,63,0.75)' : 'rgba(255,210,63,0.55)'; ctx.shadowBlur = 16; }
-  ctx.fillStyle = g; ctx.beginPath(); roundRectPath(ctx, x, y, w.w, w.h, r); ctx.fill(); ctx.shadowBlur = 0;
-  ctx.fillStyle = primary && !disabled ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.07)'; ctx.beginPath(); roundRectPath(ctx, x + 3, y + 2, w.w - 6, Math.max(2, w.h * 0.36), Math.max(1, r - 3)); ctx.fill(); // top sheen
-  ctx.lineWidth = focused && !disabled ? 2.5 : 1.5; ctx.strokeStyle = disabled ? 'rgba(255,255,255,0.14)' : focused ? (primary ? '#FFFFFF' : UI_GOLD) : primary ? 'rgba(122,78,0,0.65)' : 'rgba(94,224,255,0.75)';
-  ctx.beginPath(); roundRectPath(ctx, x, y, w.w, w.h, r); ctx.stroke();
+// §6 headings: weight 900, a yellow → orange gradient, a 4 px near-black outline and a 4 px drop shadow down-right; big
+// ones arch (each letter rides a parabola and leans with it). opts.ballAt draws that letter as a basketball (the logo).
+// Pixel mode sets them in the pixel font on the logo's 6-step ramp instead.
+function kitTitle(ctx, text, x, y, px, opts) {
+  opts = opts || {}; text = String(text); const align = opts.align || 'left';
+  if (uiPixel() && !opts.smooth) { const hole = opts.ballAt != null ? text.slice(0, opts.ballAt) + ' ' + text.slice(opts.ballAt + 1) : text; const L = pxRampDraw(ctx, hole, x, y, px, opts.ramp || PX_RAMP, { align, outline: opts.pxOutline || 2 });
+    if (opts.ballAt != null) pxBallIcon(ctx, L.x0 + (L.pad + (opts.ballAt * 6 + 2.5) * L.m) * L.u, y, L.m * L.u, opts.pxOutline || 2, L.u); return; }
+  const chars = [...text]; ctx.save(); ctx.translate(x, y); if (opts.tilt) ctx.rotate(opts.tilt * Math.PI / 180); if (opts.scale != null) ctx.scale(opts.scale, opts.scale);
+  ctx.font = fontStr(px, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
+  const ws = chars.map(ch => ctx.measureText(ch).width), total = ws.reduce((a, b) => a + b, 0), x0 = align === 'left' ? 0 : align === 'right' ? -total : -total / 2, half = Math.max(1, total / 2);
+  const arch = opts.arch != null ? opts.arch * px : px >= ART.uiTitleArchMin ? ART.uiTitleArch * px : 0, ol = (opts.outline || ART.uiTitleOutline) * Math.max(1, px / 60), sh = ART.uiTitleShadow * Math.max(1, px / 60);
+  const ramp = opts.ramp || ART.uiTitleRamp, grad = ctx.createLinearGradient(0, -px * 0.42, 0, px * 0.42); ramp.forEach((c, i) => grad.addColorStop(i / (ramp.length - 1), c));
+  const at = []; let cx = x0; for (let i = 0; i < chars.length; i++) { const lx = cx + ws[i] / 2, u = (lx - (x0 + half)) / half; at.push([lx, -arch * (1 - u * u), Math.atan(2 * arch * u / half)]); cx += ws[i]; }
+  const each = fn => { for (let i = 0; i < chars.length; i++) { if (chars[i] === ' ') continue; const [lx, ly, a] = at[i]; ctx.save(); ctx.translate(lx, ly); if (a) ctx.rotate(a); fn(chars[i], i, ws[i]); ctx.restore(); } };
+  const ball = (i, w, fill) => { const r = Math.min(w, px * 0.78) * 0.47; if (fill) drawBallIcon(ctx, 0, px * 0.02, r, 0.4); else { ctx.beginPath(); ctx.arc(0, px * 0.02, r, 0, TAU); } return r; };
+  ctx.fillStyle = ctx.strokeStyle = opts.ink || ART.uiInk; ctx.lineWidth = 2 * ol;
+  ctx.save(); ctx.translate(sh, sh); each((ch, i, w) => { if (i === opts.ballAt) { ball(i, w); ctx.fill(); ctx.stroke(); } else { ctx.strokeText(ch, 0, 0); ctx.fillText(ch, 0, 0); } }); ctx.restore(); // the drop shadow
+  each((ch, i, w) => { if (i === opts.ballAt) { ball(i, w); ctx.stroke(); } else ctx.strokeText(ch, 0, 0); });                                               // the outline
+  ctx.fillStyle = grad; each((ch, i, w) => { if (i === opts.ballAt) ball(i, w, true); else ctx.fillText(ch, 0, 0); });                                     // the face
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.save(); each((ch, i, w) => { if (i === opts.ballAt) return; ctx.beginPath(); ctx.rect(-w / 2, -px * 0.5, w, px * 0.2); ctx.clip(); ctx.fillText(ch, 0, 0); }); ctx.restore(); // a shine on the top fifth
   ctx.restore();
-  if (focused && !disabled && !opts.noPointer) { ctx.fillStyle = UI_GOLD; ctx.beginPath(); ctx.moveTo(w.x - 16, w.y + w.h / 2 - 7); ctx.lineTo(w.x - 6, w.y + w.h / 2); ctx.lineTo(w.x - 16, w.y + w.h / 2 + 7); ctx.fill(); }
+}
+// A basketball drawn in code (the logo, menus): pebbled orange, a highlight, four ink seams.
+function drawBallIcon(ctx, x, y, r, rot) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0); const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r); g.addColorStop(0, '#FFB866'); g.addColorStop(0.55, '#F07A22'); g.addColorStop(1, '#B4480F');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); ctx.save(); ctx.clip(); ctx.strokeStyle = ART.uiInk; ctx.lineWidth = Math.max(1.5, r * 0.09); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.stroke(); ctx.beginPath(); ctx.arc(-r * 1.25, 0, r * 0.95, -0.9, 0.9); ctx.stroke(); ctx.beginPath(); ctx.arc(r * 1.25, 0, r * 0.95, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.beginPath(); ctx.ellipse(-r * 0.38, -r * 0.46, r * 0.3, r * 0.16, -0.6, 0, TAU); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = ART.uiInk; ctx.lineWidth = Math.max(2, r * 0.12); ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke(); ctx.restore();
+}
+// The game's logo: HOOP HEADS with the first O as a basketball.
+function kitLogo(ctx, x, y, px, opts) { kitTitle(ctx, 'HOOP HEADS', x, y, px, Object.assign({ ballAt: 1, align: 'center', pxOutline: 2, ramp: uiPixel() ? PX_RAMP : ['#FFF6B0', '#FFE45A', '#FFC928', '#FFA41E', '#F57F16', '#D95A10'] }, opts || {})); }
+
+// --- buttons and chips ---
+// §6 press: squash to 0.94, overshoot to 1.03, settle (instant with Reduce Motion).
+function btnScale(w, hot, t) {
+  const E = hot ? 1.02 : 1; if (w._pressT == null || uiReduceMotion()) return E; const k = (t - w._pressT) / (ART.uiPressMs / 1000); if (!(k >= 0 && k < 1)) return E;
+  const D = ART.uiPressDown, O = ART.uiPressOver; return k < 0.3 ? lerp(1, D, k / 0.3) : k < 0.65 ? lerp(D, O, easeOutCubic((k - 0.3) / 0.35)) : lerp(O, E, (k - 0.65) / 0.35);
+}
+// A screen popping in: 0.8 → 1.06 over the first 60% of the transition, then settling to 1.0.
+function popScale(k) { k = clamp01(k); const F = ART.uiPopFrom, O = ART.uiPopOver; return k < 0.6 ? lerp(F, O, easeOutCubic(k / 0.6)) : lerp(O, 1, smoothstep((k - 0.6) / 0.4)); }
+function kitBtnLip(w) { return Math.min(ART.uiBtnLip, w.h * 0.12); }
+// §6 buttons: a 3 px ink outline and a 6 px darker lip under the face; primary gold → orange, secondary blue. Pixel mode
+// cuts the corners in notches and drops the glow.
+function kitButton(ctx, w, focused, t, opts) {
+  opts = opts || {}; const disabled = w.enabled === false, primary = !!w.primary, px = uiPixel(), hot = focused && !disabled; const s = btnScale(w, hot, t);
+  const lip = kitBtnLip(w), ol = ART.uiBtnOutline, r = Math.min(ART.uiBtnR, w.h / 2), n = Math.min(4 * PXUI.u, w.h / 4);
+  const path = (xx, yy, ww, hh) => { if (px) pxNotchPath(ctx, xx, yy, ww, hh, n); else { ctx.beginPath(); roundRectPath(ctx, xx, yy, ww, hh, Math.min(r, hh / 2)); } };
+  const C = disabled ? ['#4A5274', '#3A4264', '#2C3350'] : primary ? (hot ? ['#FFF3A6', '#FFCB3E', '#FF9A22'] : ['#FFE680', '#FFBE34', '#F58C1C']) : (hot ? ['#79A8FF', '#4C80F4', '#3462DA'] : ['#5A8CF0', '#3A6FE0', '#2A55C4']);
+  const LIP = disabled ? '#1E2238' : primary ? '#A8480E' : '#1E3FA8';
+  ctx.save(); ctx.translate(w.x + w.w / 2, w.y + w.h / 2); ctx.scale(s, s); const x = -w.w / 2, y = -w.h / 2;
+  ctx.fillStyle = 'rgba(0,0,12,0.35)'; path(x + 2, y + 4, w.w, w.h); ctx.fill(); // drop
+  if (hot && !px) { ctx.shadowColor = 'rgba(255,210,63,0.75)'; ctx.shadowBlur = 16; }
+  ctx.fillStyle = LIP; path(x, y, w.w, w.h); ctx.fill(); ctx.shadowBlur = 0; // the lip: the whole shape in the dark color, the face on top of it
+  const g = ctx.createLinearGradient(0, y, 0, y + w.h - lip); g.addColorStop(0, C[0]); g.addColorStop(0.5, C[1]); g.addColorStop(1, C[2]); ctx.fillStyle = g; path(x, y, w.w, w.h - lip); ctx.fill();
+  ctx.fillStyle = primary && !disabled ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)'; if (px) ctx.fillRect(x + n, y + ol + PXUI.u, w.w - 2 * n, 2 * PXUI.u); else { ctx.beginPath(); roundRectPath(ctx, x + 5, y + 3, w.w - 10, Math.max(2, (w.h - lip) * 0.3), Math.max(1, r - 4)); ctx.fill(); } // top sheen
+  ctx.lineJoin = px ? 'miter' : 'round'; ctx.lineWidth = ol; ctx.strokeStyle = ART.uiInk; path(x, y, w.w, w.h); ctx.stroke();
+  if (hot) { ctx.lineWidth = 2; ctx.strokeStyle = primary ? '#FFFFFF' : UI_GOLD; path(x + ol, y + ol, w.w - 2 * ol, w.h - lip - ol); ctx.stroke(); }
+  ctx.restore();
+  if (hot && !opts.noPointer) { ctx.fillStyle = UI_GOLD; ctx.beginPath(); ctx.moveTo(w.x - 16, w.y + w.h / 2 - 7); ctx.lineTo(w.x - 6, w.y + w.h / 2); ctx.lineTo(w.x - 16, w.y + w.h / 2 + 7); ctx.fill(); }
   return s;
+}
+// §6 select wall: a head in a grid. The hovered one bobbles and grins; the selected one is 1.15× with a gold ring.
+function drawSelectHead(ctx, w, def, colors, focused, selected, t) {
+  const reduce = uiReduceMotion(), sc = selected ? ART.selHeadScale : 1, bob = focused && !reduce ? Math.sin(t * ART.selBobHz * TAU) * ART.selBobDeg * Math.PI / 180 : 0, hop = focused && !reduce ? Math.abs(Math.sin(t * ART.selBobHz * Math.PI)) * w.h * 0.04 : 0;
+  const cx = w.x + w.w / 2, cy = w.y + w.h / 2 - hop, S = w.w * sc, px = uiPixel(); ctx.save(); ctx.translate(cx, cy + S * 0.3); ctx.rotate(bob); ctx.translate(0, -S * 0.3);
+  if (selected) { if (!px) { ctx.shadowColor = 'rgba(255,210,63,0.9)'; ctx.shadowBlur = 14; } ctx.fillStyle = UI_GOLD; if (px) pxNotchPath(ctx, -S / 2 - 4, -S / 2 - 4, S + 8, S + 8, 6); else { ctx.beginPath(); roundRectPath(ctx, -S / 2 - 4, -S / 2 - 4, S + 8, S + 8, 13); } ctx.fill(); ctx.shadowBlur = 0; }
+  try { ctx.drawImage(portraitOf(def, colors, 96, focused || selected ? 'hyped' : 'neutral'), -S / 2, -S / 2, S, S); } catch (e) { /* decoration */ }
+  ctx.lineWidth = selected ? 3 : focused ? 3 : 1.5; ctx.strokeStyle = selected ? ART.uiInk : focused ? UI_CYAN : 'rgba(255,255,255,0.25)'; if (px) pxNotchPath(ctx, -S / 2, -S / 2, S, S, 4); else { ctx.beginPath(); roundRectPath(ctx, -S / 2, -S / 2, S, S, 10); } ctx.stroke();
+  ctx.restore();
 }
 function kitChip(ctx, text, x, y, opts) {
   opts = opts || {}; const size = opts.size || 13; ctx.font = fontStr(size, true); const tw = ctx.measureText(text).width; const w = tw + size * 1.3, h = size * 1.75;
@@ -7215,12 +7354,12 @@ class UI {
     return best;
   }
   // --- drawing ---
-  drawBackground(ctx, W_, H_) { kitBackdrop(ctx, W_, H_, this.t, this.game.dpr || 1); }
+  drawBackground(ctx, W_, H_) { kitBackdrop(ctx, W_, H_, this.t, (this.game.dpr || 1) / (PXUI.on ? PXUI.U : 1)); }
   begin(ctx) { ctx.save(); ctx.translate(this.ox, this.oy); ctx.scale(this.scale, this.scale); }
   end(ctx) { ctx.restore(); }
   panel(ctx, x, y, w, h, color) { kitPanel(ctx, x, y, w, h, color); }
   poster(ctx, x, y, w, h, color) { this.panel(ctx, x, y, w, h, color); }
-  title(ctx, text, x, y, size, tilt) { kitStamp(ctx, text, x, y, size || 44, ['#FFF0A8', UI_GOLD, '#F2A91C'], { align: 'left', tilt: tilt || 0 }); }
+  title(ctx, text, x, y, size, tilt) { kitTitle(ctx, text, x, y, size || 44, { align: 'left', tilt: tilt || 0 }); }
   heading(ctx, text, x, y, size, color, align) { ctx.font = fontStr(size || 20, true); ctx.fillStyle = color || UI_TEXT; ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y); }
   label(ctx, text, x, y, size, color, align) { ctx.font = fontStr(size || 15, false); ctx.fillStyle = color || UI_DIM; ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle'; const lines = String(text).split('\n'); for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, y + i * (size || 15) * 1.35); }
   drawWidgets(ctx, s, noFocus) { const wds = s.widgets || []; ctx.textBaseline = 'middle'; for (let i = 0; i < wds.length; i++) { const w = wds[i]; if (w.hidden) continue; try { this.drawWidget(ctx, w, !noFocus && i === s.focus); } catch (e) { /* a widget never breaks a screen */ } } }
@@ -7233,8 +7372,8 @@ class UI {
       const textC = disabled ? 'rgba(243,240,255,0.4)' : (primary ? '#1A1206' : UI_TEXT); ctx.fillStyle = textC; ctx.textBaseline = 'middle';
       const twoLine = !!w.sub && w.h >= 80; let subW = 0; if (w.sub && !twoLine) { ctx.font = fontStr(13, false); subW = ctx.measureText(w.sub).width + 24; if (subW > w.w * 0.45) subW = -1; } // a tall button puts its sub-label on a second line; a narrow one drops it
       const fs = Math.min(w.h * (twoLine ? 0.3 : 0.46), 26); const maxW = w.w - 28 - Math.max(0, subW); let size = fs; ctx.font = fontStr(size, true); while (size > 10 && ctx.measureText(w.label).width > maxW) { size -= 1; ctx.font = fontStr(size, true); }
-      const al = w.align || (w.sub && subW > 0 ? 'left' : 'center'); ctx.textAlign = al; ctx.fillText(w.label, al === 'left' ? w.x + 16 : w.x + w.w / 2, w.y + w.h / 2 + 1 - (twoLine ? size * 0.45 : 0));
-      if (w.sub && (twoLine || subW > 0)) { if (twoLine) fitFont(ctx, w.sub, w.w - 28, Math.min(18, w.h * 0.16), false); else ctx.font = fontStr(13, false); /* a long sub-label shrinks to fit */ ctx.fillStyle = primary ? 'rgba(26,18,6,0.8)' : UI_GOLD; ctx.textAlign = twoLine ? (al === 'left' ? 'left' : 'center') : 'right'; ctx.fillText(w.sub, twoLine ? (al === 'left' ? w.x + 16 : w.x + w.w / 2) : w.x + w.w - 14, w.y + w.h / 2 + 1 + (twoLine ? size * 0.75 : 0)); }
+      const al = w.align || (w.sub && subW > 0 ? 'left' : 'center'); ctx.textAlign = al; ctx.fillText(w.label, al === 'left' ? w.x + 16 : w.x + w.w / 2, w.y + (w.h - kitBtnLip(w)) / 2 + 1 - (twoLine ? size * 0.45 : 0));
+      if (w.sub && (twoLine || subW > 0)) { if (twoLine) fitFont(ctx, w.sub, w.w - 28, Math.min(18, w.h * 0.16), false); else ctx.font = fontStr(13, false); /* a long sub-label shrinks to fit */ ctx.fillStyle = primary ? 'rgba(26,18,6,0.8)' : UI_GOLD; ctx.textAlign = twoLine ? (al === 'left' ? 'left' : 'center') : 'right'; ctx.fillText(w.sub, twoLine ? (al === 'left' ? w.x + 16 : w.x + w.w / 2) : w.x + w.w - 14, w.y + (w.h - kitBtnLip(w)) / 2 + 1 + (twoLine ? size * 0.75 : 0)); }
       return; }
     // selects, sliders and toggles: a navy row with a cyan outline; the value on the right
     const r = Math.min(ART.uiBtnR, w.h / 2); ctx.fillStyle = focused ? 'rgba(34,50,120,0.92)' : 'rgba(16,24,70,0.85)'; ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, r); ctx.fill(); ctx.strokeStyle = focused ? UI_GOLD : 'rgba(94,224,255,0.45)'; ctx.lineWidth = focused ? 2.5 : 1.2; ctx.stroke();
@@ -7249,16 +7388,17 @@ class UI {
   // One screen's content in design space (no background).
   drawScreen(ctx, s, noFocus) { this.begin(ctx); try { if (s.draw) s.draw(ctx, this); this.drawWidgets(ctx, s, noFocus); } finally { this.end(ctx); } }
   draw(ctx, W_, H_) {
-    const s = this.screen; if (!s) return; this._drawn = true; const T = this.trans; const k = T ? easeOutCubic(clamp01((this.t - T.t0) / T.dur)) : 1; const slide = ART.uiSlidePx * this.scale;
+    const s = this.screen; if (!s) return; this._drawn = true; const T = this.trans; const k0 = T ? clamp01((this.t - T.t0) / T.dur) : 1, k = easeOutCubic(k0), pop = popScale(k0);
+    const zoom = sc => { const cx = W_ / 2, cy = H_ / 2; ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy); };
     if (!s.overlay) {
       this.drawBackground(ctx, W_, H_);
-      if (T && T.kind !== 'fade' && this._snap) { ctx.save(); ctx.globalAlpha = 1 - k; ctx.drawImage(this._snap, (T.kind === 'pop' ? 1 : -1) * slide * k, 0, W_, H_); ctx.restore(); }
-      ctx.save(); if (T && T.kind !== 'fade') { ctx.globalAlpha = k; ctx.translate((T.kind === 'pop' ? -1 : 1) * slide * (1 - k), 0); } this.drawScreen(ctx, s); ctx.restore();
+      if (T && T.kind !== 'fade' && this._snap) { ctx.save(); ctx.globalAlpha = 1 - k; ctx.drawImage(this._snap, 0, 0, W_, H_); ctx.restore(); }
+      ctx.save(); if (T && T.kind !== 'fade') { ctx.globalAlpha = clamp01(k0 / 0.4); zoom(pop); } this.drawScreen(ctx, s); ctx.restore(); // §6: the new screen pops in 0.8 → 1.06 → 1.0
     } else {
       // an overlay: in menus the screen underneath stays visible (dimmed); in a match the live match is underneath
       if (this.game.mode !== 'match') { let i = this.stack.length - 2; while (i > 0 && this.stack[i].overlay) i--; const under = this.stack[i]; this.drawBackground(ctx, W_, H_); if (under && under !== s) { try { this.drawScreen(ctx, under, true); } catch (e) { /* the underlay is decoration */ } } }
       ctx.save(); ctx.globalAlpha = T && T.kind === 'fade' ? k : 1; ctx.fillStyle = 'rgba(4,8,30,0.62)'; ctx.fillRect(0, 0, W_, H_);
-      if (T && T.kind === 'fade') { const sc = 0.97 + 0.03 * k, cx = W_ / 2, cy = H_ / 2; ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy); }
+      if (T && T.kind === 'fade') zoom(pop);
       this.drawScreen(ctx, s); ctx.restore();
     }
     this.begin(ctx); this.drawToast(ctx); this.end(ctx);
@@ -7336,7 +7476,7 @@ function mainMenu(game) {
   phoneGrid(game.ui, items, 40, 104, 440, 2, 1, 8); // a phone: big buttons in two columns
   return { widgets: items, name: 'menu', update(dt) { t += dt; }, onBack() { game.ui.replace(titleScreen(game)); },
     draw(ctx, ui) {
-      ui.title(ctx, 'HOOP HEADS', 70, 66, 50);
+      kitLogo(ctx, 260, 62, 54);
       ui.panel(ctx, 500, 40, 740, 640);
       if (c) { const me = meOf(c); const club = clubOf(me.club); const st = c.standings[c.meId];
         kitHeader(ctx, 'Your career', 530, 78, 680); drawPlatform(ctx, 690, 620, 160, club.colors); drawMannequin(ctx, drawDefOf(me), club, 690, 620, 400, 'focused', 1, t);
@@ -7931,7 +8071,7 @@ function tcCreateScreen(game) {
   const legacy = game.save.data._legacyCareer; const st = { name: legacy && legacy.player ? legacy.player.name : 'Ace', arch: 1, height: 1.92, look: cloneLook(PRESET_LOOKS[3]), number: 7, preset: 3 };
   let t = 0; const items = [];
   // preset portrait grid (custom widgets)
-  PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 420 + (i % 8) * 76, y: 96 + Math.floor(i / 8) * 76, w: 68, h: 68, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused) { const w = { x: this.x + (this.w - Math.min(this.w, this.h)) / 2, y: this.y, w: Math.min(this.w, this.h), h: Math.min(this.w, this.h) }; const def = { name: 'p' + i, look: lk, attrs: {} }; ctx.drawImage(portraitOf(def, TEAMS[2].colors, 96), w.x, w.y, w.w, w.h); ctx.strokeStyle = st.preset === i ? UI_GOLD : (focused ? UI_CYAN : 'rgba(255,255,255,0.25)'); ctx.lineWidth = st.preset === i || focused ? 3 : 1.5; ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, 8); ctx.stroke(); if (st.preset === i) { ctx.fillStyle = UI_GOLD; ctx.beginPath(); ctx.moveTo(w.x + w.w / 2, w.y - 4); ctx.lineTo(w.x + w.w / 2 - 8, w.y - 14); ctx.lineTo(w.x + w.w / 2 + 8, w.y - 14); ctx.fill(); } } }); });
+  PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 420 + (i % 8) * 76, y: 96 + Math.floor(i / 8) * 76, w: 68, h: 68, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused, ui) { const S = Math.min(this.w, this.h), w = { x: this.x + (this.w - S) / 2, y: this.y, w: S, h: S }; drawSelectHead(ctx, w, { name: 'p' + i, look: lk, attrs: {} }, TEAMS[2].colors, focused, st.preset === i, ui ? ui.t : 0); } }); });
   const controls = [
     btn('Name: ' + st.name, 0, 0, 0, 0, () => game.ui.push(keyboardScreen(game, st.name, v => { st.name = v || 'Ace'; controls[0].label = 'Name: ' + st.name; })), { align: 'left' }),
     sel('Archetype', 0, 0, 0, 0, Object.keys(ARCHETYPES).map(k => ARCHETYPES[k].label), () => st.arch, i => { st.arch = i; }),
@@ -8113,7 +8253,7 @@ const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd'
 const LEGENDS_CHECK = [[0, 0, 0], [2, 3, 1], [3, 1, 3], [5, 5, 2], [6, 2, 4], [8, 4, 1], [9, 0, 3], [11, 1, 2]];
 const LEGENDS_POSES = ['run', 'jumpshot', 'dunk', 'flipdunk', 'knockdown', 'celebrate'];
 function labLegendsCast(k) { const [i, shape, nose] = LEGENDS_CHECK[k]; const c = LAB_CAST[i]; const face = faceParamsFromSeed(hashString(c.name + '|')); face.shape = shape; face.nose = nose; return Object.assign({}, c, { look: Object.assign({}, c.look, { face }), idx: i }); }
-function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 3 : 1; }
+function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 4 : 1; }
 const LAB_HAIR_NAMES = ['Buzz', 'Taper fade', 'High top', 'Afro', 'Curly top', 'Twists', 'Locs', 'Cornrows', 'Box braids', 'Bun', 'Side part', 'Mohawk', 'Long', 'Bald'];
 const LAB_FACIAL_NAMES = ['None', 'Stubble', 'Mustache', 'Goatee', 'Chin strap', 'Full beard'];
 
@@ -8289,17 +8429,29 @@ function labPxSprites(t) {
     PXS.ss = ART.pxSuper; pxDrawCharacter(g, cam, p, 1, ball, { colors: c.colors, pattern: 'solid' }, { replay: true, noShadow: true }, f, ball ? (sg, pc) => () => drawBallNew(sg, pc, ball, 1, 0, false, {}) : null); out.push([c, X * f]); });
   return out;
 }
+let _labPxUi = null;
+// One sheet of the UI kit in 620×612 design px: the logo, headings, the five button states, a select wall row, big digits.
+function labUiSample(ctx, ui, x, y, t) {
+  kitPanel(ctx, x, y, 610, 606); kitLogo(ctx, x + 305, y + 64, 64); kitTitle(ctx, 'SETTINGS', x + 30, y + 150, 44); kitTitle(ctx, 'THE SELECT WALL', x + 30, y + 206, 26);
+  const B = [['PLAY', true, true], ['CONTINUE', true, false], ['Quick 1v1', false, true], ['Extras', false, false], ['Locked', false, false, false]];
+  B.forEach(([label, primary, focused, enabled], i) => { try { ui.drawWidget(ctx, { kind: 'button', label, primary, enabled: enabled !== false, x: x + 40 + (i % 2) * 280, y: y + 250 + Math.floor(i / 2) * 70, w: 250, h: 54 }, focused); } catch (e) { /* decoration */ } });
+  for (let i = 0; i < 3; i++) drawSelectHead(ctx, { x: x + 330 + i * 90, y: y + 400, w: 70, h: 70 }, { name: 'p' + i, look: PRESET_LOOKS[i + 3] }, NEUTRAL_KIT.colors, i === 1, i === 2, t);
+  if (uiPixel()) pxRampDraw(ctx, '21', x + 300, y + 540, 90, ['#FFFFFF', '#FFFFFF', '#F3F0FF', '#D8DCF4'], { big: true, align: 'center' }); else kitTitle(ctx, '21', x + 300, y + 540, 80, { align: 'center', ramp: ['#FFFFFF', '#E8ECFF'], arch: 0 });
+}
 function labViewPixel(ctx, ui, st, t) {
-  const page = clamp(st.page | 0, 0, 2); ctx.imageSmoothingEnabled = false;
+  const page = clamp(st.page | 0, 0, 3); ctx.imageSmoothingEnabled = false;
+  if (page === 3) { ctx.imageSmoothingEnabled = true; labCaption(ctx, 'Pixel check 4 / 4 · the §6/§8.5 UI kit: Smooth (left) and Pixel (right, drawn in a 2× UI layer as on a phone)', 640, 70, 13, UI_TEXT);
+    labUiSample(ctx, ui, 20, 96, t); const c = _labPxUi || (_labPxUi = document.createElement('canvas')); c.width = 310; c.height = 306; const g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 310, 306); g.setTransform(0.5, 0, 0, 0.5, 0, 0);
+    const was = [PXUI.on, PXUI.u]; PXUI.on = true; PXUI.u = 2; try { labUiSample(g, ui, 0, 0, t); } finally { PXUI.on = was[0]; PXUI.u = was[1]; } ctx.imageSmoothingEnabled = false; ctx.drawImage(c, 650, 96, 620, 612); ctx.imageSmoothingEnabled = true; return; }
   if (page < 2) {
     const list = labPxSprites(t), yTop = page ? 90 : 130;
-    if (!page) { labCaption(ctx, 'Pixel check 1 / 3 · game size (1280×720, k = 3) · per-character palettes, 1-px outlines', 640, 70, 13, UI_TEXT); labLegendsFloor(ctx, 130 + 150 * 3 - 24, 590); ctx.drawImage(_labPx, 0, 0, 430, 150, 0, yTop, 1290, 450); list.forEach(([c, x]) => labCaption(ctx, c.name.split(' ')[0], x * 3, 590, 11, '#3A1E0A'));
+    if (!page) { labCaption(ctx, 'Pixel check 1 / 4 · game size (1280×720, k = 3) · per-character palettes, 1-px outlines', 640, 70, 13, UI_TEXT); labLegendsFloor(ctx, 130 + 150 * 3 - 24, 590); ctx.drawImage(_labPx, 0, 0, 430, 150, 0, yTop, 1290, 450); list.forEach(([c, x]) => labCaption(ctx, c.name.split(' ')[0], x * 3, 590, 11, '#3A1E0A'));
       for (let i = 0; i < ART.pxBallFrames; i++) { const b = pxBallSprite(4, i, 0), bz = pxBallSprite(12, i, 0); ctx.drawImage(b, 40 + i * 30, 610, b.width * 3, b.height * 3); ctx.drawImage(bz, 330 + i * 60, 604, bz.width * 2, bz.height * 2); }
       labCaption(ctx, 'ball frames: game size and 2×', 40, 700, 11, UI_DIM, 'left');
       const tc = pxTextCanvas('HOOP HEADS 0123456789 .,!?\'-:/+%#()', 1, '#FFD23F', ART.inkLine, null), tb = pxTextCanvas('BONK! SPLASH!', 3, '#FFFFFF', ART.inkLine, ART.inkLine); ctx.drawImage(tc, 850, 612, tc.width * 2, tc.height * 2); ctx.drawImage(tb, 850, 650, tb.width, tb.height); }
-    else { labCaption(ctx, 'Pixel check 2 / 3 · 4 screen px per sprite pixel', 640, 70, 13, UI_TEXT); list.forEach(([c, x], k) => { const sx = Math.max(0, x - 20), w = 39; ctx.drawImage(_labPx, sx, 0, w, 150, 4 + k * 159, yTop, w * 4, 600); labCaption(ctx, c.name.split(' ')[0], 4 + k * 159 + 72, 700, 11, UI_TEXT); }); }
+    else { labCaption(ctx, 'Pixel check 2 / 4 · 4 screen px per sprite pixel', 640, 70, 13, UI_TEXT); list.forEach(([c, x], k) => { const sx = Math.max(0, x - 20), w = 39; ctx.drawImage(_labPx, sx, 0, w, 150, 4 + k * 159, yTop, w * 4, 600); labCaption(ctx, c.name.split(' ')[0], 4 + k * 159 + 72, 700, 11, UI_TEXT); }); }
   } else {
-    labCaption(ctx, 'Pixel check 3 / 3 · the Legends Arena through the background pipeline (32 colors, Bayer 4×4)', 640, 70, 13, UI_TEXT);
+    labCaption(ctx, 'Pixel check 3 / 4 · the Legends Arena through the background pipeline (32 colors, Bayer 4×4)', 640, 70, 13, UI_TEXT);
     const src = labVenueShot('legends', 1280, 720), c = document.createElement('canvas'); c.width = 427; c.height = 240; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, 427, 240);
     const save = [PXS.iw, PXS.ih]; PXS.iw = 427; PXS.ih = 240; const pal = pxPalette('lab-venue', pxBuildPalette(g.getImageData(0, 0, 427, 240).data, ART.pxVenueColors, [ART.rimColor])); pxQuantizeRect(g, pal, 0, 0, 427, 240, true); [PXS.iw, PXS.ih] = save;
     ctx.drawImage(c, 0, 0, 427, 240, 106, 96, 1068, 600);
@@ -8478,7 +8630,7 @@ function titleScreen(game) {
       const bounce = reduce ? 0.6 : Math.abs(Math.sin(t * 3.1)), by = floorY - 14 - bounce * 120, br = 17; ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(cx, floorY - 2, br * (1.1 - bounce * 0.4), br * 0.3, 0, 0, TAU); ctx.fill();
       const bg = ctx.createRadialGradient(cx - br * 0.4, by - br * 0.4, br * 0.1, cx, by, br); bg.addColorStop(0, '#FFB36B'); bg.addColorStop(1, '#C4561E'); ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(cx, by, br, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = 2; ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - br, by); ctx.lineTo(cx + br, by); ctx.moveTo(cx, by - br); ctx.quadraticCurveTo(cx + br * 0.6, by, cx, by + br); ctx.stroke();
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; const topX = cx + sw * 0.12; const cone = ctx.createLinearGradient(0, 0, 0, floorY); cone.addColorStop(0, 'rgba(255,236,200,0.34)'); cone.addColorStop(1, 'rgba(255,236,200,0.06)'); ctx.fillStyle = cone; ctx.beginPath(); ctx.moveTo(topX - 18, -10); ctx.lineTo(topX + 18, -10); ctx.lineTo(fx + 240, floorY); ctx.lineTo(fx - 240, floorY); ctx.closePath(); ctx.fill(); ctx.restore();
-      const k = clamp01(T / 0.9), ly = lerp(-120, 168, easeOutBounce(k)); kitStamp(ctx, 'HOOP HEADS', cx, ly, 150, ['#FFF3B0', UI_GOLD, '#F2A91C', '#E0791A'], { tilt: -2.5, outline: 0.13 });
+      const k = clamp01(T / 0.9), ly = lerp(-120, 168, easeOutBounce(k)); kitLogo(ctx, cx, ly, 150, { tilt: -2.5 });
       const sub = clamp01((T - 0.8) / 0.4); if (sub > 0) { ctx.globalAlpha = sub; kitStamp(ctx, '1-ON-1 CAREER', cx, 262, 34, [UI_TEXT, UI_CYAN], { outline: 0.2 }); ctx.globalAlpha = 1; }
       if (T > 1.1 && (reduce || Math.sin(t * 4) > -0.3)) { const w = 300, h = 46; ctx.fillStyle = 'rgba(8,12,36,0.7)'; ctx.beginPath(); roundRectPath(ctx, cx - w / 2, 316, w, h, h / 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,210,63,0.8)'; ctx.lineWidth = 2; ctx.stroke(); ui.heading(ctx, game.input.hasTouch ? 'TAP TO START' : 'PRESS ENTER', cx, 340, 24, UI_GOLD, 'center'); }
       ui.label(ctx, 'one file · no network · everything drawn and synthesized in code', cx, 708, 12, 'rgba(243,240,255,0.5)', 'center');
@@ -8508,7 +8660,7 @@ function createPlayerScreen(game) {
   const start = btn('START HIGH SCHOOL', 0, 0, 0, 0, () => { const a = amCreate(s, { name: st.name, look: st.look, number: st.number, style: styleKeys[st.style] || 'slasher', seasonLength: CR.seasonLengths[st.seasonLen], gameLength: CR.gameLengths[st.gameLen] }); game.newCareer = null; s._legacyCareer = undefined; game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: true });
   const items = [];
   if (!P) {
-    PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 44 + (i % 4) * 74, y: 104 + Math.floor(i / 4) * 74, w: 66, h: 66, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused) { const w = this; ctx.drawImage(portraitOf({ name: 'p' + i, look: lk }, NEUTRAL_KIT.colors, 96), w.x, w.y, w.w, w.h); ctx.strokeStyle = st.preset === i ? UI_GOLD : (focused ? UI_CYAN : 'rgba(255,255,255,0.25)'); ctx.lineWidth = st.preset === i || focused ? 3 : 1.5; ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, 10); ctx.stroke(); } }); });
+    PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 44 + (i % 4) * 74, y: 104 + Math.floor(i / 4) * 74, w: 66, h: 66, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused, ui) { drawSelectHead(ctx, this, { name: 'p' + i, look: lk }, NEUTRAL_KIT.colors, focused, st.preset === i, ui ? ui.t : 0); } }); });
     column(looks, 860, 90, 380, 44, 6); looks.forEach(w => { w.labelW = 104; });
     column(details, 860, 372, 380, 38, 6); column([start], 860, 640, 380, 54, 0); items.push(...looks, ...details, start);
   } else { // phone: three tabs of big rows beside the model (LOOK · PLAYER · SEASON), START under the model
@@ -10740,10 +10892,11 @@ class Game {
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
     if (this.tutorial) { const f = this.tutorial.f; m.bus.on('JUMP', e => { if (e.player.controlled) f.jumps++; }); m.bus.on('SHOT_RELEASED', s => { if (s.shooter.controlled) { f.shots++; if (s.grade <= 1 && s.grade >= 0) f.goodShots++; if (s.fade) f.fades++; if (s.type === 'hook') f.hooks++; } }); m.bus.on('PUMP_FAKE', e => { if (e.player.controlled) f.fakes++; }); m.bus.on('MOVE', e => { if (e.player.controlled && e.move === 'crossover') f.crossovers++; }); m.bus.on('STEAL', e => { if (e.player.controlled) f.steals++; }); m.bus.on('BLOCK', e => { if (e.player.controlled) f.blocks++; }); }
     if (m.practice && opts.tutorial) m.practice.ballTo = 'human';
+    { const tm = m.teams[Math.max(0, m.humanTeam)] || m.teams[0], col = (tm && tm.colors) || ['#3A6FE0', '#FFD23F']; this.wipe = this.save.data.settings.reduceMotion ? null : { t: 0, c0: col[0], c1: col[1] || '#FFFFFF' }; }
   }
   startTutorial() { const c = careerOf(this); const a = c ? matchTeamDef(c, c.meId, false) : Object.assign({}, TEAMS[2], { players: [ROSTER.legends[1]] }), b = Object.assign({}, TEAMS[5], { players: [ROSTER.nephews[2]] }); this.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'rookie', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'blacktop', seed: 7, controlMode: 'ball', practice: { noDefender: false, infiniteStamina: true, slowMo: false, breakdown: false, chart: false, easyTiming: true }, tutorial: true }, { kind: 'tutorial' }); }
   restartMatch(newSeed) { const o = Object.assign({}, this.matchOpts); if (newSeed || true) o.seed = (Date.now() % 1000000) >>> 0; const after = { kind: this.after.kind, nextKind: this.after.nextKind, opp: this.after.opp }; this.startMatch(o, after); }
-  quitToMenu() { this.mode = 'ui'; this.match = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(this.after && this.after.kind === 'teamcareer' && this.save.data.teamCareer ? tcHub(this) : careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
+  quitToMenu() { this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(this.after && this.after.kind === 'teamcareer' && this.save.data.teamCareer ? tcHub(this) : careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
   // Career games always count: the pause menu can finish one headlessly, with a bot playing your player on your ratings.
   simRestOfMatch() { const m = this.match; if (!m || m.ended) { this.resume(); return; } for (const p of m.players) { if (p.controlled) { p.controlled = false; p.input.reset(); if (p.brain) { p.brain.intent = null; p.brain.commitT = 0; } } } m.controlledPlayer = null; let n = 0; const wasHeadless = m.headless; m.headless = true; while (!m.ended && n < 120 * 60 * 20) { simStep(m, STEP); n++; } m.headless = wasHeadless; this.ui.stack.length = 0; this.paused = true; this.postgameOpened = false; this.openPostgame(); }
   pause() { if (this.mode !== 'match' || this.ui.screen) return; this.paused = true; this.ui.push(pauseScreen(this)); this.input.touch.clearAll(); }
@@ -10772,7 +10925,7 @@ class Game {
     if (this.portrait) { this.drawRotate(ctx, W_, H_); return; }
     if (this.input.consumeDev()) { if (this.ui.screen && this.ui.screen.name === 'dev') this.ui.pop(); else { if (this.mode === 'match') this.paused = true; this.ui.push(devScreen(this)); } }
     if (this.input.consumeF('F1')) this.overlays.f1 = !this.overlays.f1; if (this.input.consumeF('F2')) this.overlays.f2 = !this.overlays.f2; if (this.input.consumeF('F3')) this.overlays.f3 = !this.overlays.f3;
-    if (this.mode === 'match' && this.match) this.matchFrame(dt); else { this.input.consumePause(); this.ui.update(dt, this.input); this.ui.draw(ctx, W_, H_); }
+    if (this.mode === 'match' && this.match) this.matchFrame(dt); else { this.input.consumePause(); this.ui.update(dt, this.input); this.drawUI(ctx, W_, H_); }
     if (!this.input.hasFocus() && !this.portrait && !(this.input.lastDevice === 'touch')) this.drawFocusHint(ctx, W_, H_);
     if (this.save.data.settings.showFps) this.perf.draw(ctx, W_, H_);
     this.perf.push(performance.now() - t0 + 0.0001);
@@ -10810,9 +10963,18 @@ class Game {
     if (this.posterPending) { this.posterPending.t -= dt; if (this.posterPending.t <= 0) { this.posterShow = this.posterPending.show; this.posterPending = null; fx.hitStopMs = Math.max(fx.hitStopMs, CONFIG.fx.posterMs); } } // a posterizer's card waits for its slow motion
     this.renderSceneAny(ctx, m, alpha, dt);
     if (fx.blur && !this.replayPlayer) drawRadialBlur(ctx, this, fx.blur);
-    this.drawHUD(ctx, m, alpha, dt);
+    if (this.pixelFrame) pxUIDraw(this, g => this.drawHUD(g, m, alpha, dt), 1); else this.drawHUD(ctx, m, alpha, dt);
     if (this.posterShow) { this.posterShow.t -= dt; this.drawPosterCard(ctx, this.posterShow); if (this.posterShow.t <= 0) this.posterShow = null; }
-    if (this.ui.screen) this.ui.draw(ctx, W_, H_);
+    this.drawWipe(ctx, W_, H_, dt);
+    if (this.ui.screen) this.drawUI(ctx, W_, H_);
+  }
+  // §8.5: in Pixel mode menus draw into the UI layer (the Art Lab stays smooth: it shows both looks itself).
+  drawUI(ctx, W_, H_) { const s = this.ui.screen; if (pixelSetting(this) && !(s && s.name === 'artlab')) pxUIDraw(this, g => this.ui.draw(g, W_, H_), this.ui.scale); else this.ui.draw(ctx, W_, H_); }
+  // §6: a match opens with a diagonal wipe in the human side's team color (none with Reduce Motion).
+  drawWipe(ctx, W_, H_, dt) {
+    const w = this.wipe; if (!w) return; w.t += Math.min(dt, 0.1); const k = w.t / (ART.wipeMs / 1000); if (k >= 1) { this.wipe = null; return; }
+    const e = easeInOutQuad(k), slant = H_ * 0.35, x0 = -slant + (W_ + slant * 2) * e; ctx.save(); ctx.fillStyle = w.c0; ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(W_ + slant, 0); ctx.lineTo(W_ + slant, H_); ctx.lineTo(x0 - slant, H_); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = w.c1; ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0 + 18, 0); ctx.lineTo(x0 + 18 - slant, H_); ctx.lineTo(x0 - slant, H_); ctx.closePath(); ctx.fill(); ctx.restore();
   }
   feedHuman() {
     const m = this.match, cp = m.controlledPlayer; if (!cp) return; const s = this.input.state; cp.input.copyFrom(s);
@@ -10841,7 +11003,7 @@ class Game {
     const W_ = this.W, H_ = this.H, cam = this.cam, S = this.save.data.settings, rp = this.replayPlayer;
     ctx.save(); ctx.translate(0, this.safe.top);
     if (rp) { kitStamp(ctx, 'REPLAY', W_ / 2, 60, 44, ['#FFFFFF', '#C9CCE0'], { tilt: -3, outline: 0.16 }); ctx.fillStyle = 'rgba(243,240,255,0.8)'; ctx.fillRect(W_ * 0.3, 90, W_ * 0.4 * rp.progress, 4); ctx.font = fontStr(14, false); ctx.textAlign = 'center'; ctx.fillStyle = '#F3F0FF'; ctx.fillText(rp.clip.label + (rp.clip.player ? ' · ' + rp.clip.player : '') + '   (jump to skip)', W_ / 2, 112); ctx.restore(); return; }
-    if (!m.practice && !m.contest3 && !m.drill) drawScoreBug(ctx, m, W_); 
+    if (!m.practice && !m.contest3 && !m.drill) drawScoreBug(ctx, m, W_, H_); 
     if (m.drill) drawDrillHud(ctx, m, W_);
     if (m.contest3) { const c = m.contest3; stampText(ctx, fmtClockTenths(c.timeLeft), W_ / 2, 40, 44, '#F3F0FF', INK, 0); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(22, true); ctx.textAlign = 'center'; ctx.fillText('SCORE ' + c.score + '   ·   rack ' + Math.min(c.rack + 1, 5) + '/5   ball ' + Math.min(c.ball + 1, 5) + '/5', W_ / 2, 80); if (!c.started) { ctx.font = fontStr(18, false); ctx.fillText('Walk to the glowing rack and shoot. The clock starts on your first shot.', W_ / 2, 110); } }
     if (m.practice && m.practice.breakdown) { const pr = m.practice; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(10, 10, 230, 120); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(14, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; const z = pr.byZone; const line = (k, l) => l + ' ' + z[k][0] + '/' + z[k][1] + (z[k][1] ? ' (' + Math.round(100 * z[k][0] / z[k][1]) + '%)' : ''); [ 'PRACTICE · ' + pr.makes + '/' + pr.shots + ' made', line('lay', 'Layups'), line('mid', 'Mid'), line('three', 'Threes'), line('deep', 'Deep'), line('dunk', 'Dunks') ].forEach((l, i) => ctx.fillText(l, 18, 16 + i * 18)); }

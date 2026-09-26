@@ -119,6 +119,22 @@ const FIX = path.join(__dirname, 'fixtures');
     await shot('22-pixel-mode');
     await ev(() => { const g = HH.game; g.save.data.settings.graphics = 'smooth'; }); await wait(400); await ev(() => { if (HH.game.pixelFrame) throw new Error('Smooth did not turn pixel mode off'); HH.game.save.data.settings.graphics = 'pixel'; HH.game.quitToMenu(); });
   });
+  await step('chunky UI (L8): button press 0.94 → 1.03 → 1, pop-in 0.8 → 1.06 → 1 over 280 ms, grinning portraits, the match wipe, pixel menus, 7×11 digits', async () => {
+    await ev(() => { const g = HH.game, P = ART.uiPressMs / 1000, near = (a, b) => Math.abs(a - b) < 0.006;
+      if (ART.uiTransMs !== 280) throw new Error('uiTransMs ' + ART.uiTransMs);
+      if (!near(btnScale({ _pressT: 0 }, false, 0.3 * P), 0.94) || !near(btnScale({ _pressT: 0 }, false, 0.65 * P), 1.03) || btnScale({ _pressT: 0 }, false, 1.01 * P) !== 1) throw new Error('press curve');
+      if (!near(popScale(0), 0.8) || !near(popScale(0.6), 1.06) || popScale(1) !== 1) throw new Error('pop-in curve');
+      for (const d of '0123456789') { const G = PX_DIGITS[d]; if (!G || G.length !== 11 || G.some(r => r.length < 7)) throw new Error('digit ' + d); }
+      const def = ROSTER.legends[1], a = portraitOf(def, TEAMS[0].colors, 96), b = portraitOf(def, TEAMS[0].colors, 96, 'hyped'); if (a === b) throw new Error('the grin portrait is the neutral one');
+      const c = document.createElement('canvas').getContext('2d'); PXUI.on = true; try { kitLogo(c, 200, 60, 60); kitTitle(c, 'SETTINGS', 10, 40, 40); kitPanel(c, 0, 0, 200, 100); kitButton(c, { x: 0, y: 0, w: 200, h: 52, primary: true }, true, 0); drawSelectHead(c, { x: 0, y: 0, w: 66, h: 66 }, def, TEAMS[0].colors, true, true, 1); pxRampDraw(c, '21', 50, 50, 44, null, { big: true }); } finally { PXUI.on = false; }
+      g.save.data.settings.graphics = 'pixel'; g.ui.clearTo(mainMenu(g)); });
+    await wait(400);
+    await ev(() => { const g = HH.game; if (PXUI.on) throw new Error('PXUI left on after a frame'); g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 6 }, { kind: 'quick' }); if (!g.wipe || g.wipe.c0 !== TEAMS[0].colors[0]) throw new Error('no team-color wipe'); });
+    await wait(1500);
+    await ev(() => { const g = HH.game; if (g.wipe) throw new Error('the wipe never ended'); g.match.teams[0].score += 2; });
+    await wait(300); await shot('23-chunky-ui');
+    await ev(() => { const g = HH.game; g.quitToMenu(); });
+  });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
   await step('gameplay: sprinting into a set defender can be a charge; a walk-up is a wall', () => ev(() => {
