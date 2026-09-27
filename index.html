@@ -854,23 +854,54 @@ const CONFIG = {
     injurySpd: 5,              // ...and costs this much Speed (−0.5 engine) until it heals
     injuryNames: ['Sprained ankle', 'Tight hamstring', 'Bruised knee', 'Sore foot', 'Strained calf'], // what the injury is called (all cost Speed)
   },
-  media: {                     // press questions after big games, hype and confidence, the rival's grudges (§8)
-    humbleConf: 1,             // Humble: confidence + this
-    confidentHype: 2,          // Confident: hype + this...
-    boastLoss: 2,              // ...and − this if you lose the next game
-    trashHype: 3,              // Trash talk: hype + this...
-    rivalFire: 2,              // ...and your rival plays you next time with every rating + this (+2 OVR)
-    hypeMax: 10,               // hype cap (the amateur draft score adds hype; see CHANGES.md)
-    highlightHype: 0.08,       // R3: hype per highlight in a game (a dunk counts 0.3, a poster or an ankle-breaker 1); a Showman's count ×1.5
+  media: {                     // press questions after big games, hype and confidence, the rival's grudges (§8; R8 §3.8–3.9: hype 0–100, four answers)
+    hypeMax: 100,              // R8: hype runs 0–100 (0–10 before: old saves' hype × 10)
+    hypeDecay: 0.1,            // R8: every game week without a big performance, hype loses this share
+    winHype: 1,                // R8: a win adds this much hype...
+    bigHype: 2.5,              // ...a big performance (a big night, a blowout, an upset, a rival, a playoff win, a title) this much, and no decay that week (4 kept "always trash talk" over 60 a tenth of the time: −12% titles)
+    highlightHype: 0.6,        // per highlight in a game (a dunk counts 0.3, a poster or an ankle-breaker 1); a Showman's count ×1.5 (0.08 on the old 0–10 scale)
     hypeKeep: 0.5,             // each season end keeps this share of your hype
+    teamTrust: 2,              // R8 press, Team first: coach trust + this...
+    teamHype: 2,               // ...and hype − this (1v1: no chemistry)
+    confidentHype: 3,          // Confident: hype + this and confidence + confidentConf...
+    confidentConf: 1,
+    boastLoss: 2,              // ...but lose the next game and hype − this, confidence − boastConf
+    boastConf: 2,
+    trashHype: 5,              // Trash talk: hype + this...
+    trashTier: 0.3,            // ...your next game against that player: their AI + this tier in a played game...
+    trashOvr: 2,               // ...+ this effective overall in a simulated one (§3.9's two numbers; +0.3 tier measured ≈ +2.8 on every rating)...
+    trashTrust: 3,             // ...coach trust − this...
+    trashFine: 0.2,            // ...and this chance of a fine and a sponsor pulling back:
+    fineShare: 0.02,           // the fine: this share of a season's salary (pros) or fineAm dollars (amateurs)...
+    fineAm: 100,
+    sponsorCut: 0.1,           // ...and endorsement money − this share for sponsorWeeks game weeks (pros)
+    sponsorWeeks: 4,
+    nocommentXp: 0.05,         // No comment: practice XP + this for the week...
+    nocommentHype: 1,          // ...hype − this, and the reporters call you boring
+    hypeDraft: 4,              // R8 up: the draft score + this × hype/100 (up to +4; it was + hype on the 0–10 scale)
+    hypeRecruit: 0.05,         // up: the college offer score + this × hype (up to +5, as 0.5 × hype on the 0–10 scale)
+    hypeEndorse: 1,            // up: sponsors' offers × (1 + this × hype/100)
+    hypeVote: 0.1,             // up: the All-Star fan vote + this × hype
+    hypeHome: 0.02,            // up: at home your make chance + this × hype/100 (+2% at 100)...
+    hypeHomeOvr: 1.5,          // ...which a simulated home game counts as this many OVR × hype/100 (measured: +2% on every shot is worth +1.5 on every rating)
+    hypeSalary: 0.01,          // pro: each point of hype adds this much ($M) to your market value (0.1 a point on the 0–10 scale)
+    lossConf: 0.5,             // R8 down: a loss costs this much confidence (a blowout confBlowout more), × (1 + lossConfMul × hype/100)
+    lossConfMul: 1,
+    keyedAt: 60,               // down: from this much hype defenses key on you: their AI + keyedTier...
+    keyedTier: 0.2,
+    distractAt: 70,            // ...from this much, media distractions: practice XP − distractXp...
+    distractXp: 0.15,
+    tierOvr: 9,                // R8: a simulated game counts an AI tier as this many OVR (measured in 800 engine games a condition: +0.3 tier on the other side costs what +2.8 on every rating does)
+    rivalAt: 70,               // ...and your rival is fired up: + rivalFire OVR the next time you meet
+    rivalFire: 2,              // (every rating; a trash-talked opponent gets trashTier / trashOvr)
     confMax: 3,                // confidence runs from −confMax to +confMax
     confFade: 0.25,            // every game moves confidence this much back toward 0
-    confBlowout: 1,            // losing by more than blowoutFrac of the winning score costs this much confidence
+    confBlowout: 1,            // losing by more than blowoutFrac of the winning score costs this much more confidence
     blowoutFrac: 0.4,
     confSho: 1,                // effective Shooting + this per point of confidence (career scale)...
     confShoMax: 2,             // ...up to ± this (±0.2 engine)
-    hypeSalary: 0.1,           // pro: each point of hype adds this much ($M) to your market value
     bigPts: 35,                // pro press questions: a 35-point game (and half again your season average)...
+    bigNight: 1.2,             // R8: a big performance (hype): a pro night of this × your season average (and bigPts), or a blowout win (blowoutFrac)
     upset: 5,                  // ...or a result against an opponent this many OVR better (or worse, for a bad loss)
     pressGap: 3,               // at least this many games between routine press questions (rivals, finals, titles, eliminations, points records and debuts always get one)
     newsMax: 40,               // amateur headlines kept
@@ -1095,9 +1126,10 @@ const CONFIG = {
     stockPtsDiv: 12,
     stockMax: 4,               // draft stock adds at most ± this to the draft score
     stockKeep: 0.5,            // a new season keeps this share of last season's stock (scouts' memory)
-    nilBase: 4000,             // NIL: a deal's base value ($), × (1 + hype/15) × (1 + OVR over the level's mean / 20) × (1 + 0.3 × tier)...
+    nilBase: 4000,             // NIL: a deal's base value ($), × (1 + hype/100: hypeEndorse) × (1 + OVR over the level's mean / 20) × (1 + 0.3 × tier)...
     nilAppMul: 0.4,            // ...× (1 + this × appearances)...
     nilFatigue: 8,             // ...and each appearance costs this much fatigue in a game week
+    nilHype: 50,               // R8: a preseason NIL offer comes with this much hype (or an OVR edge, four stars, or half the time anyway)
     nilOdds: 0.25,             // after a big game (nilPts points or a marquee win) a deal comes with this chance
     nilPts: 20,
     portalShare: 0.5,          // the transfer portal opens after a season on the bench for this share of your games or more
@@ -4306,7 +4338,7 @@ function makeProbability(p, type, zone, grade, contest, opts) {
   else if (type === 'dunk') { base = SH.dunkOpenP; P = base * (1 - SH.dunkContest * contest); }
   else if (type === 'hook') { base = SH.hookBase; P = base * (1 - SH.hookContest * contest) * (SH.ratingBase + SH.ratingSlope * (0.75 * A.fin + 0.25 * A.sho)); }
   else { base = SH.base[zone][grade]; P = base * (1 - SH.contestPenalty * contest * Math.max(0.3, SH.shotmakingBase - SH.shotmakingSlope * A.sho)) * (SH.jumperRatingBase + SH.jumperRatingSlope * A.sho); if (opts.stepback) P -= SH.stepbackPenalty; if (opts.fade) P *= SH.fadeMakeMul; }
-  P *= staminaMul * fireMul * trShotMul(p, type);
+  P *= staminaMul * fireMul * trShotMul(p, type); if (p.def && p.def.crowd) P += p.def.crowd; // R8: your hype's home crowd (career games)
   _mp.green = false;
   if ((type === 'jumper' || type === 'ft') && grade === 0 && contest < SH.greenMaxContest && (zone === 'mid' || zone === 'three')) { P = 1; _mp.green = true; }
   _mp.P = clamp(P, SH.pMin, _mp.green ? 1 : SH.pMax); _mp.base = base; return _mp;
@@ -9895,7 +9927,7 @@ function amHub(game) {
     draw(ctx, ui) {
       const stg = AMC.stages[c.stage] || AMC.stages.hs, o = nx && nx.opp; const myR = effRatings(c.r, c.height);
       const H = { header: 'SEASON ' + c.season, sub: c.stage === 'combine' ? 'DRAFT PROSPECT' : (amStageLabel(c) + (c.team && c.team.mascot ? ' ' + c.team.mascot : '')).toUpperCase(), weeks: L && !L.done ? L.schedule.length : 0, week: L ? Math.min(L.week, L.schedule.length) : 0, playoffs: !!(L && L.playoffs),
-        me: { def, kit, ovr: amOvr(c), delta: last ? amOvr(c) - last.ovr : 0, h: c.height, hLast, age: c.age, style: roleLabel(c.r, c.height), r: c.r, tr: traitsOf(c), info: c.age < 20 && c.heightFinal - c.height > 0.005 ? 'Still growing' : '' },
+        me: { def, kit, ovr: amOvr(c), delta: last ? amOvr(c) - last.ovr : 0, h: c.height, hLast, age: c.age, style: roleLabel(c.r, c.height), r: c.r, tr: traitsOf(c), info: (c.age < 20 && c.heightFinal - c.height > 0.005 ? 'Still growing · ' : '') + 'hype ' + Math.round(c.hype || 0) },
         last5: L ? L.games.slice(-5).map(g => g.won) : [], weekY: 198, statusY: items.statusY, B: c };
       if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: L.format ? hsNextLabel(c, nx) : nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · FIRST TO ' + stg.target }; /* R5: district, JV and state labels */
         H.myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school };
@@ -9925,7 +9957,7 @@ function careerHub(game) {
   const scr = { widgets: items, name: 'career', update(dt) { t += dt; if (game.ui.screen !== scr) return; if (c.events && c.events.length) game.ui.push(proEventScreen(game)); else if (c.phase === 'offseason') game.ui.replace(offseasonScreen(game)); }, onEnter() { game.audio.setBeat(true); }, onBack() { game.save.save(); game.ui.replace(mainMenu(game)); },
     draw(ctx, ui) {
       const H = { header: 'SEASON ' + c.season, sub: 'PRO · ' + club.name.toUpperCase(), weeks: c.phase === 'regular' ? c.schedule.length : 0, week: Math.min(c.week, c.schedule.length), playoffs: c.phase === 'playoffs', weekLabel: c.phase === 'playoffs' ? nextEventLabel(c) : '',
-        me: { def: drawDefOf(me), kit: club, ovr: recOvr(me), delta: prev ? recOvr(me) - prev.ovr : 0, h: me.h, hLast: null, age: me.age, style: roleLabel(me.r, me.h), r: me.r, tr: traitsOf(c.me), info: fmtMoney(c.me.money) + ' · fame ' + Math.round(c.me.fame) },
+        me: { def: drawDefOf(me), kit: club, ovr: recOvr(me), delta: prev ? recOvr(me) - prev.ovr : 0, h: me.h, hLast: null, age: me.age, style: roleLabel(me.r, me.h), r: me.r, tr: traitsOf(c.me), info: fmtMoney(c.me.money) + ' · hype ' + Math.round(c.me.hype || 0) }, // R8: hype on the card (fame is in Business)
         last5: c.me.log.slice(0, 5).reverse().map(l => l.win), weekY: 198, statusY: items.statusY, B: c.me };
       if (g && opp) { const meHome = g.h === c.meId; const oc = clubOf(opp.club), os = c.standings[opp.id]; H.opp = { def: drawDefOf(opp), h: opp.h, rival, playoff: !!g.playoff, where: meHome ? 'HOME' : 'AWAY', label: c.phase === 'playoffs' ? nextEventLabel(c) : 'NEXT · WEEK ' + (c.week + 1) + ' · ' + os.w + '-' + os.l };
         H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = cardOfRec(opp, { sub: oc.name });
@@ -10199,7 +10231,7 @@ function filmRoomScreen(game) {
 // SECTION: UI (part 8) — the story screens (§8), for both careers: the press room after big games, the rival's
 // scripted moments, the headlines feed, and the event queue that shows them in order.
 // ============================================================================
-const PRESS_LABEL = { humble: 'HUMBLE', confident: 'CONFIDENT', trash: 'TRASH TALK' };
+const PRESS_LABEL = { team: 'TEAM FIRST', confident: 'CONFIDENT', trash: 'TRASH TALK', nocomment: 'NO COMMENT' }; // R8: four answers
 const NEWS_KIND = { result: ['RESULT', 'rgba(94,224,255,0.9)'], rival: ['RIVAL', 'rgba(255,90,90,0.95)'], record: ['RECORD', 'rgba(255,210,63,0.95)'], media: ['MEDIA', 'rgba(200,140,255,0.95)'], injury: ['INJURY', 'rgba(255,138,42,0.95)'], award: ['AWARD', 'rgba(255,210,63,0.95)'], draft: ['DRAFT', 'rgba(76,224,122,0.9)'], money: ['MONEY', 'rgba(76,224,122,0.9)'], league: ['LEAGUE', 'rgba(243,240,255,0.8)'], trait: ['TRAIT', 'rgba(255,210,63,0.95)'] };
 function careerEvents(game) { const pro = careerOf(game); if (pro) return pro.events || (pro.events = []); const a = amateurOf(game); return a ? a.events : []; }
 // The pro career's event queue (the amateur one is amEventScreen): press questions, rival moments, story cards.
@@ -10221,37 +10253,48 @@ function rivalDrawOf(c) {
   const r = c.rival; return r ? { def: { name: r.name, look: r.look, height: r.height, attrs: {} }, kit: { colors: r.colors || AM_COLORS[1], pattern: r.pattern || 'solid' }, name: r.name, h: r.height } : null;
 }
 
-// --- the press room: a question after a big game, three answers ---
+// --- the press room: a question after a big game, four answers (R8 §3.9: none best) ---
 function pressScreen(game, c, ev, done) {
   const x = ev.x || {}, A = pressAnswers(x), me = meDrawOf(c), P = game.ui.phone; let t = 0, answered = null;
-  const answers = ['humble', 'confident', 'trash'].map(kind => ({ kind: 'custom', ans: kind, label: PRESS_LABEL[kind], x: 0, y: 0, w: 0, h: 0,
+  const answers = PRESS_KINDS.map(kind => ({ kind: 'custom', ans: kind, label: PRESS_LABEL[kind], x: 0, y: 0, w: 0, h: 0,
     onPress() { if (answered) return; answered = pressAnswer(c, ev, kind); game.save.save(); for (const b of answers) b.hidden = true; cont.hidden = false; scr.focus = items.indexOf(cont); game.audio.ui('confirm'); },
     draw(ctx, focused, ui) { drawPressAnswer(ctx, this, focused, ui, A[kind]); } }));
-  const cont = btn('CONTINUE', 860, 612, 360, 58, () => done(), { primary: true, hidden: true });
-  answers.forEach((b, i) => { const h = P ? tapH(game.ui, 44) : 108; Object.assign(b, { x: 680, y: P ? 240 + i * (h + 8) : 262 + i * (h + 10), w: 560, h }); }); if (P) phoneGrid(game.ui, [cont], 800, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0);
+  const cont = btn('CONTINUE', 860, 612, 360, 58, () => done(), { primary: true });
+  answers.forEach((b, i) => { const h = P ? tapH(game.ui, 44) : 96; Object.assign(b, { x: 680, y: P ? 226 + i * (h + 4) : 246 + i * (h + 8), w: 560, h }); }); if (P) phoneGrid(game.ui, [cont], 800, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0); cont.hidden = true; // (laid out first: the phone grid skips hidden buttons)
   const items = answers.concat([cont]);
   const scr = { widgets: items, name: 'press', overlay: false, onBack() { if (answered) done(); }, update(dt) { t += dt; },
     draw(ctx, ui) {
       drawPressRoom(ctx, c, me, t, isPro(c) ? 'ISO LEAGUE' : (c.stage === 'college' ? c.college : c.school).toUpperCase());
       ui.panel(ctx, 660, 20, 600, 680, UI_PANEL2); kitStamp(ctx, 'THE PRESS ROOM', 690, 62, 30, [UI_GOLD, '#F2A91C'], { align: 'left', outline: 0.14 });
-      ui.label(ctx, (x.won ? 'After the win' : 'After the loss') + (x.opp ? ' vs ' + x.opp : '') + (x.us != null ? ' · ' + x.us + '–' + x.them : ''), 690, 98, 14, UI_DIM);
+      ui.label(ctx, (x.won ? 'After the win' : 'After the loss') + (x.opp ? ' vs ' + x.opp : '') + (x.us != null ? ' · ' + x.us + '–' + x.them : ''), 690, 98, 14, UI_DIM, 'left', 540);
       // the question in a speech bubble
-      ctx.fillStyle = 'rgba(243,240,255,0.95)'; ctx.beginPath(); roundRectPath(ctx, 684, 116, 552, P ? 104 : 118, 16); ctx.fill(); ctx.beginPath(); ctx.moveTo(700, 116 + (P ? 104 : 118)); ctx.lineTo(716, 116 + (P ? 104 : 118) + 16); ctx.lineTo(730, 116 + (P ? 104 : 118)); ctx.fill();
+      const bh = P ? 104 : 118; ctx.fillStyle = 'rgba(243,240,255,0.95)'; ctx.beginPath(); roundRectPath(ctx, 684, 116, 552, bh, 16); ctx.fill(); ctx.beginPath(); ctx.moveTo(700, 116 + bh); ctx.lineTo(716, 116 + bh + 12); ctx.lineTo(730, 116 + bh); ctx.fill();
       ctx.font = fontStr(13, true); ctx.fillStyle = '#3D6EA8'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('REPORTER', 702, 128); ctx.font = fontStr(P ? 19 : 20, true); ctx.fillStyle = UI_INK; wrapText(ctx, '“' + ev.q + '”', 702, 150, 516, P ? 24 : 26);
+      const B = holderOf(c);
       if (answered) {
-        ctx.fillStyle = '#EDE6D2'; ctx.beginPath(); roundRectPath(ctx, 684, 270, 552, 250, 10); ctx.fill(); ctx.fillStyle = '#1B1B22'; ctx.fillRect(700, 300, 520, 3); ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('THE DAILY DRIBBLE', 700, 288);
-        ctx.font = fontStr(22, true); ctx.textBaseline = 'top'; wrapText(ctx, answered.headline, 700, 316, 520, 28);
-        const fx = []; if (answered.conf) fx.push('Confidence +' + answered.conf + ' (now ' + (holderOf(c).confidence || 0).toFixed(1).replace('.0', '') + ')'); if (answered.hype) fx.push('Hype +' + answered.hype + ' (now ' + (holderOf(c).hype || 0).toFixed(1).replace('.0', '') + ')'); if (answered.kind === 'confident') fx.push('Lose the next game and it costs ' + MD.boastLoss + ' hype.'); if (answered.fire) fx.push((x.rivalName || 'Your rival') + ' plays you +' + MD.rivalFire + ' OVR next time.');
-        fx.forEach((f, i) => ui.label(ctx, f, 700, 440 + i * 22, 14, i < 2 ? '#3D6EA8' : '#B8322D'));
-      } else if (!P) { ctx.font = fontStr(13, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Hype helps your ' + (isPro(c) ? 'contracts' : 'draft stock') + '. Confidence steadies your jumper (up to ±0.2 Shooting).', 690, 624, 540, 18); }
+        ctx.fillStyle = '#EDE6D2'; ctx.beginPath(); roundRectPath(ctx, 684, 262, 552, 300, 10); ctx.fill(); ctx.fillStyle = '#1B1B22'; ctx.fillRect(700, 292, 520, 3); ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('THE DAILY DRIBBLE', 700, 280);
+        ctx.font = fontStr(21, true); ctx.textBaseline = 'top'; const hh = wrapTextH(ctx, answered.headline, 700, 306, 520, 26);
+        const fx = pressEffectLines(c, x, answered, B); let fy = Math.max(410, 306 + hh + 14); fx.forEach(f => { fy += ui.para(ctx, f[0], 700, fy, 520, 14, f[1] ? '#B8322D' : '#3D6EA8', 'left', 2) + 2; });
+      } else if (!P) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (hasTrait(B, 'generational') ? ' · the spotlight never leaves' : ''), 690, 672, 13, UI_DIM, 'left', 540); // (phones: the BUZZ line in the headlines)
     } };
   return scr;
 }
+// What an answer did, for the newspaper: [text, a cost?].
+function pressEffectLines(c, x, a, B) {
+  const out = [], hy = Math.round(B.hype || 0), n = v => (v > 0 ? '+' : '−') + Math.abs(v).toString().replace(/\.0$/, '');
+  if (a.hype) out.push(['Hype ' + n(a.hype) + ' (now ' + hy + ')', a.hype < 0]);
+  if (a.conf) out.push(['Confidence ' + n(a.conf) + ' (now ' + (B.confidence || 0).toFixed(1).replace('.0', '') + ')', a.conf < 0]);
+  if (a.trust) out.push(['Coach trust ' + n(a.trust) + ' (now ' + trustOf(c) + ')', a.trust < 0]);
+  if (a.kind === 'confident') out.push(['Lose the next game: hype −' + MD.boastLoss + ', confidence −' + MD.boastConf + '.', true]);
+  if (a.kind === 'trash') { if (a.grudge) out.push([a.grudge.split(' ')[0] + ' comes for you next time: their AI +' + MD.trashTier + ' tier.', true]); out.push([a.fine != null ? 'Fined ' + fmtMoney(a.fine) + '. A sponsor pulls back: −' + Math.round(MD.sponsorCut * 100) + '% for ' + MD.sponsorWeeks + ' weeks.' : 'No fine this time (a ' + Math.round(MD.trashFine * 100) + '% chance).', a.fine != null]); }
+  if (a.kind === 'nocomment') out.push(['Practice XP +' + Math.round(MD.nocommentXp * 100) + '% this week.', false]);
+  return out.slice(0, 5);
+}
 function drawPressAnswer(ctx, b, focused, ui, quote) {
-  kitButton(ctx, b, focused, ui.t, {}); const col = b.ans === 'trash' ? UI_RED : b.ans === 'confident' ? UI_GOLD : UI_CYAN;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, b.y + 20);
-  ctx.font = fontStr(12, true); ctx.fillStyle = UI_DIM; ctx.textAlign = 'right'; ctx.fillText(PRESS_EFFECT[b.ans], b.x + b.w - 16, b.y + 20);
-  ctx.font = fontStr(b.h > 100 ? 17 : 16, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, '“' + quote + '”', b.x + 18, b.y + 38, b.w - 36, 21);
+  kitButton(ctx, b, focused, ui.t, {}); const col = b.ans === 'trash' ? UI_RED : b.ans === 'confident' ? UI_GOLD : b.ans === 'nocomment' ? UI_DIM : UI_CYAN, P = ui.phone;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, b.y + 16); // R8: the answer, what it does, then the quote
+  ui.para(ctx, PRESS_EFFECT[b.ans], b.x + 18, b.y + 36, b.w - 36, 12, UI_DIM, 'left', 1);
+  ui.para(ctx, '“' + quote + '”', b.x + 18, b.y + (P ? 60 : 60), b.w - 36, 16, UI_TEXT, 'left', P ? 1 : 2);
 }
 // A press backdrop: step-and-repeat logos, you behind a table of microphones, camera flashes.
 function drawPressRoom(ctx, c, me, t, org) {
@@ -10290,7 +10333,7 @@ function rivalMomentScreen(game, c, ev, done) {
 function headlinesScreen(game) {
   const pro = careerOf(game), a = amateurOf(game), c = pro || a; if (!c) return mainMenu(game); const news = c.news || []; const per = game.ui.phone ? 6 : 11; let page = 0; const pages = Math.max(1, Math.ceil(news.length / per));
   const items = [btn('Newer', 0, 0, 0, 0, () => { page = Math.max(0, page - 1); }), btn('Older', 0, 0, 0, 0, () => { page = Math.min(pages - 1, page + 1); }), btn('Back', 0, 0, 0, 0, () => game.ui.pop(), { primary: true })];
-  column(items, 1000, 480, 220, 50, 10); if (game.ui.phone) phoneGrid(game.ui, items, 40, UI_H - tapH(game.ui, 44) - 14, 1200, 3, 0, 10);
+  column(items, 1000, 540, 220, 48, 8); if (game.ui.phone) phoneGrid(game.ui, items, 40, UI_H - tapH(game.ui, 44) - 14, 1200, 3, 0, 10);
   return { widgets: items, name: 'news', update() { items[0].enabled = page > 0; items[1].enabled = page < pages - 1; },
     draw(ctx, ui) {
       const P = ui.phone, x0 = 30, w = P ? 1220 : 950, h = P ? UI_H - tapH(ui, 44) - 50 : 680; ctx.fillStyle = '#EDE6D2'; ctx.beginPath(); roundRectPath(ctx, x0, 20, w, h, 12); ctx.fill();
@@ -10299,10 +10342,11 @@ function headlinesScreen(game) {
       const rows = news.slice(page * per, page * per + per); if (!rows.length) { ctx.font = fontStr(18, false); ctx.fillText('No news yet. Go make some.', x0 + w / 2, 300); }
       rows.forEach((n, i) => { const y = 150 + i * (P ? 64 : 48); const K = NEWS_KIND[n.k] || NEWS_KIND.league; kitChip(ctx, K[0], x0 + 30, y + 10, { size: 11, fill: K[1], color: UI_INK, stroke: false }); ctx.font = fontStr(12, true); ctx.fillStyle = 'rgba(27,27,34,0.55)'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText('S' + n.s + (n.w != null ? ' · W' + (n.w + 1) : ''), x0 + w - 28, y + 10);
         ctx.font = fontStr(P ? 18 : 17, i === 0 && page === 0); ctx.fillStyle = '#1B1B22'; ctx.textAlign = 'left'; let tx = String(n.t); const maxW = w - 250; while (tx.length > 8 && ctx.measureText(tx).width > maxW) tx = tx.slice(0, -2); if (tx !== String(n.t)) tx = tx.replace(/\s+\S*$/, '') + '…'; ctx.fillText(tx, x0 + 130, y + 10); ctx.fillStyle = 'rgba(27,27,34,0.12)'; ctx.fillRect(x0 + 24, y + 30, w - 48, 1); });
-      if (!P) { ui.panel(ctx, 1000, 20, 250, 440); ui.heading(ctx, 'BUZZ', 1020, 56, 20, UI_GOLD); const B = holderOf(c); mdFill(B); ui.label(ctx, 'Hype ' + (B.hype || 0).toFixed(1).replace('.0', '') + ' / ' + MD.hypeMax, 1020, 92, 15, UI_TEXT); meterBar(ctx, 1020, 106, 210, 10, (B.hype || 0) / MD.hypeMax, UI_GOLD); ui.label(ctx, 'Confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', ''), 1020, 142, 15, UI_TEXT); meterBar(ctx, 1020, 156, 210, 10, ((B.confidence || 0) + MD.confMax) / (2 * MD.confMax), (B.confidence || 0) >= 0 ? UI_CYAN : UI_ORANGE);
-        ctx.font = fontStr(13, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, (pro ? 'Hype raises your next contract.' : 'Hype adds to your draft stock.') + ' Confidence moves your Shooting up to ±0.2. Answer the press to move them.', 1020, 190, 210, 18);
-        if (B.rivalFire > 0) { ui.label(ctx, 'Your rival is fired up:', 1020, 320, 14, UI_RED); ui.label(ctx, '+' + B.rivalFire + ' OVR in your next meeting.', 1020, 340, 14, UI_RED); }
-        const h = c.story && c.story.h2h; if (h && h.w + h.l) ui.label(ctx, 'Rivalry: ' + h.w + '-' + h.l, 1020, 380, 15, UI_TEXT); }
+      if (P) { const B = holderOf(c); mdFill(B); const bad = mdBuzzLines(c).filter(l => l[1] === 'bad').map(l => l[0]).sort((a, b) => /^Losses/.test(a) - /^Losses/.test(b)); ctx.fillStyle = 'rgba(27,27,34,0.85)'; ctx.fillRect(x0 + 24, 20 + h - 62, w - 48, 2); ui.para(ctx, 'BUZZ · hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (bad.length ? ' · ' + bad.join(' · ') : ''), x0 + 30, 20 + h - 44, w - 60, 15, '#1B1B22', 'left', 2); } // R8: the phone's BUZZ lines (the costs first)
+      if (!P) { ui.panel(ctx, 1000, 20, 250, 506); ui.heading(ctx, 'BUZZ', 1020, 56, 20, UI_GOLD); const B = holderOf(c); mdFill(B); ui.label(ctx, 'Hype ' + mdHypeText(B), 1020, 92, 15, UI_TEXT); meterBar(ctx, 1020, 106, 210, 10, (B.hype || 0) / MD.hypeMax, UI_GOLD); for (const at of [MD.keyedAt, MD.distractAt]) { ctx.fillStyle = UI_RED; ctx.fillRect(1020 + 210 * at / MD.hypeMax - 1, 102, 2, 18); }
+        ui.label(ctx, 'Confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', ''), 1020, 142, 15, UI_TEXT); meterBar(ctx, 1020, 156, 210, 10, ((B.confidence || 0) + MD.confMax) / (2 * MD.confMax), (B.confidence || 0) >= 0 ? UI_CYAN : UI_ORANGE);
+        ctx.font = fontStr(13, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 184; const h = c.story && c.story.h2h, bottom = h && h.w + h.l ? 486 : 514; for (const [l, col] of mdBuzzLines(c)) { const need = wrapCount(ctx, l, 210) * 17; if (y + need > bottom) break; ctx.fillStyle = col === 'bad' ? UI_RED : col === 'good' ? UI_GREEN : UI_DIM; y += wrapTextH(ctx, l, 1020, y, 210, 17) + 3; }
+        if (h && h.w + h.l) ui.label(ctx, 'Rivalry: ' + h.w + '-' + h.l, 1020, 504, 15, UI_TEXT); }
     } };
 }
 
@@ -10655,7 +10699,7 @@ function createCareerFromAmateur(save, a) {
     rec.caps = capsAbove(rec.r, age, rng); used.add(rv.name); c.players[id] = rec; c.active.push(id); rookies.push(rec); c.rivalId = id; }
   while (c.active.length < CR.leagueSize - 1) { const id = 'p' + c.nextId++; const rec = genProspect(c, rng, used, id); c.players[id] = rec; c.active.push(id); rookies.push(rec); }
   const me = { id: 'me', name: a.name, nick: a.name.split(' ')[0], arch: a.style, h: a.height, wing: a.wing, age: a.age, r: Object.assign({}, a.r), caps: Object.assign({}, a.caps), look: Object.assign({}, a.look, { number: a.number }), club: null, contract: { years: CR.rookieYears, salary: 0 }, since: 1, isMe: true, rookie: true, hFinal: a.heightFinal, bloom: a.bloom, combine: amCombine(a) };
-  c.players.me = me; c.active.push('me'); rookies.push(me); c.me.xp = Object.assign({}, a.xp); c.me.hype = a.hype || 0; c.me.confidence = a.confidence || 0; c.events = []; c.story = { h2h: Object.assign({ w: 0, l: 0 }, a.story && a.story.h2h) }; c.timeline = []; c.amateur.timeline = (a.timeline || []).slice(); c.amateur.records = Object.assign({}, a.records || {}); c.me.focus = CR.trainFocus[a.focus] && a.focus !== 'recovery' ? a.focus : 'shooting';
+  c.players.me = me; c.active.push('me'); rookies.push(me); c.me.xp = Object.assign({}, a.xp); c.me.hype = a.hype || 0; c.me.hypeScale = a.hypeScale; /* R8: the amateur's scale (a save from before R8 migrates on the next fill) */ c.me.confidence = a.confidence || 0; c.events = []; c.story = { h2h: Object.assign({ w: 0, l: 0 }, a.story && a.story.h2h) }; c.timeline = []; c.amateur.timeline = (a.timeline || []).slice(); c.amateur.records = Object.assign({}, a.records || {}); c.me.focus = CR.trainFocus[a.focus] && a.focus !== 'recovery' ? a.focus : 'shooting';
   // pick numbers from the draft score (yours has your college résumé in it); no two rookies share a pick
   me.draftPick = amPickFrom(amDraftScore(a) + D.noise * rng.gauss());
   for (const p of rookies) if (!p.isMe) p.draftPick = amPickFrom(recOvr(p) * D.ovr + (D.ageRef - p.age) * D.age + D.wing * p.h * (p.wing - 1) + D.aiResume + D.noise * rng.gauss());
@@ -10690,12 +10734,12 @@ function movesFor(r, early) { const T = CR.moveUnlocks, out = { crossover: true 
 function learnedMoves(p, B) { return movesFor(effRatings(p.r, p.h), trMoveEarly(B)); }
 function engineDef(c, id, opts) {
   const p = c.players[id]; opts = opts || {}; const eff = effRatings(p.r, p.h); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]);
-  let look = Object.assign({}, p.look); if (!p.isMe && opts.fire) for (const k of RATING_KEYS) attrs[k] = ratingToAttr(effRatings(p.r, p.h)[k] + opts.fire); // a rival you trash-talked
+  let look = Object.assign({}, p.look); if (!p.isMe && opts.fire) for (const k of RATING_KEYS) attrs[k] = ratingToAttr(effRatings(p.r, p.h)[k] + opts.fire); // R8: an opponent you trash-talked, a fired-up rival
   if (p.isMe) { const me = c.me;
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
     look = Object.assign(look, { headband: !!me.cosmetics.headband && me.cosmetics.headbandOn, sleeves: !!me.cosmetics.sleeves && me.cosmetics.sleevesOn, shoes: me.cosmetics.shoes ? SIGNATURE_SHOES[(me.cosmetics.shoes - 1) % SIGNATURE_SHOES.length] : null });
   }
-  return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), id: p.id };
+  return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }; // R8: crowd: your hype's home crowd (make chance +)
 }
 function clubKit(clubId, away) { const t = clubOf(clubId); const kit = Object.assign({}, t); if (away) { kit.colors = [t.colors[1], t.colors[0]]; if (luminance(kit.colors[0]) < 0.25 && luminance(t.colors[0]) < 0.25) kit.colors = ['#F3F0FF', t.colors[0]]; } return kit; }
 function matchTeamDef(c, id, away, opts) { const p = c.players[id]; const kit = clubKit(p.club, away); return Object.assign({}, kit, { name: p.name, abbr: p.nick.toUpperCase().slice(0, 4), personality: archPersonality(p.arch), players: [engineDef(c, id, opts)] }); }
@@ -10711,10 +10755,10 @@ function opponentOf(c, g) { return g.h === c.meId ? g.a : g.h; }
 // make more mistakes than pros), in the playoffs, and when they are better rated than you. Never by the score.
 function careerTierShift(stage, year, myOvr, oppOvr, playoff) { const A = AI.careerShift; const lvl = stage === 'hs' ? A.hs + A.hsPerYear * ((year || 1) - 1) : stage === 'college' ? A.college + A.collegePerYear * ((year || 1) - 1) : A.pro; return clamp(lvl + clamp((oppOvr - myOvr) / A.gapPerTier, -A.gapMax, A.gapMax) + (playoff ? A.playoff : 0), -A.max, A.max); }
 function careerMatchOpts(c, save, g, forSim) {
-  const opp = opponentOf(c, g); const sameClub = c.players[opp].club === meOf(c).club;
-  const mine = matchTeamDef(c, c.meId, false, { week: true, oppId: opp }), theirs = matchTeamDef(c, opp, sameClub, { fire: opp === c.rivalId ? c.me.rivalFire || 0 : 0 }); // teammates at the same club: the visitor wears the alternate kit
+  const opp = opponentOf(c, g); const sameClub = c.players[opp].club === meOf(c).club; const G = mdGame(c.me, opp, opp === c.rivalId, g.h === c.meId); // R8: hype (the home crowd, a keyed defense), a trash-talked opponent, a fired-up rival
+  const mine = matchTeamDef(c, c.meId, false, { week: true, oppId: opp, crowd: G.crowd }), theirs = matchTeamDef(c, opp, sameClub, { fire: G.ovr }); // teammates at the same club: the visitor wears the alternate kit
   const court = 'arena'; // every pro game is in the pro arena, dressed in the home club's colors (§4: venue by level)
-  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'timed', half: c.gameLength }, court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff) + trSpotlightTier(c.me), playoff: !!g.playoff, ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band
+  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'timed', half: c.gameLength }, court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff) + G.tier, playoff: !!g.playoff, ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band
 }
 
 // ---------------- the fast league model: AI-vs-AI games in a millisecond ----------------
@@ -10723,7 +10767,8 @@ function careerMatchOpts(c, save, g, forSim) {
 function strengthOf(p, c, bonus) { const w = LG.marginW, e = effAttrs(p, c, bonus); let s = 0; for (const k of RATING_KEYS) s += w[k] * e[k]; return s + w.h * p.h + w.wing * (p.wing || 1.03); }
 function linPts(o, d, c, bo, bd) { const W_ = LG.pts, eo = effAttrs(o, c, bo), ed = effAttrs(d, c, bd); let v = W_.c; for (const k of RATING_KEYS) { v += W_['o_' + k] * eo[k] + W_['d_' + k] * ed[k]; } return v + W_.h * o.h + W_.oh * d.h; }
 function simBox(c, hId, aId, rng) {
-  const H = c.players[hId], A = c.players[aId], len = c.gameLength / 120; const fire = c.me && c.me.rivalFire > 0 && (hId === c.meId || aId === c.meId) ? c.me.rivalFire : 0, po = c.phase === 'playoffs', meB = c._benchSub || c.me, fH = (hId === c.rivalId ? fire : 0) + trSimEdge(hId === c.meId ? meB : H, po), fA = (aId === c.rivalId ? fire : 0) + trSimEdge(aId === c.meId ? meB : A, po); // a rival you trash-talked plays you better; everyone's traits' in-game effects (R3)
+  const H = c.players[hId], A = c.players[aId], len = c.gameLength / 120; const mine = !!(c.me && !c._benchSub && (hId === c.meId || aId === c.meId)), oId = mine ? (hId === c.meId ? aId : hId) : null, G = mine ? mdGame(c.me, oId, oId === c.rivalId, hId === c.meId, true) : null, po = c.phase === 'playoffs', meB = c._benchSub || c.me;
+  const fH = (G ? (hId === c.meId ? G.simMe : G.simOpp) : 0) + trSimEdge(hId === c.meId ? meB : H, po), fA = (G ? (aId === c.meId ? G.simMe : G.simOpp) : 0) + trSimEdge(aId === c.meId ? meB : A, po); // R8: your hype (the home crowd; a keyed defense), a trash-talked opponent, a fired-up rival; everyone's traits' in-game effects (R3)
   const margin = strengthOf(H, c, fH) - strengthOf(A, c, fA) + LG.homeEdge; const baseH = linPts(H, A, c, fH, fA), baseA = linPts(A, H, c, fA, fH);
   let hs = Math.round((baseH + (margin - (baseH - baseA)) * 0.5 + LG.ptsNoise * rng.gauss()) * len), as = Math.round((baseA - (margin - (baseH - baseA)) * 0.5 + LG.ptsNoise * rng.gauss()) * len);
   hs = Math.max(6, hs); as = Math.max(6, as); let ot = 0; if (hs === as) { ot = 1; const pH = 0.5 + 0.5 * erf(margin / (LG.ptsNoise * 1.4 * Math.SQRT2)); if (rng.next() < pH) hs += 2 + rng.int(3); else as += 2 + rng.int(3); }
@@ -10822,7 +10867,7 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const rec = { win, us, them, grade, xp, gains, learned, pay, fameGain: Math.round(fameGain * 10) / 10, ovrBefore, ovrAfter: recOvr(me), injury, wk, recs, opp, playoff: !!g.playoff, home: g.h === c.meId, ot: r.ot, oppLine: sOp, myLine: Object.assign({}, my) };
   // the story: hype and confidence, the rival, headlines (the press question waits for the playoff result below)
   storyFill(c); const md = mdAfterGame(M, win, us, them); rec.md = md; mdHighlights(M, my); const O = c.players[opp], oppOvr = recOvr(O), recList = recs.map(k => ({ k, v: M.records[k] }));
-  if (opp === c.rivalId) { h2hAdd(c, win); M.rivalFire = 0; }
+  if (opp === c.rivalId) h2hAdd(c, win); mdGrudgeDone(M, opp); // R8: a trash-talked opponent has had their shot
   pushNews(c, (g.playoff ? 'Playoffs: ' : opp === c.rivalId ? 'Rivalry: ' : '') + (win ? me.name + ' beats ' + O.name + ' ' + us + '–' + them : O.name + ' beats ' + me.name + ' ' + them + '–' + us) + (my.pts >= 25 ? ' (' + my.pts + ' points)' : '') + '.', opp === c.rivalId ? 'rival' : 'result');
   for (const x of recList) pushNews(c, me.name + ' sets a career high: ' + x.v + ' ' + REC_WORDS[x.k] + '.', 'record');
   if (md.boastCost) pushNews(c, 'So much for "just getting started": ' + me.name + ' loses and the hype cools.', 'media');
@@ -10832,8 +10877,8 @@ function careerAfterGame(save, box, meTeam, simmed) {
   else { recordResult(c, r, false); finishWeek(c, rec); }
   if (!win && opp === c.rivalId) rec.rivalWon = true;
   if (c.team) { if (win) c.team.w++; else c.team.l++; } // the franchise's record is yours
-  const press = pressFor(M, { name: me.name, won: win, us, them, opp: O.name, rival: opp === c.rivalId, rivalFirst: false, rivalName: c.rivalId && c.players[c.rivalId] ? c.players[c.rivalId].name : '', playoff: !!g.playoff, final: !!(g.series && g.series.bestOf > 1), champ: !!rec.champion, eliminated: !!rec.eliminated, recs: recList, first: cs.g === 1, upsetWin: win && oppOvr >= ovrBefore + MD.upset, upsetLoss: !win && oppOvr <= ovrBefore - MD.upset, big: my.pts >= Math.max(MD.bigPts, 1.5 * ppgBefore), pts: my.pts });
-  if (press) (c.events || (c.events = [])).push(press); rec.press = !!press;
+  const px = { name: me.name, won: win, us, them, opp: O.name, oppId: opp, rival: opp === c.rivalId, rivalFirst: false, rivalName: c.rivalId && c.players[c.rivalId] ? c.players[c.rivalId].name : '', playoff: !!g.playoff, final: false, /* R8: the final's press comes with the clincher (champ or eliminated); mid-series only after an upset or a big night */ champ: !!rec.champion, eliminated: !!rec.eliminated, recs: recList, first: cs.g === 1, upsetWin: win && oppOvr >= ovrBefore + MD.upset, upsetLoss: !win && oppOvr <= ovrBefore - MD.upset, big: my.pts >= Math.max(MD.bigPts, 1.5 * ppgBefore), bigNight: my.pts >= Math.max(MD.bigPts, MD.bigNight * ppgBefore), pts: my.pts };
+  rec.hype = mdHypeWeek(M, md.hype0, win, mdBigPerf(px)); /* R8: the week's hype: a win, a big performance, or the decay */ const press = pressFor(M, px); if (press) (c.events || (c.events = [])).push(press); rec.press = !!press;
   proRivalMoments(c);
   { const tb = traitStoryAfterGame(M, { playoff: !!g.playoff, won: win, us, them }); if (tb) c.events.push(tb); if (traitRevealDue(M)) c.events.push(traitRevealCard(M)); } // R3: trait story beats
   if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, careerRng(c)); // R4: the teammate below you may want your spot
@@ -10857,7 +10902,7 @@ function finishWeek(c, rec) {
   if (c.week >= c.schedule.length) { startPlayoffs(c); }
 }
 function weeklyFinance(c, rec) {
-  const M = c.me; let inc = 0, exp = 0; for (const e of M.endorsements) { inc += e.weekly; e.weeks--; } M.endorsements = M.endorsements.filter(e => e.weeks > 0);
+  const M = c.me; let inc = 0, exp = 0; for (const e of M.endorsements) { inc += e.weekly; e.weeks--; } M.endorsements = M.endorsements.filter(e => e.weeks > 0); inc = Math.round(inc * mdSponsorMul(M)); if (M.sponsorCut > 0) M.sponsorCut--; // R8: a sponsor pulling back after a fine
   exp = proStaffCost(M, c); earn(c, inc); M.money -= exp; if (rec) { rec.endorse = inc; rec.staffCost = exp; } proWeekMoney(c, rec); /* R7: the trainer, the private coach, nutrition & physio; the shoe line's royalties */
   if (M.money < 0) { for (const role in M.staff) if (M.staff[role] > 0) { M.staff[role] = 0; } pushNews(c, 'Money ran out: ' + meOf(c).name + ' let the training staff go.', 'money'); M.money = Math.max(M.money, 0); }
 }
@@ -10865,7 +10910,7 @@ function weeklyEndorsementOffers(c) {
   const M = c.me; if (M.offers.length >= 2) return; const rng = careerRng(c);
   const lvl = Math.floor(M.fame / 20); const owned = new Set(M.endorsements.map(e => e.brand).concat(M.offers.map(o => o.brand)));
   if (lvl <= 0 || rng.next() > 0.22 + M.fame / 400) return; const choices = CR.brands.filter(b => !owned.has(b.name)); if (!choices.length) return; const b = rng.pick(choices);
-  M.offers.push({ brand: b.name, what: b.what, weekly: Math.round((b.base + b.perFame * M.fame) / 500) * 500, weeks: 8 + rng.int(4) * 4 }); pushNews(c, b.name + ' wants ' + meOf(c).name + ' for a ' + b.what + ' deal.', 'money');
+  M.offers.push({ brand: b.name, what: b.what, weekly: Math.round((b.base + b.perFame * M.fame) * (1 + MD.hypeEndorse * (M.hype || 0) / MD.hypeMax) / 500) * 500, weeks: 8 + rng.int(4) * 4 }); pushNews(c, b.name + ' wants ' + meOf(c).name + ' for a ' + b.what + ' deal.', 'money');
 }
 function acceptEndorsement(c, i) { const o = c.me.offers[i]; if (!o) return; c.me.endorsements.push(o); c.me.offers.splice(i, 1); pushNews(c, meOf(c).name + ' signs with ' + o.brand + '.', 'money'); }
 function declineEndorsement(c, i) { c.me.offers.splice(i, 1); }
@@ -10888,7 +10933,7 @@ function proSimBenchGame(c) {
   pushNews(c, (g.playoff ? 'Playoffs: ' : '') + 'The ' + (c.team ? c.team.name : 'club') + ' start ' + m.name + ', who ' + (win ? 'beats ' : 'loses to ') + O.name + ' ' + Math.max(us, them) + '–' + Math.min(us, them) + '. ' + me.name + ' does not play.', 'result');
   const rec = { bench: true, starter: m.name, starterId: m.id, win, won: win, us, them, my: us, their: them, opp, oppName: O.name, playoff: !!g.playoff, home: g.h === c.meId, gains: {}, learned: [], xp: {}, ovrBefore: recOvr(me), ovrAfter: recOvr(me) };
   if (g.playoff) { recordResult(c, r, true, c.meId); advancePlayoffGame(c, g.series, win ? c.meId : opp, rec); } else { recordResult(c, r, false, c.meId); finishWeek(c, rec); }
-  const bd = benchDevelop(c); rec.gains = bd.gains; rec.benchXp = bd.xp; rec.ovrAfter = recOvr(me); const wk = wkBenchWeek(M); rec.wk = wk; trustAfterWeek(c, wk.plan, wk.fatigueBefore); ladderBenchStory(c); if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, rng); rec.rank = ladderRank(c); M.benchSeason = (M.benchSeason || 0) + 1; proTradeCheck(c); /* R7: unhappy on the bench? */
+  const bd = benchDevelop(c); rec.gains = bd.gains; rec.benchXp = bd.xp; rec.ovrAfter = recOvr(me); const wk = wkBenchWeek(M); rec.wk = wk; trustAfterWeek(c, wk.plan, wk.fatigueBefore); ladderBenchStory(c); if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, rng); rec.rank = ladderRank(c); M.benchSeason = (M.benchSeason || 0) + 1; proTradeCheck(c); /* R7: unhappy on the bench? */ rec.hype = mdHypeWeek(M, M.hype, false, false); // R8: no big performance from the bench
   return rec;
 }
 // ---------------- practice, rest and film: the career week (part 4) ----------------
@@ -10913,6 +10958,7 @@ function finishAllStar(c, myScore) {
 // Round names by how many series are left: 4 → quarterfinals, 2 → semifinals, 1 → the final.
 function roundName(series) { return series >= 4 ? 'Quarterfinals' : series >= 2 ? 'Semifinals' : 'Final'; }
 function startPlayoffs(c) {
+  if (c.me) mdPostseason(c.me); // R8
   c.phase = 'playoffs'; const seeds = standingsSorted(c).slice(0, CR.playoffSeeds);
   const order = seeds.length >= 8 ? [[0, 7], [3, 4], [1, 6], [2, 5]] : seeds.length >= 4 ? [[0, 3], [1, 2]] : [[0, 1]];
   const pairs = order.map(([x, y]) => ({ a: seeds[x], b: seeds[y], wa: 0, wb: 0, bestOf: order.length === 1 ? CR.finalsBestOf : CR.semisBestOf, done: false, winner: null }));
@@ -11085,7 +11131,7 @@ function amCreate(save, form) {
   const c = { v: 5, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number }), number: form.number, style, age: AMC.startAge,
     bloom: 'normal', heightFinal: AMC.heightMean, wing: AMC.wingMean, gifted: false, height: 0, r: amStartRatings(style, AMC.startPoints), xp: {}, caps: null, stage: 'hs', stageYear: 1, season: 1, focus: amStyle(style).train,
     school: '', college: '', collegeTier: 0, colors: AM_COLORS[0].slice(), log: [], totals: { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }, awards: [], titles: 0, mvps: 0, events: [], decision: null, draft: null, rival: null, league: null, seasonStats: null,
-    seasonLength: CR.seasonLengths.includes(form.seasonLength) ? form.seasonLength : CR.seasonLengths[0], gameLength: form.gameLength || 120, growthLog: [], fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, hype: 0, confidence: 0, rivalFire: 0, boast: false, news: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, story: {}, timeline: [] };
+    seasonLength: CR.seasonLengths.includes(form.seasonLength) ? form.seasonLength : CR.seasonLengths[0], gameLength: form.gameLength || 120, growthLog: [], fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, hype: 0, hypeScale: 100, confidence: 0, grudge: {}, boast: false, news: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, story: {}, timeline: [] };
   const rng = amRng(c);
   c.bloom = rng.pick(AMC.blooms); c.heightFinal = Math.round(clamp(AMC.heightMean + rng.gauss() * AMC.heightSd, AMC.heightMin, AMC.heightMax) * 100) / 100;
   c.wing = +clamp(AMC.wingMean + AMC.wingSd * rng.gauss(), 0.96, 1.12).toFixed(3); c.gifted = rng.next() < AMC.genesOdds;
@@ -11120,6 +11166,7 @@ function amNewSeason(c, rng) {
 }
 function amOppById(c, id) { const L = c.league; if (!L) return null; for (const k of ['opps', 'nonconf', 'stateOpps', 'natOpps']) { const o = (L[k] || []).find(x => x.id === id); if (o) return o; } return null; } // R5: state tournament opponents too; R6: marquee games, the national tournament
 function amNext(c) { if (!c || c.decision || !c.league || c.league.done || c.stage === 'combine') return null; const L = c.league; if (L.playoffs) return L.playoffs.pending ? { opp: amOppById(c, L.playoffs.pending), playoff: L.playoffs.round } : null; if (L.week < L.schedule.length) return { opp: amOppById(c, L.schedule[L.week]), playoff: 0 }; return null; }
+function amHome(c, playoff) { const L = c.league; return !playoff && !!(L && Array.isArray(L.home) && L.home[L.week]); } // R8: this week's game is at home (the playoffs: neutral floors)
 function amTable(c) { const L = c.league; const rows = [{ id: 'me', name: c.name, team: c.team ? c.team.name : (c.stage === 'college' ? c.college : c.school), rec: L.me, ovr: amOvr(c), height: c.height, me: true }].concat(L.opps.map(o => ({ id: o.id, name: o.name, team: o.team || '', rec: o.rec, ovr: ovrOf(o.r, o.height), height: o.height, rival: !!o.rival }))); rows.sort((a, b) => (b.rec.w - a.rec.w) || ((b.rec.pf - b.rec.pa) - (a.rec.pf - a.rec.pa)) || (b.ovr - a.ovr)); return rows; }
 function amRec(r, pf, pa) { if (pf > pa) r.w++; else r.l++; r.pf += pf; r.pa += pa; }
 function amWinP(a, b) { return 1 / (1 + Math.exp(-(a - b) / AMC.winScale)); }
@@ -11128,6 +11175,7 @@ function amOvrOf(c, id) { if (id === 'me') return amOvr(c); const o = amOppById(
 function amSimWeek(c, rng, skipId) { if (c.league && c.league.rounds && c.league.rounds.length) return hsSimRound(c, rng); /* R5: the district's fixed rounds */ const others = rng.shuffle(c.league.opps.filter(o => o.id !== skipId)); const T = AMC.stages[c.stage].target; for (let i = 0; i + 1 < others.length; i += 2) { const a = others[i], b = others[i + 1]; const sc = amSimScore(rng, ovrOf(a.r, a.height), ovrOf(b.r, b.height), T); amRec(a.rec, sc[0], sc[1]); amRec(b.rec, sc[1], sc[0]); if (a.rival || b.rival) { const rv = a.rival ? a : b, other = a.rival ? b : a, rs = a.rival ? sc[0] : sc[1], os = a.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
 function amSimSeries(c, rng, a, b) { return rng.next() < amWinP(amOvrOf(c, a), amOvrOf(c, b)) ? a : b; }
 function amStartPlayoffs(c, rng) {
+  mdPostseason(c); // R8
   const L = c.league; if (L.format === 'jv') { amEndSeason(c, rng, false); return 'The JV season is over'; } if (L.format === 'conf') return colStartConfTourney(c, rng); /* R6 */ /* R5: JV has no playoffs */ const top = amTable(c).slice(0, AMC.playoffSeeds).map(r => r.id); const po = L.playoffs = { round: 1, seeds: top, pending: null, other: null, champion: null };
   if (!top.includes('me')) { const f1 = amSimSeries(c, rng, top[0], top[3]), f2 = amSimSeries(c, rng, top[1], top[2]); po.champion = amSimSeries(c, rng, f1, f2); amEndSeason(c, rng, false); return 'Missed the playoffs'; }
   const seed = top.indexOf('me'); const oppSeed = 3 - seed; po.pending = top[oppSeed]; const rest = top.filter((id, i) => i !== seed && i !== oppSeed); po.other = amSimSeries(c, rng, rest[0], rest[1]);
@@ -11152,9 +11200,9 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
   storyFill(c); const md = mdAfterGame(c, won, my, their); { const hv = mdHighlights(c, st); if (tag === 'rivalry' && hv > 0) c.hype = Math.min(MD.hypeMax, c.hype + hv * (HS.rivalryHype - 1)); } /* R5: the rivalry game's highlights count half again */ const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
-  if (opp.rival) { h2hAdd(c, won); c.rivalFire = 0; }
-  const x = { name: c.name, won, us: my, them: their, opp: opp.name, rival: !!opp.rival, rivalFirst: !!opp.rival && c.story.h2h.w + c.story.h2h.l === 1, rivalName: c.rival ? c.rival.name : '', playoff: !!po, final: !!po && [2, 6, 23, 36].includes(po.round), champ: !!po && won && [2, 6, 23, 36].includes(po.round), eliminated: !!po && !won, recs, first: T.g === 1 || (c.stage === 'college' && c.stageYear === 1 && S.g === 1), upsetWin: won && oppOvr >= ovrBefore + MD.upset, upsetLoss: !won && oppOvr <= ovrBefore - MD.upset, big: false, pts: st.pts || 0 };
-  const press = pressFor(c, x); if (press) c.events.push(press); { const tb = traitStoryAfterGame(c, { playoff: !!po, won, us: my, them: their }); if (tb) c.events.push(tb); } // R3: a trait's story beat
+  if (opp.rival) h2hAdd(c, won); mdGrudgeDone(c, opp.id); // R8: a trash-talked opponent has had their shot
+  const x = { name: c.name, won, us: my, them: their, opp: opp.name, oppId: opp.id, marquee: !!opp.marquee || tag === 'rivalry', rival: !!opp.rival, rivalFirst: !!opp.rival && c.story.h2h.w + c.story.h2h.l === 1, rivalName: c.rival ? c.rival.name : '', playoff: !!po, final: !!po && [2, 6, 23, 36].includes(po.round), champ: !!po && won && [2, 6, 23, 36].includes(po.round), eliminated: !!po && !won, recs, first: T.g === 1 || (c.stage === 'college' && c.stageYear === 1 && S.g === 1), upsetWin: won && oppOvr >= ovrBefore + MD.upset, upsetLoss: !won && oppOvr <= ovrBefore - MD.upset, big: false, pts: st.pts || 0 };
+  const hw = mdHypeWeek(c, md.hype0, won, mdBigPerf(x)); if (c.sponsorCut > 0) c.sponsorCut--; /* R8: the week's hype; a sponsor pulling back */ const press = pressFor(c, x); if (press) c.events.push(press); { const tb = traitStoryAfterGame(c, { playoff: !!po, won, us: my, them: their }); if (tb) c.events.push(tb); } // R3: a trait's story beat
   storyNews(c, (po ? 'Playoffs: ' : opp.rival ? 'Rivalry: ' : '') + (won ? c.name + ' beats ' + opp.name + ' ' + my + '–' + their : opp.name + ' beats ' + c.name + ' ' + their + '–' + my) + ((st.pts || 0) >= Math.ceil(my * 0.9) && won ? ', scoring ' + st.pts : '') + '.', opp.rival ? 'rival' : 'result');
   for (const r of recs) storyNews(c, c.name + ' sets a career high: ' + r.v + ' ' + REC_WORDS[r.k] + '.', 'record');
   if (wk.injury) { storyNews(c, c.name + ' is playing through a ' + wk.injury.name.toLowerCase() + ' (' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '') + ').', 'injury'); tlAdd(c, 'injury', wk.injury.name + ', ' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '')); }
@@ -11164,11 +11212,11 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   amRivalMoments(c);
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // R3: the hidden trait's story moment
   if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
-  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag };
+  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw };
 }
 function amSimGame(c) {
-  hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c) || c.ineligible > 0) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id);
-  const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff), ovrOf(g.opp.r, g.opp.height) + (g.opp.rival ? c.rivalFire || 0 : 0), stg.target); const a = sc[0], b = sc[1]; // traits: what their in-game effects are worth
+  hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c) || c.ineligible > 0) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id); const G = mdGame(c, g.opp.id, !!g.opp.rival, amHome(c, !!g.playoff)); // R8: hype, a trash-talked opponent, a fired-up rival
+  const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff) + G.simMe, ovrOf(g.opp.r, g.opp.height) + G.simOpp, stg.target); const a = sc[0], b = sc[1]; // traits: what their in-game effects are worth
   let tpm = Math.min(Math.floor(a / 3), Math.round(a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3)); if ((a - 3 * tpm) % 2) tpm = tpm > 0 ? tpm - 1 : 1; const twos = Math.max(0, (a - 3 * tpm) / 2); /* 2s and 3s that add up to the score */ const fgm = tpm + twos; const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62);
   const st = { pts: 3 * tpm + 2 * twos, fgm, fga: Math.max(fgm, Math.round(fgm / pct)), tpm, tpa: Math.max(tpm, Math.round(tpm / 0.36)), reb: Math.round(2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12), stl: Math.floor(rng.next() * 3), blk: Math.floor(rng.next() * 2 + Math.max(0, c.height - 1.95) * 6), dunkM: 0, layM: Math.round(twos * 0.5) };
   st.dunkM = Math.min(st.layM, Math.round(twos * clamp((eff.jmp / 10 - 5) * 0.07 + (c.height - 1.9) * 0.6, 0, 0.45))); st.layM -= st.dunkM; st.ankles = Math.floor(rng.next() * clamp(eff.han / 10 - 3, 0, 6) * 0.45); // highlights of a simmed game (R3: hype)
@@ -11178,7 +11226,7 @@ function amSimGame(c) {
 function amSimBenchGame(c) {
   const g = amNext(c); const inel = c.ineligible > 0; if (!g || !g.opp || (isStarter(c) && !inel)) return null; const m = ladderStarterMate(c) || hsSlotMate(c); if (!m) return null; // R5: ineligible (grades): the next rung plays
   const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, poRound = po ? po.round : 0, stg = AMC.stages[c.stage] || AMC.stages.hs;
-  const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + (opp.rival ? c.rivalFire || 0 : 0), stg.target); const my = sc[0], their = sc[1], won = my > their;
+  const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height), stg.target); const my = sc[0], their = sc[1], won = my > their; storyFill(c); mdHypeWeek(c, c.hype, false, false); if (c.sponsorCut > 0) c.sponsorCut--; // R8: the teammate plays (your grudges wait for you); no big performance from the bench
   if (c.team) { if (won) c.team.w++; else c.team.l++; }
   if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); if (L.format === 'conf') L.benchWeeks = (L.benchWeeks || 0) + 1; // R6: marquee games count overall; the portal counts bench weeks
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: poRound, bench: m.name, ineligible: inel, marquee: !!opp.marquee });
@@ -11233,7 +11281,7 @@ function amAfterSeason(c, rng, lines) {
 // A new season at the same school: the seniors graduate, new freshmen arrive (R3).
 function amTeamSummer(c, lines) { if (!c.team) return; const gone = tmNewSeason(c); if (gone.length && lines) lines.push((c.team.kind === 'hs' ? 'Graduated: ' : 'Moved on: ') + gone.slice(0, 3).join(', ') + (gone.length > 3 ? ' and ' + (gone.length - 3) + ' more' : '') + '.'); }
 function amVertical(r) { const C = AMC.combine; return Math.round(C.vert + C.vertPer * r.jmp); }
-function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length - 1]; return amOvr(c) * D.ovr + (D.ageRef - c.age) * D.age + (c.collegeTier || 0) * D.tier + c.mvps * D.mvp + c.titles * D.title + (last ? last.ppg * D.ppg : 0) + D.wing * c.height * (c.wing - 1) + (amVertical(c.r) - D.vertRef) / D.vertDiv + (c.hype || 0) + TM.trustDraft * trustOf(c) / 100 + clamp(c.stock || 0, -CO.stockMax, CO.stockMax); } // R4: your coach's word with the scouts; R6: your draft stock (scouts at marquee games)
+function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length - 1]; return amOvr(c) * D.ovr + (D.ageRef - c.age) * D.age + (c.collegeTier || 0) * D.tier + c.mvps * D.mvp + c.titles * D.title + (last ? last.ppg * D.ppg : 0) + D.wing * c.height * (c.wing - 1) + (amVertical(c.r) - D.vertRef) / D.vertDiv + MD.hypeDraft * (c.hype || 0) / MD.hypeMax + TM.trustDraft * trustOf(c) / 100 + clamp(c.stock || 0, -CO.stockMax, CO.stockMax); } // R4: your coach's word with the scouts; R6: your draft stock (scouts at marquee games)
 function amPickFrom(score) { const D = AMC.draft; return Math.round(clamp(D.pickBase - (score - D.pickRef) * D.pickPer, 1, D.pickBase)); }
 function amProjLabel(c) { const p = amPickFrom(amDraftScore(c)); return p <= 5 ? 'a top-5 pick' : p <= 14 ? 'a lottery pick' : p <= 30 ? 'a first-round pick' : p <= 60 ? 'a second-round pick' : 'undrafted for now'; }
 function amDeclare(c, go) { const rng = amRng(c); c.decision = null; if (go) amGoToDraft(c); else { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, null); } }
@@ -11247,16 +11295,17 @@ function amCombine(c) {
 
 // ---------------- the match: you against one opponent ----------------
 function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: Object.assign({}, c.look, { number: c.number }), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c) }; }
-// fire: a rival you trash-talked plays you this much better (every rating)
+// fire: an opponent you trash-talked or a fired-up rival plays you this much better (every rating; R8)
 function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff) }; }
 function amAbbr(name, other) { const parts = String(name).split(' '); const last = (parts[parts.length - 1] || String(name)).toUpperCase(); let a = last.slice(0, 3); if (other && other === a) a = ((parts[0] || 'X')[0] + last.slice(0, 2)).toUpperCase(); return a; }
 function amMatchOpts(game, c, opp, playoff) {
   const S = game.save.data.settings; const stg = AMC.stages[c.stage]; const mine = c.colors.slice(); let oc = opp.colors.slice(); if (oc[0] === mine[0]) oc = [oc[1], oc[0]];
   const a1 = amAbbr(c.name), a2 = amAbbr(opp.name, a1);
   let A = { id: 'amme', name: c.name, abbr: a1, colors: mine, pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c, opp.id)] };
-  let B = { id: 'amopp', name: opp.name, abbr: a2, colors: oc, pattern: opp.pattern || 'solid', personality: archPersonality(opp.style), blurb: '', players: [amOppDef(opp, opp.rival ? c.rivalFire || 0 : 0)] };
+  const G = mdGame(c, opp.id, !!opp.rival, amHome(c, playoff)); A.players[0].crowd = G.crowd; // R8: your hype's home crowd, a keyed defense, a trash-talked opponent, a fired-up rival
+  let B = { id: 'amopp', name: opp.name, abbr: a2, colors: oc, pattern: opp.pattern || 'solid', personality: archPersonality(opp.style), blurb: '', players: [amOppDef(opp, G.ovr)] };
   if (S.colorblind) { const r = colorblindTeams(A, B); A = r[0]; B = r[1]; }
-  const shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(opp.r, opp.height), playoff) + trSpotlightTier(c);
+  const shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(opp.r, opp.height), playoff) + G.tier;
   return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, playoff: !!playoff, ruleset: S.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'first', target: stg.target, winBy2: S.careerCourt === 'half' }, court: stg.court, seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: false, ballSkin: 0 }; // career games never rubber-band
 }
 
@@ -11551,9 +11600,16 @@ const MD = CONFIG.media;
 const REC_WORDS = { pts: 'points', reb: 'rebounds', stl: 'steals', blk: 'blocks', tpm: 'threes' };
 function isPro(c) { return !!(c && c.me && c.players); }
 function holderOf(c) { return isPro(c) ? c.me : c; }
-function mdFill(B) { if (!(B.hype >= 0)) B.hype = 0; if (!(Math.abs(B.confidence) <= MD.confMax)) B.confidence = 0; if (!(B.rivalFire >= 0)) B.rivalFire = 0; B.boast = !!B.boast; if (!(B.pressGap >= 0)) B.pressGap = 0; return B; }
+function mdFill(B) {
+  if (!(B.hype >= 0)) B.hype = 0; if (B.hypeScale !== 100) { B.hype = Math.round(Math.min(MD.hypeMax, B.hype * 10) * 10) / 10; B.hypeScale = 100; } /* R8: hype ran 0–10 before */ B.hype = Math.min(MD.hypeMax, B.hype);
+  if (!(Math.abs(B.confidence) <= MD.confMax)) B.confidence = 0; B.boast = !!B.boast; if (!(B.pressGap >= 0)) B.pressGap = 0;
+  if (!B.grudge || typeof B.grudge !== 'object' || Array.isArray(B.grudge)) B.grudge = {}; if (!(B.sponsorCut >= 0)) B.sponsorCut = 0; B.quiet = !!B.quiet; return B; // R8: opponents you trash-talked, a sponsor pulling back (weeks), No comment's quiet week
+}
 function confShoOf(B) { return clamp((Number(B && B.confidence) || 0) * MD.confSho, -MD.confShoMax, MD.confShoMax); }
-function storyFill(c) { if (!c.story || typeof c.story !== 'object') c.story = {}; if (!Array.isArray(c.timeline)) c.timeline = []; if (!isPro(c)) { if (!Array.isArray(c.news)) c.news = []; if (!c.records || typeof c.records !== 'object') c.records = { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }; } mdFill(holderOf(c)); return c; }
+function storyFill(c) {
+  if (!c.story || typeof c.story !== 'object') c.story = {}; if (!Array.isArray(c.timeline)) c.timeline = []; if (!isPro(c)) { if (!Array.isArray(c.news)) c.news = []; if (!c.records || typeof c.records !== 'object') c.records = { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }; }
+  const B = mdFill(holderOf(c)); if (B.rivalFire > 0) { const id = rivalIdOf(c); if (id) B.grudge[id] = 1; } delete B.rivalFire; /* R8: a rival you trash-talked before R8 is a grudge */ return c;
+}
 
 // --- headlines and the timeline ---
 function storyNews(c, text, kind) {
@@ -11564,25 +11620,62 @@ function tlAdd(c, kind, text, extra) { if (!Array.isArray(c.timeline)) c.timelin
 // New personal records from one box score line (3 or more, and not in your first game). Returns [{ k, v }].
 function checkRecords(R, line, gamesBefore) { const out = []; for (const k in REC_WORDS) { const v = (line && line[k]) || 0; if (v > (R[k] || 0)) { if (gamesBefore > 0 && v >= 3) out.push({ k, v }); R[k] = v; } } return out; }
 
-// --- hype and confidence ---
-// After every game: a confident answer that ended in a loss costs hype; confidence drifts back toward zero, and a
-// blowout loss shakes it.
+// --- hype and confidence (R8 §3.8: hype runs 0–100; it lifts your money, draft stock, All-Star votes and the home crowd,
+// and the more of it you carry the more a loss shakes you; from keyedAt defenses key on you, from distractAt the media
+// eats practice time and your rival is fired up) ---
+// After every game: a confident answer that ended in a loss costs hype and confidence; every loss costs confidence (a
+// blowout more), × (1 + hype/100); confidence drifts back toward zero. out.hype0: hype before this week (the decay).
 function mdAfterGame(B, won, us, them) {
-  mdFill(B); const out = {};
-  if (B.boast) { B.boast = false; if (!won) { B.hype = Math.max(0, B.hype - MD.boastLoss); out.boastCost = MD.boastLoss; } }
+  mdFill(B); const out = { hype0: B.hype };
+  if (B.boast) { B.boast = false; if (!won) { B.hype = Math.max(0, B.hype - MD.boastLoss); B.confidence = Math.max(-MD.confMax, B.confidence - MD.boastConf); out.boastCost = MD.boastLoss; } }
   B.confidence = B.confidence > 0 ? Math.max(0, B.confidence - MD.confFade) : Math.min(0, B.confidence + MD.confFade);
-  if (!won && them > 0 && them - us > MD.blowoutFrac * them) { B.confidence = Math.max(-MD.confMax, B.confidence - MD.confBlowout * (trVal(B, 'lossConf') || 1)); out.shaken = true; } // Generational: losses cost double
+  if (!won) { const blow = them > 0 && them - us > MD.blowoutFrac * them; const d = (MD.lossConf + (blow ? MD.confBlowout : 0)) * (1 + MD.lossConfMul * B.hype / MD.hypeMax) * (trVal(B, 'lossConf') || 1); B.confidence = Math.max(-MD.confMax, B.confidence - d); out.confLoss = Math.round(d * 10) / 10; if (blow) out.shaken = true; } // Generational: losses cost double
   B.confidence = Math.max(trConfFloor(B), B.confidence); // Ice Veins: never below 0
-  B.pressGap = Math.max(0, (B.pressGap || 0) - 1); return out;
+  B.pressGap = Math.max(0, (B.pressGap || 0) - 1); B.quiet = false; /* No comment's quiet week is over */ return out;
 }
 // Highlights (dunks, posters, ankle-breakers) build hype; a Showman's count half again.
 function mdHighlights(B, line) { mdFill(B); line = line || {}; const n = (line.dunkM || 0) * 0.3 + (line.posters || 0) + (line.ankles || 0); const v = trHype(B, n * MD.highlightHype * trMul(B, 'highlight')); if (v > 0) B.hype = Math.min(MD.hypeMax, B.hype + v); return v; }
-function mdSeasonEnd(B) { mdFill(B); B.hype = Math.round(B.hype * MD.hypeKeep * 10) / 10; B.boast = false; }
+// A big performance: a win that makes the news (a big night, a blowout, an upset, a rival, a playoff game, a title, a points record, a marquee game).
+function mdBigPerf(x) { return !!(x && x.won && (x.big || x.bigNight || x.upsetWin || x.rival || x.playoff || x.champ || x.marquee || (x.them < (1 - MD.blowoutFrac) * x.us) || (x.recs || []).some(r => r.k === 'pts'))); } // (a blowout win too)
+// The week's hype: a win adds winHype and a big performance bigHype; a week without one loses hypeDecay of the hype it
+// started with (h0). A week on the bench is a week without one.
+function mdHypeWeek(B, h0, won, big) { mdFill(B); const decay = big ? 0 : Math.round((h0 != null ? h0 : B.hype) * MD.hypeDecay * 10) / 10, gain = trHype(B, (won ? MD.winHype : 0) + (big ? MD.bigHype : 0)); B.hype = Math.round(clamp(B.hype - decay + gain, 0, MD.hypeMax) * 10) / 10; return { decay, gain }; }
+function mdSeasonEnd(B) { mdFill(B); B.hype = Math.round(B.hype * MD.hypeKeep * 10) / 10; B.boast = false; B.quiet = false; B.grudge = {}; } // grudges last until you meet them, the playoffs start or the season ends
+// What your hype does to a game. Played: the opponent's AI tier (keyed from keyedAt: Generational's spotlight is the
+// same thing, never both; a trash-talked opponent's trashTier) and ratings (your rival from rivalAt), and your make
+// chance at home. Simulated: all of it in OVR (a tier is tierOvr OVR, measured in engine games; Generational's is in its simEdge).
+function mdGame(B, oppId, rival, home, pro) {
+  mdFill(B); const h = B.hype, grudge = !!(oppId && B.grudge[oppId]), keyed = h >= MD.keyedAt ? MD.keyedTier : 0, spot = trSpotlightTier(B), perTier = MD.tierOvr;
+  const ovr = rival && h >= MD.rivalAt ? MD.rivalFire : 0, tier = (grudge ? MD.trashTier : 0) + Math.max(keyed, spot), crowd = home ? MD.hypeHome * h / MD.hypeMax : 0;
+  return { ovr, tier, crowd, grudge, keyed: keyed > 0 || spot > 0, simOpp: ovr + (grudge ? MD.trashOvr : 0) + (spot ? 0 : keyed) * perTier, simMe: home ? MD.hypeHomeOvr * h / MD.hypeMax : 0 };
+}
+function mdPostseason(B) { mdFill(B); B.grudge = {}; } // the playoffs start clean: a grudge from the season doesn't follow you in (one made in a series lasts that series)
+function mdGrudgeDone(B, oppId) { if (B && B.grudge && oppId) delete B.grudge[oppId]; } // you played them: it's settled
+// Practice XP this week: media distractions from distractAt (Generational: always), No comment's quiet week.
+function mdPracticeMul(B) { const dis = hasTrait(B, 'generational') ? 1 - TR.spotlightPractice : (B.hype || 0) >= MD.distractAt ? MD.distractXp : 0; return (1 - dis) * (B.quiet ? 1 + MD.nocommentXp : 1); }
+function mdSponsorMul(B) { return B && B.sponsorCut > 0 ? 1 - MD.sponsorCut : 1; } // a sponsor pulling back after a fine
+function mdHypeText(B) { return Math.round(B.hype || 0) + ' / ' + MD.hypeMax; }
+// The BUZZ panel: what your hype does right now ([text, 'good' | 'bad' | null]).
+function mdBuzzLines(c) {
+  const B = mdFill(holderOf(c)), h = B.hype || 0, f = h / MD.hypeMax, pro = isPro(c), out = [], pct = v => Math.round(v * 100), gen = hasTrait(B, 'generational');
+  if (pro) out.push(['Sponsors ×' + (1 + MD.hypeEndorse * f).toFixed(2) + ' · contract +' + fmtMoney(h * MD.hypeSalary * 1e6) + ' · All-Star votes +' + Math.round(MD.hypeVote * h), 'good']); else out.push(['Draft score +' + (MD.hypeDraft * f).toFixed(1) + (c.stage === 'college' ? ' · NIL ×' + (1 + MD.hypeEndorse * f).toFixed(2) : ' · offers +' + (MD.hypeRecruit * h).toFixed(1)), 'good']);
+  out.push(['Home crowd +' + (MD.hypeHome * f * 100).toFixed(1) + '% on shots', 'good']);
+  out.push(['Losses shake you ×' + (1 + MD.lossConfMul * f).toFixed(2), h >= 20 ? 'bad' : null]);
+  if (h >= MD.keyedAt || gen) out.push(['Defenses key on you: AI +' + Math.max(h >= MD.keyedAt ? MD.keyedTier : 0, trSpotlightTier(B)) + ' tier', 'bad']);
+  if (h >= MD.distractAt || gen) out.push(['Media: practice XP −' + pct(gen ? 1 - TR.spotlightPractice : MD.distractXp) + '%', 'bad']);
+  if (h >= MD.rivalAt && rivalIdOf(c)) out.push(['Your rival is fired up: +' + MD.rivalFire + ' OVR', 'bad']);
+  const names = Object.keys(B.grudge).map(id => pro ? (c.players[id] || {}).name : ((typeof amOppById === 'function' && amOppById(c, id)) || {}).name).filter(Boolean).map(n => n.split(' ')[0]);
+  if (names.length) out.push(['Coming for you: ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : '') + ' (AI +' + MD.trashTier + ')', 'bad']);
+  if (B.sponsorCut > 0) out.push(['Sponsor pulled back: ' + B.sponsorCut + ' more week' + (B.sponsorCut > 1 ? 's' : ''), 'bad']);
+  if (B.quiet) out.push(['Quiet week: practice XP +' + pct(MD.nocommentXp) + '%', 'good']);
+  if (h < MD.keyedAt && !gen) out.push(['At ' + MD.keyedAt + ' defenses key on you; at ' + MD.distractAt + ' the media eats practice.', null]);
+  return out;
+}
 
 // --- the press room ---
-// x: { name, won, us, them, opp, rival, rivalFirst, rivalName, playoff, final, champ, eliminated, recs, first, upsetWin,
-// upsetLoss, big, pts }. Rival games, finals, titles, eliminations, points records and your first game at a level
-// always get a question; upsets and big nights do when there wasn't one in the last few games.
+// x: { name, won, us, them, opp, oppId, rival, rivalFirst, rivalName, playoff, final, champ, eliminated, recs, first,
+// upsetWin, upsetLoss, big, marquee, pts }. Rival games, finals, titles, eliminations, points records and your first
+// game at a level always get a question; upsets and big nights do when there wasn't one in the last few games.
 function pressFor(B, x) {
   mdFill(B); const ptsRec = (x.recs || []).some(r => r.k === 'pts'); const must = x.rival || x.final || x.champ || x.eliminated || ptsRec || x.first, big = x.upsetWin || x.upsetLoss || x.big;
   if (!must && !hasTrait(B, 'generational') && (!big || B.pressGap > 0)) return null; B.pressGap = MD.pressGap; /* Generational: the spotlight never leaves (a question after every game) */ return { kind: 'press', title: 'THE PRESS ROOM', q: pressQuestion(x), x };
@@ -11601,23 +11694,41 @@ function pressQuestion(x) {
   if (x.big) return x.pts + ' points tonight. Can anyone guard you?';
   return x.won ? 'Big win tonight. How are you feeling?' : 'Tough loss tonight. Your thoughts?';
 }
+// R8 §3.9: four answers, none best. Team first (the coach likes it, the fans find it dull), Confident (hype now, a cost
+// if you lose next), Trash talk (the most hype; that opponent comes for you next time, the coach hates it, maybe a
+// fine), No comment (a quiet week of practice; you're boring).
+const PRESS_KINDS = ['team', 'confident', 'trash', 'nocomment'];
 function pressAnswers(x) {
   const o = String(x.opp || 'them').split(' ')[0], rv = String(x.rivalName || x.opp || 'them').split(' ')[0];
-  if (x.won) return { humble: 'We got the win, but ' + o + ' made me work for every bucket.', confident: 'I expected this. I\'m just getting started.', trash: x.rival ? 'Tell ' + rv + ' to bring more next time.' : o + ' couldn\'t stay in front of me. Nobody can.' };
-  return { humble: o + ' was better tonight. I\'ll learn from it.', confident: 'One bad night. It won\'t happen again, trust me.', trash: x.rival ? rv + ' got lucky. Run it back and it\'s a different story.' : 'Lucky bounces. Run it back and it\'s a different story.' };
+  if (x.won) return { team: 'Everybody who pushes me in practice earned this one.', confident: 'I expected this. I\'m just getting started.', trash: x.rival ? 'Tell ' + rv + ' to bring more next time.' : o + ' couldn\'t stay in front of me. Nobody can.', nocomment: 'No comment. Next question.' };
+  return { team: 'That one is on me. We fix it in practice.', confident: 'One bad night. It won\'t happen again, trust me.', trash: x.rival ? rv + ' got lucky. Run it back and it\'s a different story.' : 'Lucky bounces. Run it back and it\'s a different story.', nocomment: 'No comment.' };
 }
-const PRESS_EFFECT = { humble: '+' + MD.humbleConf + ' confidence', confident: '+' + MD.confidentHype + ' hype · −' + MD.boastLoss + ' if you lose next', trash: '+' + MD.trashHype + ' hype · rival +' + MD.rivalFire + ' OVR next time' };
+const PRESS_EFFECT = { team: '+' + MD.teamTrust + ' coach trust · −' + MD.teamHype + ' hype', confident: '+' + MD.confidentHype + ' hype, +' + MD.confidentConf + ' confidence · a loss next: −' + MD.boastLoss + ' each', trash: '+' + MD.trashHype + ' hype · −' + MD.trashTrust + ' trust · a hot rematch · ' + Math.round(MD.trashFine * 100) + '% fine', nocomment: '+' + Math.round(MD.nocommentXp * 100) + '% practice XP this week · −' + MD.nocommentHype + ' hype' };
+function rivalIdOf(c) { return isPro(c) ? c.rivalId || null : (c.rival && c.rival.id) || null; }
+// The fine (a 20% chance after trash talk): pros pay fineShare of a season's salary, amateurs fineAm of their savings;
+// either way a sponsor pulls back (endorsement or NIL money − sponsorCut for sponsorWeeks game weeks).
+function mdFine(c, B) {
+  B.sponsorCut = MD.sponsorWeeks; let f;
+  if (isPro(c)) { const M = c.me; f = Math.min(Math.max(0, M.money || 0), Math.round(((M.contract && M.contract.salary) || 0) * MD.fineShare / 1000) * 1000); M.money -= f; }
+  else { f = Math.min(Math.max(0, c.cash || 0), MD.fineAm); c.cash = (c.cash || 0) - f; }
+  return f;
+}
 function pressAnswer(c, P, kind) {
-  const B = mdFill(holderOf(c)), x = P.x || {}, me = x.name || 'You', out = { kind, hype: 0, conf: 0 }, quote = pressAnswers(x)[kind] || '';
-  if (kind === 'humble') { B.confidence = Math.min(MD.confMax, B.confidence + MD.humbleConf); out.conf = MD.humbleConf; }
-  else if (kind === 'confident') { const v = trHype(B, MD.confidentHype); B.hype = Math.min(MD.hypeMax, B.hype + v); B.boast = true; out.hype = v; }
-  else { const v = trHype(B, MD.trashHype); B.hype = Math.min(MD.hypeMax, B.hype + v); B.rivalFire = MD.rivalFire; out.hype = v; out.fire = true; }
-  out.headline = kind === 'humble' ? (x.won ? me + ' stays humble: “' : me + ' takes the blame: “') + quote + '”' : kind === 'confident' ? '“' + quote + '” ' + (x.won ? me + ' is feeling it.' : me + ' promises a bounce-back.') : (x.won ? me + ' talks trash: “' : me + ' won\'t give an inch: “') + quote + '”';
-  storyNews(c, out.headline, 'media'); if (out.fire && x.rivalName) storyNews(c, x.rivalName + ' heard that. They will be ready next time.', 'rival');
+  if (kind === 'humble') kind = 'team'; /* R8: Humble became Team first */ if (!PRESS_KINDS.includes(kind)) kind = 'nocomment';
+  const B = mdFill(holderOf(c)), x = P.x || {}, me = x.name || 'You', out = { kind, hype: 0, conf: 0, trust: 0 }, quote = pressAnswers(x)[kind] || '';
+  if (kind === 'team') { out.trust = trustAdd(c, MD.teamTrust); out.hype = -Math.min(B.hype, MD.teamHype); }
+  else if (kind === 'confident') { out.hype = trHype(B, MD.confidentHype); out.conf = Math.min(MD.confMax, B.confidence + MD.confidentConf) - B.confidence; B.confidence += out.conf; B.boast = true; }
+  else if (kind === 'trash') { out.hype = trHype(B, MD.trashHype); const id = x.oppId || (x.rival ? rivalIdOf(c) : null), post = isPro(c) ? c.phase === 'playoffs' : !!(c.league && c.league.playoffs); if (id && !(post && !x.playoff)) { B.grudge[id] = 1; out.grudge = x.rival ? (x.rivalName || x.opp) : x.opp; } /* the season's last game: the playoffs start clean */ out.trust = trustAdd(c, -MD.trashTrust); B.trashN = (B.trashN || 0) + 1; if (new RNG((((c.seed >>> 0) ^ 0x2545f491) + B.trashN * 7919) >>> 0 || 3).next() < MD.trashFine) out.fine = mdFine(c, B); } // the fine's own dice: the career's stream stays the same whatever you answer
+  else { B.quiet = true; out.hype = -Math.min(B.hype, MD.nocommentHype); out.boring = true; }
+  { const h0 = B.hype; B.hype = Math.round(clamp(B.hype + out.hype, 0, MD.hypeMax) * 10) / 10; out.hype = Math.round((B.hype - h0) * 10) / 10; } out.conf = Math.round(out.conf * 10) / 10;
+  out.headline = kind === 'team' ? (x.won ? me + ' shares the credit: “' : me + ' takes the blame: “') + quote + '”' : kind === 'confident' ? '“' + quote + '” ' + (x.won ? me + ' is feeling it.' : me + ' promises a bounce-back.') : kind === 'trash' ? (x.won ? me + ' talks trash: “' : me + ' won\'t give an inch: “') + quote + '”' : 'Reporters call ' + me + ' boring: two words and out.';
+  storyNews(c, out.headline, 'media'); if (out.grudge) storyNews(c, out.grudge + ' heard that. They will be ready next time.', 'rival');
+  if (out.fine != null) storyNews(c, me + ' is fined' + (out.fine > 0 ? ' ' + fmtMoney(out.fine) : '') + ' for the trash talk, and a sponsor pulls back.', 'money');
   return out;
 }
-// The simulator's answer: humble when shaken, confident when things go well, never trash talk.
-function pressAuto(c, P) { const B = holderOf(c); return pressAnswer(c, P, (B.confidence || 0) < 1 || !(P.x && P.x.won) ? 'humble' : 'confident'); }
+// The simulator's answer (and the one for a press room you skip): Team first when shaken or after a loss, Confident when
+// things go well. The career simulator can force one (--press) or a hype policy (--hype).
+function pressAuto(c, P, kind) { const B = holderOf(c); return pressAnswer(c, P, kind || ((B.confidence || 0) < 1 || !(P.x && P.x.won) ? 'team' : 'confident')); }
 
 // --- the rival's scripted moments: first meeting, recruiting battle, draft night, a finals rematch ---
 function rivalCard(moment, title, lines, extra) { return Object.assign({ kind: 'rival', moment, title, lines }, extra || {}); }
@@ -11654,7 +11765,7 @@ const COACH_PITCH = { // what a coach says on a campus visit, by the rating they
 };
 // --- offers: one per tier from the best your résumé earns down, with facilities and a coach's specialty ---
 function amCollegeOffers(c, rng) {
-  const ovr = amOvr(c); const score = ovr + c.titles * 2 + c.mvps * 2 + (c.hype || 0) * 0.5 + TM.trustRecruit * trustOf(c) / 100; /* R4: your coach's recommendation */ const cuts = AMC.offerCuts; const top = score >= cuts[0] ? 3 : score >= cuts[1] ? 2 : score >= cuts[2] ? 1 : 0; const out = []; const used = {};
+  const ovr = amOvr(c); const score = ovr + c.titles * 2 + c.mvps * 2 + (c.hype || 0) * MD.hypeRecruit + TM.trustRecruit * trustOf(c) / 100; /* R4: your coach's recommendation */ const cuts = AMC.offerCuts; const top = score >= cuts[0] ? 3 : score >= cuts[1] ? 2 : score >= cuts[2] ? 1 : 0; const out = []; const used = {};
   const tiers = []; for (let t = top; t >= 0 && tiers.length < RCT.offers; t--) tiers.push(t); while (tiers.length < 3) tiers.push(0);
   const foci = Object.keys(CR.trainFocus);
   for (const tier of tiers) { const pool = AM_COLLEGES[tier].filter(n => !used[n]); if (!pool.length) continue; const name = rng.pick(pool); used[name] = 1; const coach = 'Coach ' + genName(rng, new Set(), new Set()).split(' ')[1];
@@ -11713,7 +11824,7 @@ function amStoryGrowth(c, grow) {
 // ============================================================================
 // --- the All-Star 1v1 ---
 function setupAllStar1v1(c, A) {
-  const AS = CR.allStar1v1; const vote = id => mvpScore(c, id) + (recOvr(c.players[id]) - AS.ovrRef) * AS.ovrVote + (id === c.meId ? (c.me.fame || 0) * AS.fameVote : 0);
+  const AS = CR.allStar1v1; const vote = id => mvpScore(c, id) + (recOvr(c.players[id]) - AS.ovrRef) * AS.ovrVote + (id === c.meId ? (c.me.fame || 0) * AS.fameVote + MD.hypeVote * (c.me.hype || 0) : 0);
   const four = c.active.slice().sort((a, b) => vote(b) - vote(a)).slice(0, AS.field); A.one = { field: four, games: [{ a: four[0], b: four[3] }, { a: four[1], b: four[2] }], final: null, champion: null, done: false }; A.invited1 = four.includes(c.meId);
   pushNews(c, 'All-Star 1v1: ' + four.map(id => c.players[id].name).join(', ') + '.', 'league');
   if (A.invited1) { const me = meOf(c); c.me.awards.push({ s: c.season, name: 'All-Star' }); c.me.fame = clamp(c.me.fame + 2, 0, 100); pushNews(c, me.name + ' is an All-Star!', 'award'); storyFill(c); tlAdd(c, 'award', 'All-Star · season ' + c.season); }
@@ -11830,7 +11941,7 @@ const TRAIT_FX_TEXT = { microwave: 'MICROWAVE', streaky: 'HOT HAND', clutch: 'CL
 // --- the career side: B is whoever carries the week (the amateur career, or the pro career's c.me) ---
 // XP from anything (games and practice): Generational ×1.2, Unbreakable ×0.9, Iron Man ×0.9 through age teenAge.
 function trXpMul(B, age) { let m = trMul(B, 'xp'); if (hasTrait(B, 'ironman') && age <= TR.teenAge) m *= TR.list.ironman.teenXp; return m; }
-function trPracticeMul(B, age) { return trMul(B, 'practiceXp') * trXpMul(B, age) * (hasTrait(B, 'generational') ? TR.spotlightPractice : 1); } // Gym Rat ×1.25 on top; Generational's media distractions
+function trPracticeMul(B, age) { return trMul(B, 'practiceXp') * trXpMul(B, age) * mdPracticeMul(B); } // Gym Rat ×1.25 on top; R8: media distractions (Generational's always, anyone's from distractAt hype) and No comment's quiet week
 function trSpotlightTier(B) { return hasTrait(B, 'generational') ? TR.spotlightTier : 0; } // defenses key on a Generational player
 function trFilmBonus(B) { return WK.filmBonus * trMul(B, 'film'); } // Film Junkie: film counts double
 function trConfFloor(B) { return hasTrait(B, 'iceveins') ? TR.list.iceveins.confFloor : -Infinity; }
@@ -12568,7 +12679,7 @@ function hsReportCard(c, when) {
 }
 
 // ---------------- recruiting: stars, the national rank, offers ----------------
-function hsRecruitScore(c) { const last = c.log && c.log.length ? c.log[c.log.length - 1] : null, ppg = last && last.stage === 'hs' ? last.ppg || 0 : 0; return amOvr(c) + 2 * (c.titles || 0) + HS.districtW * (c.districts || 0) + 2 * (c.mvps || 0) + 0.5 * (c.hype || 0) + TM.trustRecruit * trustOf(c) / 100 + (c.exposure || 0) + HS.ppgW * (ppg - HS.ppgRef); }
+function hsRecruitScore(c) { const last = c.log && c.log.length ? c.log[c.log.length - 1] : null, ppg = last && last.stage === 'hs' ? last.ppg || 0 : 0; return amOvr(c) + 2 * (c.titles || 0) + HS.districtW * (c.districts || 0) + 2 * (c.mvps || 0) + MD.hypeRecruit * (c.hype || 0) + TM.trustRecruit * trustOf(c) / 100 + (c.exposure || 0) + HS.ppgW * (ppg - HS.ppgRef); }
 function hsNatRank(score, yearsLeft) { const z = (score + HS.classAdj * Math.max(0, yearsLeft || 0) - HS.recruitMean) / HS.recruitSd; return Math.max(1, Math.round(HS.classSize * (1 - normCdf(z))) + 1); }
 function hsStars(rank) { const S = HS.stars; return rank <= S[0] ? 5 : rank <= S[1] ? 4 : rank <= S[2] ? 3 : rank <= S[3] ? 2 : 1; }
 function hsStarText(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
@@ -12816,9 +12927,9 @@ function colAgentAdvice(c) { const p = amPickFrom(amDraftScore(c)), y = c.stageY
 // ---------------- NIL ----------------
 function colNilOffer(c, rng, when) {
   if (c.stage !== 'college') return null; colFill(c); const mean = amStageMean(c), edge = Math.max(0, amOvr(c) - mean);
-  if (when === 'preseason' && !((c.hype || 0) >= 5 || edge >= 3 || (c.recruit && c.recruit.stars >= 4) || rng.next() < 0.5)) return null;
+  if (when === 'preseason' && !((c.hype || 0) >= CO.nilHype || edge >= 3 || (c.recruit && c.recruit.stars >= 4) || rng.next() < 0.5)) return null;
   if (when === 'game' && rng.next() >= CO.nilOdds) return null;
-  const apps = rng.int(3), val = Math.round(CO.nilBase * (1 + (c.hype || 0) / 15) * (1 + edge / 20) * (1 + 0.3 * (c.collegeTier || 0)) * (1 + CO.nilAppMul * apps) * (0.8 + 0.4 * rng.next()) / 250) * 250;
+  const apps = rng.int(3), val = Math.round(CO.nilBase * (1 + MD.hypeEndorse * (c.hype || 0) / MD.hypeMax) * mdSponsorMul(c) * (1 + edge / 20) * (1 + 0.3 * (c.collegeTier || 0)) * (1 + CO.nilAppMul * apps) * (0.8 + 0.4 * rng.next()) / 250) * 250;
   const sponsor = rng.pick(CO_SPONSORS); const ev = { kind: 'nil', title: 'NIL OFFER', sponsor, amount: val, apps, lines: [sponsor + ' wants you: $' + val.toLocaleString() + (apps ? ' for ' + apps + ' appearance' + (apps > 1 ? 's' : '') + ' (fatigue +' + CO.nilFatigue + ' in each of the next ' + apps + ' game week' + (apps > 1 ? 's' : '') + ').' : ', just your name on a poster.'), 'Money you keep (it comes with you to the pros). Turn it down and nothing happens.', 'Deals come with hype and big games.'] };
   c.events.push(ev); return ev;
 }

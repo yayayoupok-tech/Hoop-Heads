@@ -3,6 +3,129 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R8 — Hype and the press room: hype 0–100 with real costs, four answers, and both balance tests (the R pass, milestone 8)
+
+Every game is still 1v1 (the change of plan): hype follows you, not a team, and Team first is about your coach and the
+teammates you practice with (there is no chemistry to build).
+
+**Hype** (§3.8)
+
+- Hype runs from 0 to 100 (0 to 10 before; old saves' hype × 10). A game week without a big performance loses 10% of the
+  hype it started with. A win adds 1; a big performance adds 2.5 and skips the decay (a win that makes the news: a big
+  night — in the pros 1.2 × your average and at least 35 points —, a blowout, an upset, your rival, a playoff game, a
+  title, a points record, a marquee or rivalry game). Highlights add 0.6 each (a Showman's count × 1.5). A week on the
+  bench is a week without a big performance. Half of it carries into the next season.
+- What it lifts: sponsors' offers × (1 + hype/100) (college NIL deals the same); the draft score + 4 × hype/100 (it
+  added the whole 0–10 hype: up to 10); the college offer score + 0.05 × hype; the All-Star fan vote + 0.1 × hype; the
+  next contract + $10K a point; and at home the crowd: +2% × hype/100 on every shot you take.
+- What it costs, more as it grows: every loss now costs confidence, 0.5 (+1 after a blowout) × (1 + hype/100) (before,
+  only blowouts did); from 60 defenses key on you (their AI +0.2 tier); from 70 the media eats practice time (practice
+  XP −15%) and your rival is fired up (+2 on every rating when you meet). Generational's spotlight is the same thing,
+  always on; the two never stack.
+- The signature shoe line (R7) still opens at 60: now that means real hype.
+- Where you see it: hype on the hub's player card; THE DAILY DRIBBLE's BUZZ panel lists what your hype is doing for and
+  to you right now (the meter marks 60 and 70), the opponents coming for you and a sponsor pulling back; on a phone it is
+  a BUZZ line at the bottom of the paper.
+
+**The press room** (§3.9: four answers, none best)
+
+- **Team first**: coach trust +2, hype −2. **Confident**: hype +3, confidence +1; lose the next game and it's hype −2,
+  confidence −2. **Trash talk**: hype +5; your next game against that player they come for you (a played game: their AI
+  +0.3 tier; a simulated one: +2 effective overall); coach trust −3; a 20% chance of a fine (pros: 2% of a season's
+  salary; amateurs: $100 of their savings) and a sponsor pulling back (endorsement or NIL money −10% for 4 game weeks).
+  **No comment**: practice XP +5% that week, hype −1, and the reporters call you boring. The old Humble answer is Team
+  first.
+- Every answer shows what it does on its button; the newspaper that follows lists what happened.
+- A trash-talked player stays fired up until you play them, the playoffs start (the season's last game included) or the
+  season ends; one you trash-talk during a playoff series is fired up for the rest of it.
+- The pro final's question comes with the clincher (champion or eliminated) instead of after game 1; in the middle of a
+  series only after an upset or a big night.
+
+**What a tier and a crowd are worth in a simulated game** (measured, not guessed)
+
+800 engine games a condition (bot vs bot, mirrored players, the same seeds; first to 21 and timed halves). Side B's AI
++0.3 tier cost side A 7.1 points of win rate (first to 21) and 10.0 (timed); +2 on every rating for B cost 7.1 and 5.6,
++5 cost 10.1 and 15.4; +2% on every one of A's shots gained 6.2 and 3.1. So an AI tier is worth about 9 OVR (+0.3 tier
+≈ 2.8) and the home crowd at 100 hype about 1.5 OVR: simulated games count them that way (`tierOvr`, `hypeHomeOvr`).
+§3.9's two trash-talk numbers fit the measurement: their AI +0.3 tier in a played game, +2 effective overall in a
+simulated one.
+
+**Balance**
+
+The press test (§3.9: each "always X" policy, 200 careers each, the same careers; average legacy, career earnings and
+pro titles within ±8% of the four policies' average), seed 1, the committed build:
+
+| Always… | Legacy | Earned | Pro titles | Hall of Fame | Pro hype (mean) |
+| --- | --- | --- | --- | --- | --- |
+| Team first | 58.7 (−1.4%) | $259.0M (−0.8%) | 1.03 (−3.4%) | 17% | 14.7 |
+| Confident | 60.8 (+2.1%) | $264.4M (+1.2%) | 1.13 (+5.5%) | 17% | 22.5 |
+| Trash talk | 59.2 (−0.5%) | $263.3M (+0.8%) | 1.06 (−1.1%) | 16% | 28.3 |
+| No comment | 59.4 (−0.2%) | $257.9M (−1.2%) | 1.06 (−1.1%) | 17% | 16.7 |
+
+All four in range. Seed 2: all four in range too. Seed 3: Trash talk's titles −9.7% (✗; legacy −2.7%, earnings +0.8%). With
+200 careers a policy the titles average moves about ±8% on its own (a career wins 0 to 10 titles), so I ran the same test
+with 1,000 careers a policy (seed 1): Team first +1.3%, Confident +2.5%, Trash talk −2.2%, No comment −1.5% in titles,
+every legacy within ±1.5% and every earnings figure within ±1%.
+
+The hype test (§3.8: chase hype — trash talk after a win, Confident after a loss — against stay quiet — No comment after a
+win, Team first after a loss; 200 careers each; legacy, earnings and titles within ±10% of each other):
+
+| Seed | Legacy | Earned | Pro titles | Pro hype chase / quiet |
+| --- | --- | --- | --- | --- |
+| 1 | 58.5 vs 59.4 (−1.4%) | $264.2M vs $258.4M (+2.3%) | 1.01 vs 1.08 (−6.7%) | 26.4 / 16.1 |
+| 2 | 61.6 vs 61.8 (−0.3%) | $270.6M vs $265.0M (+2.1%) | 1.13 vs 1.22 (−7.7%) | |
+| 3 | 61.9 vs 61.5 (+0.7%) | $270.8M vs $264.8M (+2.3%) | 1.14 vs 1.19 (−4.3%) | |
+| 1 (1,000 careers) | 59.6 vs 59.3 (+0.5%) | $263.5M vs $257.7M (+2.2%) | 1.05 vs 1.08 (−2.2%) | 26.3 / 16.3 |
+
+In range on every seed: chasing hype earns a little more and wins a few fewer titles.
+
+How it got there: (1) with a big performance worth 4 hype and a highlight 0.8, "always trash talk" spent a tenth of its
+pro games at 60+ (keyed on) and won 12% fewer titles than the other answers: now 2.5 and 0.6, and 60+ is a star's (or
+a hype chaser's) state. (2) A grudge from the regular season came due in the playoffs, where titles are decided: the
+playoffs now start clean. (3) Trash talk's fine rolled the career's own dice, so a trash-talking career drifted away from
+the same career answered any other way (the tests compare the same careers): the fine has its own dice. (4) The career
+simulator never accepted a sponsor deal, so hype's endorsement money was invisible: it takes every offer now (career
+earnings +$20–30M for everyone). (5) The trash-talk grudge first counted both of §3.9's numbers in a simulated game
+(+0.3 tier and +2 OVR, about 5 OVR): −20% titles.
+
+**Saves:** hype × 10 once (an old save's rival, fired up by trash talk before R8, now holds a grudge against you); a
+press question waiting from before R8 gets the four answers. New fixtures from the R7 build (`tests/fixtures/save_r7_*`:
+high school with hype 4.5 on the old scale, an old fired-up rival and a press question waiting; a pro mid-season with
+hype 6.5, a fired-up rival and a confident answer waiting on the next game).
+
+**New constants** (all with a one-line comment; `CONFIG.media` rewritten): hypeMax 100, hypeDecay 0.1, winHype 1,
+bigHype 2.5, highlightHype 0.6 (0.08), bigNight 1.2; teamTrust 2, teamHype 2; confidentHype 3 (2), confidentConf 1,
+boastLoss 2, boastConf 2; trashHype 5 (3), trashTier 0.3, trashOvr 2, trashTrust 3, trashFine 0.2, fineShare 0.02,
+fineAm 100, sponsorCut 0.1, sponsorWeeks 4; nocommentXp 0.05, nocommentHype 1; hypeDraft 4, hypeRecruit 0.05,
+hypeEndorse 1, hypeVote 0.1, hypeHome 0.02, hypeHomeOvr 1.5, hypeSalary 0.01 (0.1 a point of the old scale); lossConf
+0.5, lossConfMul 1; keyedAt 60, keyedTier 0.2, distractAt 70, distractXp 0.15, rivalAt 70, rivalFire 2; tierOvr 9.
+`CONFIG.college.nilHype` 50 (a preseason NIL offer with this much hype; 5 before). Removed: `humbleConf`.
+
+**Tests on the committed build**
+
+- Smoke 116/116 (desktop 1280×720 and phone 844×390). New: the R8 step (the old scale × 10 once, an old fired-up rival
+  becoming a grudge; the week's decay, a win, a big performance; losses × (1 + hype/100); Team first, Confident and its
+  cost on a loss, Trash talk with the grudge (the played game's AI +0.3 tier, the simulated +2 OVR, settled when you meet)
+  and a forced fine (cash, a sponsor pulling back −10%), No comment's quiet week; keyed at 60, distractions and the fired-up
+  rival at 70, Generational's spotlight never stacking; the home crowd on the make chance; the draft score, recruiting,
+  market value, sponsors × (1 + hype/100) and a pro fine), and two R7-build migrations (a high school career with hype
+  4.5, a fired-up rival and a press question waiting: four answers, hype 45; a pro with hype 6.5, a fired-up rival and a
+  confident answer waiting on the next game).
+- Modes 15/15 · old saves 29/29 (2 new, from the R7 build) · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 105 screens at 844×390 (4 new: the four answers, the newspaper after trash talk with a fine, the headlines
+  with BUZZ, a pro's BUZZ): nothing flagged, no errors (the first run caught the fourth answer off the bottom of the phone
+  screen and a CONTINUE button laid out before it was shown: both fixed). The same 105 at 1280×720: nothing flagged.
+- Art Lab: 54 shots, no errors (`shots/r8/round-final/`). Screenshots of the new screens, desktop and phone: `shots/r8/`.
+- §2 gate and the balance harness: identical to R7 line for line (the crowd's make chance only runs in career games).
+- The career simulator (40 careers, seed 1): 0 stuck; OVR 56 / 68 / 74 at 17 / 21 / 25, peak 78; 0.93 titles a career;
+  Hall of Fame 15%; every target met. It takes every sponsor deal now: $24.9M of sponsor money a career on average. Hype
+  (its default answers: Team first after a loss or when shaken, Confident otherwise): 14.5 on average in the pros, never
+  60. No shoe line opened in these 40 careers (R7: 23): at 60 of 100 it belongs to hype chasers now (39 of 300 "always
+  trash talk" careers opened one).
+- Trait balance (200 careers per trait, seed 1): all 17 in range; Showman −13% (its highlights' hype is worth less),
+  Glue Guy −15%, Late Bloomer −15%, Generational +30%.
+- Perf, 844×390 @2x in the pro arena: guard 0 median 23.3 ms (R7: 23.2). No change.
+
 ## R7 — The pros and your money: contracts you negotiate, free agency, trade requests, what money buys and the epilogue (the R pass, milestone 7)
 
 Every game is still 1v1 (the change of plan): a club is your organization, its depth chart decides who plays the
