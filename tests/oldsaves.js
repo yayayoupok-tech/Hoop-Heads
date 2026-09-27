@@ -31,7 +31,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'amevent': case 'rivalmoment': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres':
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
-      case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => /^(Re-sign|Sign with)/.test(w.label || '')) || by(/^START SEASON/) || by(/^RETIRE/)); break;
+      case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)/.test(w.label || '')) || by(/^START SEASON/) || by(/^RETIRE/)); break;
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result
       case 'ladder': pr(by(/^Back$/)); break;
@@ -42,6 +42,9 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'tryoutpost': pr(by(/^CONTINUE$/)); break;
       case 'colchoice': pr(W[i % 2] || W[0]); break; // R6: an NIL offer or the agent's call (yes or no, alternating)
       case 'draftstock': case 'confbracket': case 'natbracket': pr(by(/^Back$/)); break; // R6
+      case 'negotiate': pr(by(/^SIGN$/)); break; // R7: the negotiation (the offer's own years and role)
+      case 'epilogue': pr(by(/^FINISH$/)); break; // R7
+      case 'moneybuilt': case 'networth': pr(by(/^Back$/)); break; // R7
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

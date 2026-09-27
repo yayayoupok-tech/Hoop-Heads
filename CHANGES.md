@@ -3,6 +3,126 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R7 — The pros and your money: contracts you negotiate, free agency, trade requests, what money buys and the epilogue (the R pass, milestone 7)
+
+Every game is still 1v1 (the change of plan): a club is your organization, its depth chart decides who plays the
+week's game, and the club's record is yours.
+
+**Contracts and free agency** (§3.6: years vs money vs role; money vs a contender vs playing time)
+
+- When your deal is up, three clubs make offers, each best at one thing: **your club** pays the most (1.05 × your
+  value; your role stays), a **big market** (the best facilities of the others, and every fame gain × 1.2 while you
+  play there: sponsors and All-Star votes) pays your value and makes you compete for the start, and a **club that
+  starts you** promises the start for 0.95 × your value.
+- Pick one, then **negotiate**: the length (1 to 5 seasons; a season's pay × 1.08, 1.04, 1, 0.97 or 0.94: security
+  costs money; clubs offer at most 3 seasons at 31–32 and 2 after) and the role (ask for a promised start: −10%, unless
+  the club already offered it). A promised start puts you first on the depth chart when every season of the deal
+  begins (the coach's trust at least 60); challenges can still take it during the season.
+- Your agent (R6) adds 10% to every offer and takes 4% of every check; in the pros you can hire one or part ways
+  (Business → Contract & money).
+
+**Trade requests** (§3.6: when unhappy)
+
+- Unhappy: benched for half of the season's games (after 4), a coach whose trust in you is under 20, or winning 30% of
+  your games or fewer (after 6); once a season, until two thirds of the way through it. A card: request a trade (a club
+  that starts you; your contract comes along; the press calls it a distraction: hype −10% of the cap) or stay and
+  fight for it.
+
+**What money buys** (§3.7; Business has new Training and Lifestyle tabs)
+
+- **A personal trainer** (three tiers: +10 / +20 / +30% practice XP) for $0.5M / $1.5M / $3M a season; **a private
+  coach** (+50% on practice in your training focus: targeted XP) for $1M; **nutrition & physio** for $2.5M (the
+  expensive one: injury risk × 0.6, 5 fatigue off every game week, a better Rest week, and every age-decline step
+  skipped a quarter of the time: the decline runs 25% slower). Costs are by the season, charged week by week, so a
+  season costs the same whatever its length. The old shooting coach, skills trainer, strength coach and physio (0–3
+  stars each) become the trainer (their best tier) and nutrition & physio (any physio).
+- **A signature shoe line**: when your hype reaches 60% of its cap (§3.7's 60 of 100; hype runs 0–10 until R8) a brand
+  pitches it (a card; or later from Business): $5M up front, then royalties every week ($1M a season × (1 + fame/50) ×
+  (1 + hype/cap)); when you retire the brand buys the line for two seasons of royalties.
+- **Lifestyle**: a car, a sports car, a house for your family, a mansion — confidence +1 or +2 once and a story card,
+  never a rating. Houses count in your net worth.
+
+**The epilogue** (when you retire: what your money builds, any mix)
+
+- Your **net worth** (cash, houses, the shoe line's buyout) and four choices: a **foundation** (+1 legacy for every
+  $2M, up to +20; the Hall of Fame still judges what you did on the court), a **youth academy** ($30M: your next career
+  gets a **Legacy Start**: every ceiling +5 (half a point on the 10 scale) and a signature trait that is never Common),
+  a **franchise stake** ($250M: the Owner ending and an OWNER badge on your profile for good), and what you do next
+  (coach or broadcaster, free; or walk away). What you can't afford falls away: the stake first, then the academy, then
+  the foundation. The legacy screen shows the foundation's legacy and a second page, WHAT MONEY BUILT.
+- A **net-worth leaderboard** of every career (Hall of Fame → Net worth). A retirement left before its epilogue
+  waits on the main menu (YOUR RETIREMENT).
+
+**Screens and cards:** NEGOTIATE; Business (Contract & money with your agent, the shoe line and your net worth;
+Training; Lifestyle); WHAT YOUR MONEY BUILDS; WHAT MONEY BUILT; NET WORTH; the cards UNHAPPY, TRADED, A SHOE OF YOUR
+OWN, YOUR SIGNATURE SHOE, the lifestyle cards and LEGACY START.
+
+**Tuning**
+
+- The career simulator's sensible spender (a trainer by pay: ★ from $2M, ★★ from $5M, ★★★ from $10M; a private coach
+  from $6M; nutrition & physio from 29 with $8M; the shoe line when it has twice the price; a car, then a house and a
+  mansion as the money comes; the richest free-agency offer; a trade request when benched; at the end the stake if it
+  has 1.2 × its price, the academy with 3 ×, the rest to the foundation) came out too strong at first: with the
+  trainer on all XP and every pro XP at 1.0 it won 1.6 pro titles a career with a 28% Hall of Fame (the targets: about
+  1 and 10–20%). The stars who could afford everything pulled away. Two changes: the trainer boosts practice XP (what a
+  trainer runs), and all pro XP is × 0.85 (`xpBase`). Over 120 careers (seeds 1–3) the default lands on 1.02 titles, a
+  14% Hall of Fame and OVR 73–74 at 25 (the bottom of the 74–78 target on seed 2).
+- A first version of free agency paid the small market 1.15 × your value *and* promised the start: it won every
+  simulated free agency (money and playing time together). Now each offer is best at one thing:
+
+| Policy (120 careers, seeds 1–3) | Legacy median | Pro titles | Hall of Fame | Earned (median) | Net worth (median) | Staff spent |
+| --- | --- | --- | --- | --- | --- | --- |
+| Free agency: the most money (your club) · the default | 52 | 1.02 | 14% | $275M | $217M | $60M |
+| Free agency: the big market | 52 | 1.08 | 15% | $261M | $204M | $60M |
+| Free agency: the club that starts you | 51 | 1.08 | 16% | $245M | $191M | $59M |
+| The most money, and nothing bought (no staff, no shoe line, no lifestyle) | 51 | 0.97 | 13% | $236M | $232M | $0 |
+
+  Money buys a little: the spender earns $39M more (a better player is worth more) and wins a little more, for $60M of
+  staff. The simulator asked for a trade about twice a career (whenever it sat half the games) and launched a shoe line
+  in half its careers (63 of 120). At the end the default policy's median career was worth $217M: it built the academy in
+  114 careers of 120, a foundation (+20 legacy by the median) almost always, and bought the stake in 14 (the richest).
+
+**Saves:** the pro career's staff migrates (above); deals from before R7 keep their terms (no promise); an offseason in
+progress keeps its old offers. The last amateur league is dropped from the save at the draft (a college season's
+64-team bracket was dead weight: the R6 pro fixtures weighed 100 KB). New fixtures from the R6 build (`tests/fixtures/
+save_r6_*`: high school, a pro mid-season with the old staff, a pro offseason).
+
+**New constants** (all with a one-line comment): `CONFIG.pro` (xpBase 0.85; trainerXp [0, 0.1, 0.2, 0.3], trainerCost
+[0, 0.5M, 1.5M, 3M] a season; coachXp 0.5, coachCost 1M; nutritionCost 2.5M, nutritionInjury 0.6, nutritionRegen 5,
+nutritionAging 0.25; yearsMul [1.08, 1.04, 1, 0.97, 0.94], maxYears [[30, 5], [32, 3], [99, 2]], startMul 0.9,
+promiseTrust 60; faYours 1.05, faBig 1, bigFame 1.2, faStarter 0.95; tradeBench 0.5, tradeTrust 20, tradeWin 0.3,
+tradeMinGames 4, tradeDeadline 0.67, tradeHype 0.1; shoeHype 0.6, shoeCost 5M, shoeRoyalty 1M, shoeBuyout 2; lifestyle
+(car 120K, sports car 900K, house 2.5M, mansion 15M); foundationPer 2M, foundationMax 20, academyCost 30M, legacyCaps 5,
+stakeCost 250M). Removed: `CONFIG.career.staffCost` and `staffBonus`, `CONFIG.week.injuryPhysio` (the old staff).
+
+**Tests on the committed build**
+
+- Smoke 114/114 (desktop 1280×720 and phone 844×390). New: the old staff migrates (shooting 2, skills 1, strength 3,
+  physio 1 → trainer ★★★, nutrition & physio); the trainer (+30% practice XP at ★★★), the private coach (+50% on your
+  focus only) and a week of staff at a season's cost ÷ its length; nutrition's 5 fatigue a game week and its skipped
+  decline steps; free agency's three clubs (yours, a big market with the best facilities, a club that promises the
+  start), the years and a promised start moving the money, the maximum years by age; a signed deal (the club, the
+  promise, the big market); a promised start first on the depth chart with the coach's trust ≥ 60; a trade request
+  (the new club starts you, the contract comes along, hype −10% of the cap, the league keeps 12 players); the shoe
+  pitch (no pitch without hype), the launch ($5M), royalties and the buyout; lifestyle (confidence once, a house in the
+  net worth); the agent (hire and fire, +10% and the fee); the epilogue (what you can't afford falls away; the
+  foundation's legacy; the academy; the stake and the owner's badge) and the next career's Legacy Start (+5 on every
+  ceiling, a signature trait that is never Common). New fixtures from the R6 build (`tests/fixtures/save_r6_*`: high
+  school, a pro mid-season with the old staff, a pro offseason with its old offers).
+- Modes 15/15 · old saves 27/27 (3 new) · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 101 screens at 844×390 (9 new: Business's Contract & money, Training and Lifestyle tabs, the trade card,
+  the shoe card, NEGOTIATE, the epilogue, the legacy screen after it, WHAT MONEY BUILT, NET WORTH): nothing flagged, no
+  errors. The same 101 at 1280×720: nothing flagged.
+- Art Lab: 54 shots, no errors (`shots/r7/round-final/`). Screenshots of the new screens and cards, desktop and phone:
+  `shots/r7/`.
+- §2 gate and the balance harness: identical to R6 line for line (R7 touches no match code).
+- The career simulator (40 careers, seed 1): 0 stuck; OVR 56 / 68 / 74 at 17 / 21 / 25, peak 78; 1.07 titles a career;
+  Hall of Fame 10% (the bottom of 10–20%); every target met. Money: net worth $231M and earnings $290M by the median,
+  $60M on staff, 23 shoe lines, 80 trade requests (2 a career), free agency: your club 146 times, the big market 3;
+  the epilogue built 38 academies and bought 3 stakes.
+- Trait balance (200 careers per trait, seed 1): all 17 in range; Late Bloomer −15% (R6: −22%), Generational +30%.
+- Perf, 844×390 @2x in the pro arena: guard 0 median 23.2 ms (the R6 suite: 23.3 on the same machine). No change.
+
 ## R6 — College: the program you pick, a conference, its tournament, the national tournament, NIL, draft stock, the transfer portal and an agent (the R pass, milestone 6)
 
 Every game is still 1v1 (the change of plan): the program is your team, its record is yours, and your teammates are
