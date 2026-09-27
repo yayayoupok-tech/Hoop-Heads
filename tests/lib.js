@@ -18,7 +18,7 @@ async function openPage(browser, opts = {}) {
   page.on('console', m => {
     const t = m.text(), url = (m.location() || {}).url || '';
     if (m.type() === 'error') { if (isFont(url) || /ERR_CERT|ERR_NAME|ERR_INTERNET|ERR_PROXY|ERR_TUNNEL/.test(t) && isFont(url)) notes.add('font request failed (allowed; falls back to system fonts)'); else errors.push('[console.error] ' + t + (url ? ' @ ' + url : '')); }
-    else if (m.type() === 'warning' && /^\[(frame|art lab|invariant)\]/.test(t)) errors.push('[warning] ' + t);
+    else if (m.type() === 'warning' && /^\[(frame|art lab|invariant|ui)\]/.test(t)) errors.push('[warning] ' + t);
   });
   page.on('request', r => { const u = r.url(); if (!u.startsWith('file:') && !u.startsWith('data:') && !u.startsWith('blob:') && !isFont(u)) errors.push('[network] unexpected request ' + u); });
   await page.goto(FILE + (opts.query || '')); await page.waitForTimeout(opts.wait || 600);
@@ -26,7 +26,7 @@ async function openPage(browser, opts = {}) {
   const api = {
     page, context, errors, notes, ev,
     screen: () => ev(() => (HH.game.ui.screen ? HH.game.ui.screen.name : '(none)')),
-    async press(re) { await ev(src => { const s = HH.game.ui.screen; if (!s) throw new Error('no screen'); const w = (s.widgets || []).find(w => !w.hidden && w.label && new RegExp(src).test(w.label)); if (!w) throw new Error('no widget /' + src + '/ on ' + s.name + ': ' + (s.widgets || []).filter(w => !w.hidden && w.label).map(w => w.label).join(' | ')); (w.onPress || (() => w.set && w.set(!w.get())))(); }, re.source); await page.waitForTimeout(opts.stepWait || 200); },
+    async press(re) { await ev(src => { const s = HH.game.ui.screen; if (!s) throw new Error('no screen'); if (s.finish) s.finish(); /* R9: a dialogue box's page typed out first */ const w = (s.widgets || []).find(w => !w.hidden && w.label && new RegExp(src).test(w.label)); if (!w) throw new Error('no widget /' + src + '/ on ' + s.name + ': ' + (s.widgets || []).filter(w => !w.hidden && w.label).map(w => w.label).join(' | ')); (w.onPress || (() => w.set && w.set(!w.get())))(); }, re.source); await page.waitForTimeout(opts.stepWait || 200); },
     async expectScreen(name) { const n = await api.screen(); if (n !== name) throw new Error('expected screen ' + name + ', got ' + n); },
     async shot(file, type) { await page.screenshot({ path: file, type: type || (file.endsWith('.png') ? 'png' : 'jpeg'), quality: file.endsWith('.png') ? undefined : 88 }); },
     frameErrors: () => ev(() => (window.HH_ERRORS || []).slice()),

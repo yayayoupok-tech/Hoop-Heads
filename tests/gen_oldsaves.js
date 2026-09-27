@@ -2,11 +2,11 @@
 // write: a high-school career in its second season with a classic team league on the side, and a pro career in the middle
 // of its first season (for M7 also one in the playoffs and one in the offseason). tests/oldsaves.js then loads each one in
 // this build and plays on. R3 adds the R2 build (a v2 amateur career and a v4 pro career, from before traits, genes and
-// teams); R5 adds the R4 build (a v3 amateur career from before tryouts, districts, recruiting ranks, summers and grades); R6 adds the R5 build (also a v4 college career three games into its first season, from before the conference, the national tournament, NIL and the draft stock); R8 adds the R7 build (hype on the old 0–10 scale, a rival fired up by trash talk, a press question waiting: R8 moves hype to 0–100 and answers with four choices); R7 adds the R6 build (pro careers with the old four-role staff and fixed four-season deals, mid-season, in the playoffs and in the offseason). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
+// teams); R5 adds the R4 build (a v3 amateur career from before tryouts, districts, recruiting ranks, summers and grades); R6 adds the R5 build (also a v4 college career three games into its first season, from before the conference, the national tournament, NIL and the draft stock); R9 adds the R8 build (story cards from before dialogue boxes, with no speaker, waiting on the hub; a pro's trade request waiting; no story arcs, family or social feed yet); R8 adds the R7 build (hype on the old 0–10 scale, a rival fired up by trash talk, a press question waiting: R8 moves hype to 0–100 and answers with four choices); R7 adds the R6 build (pro careers with the old four-role staff and fixed four-season deals, mid-season, in the playoffs and in the offseason). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
 const path = require('path'), fs = require('fs'), os = require('os'), { execFileSync } = require('child_process');
 const { ROOT, launch } = require('./lib');
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, 'tests', 'fixtures')), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'hoopheads-old-')); fs.mkdirSync(OUT, { recursive: true });
-const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2'], ['f037d96', 'r4'], ['d14751c', 'r5'], ['4645e3a', 'r6'], ['e151440', 'r7']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
+const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2'], ['f037d96', 'r4'], ['d14751c', 'r5'], ['4645e3a', 'r6'], ['e151440', 'r7'], ['9a5d31f', 'r8']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
 (async () => {
   const browser = await launch();
   for (const [commit, tag] of BUILDS) {
@@ -28,6 +28,7 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
       g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), season: a.season, stage: a.stage, games: (a.totals || {}).g, tcGames: tc.results.length };
     });
     if (tag === 'r7') { const d = JSON.parse(hs.raw), a = d.c1; a.hype = 4.5; a.rivalFire = 2; a.events = (a.events || []).filter(e => e.kind !== 'press'); a.events.unshift({ kind: 'press', title: 'THE PRESS ROOM', q: 'Big win tonight. How are you feeling?', x: { name: a.name, won: true, us: 15, them: 9, opp: 'Old Opponent', rival: false, recs: [] } }); hs.raw = JSON.stringify(d); } // R8: the old scale, the old fire, a question from before R8
+    if (tag === 'r8') { const d = JSON.parse(hs.raw), a = d.c1; a.events = (a.events || []).filter(e => e.kind !== 'press'); a.events.unshift({ kind: 'story', title: 'A NOTE FROM HOME', lines: ['A note on the fridge when you get home.', '"Proud of you. Eat something green."'] }); hs.raw = JSON.stringify(d); } // R9: a story card from before dialogue boxes (no speaker)
     fs.writeFileSync(path.join(OUT, 'save_' + tag + '_highschool_teamleague.json'), hs.raw); console.log(tag, 'high school', JSON.stringify({ season: hs.season, stage: hs.stage, games: hs.games, tcGames: hs.tcGames, bytes: hs.raw.length }));
     // 2) the amateur career played through to the pros, then half a pro season
     const pro = await ev(() => {
@@ -39,6 +40,7 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
       g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), season: c.season, week: c.week, phase: c.phase };
     });
     if (!pro.err && tag === 'r7') { const d = JSON.parse(pro.raw), M = d.career.me; M.hype = 6.5; M.rivalFire = 2; M.boast = true; pro.raw = JSON.stringify(d); } // R8: hype 0–10, a trash-talked rival, a confident answer waiting on the next game
+    if (!pro.err && tag === 'r8') { const d = JSON.parse(pro.raw), c = d.career; c.events = (c.events || []).filter(e => e.kind !== 'press'); c.events.unshift({ kind: 'trade', title: 'UNHAPPY', why: 'bench', lines: ['You have watched 4 of the 6 games from the bench.', 'Your agent can ask for a trade: to a club that starts you, your contract comes with you.', 'Or stay and fight for it.'] }); pro.raw = JSON.stringify(d); } // R9: a trade request from before dialogue boxes
     if (pro.err) console.log(tag, 'pro FAILED', pro.err); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_pro_midseason.json'), pro.raw); console.log(tag, 'pro', JSON.stringify({ season: pro.season, week: pro.week, phase: pro.phase, bytes: pro.raw.length })); }
     // 2b) R5 only: a college career three games into its first season (the old college league)
     if (tag === 'r5') { const col = await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data; const a = amCreate(s, { name: 'Old Save College', look: PRESET_LOOKS[2], number: 12, style: 'slasher', seed: 133 });

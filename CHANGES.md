@@ -3,6 +3,127 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R9 — Story: arcs from templated beats, RPG dialogue boxes and a social feed (the R pass, milestone 9)
+
+Every game is still 1v1 (the change of plan): the story is about you, told by the people around you (your coach, the
+oldest teammate on your roster, your family, your rival, your agent) and it only ever talks about your games.
+
+**Story arcs** (§3.10: templated beats from traits, your rival, your team, hype and results)
+
+- **Your family**: one parent who has been at every game since the driveway, with a name and a look like yours (never a
+  gendered word). They are in the stands for your first game at each level, call after a winning run of 4 ("come home for
+  a day?"), check in when a season is quiet, find you in the confetti after a title and are there on draft night.
+- **A mentor**: the oldest teammate on your roster (a senior; in the pros the veteran). They introduce themselves at the start of
+  a season ("stay after practice this week, or don't"; once for each mentor), step in after 3 losses in a row, and run a film session.
+- **Your coach**: the office talk (extra defensive drills, or save your legs), the title chase with two games left when
+  you're in the playoff places, and the season review.
+- **Your rival**: the existing rival moments (the first meeting, the finals rematch) count as the season's beats.
+- **Your traits**: once at each level (high school, college, the pros) the person who would notice says so: the coach
+  about a Gym Rat or a Glue Guy, the trainer about a Freak Athlete, a reporter about a Showman. Each line also hints at
+  the trait's cost. The hidden trait takes part once it has shown itself.
+- **Hype**: the first time a season your hype reaches 60 (where defenses start keying on you), a reporter (in the pros,
+  your agent) says everybody wants ten minutes with you. Say yes: hype +5, practice XP −10% that week. Stay in the gym:
+  hype −5, practice XP +5%.
+- **An injury comeback**: an injury of 2 games or more brings the trainer's call: push to come back a game early (the
+  injury chance × 1.5 for 4 game weeks) or take all the time (fatigue −25). Your first game back is its own beat (the
+  comeback, or back on the floor).
+- **Draft-day drama**: draft night is told against the mock draft: a slide of 10 picks or more, a rise of 10 or more,
+  right where they said, or undrafted.
+- **The first contract**: pay off your family's bills ($250K, confidence +1) or put it in the bank.
+- **The title chase and the title**: two games left while in the playoff places; the title; a lost final.
+- **A retirement tour**: from 34, every pro season starts with your agent's question, "is this the last one?" Announce a
+  farewell tour (hype +15 now and +1.5 in every road game, the first of them told as a tribute; you retire after the
+  season) or keep it quiet.
+
+**The director**: 3 to 5 beats a season. At most one beat every 2 games; a season 60% through with fewer than two beats
+gets a check-in, the last games top it up to three, and a season that ends short gets the coach's season review. Five is
+the cap, except for the beats that are always told (an injury call, a title, draft night, the first contract, the tour
+question and the rival's moments). The story never rolls the career's dice: names, looks, lines and likes come from hashes
+of the career's seed, so a story beat never changes a simulated result.
+
+**Choices** (the trade-off rule: both answers cost something, and each says what on its button)
+
+| Beat | One answer | The other (the default) |
+| --- | --- | --- |
+| The mentor, the coach's office | Extra work: practice XP +15% this week, fatigue +8 | Rest the legs: fatigue −8, no extra work |
+| A winning run, a call from home | A day at home: confidence +1, practice XP −10% this week | Stay and grind: practice XP +5% |
+| The slump | Extra work with your mentor (as above) | A day at home (as above) |
+| The spotlight (60 hype) | Say yes to it all: hype +5, practice XP −10% | Stay in the gym: hype −5, practice XP +5% |
+| The injury call | Push to come back: a game sooner, injury chance × 1.5 for 4 weeks | Take all the time: fatigue −25 |
+| The first contract | Pay off the bills: −$250K, confidence +1 | Put it in the bank |
+| One more season? | A farewell tour: hype +15, tributes, you retire after it | Keep it quiet |
+
+A card you leave without answering (Back, or the career simulator) takes the default.
+
+**RPG dialogue boxes**: every story card is now told in one: the speaker's pixel portrait in a frame in their team's
+colors, a name plate (a surname with the role under it: COACH, TEAMMATE, FAMILY, RIVAL; "Your agent" as it is), the card's
+title, and its lines two or three at a time. The text types itself out (90 characters a second; Reduce Motion shows it at
+once); a tap, Enter or A finishes the page, ▼ turns it; the answers appear once the last page is typed (a tap meant to
+skip the text can't pick one), and after a choice the box shows what it did. The high school, college and pro story
+cards (tryout results, grades, recruiting, the coach's words, the trade request, the shoe deal, lifestyle and more) all
+use it; the ones with a speaker got one. Desktop: a 1200×320 box at the bottom of the screen with the two answers side by side; phone: a 1220×520 box with the
+answers stacked full width (so each note fits on a line or two at a readable size).
+
+**The social feed**: THE DAILY DRIBBLE has a SOCIAL tab next to the headlines: fictional posts (@handles, likes that grow
+with your hype and fame) reacting to your games (a win, a loss, an upset, a big night, a title), your highlights, your
+press answers (trash talk gets the most), your college commitment, NIL deals, trades, contract signings, All-Star nods
+and awards. The last 60 are kept.
+
+**Bugs fixed**
+
+- **A zoomed-in UI after the Rest-or-Study chooser** (the desktop audit's screenshots from that screen on showed the
+  top-left quarter of every screen, at 1.6× and growing; R8's desktop audit had it too): the chooser only laid out its
+  buttons on a phone, so on a desktop they were 0×0; drawing a 0×0 button asked the canvas for a negative corner radius,
+  which throws, and the widget's error guard swallowed the throw with the button's canvas state (and its scale) still
+  pushed. Every frame pushed another. Now: rounded rectangles clamp the radius; the chooser has a desktop row; every frame
+  starts from the base transform; a draw that throws resets the canvas on the next frame and is recorded (the tests fail
+  on it: none do); the phone audit flags a widget that was never laid out.
+- The dialogue box's typewriter never ran: a mid-line comment had swallowed its update function. The comment lint now
+  also catches a swallowed method or a `+=`.
+- The trade request said "the Sprinkler Park Sharks's games" (now "the Sharks' games" for a name ending in s).
+- THE DAILY DRIBBLE's Back button ran under the key hint in the corner (desktop); the amateur hub's player card cut off
+  "Still growing · hype N" (now "Growing · hype N"); a tour choice's note didn't fit on a desktop button (now 3 lines).
+- `CONFIG.media.pressGap`'s comment still said every final gets a question (since R8 a pro final's comes with its
+  clincher).
+
+**Saves**: nothing to migrate by hand: the arcs, your family, the social feed, a practice week's story bonus, a rushed
+return and a farewell tour are filled in the first time the story needs them. New fixtures from the R8 build
+(`tests/fixtures/save_r8_*`): a high school career with a story card from before dialogue boxes waiting on the hub (no
+speaker: it is told as yours), and a pro with a trade request waiting (it opens as a dialogue box with its two answers).
+
+**New constants** (`CONFIG.story`, each with a one-line comment): beatsMin 3, beatsMax 5, fillAt 0.6, beatGap 2,
+slumpLosses 3, runWins 4, injuryGames 2, rushInjury 1.5, rushWeeks 4, rehabFatigue 25, extraXp 0.15, extraFatigue 8,
+restFatigue 8, homeConf 1, homeXp 0.1, grindXp 0.05, traitAt 0.4, spotHype 5, spotXp 0.1, billsPro 250000, billsConf 1,
+tourAge 34, tourHype 15, tourRoadHype 1.5, socialMax 60, likesBase 40.
+
+**Tests on the committed build**
+
+- Smoke 120/120 (desktop 1280×720 and phone 844×390). New: the story step (the beats; the family, a named parent with
+  no gendered word, and the mentor, the oldest teammate; the injury call and what each answer costs; a practice week from
+  a choice, spent by the next game; draft night and the first contract always told; the farewell tour; the spotlight at
+  60 hype and a trait's beat once a level; the cap of 5; a quiet season topped up to 3; the social feed; an old save
+  filling in; the story never touching the career's dice), the story screens step (a dialogue box in pages, a choice
+  and what it did, Back taking the default, the SOCIAL tab), and two R8-build migrations.
+- Modes 15/15 · old saves 31/31 (2 new, from the R8 build) · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 111 screens at 844×390 (6 new: a choice card, its answer, a card in pages, the social feed, a pro's
+  tour question and its choice page): nothing flagged, no errors. The same 111 at 1280×720: nothing flagged, no errors.
+  This is where the zoom bug turned up; the audit now also flags a widget that was never laid out.
+- Art Lab: 54 shots, no errors (`shots/r9/round-final/`). Screenshots of the new screens, desktop and phone: `shots/r9/`.
+- §2 gate and the balance harness: identical to R8 line for line.
+- The career simulator, 40 careers (seed 1): 0 stuck; OVR 56 / 69 / 74 at 17 / 21 / 25, peak 79; 0.78 titles a
+  career; Hall of Fame 8% (✗: 3 of 40 careers, the target's 10% is 4). At 200 careers: seed 1 OVR 56 / 68 / 74, 1.14
+  titles, Hall of Fame 16%, every target met; seed 2 OVR@25 73 (✗ at the edge, as in R7 and R8), 0.88 titles, Hall of
+  Fame 13%. The story: 3.27 beats a season; 3 to 5 in 99.6% and 99.7% of the seasons, none under 3, 16 and 13 seasons
+  over 5 (an injury call, a title or draft night on top of a full season); about 45 choices a career.
+- Trait balance (200 careers per trait, seed 1): all 17 in range (Generational +20%, Paint Protector +14%, Late Bloomer
+  −16%).
+- R8's two balance tests on this build. Press, 200 careers: seed 1 Trash talk's titles −8.8% (✗; its legacy −2.5% and
+  earnings +0.5%), seeds 2 and 3 all four in range; 1,000 careers (seed 1): all four in range (Trash talk's titles
+  −4.6%). As in R8, 200 careers move a titles average about ±8% on its own. Hype, 200 careers (seed 1): in range (legacy
+  +0.1%, earnings +1.4%, titles −2.1%).
+- Perf, 844×390 @2x in the pro arena: guard 0 median 24.7 ms, 24.0 on a rerun; the R8 build back to back: 25.0 ms
+  (R8's report: 23.3). No change beyond the machine's own spread.
+
 ## R8 — Hype and the press room: hype 0–100 with real costs, four answers, and both balance tests (the R pass, milestone 8)
 
 Every game is still 1v1 (the change of plan): hype follows you, not a team, and Team first is about your coach and the

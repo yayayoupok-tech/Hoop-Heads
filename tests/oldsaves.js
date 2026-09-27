@@ -14,6 +14,7 @@ const FIX = path.join(__dirname, 'fixtures');
   const act = (i) => ev(i => {
     const g = HH.game; g.ui.update(1 / 60, g.input); const s = g.ui.screen; if (!s) throw new Error('no screen');
     if ((s.name === 'combine' || s.name === 'draft') && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal
+    if (s.name === 'dialog' && s.finish) s.finish(); // R9: type the page out (a choice shows once its text is done)
     const W = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && (w.kind === 'button' || (w.kind === 'custom' && w.onPress))); const by = re => W.find(w => re.test(w.label || ''));
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
     const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
@@ -28,6 +29,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'amdecision': pr(W.find(w => w.primary) || W[0]); break;
       case 'combine': case 'draft': pr(by(/^(DRAFT NIGHT|START YOUR PRO CAREER)$/)); break;
       case 'press': pr(by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break;
+      case 'dialog': pr(by(/^▼$/) || by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break; // R9: a dialogue card (page, continue or a choice)
       case 'amevent': case 'rivalmoment': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres':
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
