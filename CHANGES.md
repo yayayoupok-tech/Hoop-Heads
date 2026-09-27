@@ -3,6 +3,86 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## The playtest pass (L11–L19): the report
+
+Nine milestones, one commit each, every one measured before and after with the spec's own test. The final build is the
+L19 commit, and the artifact is republished from it to the same link. `shots/before-after-l11-l19/` has 29 before/after
+pairs, desktop and phone, captioned with these numbers.
+
+**Every milestone, before and after** (before = the build the spec verified the problem on, L10, or the previous
+milestone's; after = the final build's smoke run unless noted):
+
+| Milestone | The measurement | Before | After | Target |
+| --- | --- | --- | --- | --- |
+| L11 running back on defense | a defender 1.6 m behind a standing handler sprints 3 s for his hoop | never past; moved 1.54 m, shoved the handler 0.69 m | past at 0.36 s without jumping, 90% of speed kept, the handler pushed 0.00 m | past within 0.6 s ✓ |
+| L12 travel and double dribble | jump with the ball, land holding it | no call, dribbled on 2.15 m | TRAVEL 0.000 s after landing, the ball to the other team (Arcade, Sim and half court); a picked-up walk → TRAVEL, a picked-up dribble → DOUBLE DRIBBLE | within 0.2 s ✓; bot travels 0 a game (L12's 30-game run; < 0.2 ✓) |
+| L13 true size | a 2 m player as a share of the court length | 1/5.0 (13 m court, drawn 1.3×) | 1/9.00 (18 m, drawn true size, the floor band 30%) | 1/9–1/10 ✓ |
+| L14 symmetric faces | the 12 lab faces at 256 px, the left half mirrored onto the right | 9.4–18.8% different; eye width ratio 1.29; eye height difference up to 0.036 | 0.04–0.12% (the side part 4.70%, exempt); ratio 1.00; difference 0 | < 3%, 1.00, 0 ✓ |
+| L15 Pixel mode | Pixel vs Smooth, the same frame, outside the players' and ball's boxes | the whole venue quantized to 32 colors and dithered | 0.000% of 873,954 px differ | < 1% ✓ |
+| L16 the 1v1 blob | 60 s of Pro vs Pro, heads tracked on screen (seed 77 · seed 91) | median head overlap in close play 19.8% · 23.3%; a face up to 100% hidden | 0.0% · 0.0%; at most 44.1% · 49.2% hidden (the final smoke's 30 s: 0.0%, 45.2%) | < 30%, ≤ 60% ✓ |
+| L17 the crowd | the fan atlas; the band behind the bodies (Legends Arena) | — ; bright pixels 3.32%, lettering 3.41% | saturation −20.3%, contrast −20.2%; bright 0.00%, lettering 0.00%; the LED ribbon at 2.22–2.58 m above the lowest row (was 0.6–1.0 m); fans 1.45 m in 3 rows (was 0.95 m) | −20% ✓, nothing bright or lettered behind the bodies ✓ |
+| L18 phone layout | 844×390 and 390×844 | 5 controls over the players or the HUD; idle 55% opaque; the jumbotron drawn | 0 over them (all in the floor band under the 70% floor line); idle 40% opaque; no jumbotron; 390×844 the rotate screen | nothing over the court or HUD ✓ |
+| L19 balance | the gate, Legends View | mirror PPP 1.48, team A 44%, Legend beats Pro 77%, brute force 1.00, timing 1.95 | 1.20, 49%, 85%, 0.82, timing 1.47 and reads 1.23 | 0.95–1.25 ✓, 45–55% ✓, 75–95% ✓, ≤ 1.3 ✓, reads beat brute ✓ |
+
+**Every test on the final build**
+
+- Smoke 100/100: desktop 1280×720 and phone 844×390, including every L11–L19 step above.
+- Modes 13/13 · old saves 16/16 · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit: 66 screens, no errors. The smallest text (2.0 px "B") is the venue's own lettering in the background, as
+  since L13.
+- Art Lab: 50 shots, no errors (`shots/l19/round-final/`).
+- The gate (`tests/gate.js`, 300 mirror games, 200 Legend vs Pro, harness 12 a cell):
+
+  | | Legends | Classic |
+  | --- | --- | --- |
+  | Pro mirror PPP | 1.20 ✓ | 1.64 |
+  | Pro mirror: team A wins | 49% ✓ | 50% |
+  | Legend beats Pro | 85% ✓ | 81% |
+  | Harness vs Pro: brute · spam · drives · threes · timing · reads | 0.82 ✓ · 0.18 · 0.68 · 1.00 · 1.47 ✓ · 1.23 | 1.24 · 0.37 · 1.53 · 1.60 · 2.05 · 1.82 |
+
+- The balance harness (`balance.js 12 21`, Classic): brute force 1.24 ✓, timing 2.05 ✓, Legend beats Pro 79% ✓.
+- The career simulator (40 careers): median OVR at 17 / 21 / 25 = 57 / 69 / 77, peak 79, titles 1.02 a career, Hall of
+  Fame 13%, 0 stuck. Every target passes.
+- Perf (844×390 @2x, the pro arena): guard level 0 22.0 / 36.7 ms (median / p95), level 1 19.4 / 26.2 ms, level 4
+  11.0 / 16.7 ms. At 4× CPU the guard reaches level 4 by itself (67.7 ms). L14 was 18.1 / 26.9 ms at level 0. The
+  difference is the full-resolution Smooth venue that L15 asks for (L15's notes have the breakdown).
+
+**Deviations, with reasons**
+
+- **L14:** the spec's `reference/` folder didn't exist. `reference/face-construction.png` is a construction sheet drawn
+  from the spec's proportions, and the three visual rounds were made against it. Modes, old saves, dev tools and the
+  phone audit ran on L14's first cut; smoke, Art Lab and perf ran again on the optimized paint.
+- **L13:** the ratings spread matters less on an 18 m court, so the All-Star fan vote gained a star-power term for it to
+  keep picking stars. The PPP target moved to L19, as the spec planned.
+- **L15:**
+  - Deleting the pixel font and dithering took the pixel menus, digits and callouts with them. The Art Lab's Pixel check
+    went from 4 pages to 2.
+  - The venue's far layer and crowd went to full resolution in both modes, so the banners are crisp. This costs 4–5 ms
+    a frame on a phone-sized CPU canvas. Guard level 1 falls back to half resolution.
+- **L16:** heads are measured geometrically (each pose's head ellipse, 60 samples a second), not from pixel masks.
+- **L17:**
+  - The bigger-fan rows are in the Legends Arena and in the pro arena in Legends View. The college arena and the gym keep
+    their crowds but get the dark band.
+  - The pro arena's foreground silhouettes are hidden in Legends View.
+  - The crowd filter is `saturate(1.08) contrast(0.8)`: contrast alone already pulls saturation down 23%, and
+    `saturate(0.8)` with it measured −34%.
+- **L18:**
+  - The spec calls 390×844 "the rotate screen", so a portrait phone keeps it for matches too. A portrait match layout was
+    built and dropped.
+  - "The court" is read as the players' zone, down to a near-lane player's feet. The controls sit on the painted floor
+    band under it, 40% opaque while idle.
+- **L19:** the listed levers alone stalled at 1.33 PPP. Each extra miss came back to the offense, because rim misses
+  bounced to the finisher 71% of the time. A 1.3 s finisher recovery (Legends View only) was added to the contests,
+  closeouts, contested layups and the 10 s clock. The career simulator is unchanged by L19: its league games use the
+  ratings model.
+- **Tests:**
+  - The phone stick-drag smoke step was made robust twice: it holds for game time, not wall time, and it drags away from
+    the opponent, because walking into a set handler is real contact (L11). It still requires 0.3 m of movement.
+  - The gate's PPP target is now the spec's 0.95–1.25 (was 0.90).
+- **Runs:** not every milestone ran the whole suite. L15 and L16 skipped the gate (the spec doesn't ask for it there;
+  L16's contact change shows in L19's "before" gate), and L17 and L18 ran smoke, phone audit and Art Lab only. The final
+  build ran everything above.
+
 ## L19 — Balance: the Legends mirror into 0.95–1.25 PPP (playtest pass, milestone 19)
 
 The playtest: the Pro mirror scored 1.44 points per possession (L10). On the L13 layout with the L11–L12 rules (and

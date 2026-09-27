@@ -172,6 +172,9 @@ three rows of 1.45 m fans; nothing bright or lettered behind the bodies.)* **L18
 70% floor line, 40% opaque when idle; no jumbotron on phones; 390×844 keeps the rotate screen.)* **L19 — Balance the Legends mirror** *(done: Pro mirror 1.48 → 1.20 PPP with a 10 s clock, farther and
 stronger contests, tighter closeouts and a 1.3 s finisher recovery; team A 49%, Legend beats Pro 85%, brute force 0.82.)*
 
+**Finish** *(done: the before/after gallery in `shots/before-after-l11-l19/`, every test's numbers and the deviations in
+CHANGES.md's report, and the artifact republished.)*
+
 ## Testing every milestone
 
 ```

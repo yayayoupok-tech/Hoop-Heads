@@ -8,7 +8,7 @@ Big-head caricature players drawn in code, bouncy physics, dunks, blocks, hooks,
 
 Open `index.html` in a current Chrome, Safari, Firefox or Edge. It works from a double-click on the file and when hosted on any static host (GitHub Pages, Vercel). Landscape only on phones. If the page is embedded in another page, click the court once so it receives the keyboard.
 
-On a phone every button is at least 64 px, and long screens (settings, Quick 1v1, the face editor, lists) turn into pages with ◀ ▶. If a match runs slow, a frame guard sheds cost one step at a time: the crowd at 15 Hz, then no floor reflections, then no bloom, then a lower resolution for the match.
+On a phone every button is at least 64 px, and long screens (settings, Quick 1v1, the face editor, lists) turn into pages with ◀ ▶. If a match runs slow, a frame guard sheds cost one step at a time: the crowd at 15 Hz and half resolution, then no floor reflections, then no bloom, then a lower resolution for the match. In a Legends View match the thumb controls sit in the strip of floor under the players, and they fade to 40% while you aren't touching them.
 
 ## The career
 
@@ -59,7 +59,9 @@ Height is a trade-off, not a win button. In headless engine tests (Pro bots, 2:0
 
 Dribble moves: crossover (Move), spin (Sprint + Move), step-back (stick away from the hoop + Move), hesitation (tap Sprint), pump fake (tap Shoot). Dunk by driving hard at the rim and pressing Shoot: one-hand, two-hand, tomahawk, windmill or 360, depending on your Hops and height.
 
-**Defense.** A set defender is a wall: running into one just stops you, and sprinting into one that's planted can be a charge (Settings can turn charges off). Getting past takes a move, a read or a quicker first step. Beaten? Race to the rim in the next lane over and jump as they go up. Bots do all of this with the same buttons. Euro-step by flipping the stick during a layup gather. Pausing a career game offers "Sim the rest of the game" (career games always count).
+**Ball rules.** Jumping with the ball commits you to a shot or a pass: landing with it is a travel. A dribble you pick up (a pump fake from a standstill, or a catch) can pivot, but walking more than 0.3 m is a travel, dribbling again is a double dribble, and holding it for 5 s while closely guarded is a turnover. Legends View plays a 10 s shot clock.
+
+**Defense.** A set defender is a wall: running into one just stops you, and sprinting into one that's planted can be a charge (Settings can turn charges off). Getting past takes a move, a read or a quicker first step. Bodies only block in real contact (a drive into a set defender, box-outs, post-ups): everywhere else players pass through each other, so a defender running back can go straight past the ball handler. In Legends View a player who misses a layup, dunk or tip can't grab his own rebound for 1.3 s. Beaten? Race to the rim in the next lane over and jump as they go up. Bots do all of this with the same buttons. Euro-step by flipping the stick during a layup gather. Pausing a career game offers "Sim the rest of the game" (career games always count).
 
 ### How accuracy works
 
@@ -85,6 +87,7 @@ node tests/smoke.js                # the whole game through the UI at 1280×720,
                                    # regression checks, and the phone layout with touch at 844×390 (zero errors allowed)
 node tests/devtools.js             # bot sims (1v1 Pro mirror, Legend vs Pro, 3v3), shot lab, tunneling test
 node tests/balance.js [n]          # a scripted "human" plays real matches: points per possession by strategy vs Pro and Legend
+node tests/gate.js [n] [perCell]   # the balance gate: Legends and Classic Pro mirror PPP, Legend vs Pro, and the harness by layout
 node tests/stylemix.js [n]         # bots play to their build: post-ups, jumpers, threes and drives by play style
 node tests/heighttest.js [n]       # 2.12 m against 1.82 m, with and without the career's height shifts
 node tests/careersim.js [40] [seed] [--set career.proMean=83 ...]   # whole simulated careers against the career targets
