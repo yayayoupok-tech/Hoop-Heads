@@ -62,7 +62,7 @@ const { launch, openPage } = require('./lib');
         } else { inv.push('unknown phase ' + c.phase); break; }
       }
       if (guard >= 4000) { rec.stuck = true; inv.push('guard hit'); }
-      const L = c.legacy || legacyOf(c); rec.L = { titles: L.titles, mvps: L.mvps, allL: L.allL, seasons: L.seasons, pts: Math.round(L.pts / CR.legacy.ptsPer), ppg: +(L.ppg || 0).toFixed(1) }; rec.titles = L.titles; rec.mvps = L.mvps; rec.legacy = L.score; rec.hof = L.hof; rec.money = Math.round(c.me.money || 0); rec.social = (c.me.social || []).length; rec.arcLog = (a.arcLog || []).concat(c.me.arcLog || []); rec.earned = Math.round(c.me.earned || 0); rec.ovr = ages; rec.inv = inv.slice(0, 5); rec.hFinal = me.h;
+      const L = c.legacy || legacyOf(c); rec.L = { titles: L.titles, mvps: L.mvps, allL: L.allL, seasons: L.seasons, pts: Math.round((L.ptsN != null ? L.ptsN : L.pts) / CR.legacy.ptsPer) /* F5: the legacy counts points per the old game length */, ppg: +(L.ppg || 0).toFixed(1) }; rec.titles = L.titles; rec.mvps = L.mvps; rec.legacy = L.score; rec.hof = L.hof; rec.money = Math.round(c.me.money || 0); rec.social = (c.me.social || []).length; rec.arcLog = (a.arcLog || []).concat(c.me.arcLog || []); rec.earned = Math.round(c.me.earned || 0); rec.ovr = ages; rec.inv = inv.slice(0, 5); rec.hFinal = me.h;
       results.push(rec);
     }
     return results;

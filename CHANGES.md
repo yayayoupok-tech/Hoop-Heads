@@ -3,6 +3,76 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F5 — One-minute games (the F pass, milestone 5)
+
+The user: "games shouldn't be this long, like 1 min imo".
+
+**Every career game is now one timed minute.** This covers high school, college, the pros, the playoffs and the All-Star 1v1.
+- A tie at the buzzer goes to a sudden-death overtime: the first basket wins. If nobody scores in the 30 s overtime,
+  another one starts.
+- Settings → Gameplay → Career game length offers 1, 2 or 3 minutes. The create screen has it too; it replaces the old
+  "Pro games" choice of half length. Simulated games use the same length.
+- Quick 1v1 starts on "One minute". The timed halves and first-to formats are still in its list.
+- Two short games stay first-to: the high school tryout 1v1 and the depth-chart challenges (first to 7). They take
+  about a minute already.
+- The HUD reads "1:00 GAME" (or "GAME" when that doesn't fit) instead of "1ST HALF".
+
+How long a game takes: AI against AI at Pro, a one-minute game runs about 70 s including dead balls, and about
+100–110 s when it goes to overtime (in 12–14% of games). Before, the formats averaged 133 s (first to 15), 186 s
+(first to 21) and 275 s (two 2:00 halves).
+
+**Everything fitted to the old lengths is rescaled, so a season plays like before.** `gameScale(stage)` is this game
+length over the old format's clock: high school 119 s, college 169 s, the pros 240 s.
+- The league model (pro simulated games):
+  - points and box-score counts × the scale;
+  - a floor of round(6 × scale) points;
+  - never exactly 1 point;
+  - a tie becomes a one-basket overtime in which the better player keeps half their edge (`CR.otSimEdge`).
+- Amateur simulated games: the winner scores about 8.4 a minute; the loser scores 35–90% of that (the old split).
+- Measured per side, one-minute sim against the engine: pro 9.1 points against the model's 35.8 at the old length. The
+  favourite wins 71.5% at both lengths.
+- These now count per the old length:
+  - XP from a stat line, and game grades;
+  - fame per point and per highlight, and hype from highlights;
+  - the headline and "big night" thresholds;
+  - the MVP score;
+  - college draft stock and the NIL trigger;
+  - a season's points a game for the draft and recruiting (`ppgN` in the log);
+  - the legacy's points (`careerStats.ptsN`).
+- A blowout now also needs a 4-point margin (a 5–2 minute isn't one).
+- "Crunch time" in a one-period game is its last quarter (at most 30 s); the "first half" is the first half of the
+  clock.
+
+**Found and fixed on the way:**
+- The hidden trait only revealed itself in a season you played. A sophomore on the bench waited a year. The team's
+  games now count, bench weeks too; the new random rolls exposed this in the smoke test.
+- Late Bloomer starts 4 overall lower, not 5. Its median legacy was −24% of all traits' with one-minute games (−16%
+  before); it is now −12%.
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `career.gameSecs` / `gameSecsOptions` | 60 / 60, 120, 180 s | a career game's single period (Settings → Gameplay) |
+| `career.otSecs` | 30 s | a sudden-death overtime |
+| `career.simWinPts` | 8.4 | a simulated amateur winner's points a minute (the engine's AI vs AI average) |
+| `career.simRefSecs` | hs 119 · college 169 · pro 240 s | the game clock that scores like each old format |
+| `career.otSimEdge` | 0.5 | a simulated pro overtime keeps half the better player's edge |
+| `media.blowoutMinPts` | 4 | a blowout needs this margin too |
+| `traits.crunchShare` | 0.25 | crunch time in a one-period game |
+| `traits.list.latebloomer.start` | −4 (was −5) | Late Bloomer's head start |
+
+| Test | Result |
+| --- | --- |
+| Smoke | 130 of 130. The new F5 step covers the format, the setting, a tie going to sudden death, simulated scores and box lines, grades per the old length, the quick-play default and the HUD. The first run failed on the trait reveal above. |
+| Modes | 13 of 13, including a new one-minute quick game |
+| Old saves | 31 of 31 |
+| Dev tools | all OK |
+| Phone audit | no errors |
+| Art Lab | no errors |
+| §2 gate, balance | ✓ (the engine is unchanged) |
+| Career simulator (40, seed 1) | OVR 56 / 68 / 75, peak 78, titles 1.02, Hall of Fame 18%: every target met |
+| Career simulator (seed 2) | titles 0.47, Hall of Fame 5%. On this seed the pre-F5 build scores 0.82 and 5%: seed noise. |
+| Trait balance | every trait in range once Late Bloomer was retuned |
+
 ## F3–F4 — The lag and the overlapping text (the F pass, milestones 3 and 4)
 
 The user: "the game lags a LOT, especially during dunking" and "text overlaps, so we can't read other stuff".

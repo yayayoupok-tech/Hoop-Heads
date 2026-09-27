@@ -11,17 +11,18 @@ const { launch, openPage, runner } = require('./lib');
   const waitScreen = async (re, ms) => { const t0 = Date.now(); let s = ''; while (Date.now() - t0 < (ms || 15000)) { s = await P.screen(); if (re.test(s)) return s; await wait(150); } throw new Error('waited for ' + re + ', still on ' + s); };
   const waitMatch = async () => { const t0 = Date.now(); while (Date.now() - t0 < 8000) { if (await ev(() => !!(HH.game.match && HH.game.mode === 'match'))) return; await wait(150); } throw new Error('no match started'); };
   // bots take over and the match runs to its end in the page (cap in game seconds)
-  const finish = async (cap) => { await waitMatch(); await wait(600); const r = await ev(cap => { const g = HH.game, m = g.match; for (const p of m.players) p.controlled = false; let n = 0; const over = () => m.ended || (m.contest3 && m.contest3.done); while (!over() && n < 120 * cap) { simStep(m, STEP); n++; } return { ended: over(), secs: Math.round(n / 120), score: m.contest3 ? 'contest ' + m.contest3.score : m.teams.map(t => t.score).join('-') }; }, cap || 1200); if (!r.ended) throw new Error('not over after ' + r.secs + ' s (' + r.score + ')'); return r; }; // the game loop ends a finished 3-point contest
+  const finish = async (cap) => { await waitMatch(); await wait(600); const r = await ev(cap => { const g = HH.game, m = g.match; for (const p of m.players) p.controlled = false; let n = 0; const over = () => m.ended || (m.contest3 && m.contest3.done); while (!over() && n < 120 * cap) { simStep(m, STEP); n++; } return { ended: over(), secs: Math.round(n / 120), total: Math.round(m.time), fmt: { type: m.format.type, half: m.format.half, periods: m.periods }, score: m.contest3 ? 'contest ' + m.contest3.score : m.teams.map(t => t.score).join('-') }; }, cap || 1200); if (!r.ended) throw new Error('not over after ' + r.secs + ' s (' + r.score + ')'); return r; }; // the game loop ends a finished 3-point contest
   const frames = async () => { const fx = await P.frameErrors(); if (fx.length) throw new Error('frame exceptions: ' + fx.slice(0, 3).join(' | ')); };
-  const quick = (label, opts) => R.step(label, async () => {
-    await toMenu(); await press(/Quick 1v1/, /^quick$/); await ev(o => { Object.assign(HH.game.quickOpts, o); }, opts); await press(/^PLAY$/); const a = await finish();
+  const quick = (label, opts, check) => R.step(label, async () => {
+    await toMenu(); await press(/Quick 1v1/, /^quick$/); await ev(o => { Object.assign(HH.game.quickOpts, o); }, opts); await press(/^PLAY$/); const a = await finish(); if (check) check(a);
     await waitScreen(/^postgame$/); await press(/^Rematch$/); const b = await finish(); await waitScreen(/^postgame$/); await press(/^Menu$/, /^menu$/); await frames();
     console.log('     ' + a.score + ' in ' + a.secs + ' s, rematch ' + b.score + ' in ' + b.secs + ' s');
   }, P);
   await ev(() => { localStorage.clear(); HH.game.save = new SaveSystem(); window.HH_ERRORS = []; }); await toMenu();
-  await quick('quick 1v1: arcade full court, first to 11', { ruleset: 0, format: 3 });
-  await quick('quick 1v1: street sim, timed 1:30 halves', { ruleset: 1, format: 0 });
-  await quick('quick 1v1: street half court, 1s and 2s, make-it-take-it', { ruleset: 2, format: 6, halfScoring: 1, mitt: true });
+  await quick('quick 1v1: one minute (F5: the default format), arcade full court', { ruleset: 0 }, a => { if (!(a.fmt && a.fmt.half === 60 && a.fmt.periods === 1)) throw new Error('not a one-minute game: ' + JSON.stringify(a.fmt)); if (a.total > 150) throw new Error('a one-minute game ran ' + a.total + ' s'); });
+  await quick('quick 1v1: arcade full court, first to 11', { ruleset: 0, format: 4 });
+  await quick('quick 1v1: street sim, timed 1:30 halves', { ruleset: 1, format: 1 });
+  await quick('quick 1v1: street half court, 1s and 2s, make-it-take-it', { ruleset: 2, format: 7, halfScoring: 1, mitt: true });
   await R.step('3-point contest: 60 s, the scores, try again', async () => {
     await toMenu(); await press(/^Practice$/, /^practicehub$/); await press(/3-Point Contest/, /^threept$/); await press(/^START$/); const a = await finish(200); await waitScreen(/^postgame$/);
     const sc = await ev(() => HH.game.match.contest3.score); await press(/^Try again$/); await finish(200); await waitScreen(/^postgame$/); await press(/^Menu$/, /^menu$/); await frames(); console.log('     score ' + sc + ' after ' + a.secs + ' s');

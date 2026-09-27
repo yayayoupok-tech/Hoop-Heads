@@ -226,8 +226,9 @@ time and on every new move); a dunk's shake re-baked the arena; a posterizer fro
 desktop 22.1 → 13.7 ms, phone 33.1 → 17.0.
 **F4 — Text** *(done)* — menus size the pixel font from their letterboxed area (square and tall windows drew text up
 to 1.8× too big); an overlap audit of every string at six window sizes and a HUD audit find nothing.
-**F5–F6 — One-minute games and harder XP** — timed one-minute career games with sudden death; slower progression; the
-career simulator retuned.
+**F5 — One-minute games** *(done)* — every career game is one timed minute (Settings: 1, 2 or 3) with sudden-death
+overtime; the league model and every per-game number scale with the length, so a season plays like before.
+**F6 — Harder XP** — every XP source pays less and the top steps cost more; the career simulator retuned.
 **F7 — Teams** — star-rated pro franchises with rosters; no draft: teams sign you by level; moving up through free agency
 and trade requests; the goal is starring for a top team; the hub organized like Retro Bowl's front office.
 **F8 — Shop** — gear bought with money: small capped bonuses, visible on the player, balance-tested.
