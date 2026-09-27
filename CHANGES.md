@@ -3,6 +3,45 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F9 — The stats guide (the F pass, milestone 9)
+
+The user: "add something that allows us to see stats, like for example what does hype do or fame etc."
+
+**A stats guide covers every number the career shows.** Each entry has your value right now, what it does in the
+game's own numbers and how to move it. The numbers are read from CONFIG, so the guide changes when the rules change.
+
+| Topic | Entries |
+| --- | --- |
+| OVR & ratings | OVR; the seven ratings, each with what it does in a game; XP (the price of your next +1 in your focus) |
+| Hype, fame, confidence | hype, with every BUZZ line (what it earns you and what it costs you right now); fame; confidence |
+| Fatigue, injuries, gear | fatigue (how much it takes off your ratings right now); the injury chance per game; your gear |
+| Team & pro value | coach trust; the depth chart; your value and the five bars (pros); your franchise's stars (pros); your pro stock and the scouts' bars (amateurs) |
+| Money & school | money or cash; GPA (high school); legacy and the Hall of Fame threshold |
+
+- Hype is the example the user named. The entry lists what yours earns you (sponsors, contract, All-Star votes, home
+  crowd) and costs you (losses shake you more; defenses key on you at 60; the media eats practice at 70; a fired-up
+  rival). It also says how it moves: a win +1, a big night +2.5, 10% off a week without a big night.
+- **Where to find it:**
+  - the pros: the Career menu's new Stats guide tile;
+  - high school and college: the Stats screen;
+  - anyone: How to play. With no career, it shows the rules without values.
+- A long topic splits into two columns on a desktop. On a phone the topic picker sits in the bottom bar with Back.
+
+| Test | Result |
+| --- | --- |
+| Smoke | 134 of 134. The F9 step: five topics; each meter's value right now and what it does, in CONFIG's numbers; the guide from the Career menu, the amateur Stats screen and How to play. |
+| Modes | 13 of 13 |
+| Old saves | 31 of 31 |
+| Dev tools | all OK |
+| Screen audit | phone 128 and desktop 130 screens, none flagged (every guide topic, pro and amateur, included); phone at 1.25× text, none flagged; desktop at 1.25× text, 3 flagged: the press answers' quotes (the known limit, below) |
+| Art Lab | 54 screenshots, no errors |
+| Gate, balance | ✓ (brute force vs Pro 1.00 PPP; Legend beats Pro 78%) |
+| Career simulator | seed 1: every target met (titles 0.90, Hall of Fame 15%); seed 2: every target met (0.65, 5%) |
+| Trait balance | every trait in range |
+
+**Known limit.** At 1.25× text on a desktop, a press answer's quote is cut to one line. Two lines don't fit four answers on
+the panel, and the answer and what it does stay whole (R10 made the same call).
+
 ## F8 — A gear shop: small edges you can buy (the F pass, milestone 8)
 
 The user: "add items you can buy to improve some stuff, nothing too broken though".

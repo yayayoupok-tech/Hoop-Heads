@@ -110,6 +110,24 @@ const FIX = path.join(__dirname, 'fixtures');
     const am = amCreate(defaultSave(), { name: 'XP Test', look: PRESET_LOOKS[1], number: 4, style: 'slasher', seed: 9 }); const s1 = amSessionXp(am, 'normal'), d1 = amDrillXp(am, 'shooting', 'normal', 20); CR.xpEarn = 1; const s2 = amSessionXp(am, 'normal'), d2 = amDrillXp(am, 'shooting', 'normal', 20); CR.xpEarn = e0;
     if (Math.abs(s1 / s2 - e0) > 1e-9 || Math.abs(d1 / d2 - e0) > 1e-9) throw new Error('practice ×' + (s1 / s2).toFixed(3) + ', a drill ×' + (d1 / d2).toFixed(3));
   }));
+  await step('F9: the stats guide: five topics with every meter, its value right now and what it does in CONFIG\'s numbers (hype, fame, confidence, fatigue, injuries, gear, trust, the depth chart, value, franchise stars, money, GPA, legacy); from the Career menu, the amateur Stats screen and How to play', () => ev(() => {
+    const g = HH.game, keep = g.save.data; const cv = document.createElement('canvas'); cv.width = 1280; cv.height = 720; const ctx = cv.getContext('2d'); const draw = s2 => { ctx.save(); s2.draw(ctx, g.ui); (s2.widgets || []).forEach(w => { if (w.draw) w.draw(ctx, false, g.ui); }); ctx.restore(); };
+    const texts = topic => guideEntries(g, topic).map(e => e.title + ' [' + e.value + '] ' + e.lines.map(l => l[0]).join(' ')).join(' | ');
+    try {
+      // a pro: the live values and the rules' numbers
+      const sv = defaultSave(); const c = testProLeague(21, sv); sv.career = c; g.save.data = sv; c.events.length = 0; c.me.hype = 64; c.me.fame = 38; c.me.fatigue = 58; c.me.confidence = 1.5; c.me.gear = { sleeve: 2 };
+      const all = GUIDE_TOPICS.map(t => texts(t[0])).join(' || ');
+      for (const want of ['Hype [64 / 100]', 'Fame [38 / 100]', 'Confidence [+1.5]', 'Fatigue [58 / 100]', 'now: −8%', 'Shooting +1', 'fame / ' + FRN.fameDiv, '5★ ' + FRN.bar[4], 'Your franchise [' + frMine(c) + '★]', CR.hofScore + ' gets you into the Hall of Fame', 'Coach trust', 'Depth chart', 'Money [']) if (all.indexOf(want) < 0) throw new Error('the pro guide lacks "' + want + '"');
+      if (mdBuzzLines(c).some(([l]) => all.indexOf(l) < 0)) throw new Error('the hype entry shows every BUZZ line');
+      for (const t of GUIDE_TOPICS) draw(statsGuideScreen(g, t[0])); draw(careerMenuScreen(g)); if (!careerMenuScreen(g).widgets.some(w => w.label === 'Stats guide')) throw new Error('the Career menu links it');
+      // an amateur: cash, GPA and the pro stock instead of money and value
+      const sv2 = defaultSave(), a = amCreate(sv2, { name: 'Guide Test', look: PRESET_LOOKS[1], number: 9, style: 'slasher', seed: 6161 }); a.events.length = 0; a.cash = 1450; g.save.data = sv2;
+      const am = GUIDE_TOPICS.map(t => texts(t[0])).join(' || '); for (const want of ['Cash [$1,450]', 'GPA [' + a.gpa.toFixed(2) + ']', 'Your pro stock', FRN.rookieBar[1] + '']) if (am.indexOf(want) < 0) throw new Error('the amateur guide lacks "' + want + '"');
+      if (am.indexOf('Your value') >= 0) throw new Error('no pro value for an amateur'); draw(statsGuideScreen(g, 'buzz')); if (!amHistoryScreen(g).widgets.some(w => w.label === 'Stats guide')) throw new Error('the Stats screen links it');
+      // no career: the rules without values
+      g.save.data = defaultSave(); const none = guideEntries(g, 'buzz'); if (!none.length || none.some(e => e.value)) throw new Error('no career: no values'); draw(statsGuideScreen(g, 'you')); if (!howToScreen(g).widgets.some(w => w.label === 'Stats guide')) throw new Error('How to play links it');
+    } finally { g.save.data = keep; }
+  }));
   await step('F8: gear: six pieces, three levels (Basic, Pro, Elite); a rating piece adds CONFIG.gear.rating a level in games (wkEff: played, simmed and practice challenges), braces cut the injury chance, the kit cuts fatigue; cash or money pays; it comes along to the pros and shows on your player; OVR and value do not move', () => ev(() => {
     const g = HH.game, sv = defaultSave(), a = amCreate(sv, { name: 'Gear Test', look: PRESET_LOOKS[3], number: 4, style: 'shooter', seed: 5151 }); a.events.length = 0; a.fatigue = 0; a.injury = null;
     // buying: the price of the next level, from cash; no money, no gear; three levels at most

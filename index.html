@@ -8790,13 +8790,13 @@ function practiceHubScreen(game) {
 function confirmScreen(game, text, onYes) { const items = [btn('Yes', 0, 0, 0, 0, () => { game.ui.pop(); onYes(); }), btn('No', 0, 0, 0, 0, () => game.ui.pop())]; column(items, UI_W / 2 - 150, 340, 300, 46, 10); const pb = phoneGrid(game.ui, items, UI_W / 2 - 260, 340, 520, 2, 0, 12); return { widgets: items, overlay: true, name: 'confirm', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 280, 230, 560, pb ? pb - 200 : 240, UI_PANEL2); ctx.font = fontStr(20, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, text, UI_W / 2, 262, 500, 26); } }; }
 // (R10: the settings screen lives in 148_ui_polish.js: five tabs)
 function howToScreen(game) {
-  const items = [btn('Play the tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; items[0].x = 120; items[1].x = 460; for (const w of items) { w.y = 640; w.w = 320; w.h = 46; } // side by side under the tips
+  const items = [btn('Tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Stats guide', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)))]; for (const w of items) { w.y = 640; w.h = 46; } Object.assign(items[0], { x: 60, w: 300 }); Object.assign(items[2], { x: 372, w: 240 }); Object.assign(items[1], { x: 624, w: 190 }); // side by side under the tips, before ◀ Tip / Tip ▶ (F9: the stats guide)
   const P = game.ui.phone; let tip = 0;
   const rows = [['Action', 'Keys A', 'Keys B', 'Gamepad', 'Touch'], ['Move', 'A / D', '← / →', 'Stick', 'Stick'], ['Jump · block · rebound', 'W, Space', '↑, Space', 'A', 'JUMP'], ['Stance · post up (hold)', 'S', '↓', 'LT', 'Stick down'], ['Shoot · tap: pump fake', 'J', 'Z', 'X', 'SHOOT'], ['Fadeaway jumper', 'K', 'X', 'B', 'FADE'], ['Dribble move · steal', 'L', 'C', 'Y', 'MOVE'], ['Sprint · tap: hesitation', 'Shift', 'Shift', 'RT', 'Stick past 85%'], ['Pause', 'Esc, P', 'Esc, P', 'Start', 'Pause']];
   const tips = ['Shots: hold Shoot and release at the top of the jump; the meter shows the window. A tap is a pump fake: it picks up your dribble. Fadeaway: the same with Fade.', 'Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.', 'Violations: once a pump fake picks up your dribble you can pivot, shoot or fade, but a dribble move is a double dribble and walking with the ball is a travel. Jump with it and land with it: a travel. Hold it 5 seconds while guarded: a held ball. Each one gives the ball away.'];
   if (P) { // phones: the touch column of the table, then one tip at a time in bigger type
     const h = tapH(game.ui, 44), y = UI_H - h - 12; const nav = [btn('◀', 40, y, 130, h, () => { tip = (tip + tips.length - 1) % tips.length; }), btn('▶', 178, y, 130, h, () => { tip = (tip + 1) % tips.length; })];
-    Object.assign(items[0], { x: 316, y, w: 560, h }); Object.assign(items[1], { x: 884, y, w: 356, h }); items.push(...nav); }
+    Object.assign(items[0], { x: 316, y, w: 380, h }); Object.assign(items[2], { x: 704, y, w: 300, h }); Object.assign(items[1], { x: 1012, y, w: 228, h }); items.push(...nav); }
   else items.push(btn('◀ Tip', 840, 640, 150, 46, () => { tip = (tip + tips.length - 1) % tips.length; }), btn('Tip ▶', 1000, 640, 150, 46, () => { tip = (tip + 1) % tips.length; })); /* desktop too: one tip at a time */
   return { widgets: items, name: 'howto', draw(ctx, ui) {
       if (P) { ui.panel(ctx, 20, 10, 1240, 700); ui.title(ctx, 'HOW TO PLAY', 44, 48, 34); kitChip(ctx, 'TIP ' + (tip + 1) + ' / ' + tips.length, 1236, 48, { size: 20, color: UI_CYAN, align: 'right' });
@@ -9304,7 +9304,7 @@ function amStandingsScreen(game) {
   } };
 }
 function amHistoryScreen(game) {
-  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; const P = phoneBar(game.ui, items, null, 40, 300); // phones: a 64 px Back, bottom left
+  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop()), btn('Stats guide', 280, 640, 260, 48, () => game.ui.push(statsGuideScreen(game)), { primary: true })]; const P = phoneBar(game.ui, items, null, 40, 700); // phones: a 64 px Back and the stats guide (F9), bottom left
   return { widgets: items, name: 'amhistory', draw(ctx, ui) {
     ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'YOUR STORY SO FAR', 60, 70, 40);
     const S = c.seasonStats || { g: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0 }, T = c.totals; const per = (x, g) => g ? (x / g).toFixed(1) : '0.0'; const pct = (m, a) => a ? Math.round(100 * m / a) + '%' : '–';
@@ -11634,11 +11634,11 @@ function frMigrate(c) {
 // ---------------- the hub's goal banner (F7) ----------------
 // { label, line, frac }: the goal, where you stand, and a bar (your value against the next bar, or the depth chart).
 function frGoalBanner(c) {
-  const G = frGoalNow(c); if (!G) return { label: 'EVERY GOAL DONE', short: 'ALL GOALS DONE', line: 'A title with a 5★ team. Everything from here is legacy.', frac: 1, done: true };
+  const G = frGoalNow(c); if (!G) return { label: 'EVERY GOAL DONE', short: 'ALL GOALS DONE', line: 'Done. Everything now is legacy.', frac: 1, done: true }; /* goal lines stay short: the hub's banner is 448 wide */
   const v = frValue(c), s = frMine(c);
-  if (G.k === 's3' || G.k === 's5') { const want = G.k === 's3' ? 3 : 5, bar = FRN.bar[want - 1], ok = v >= bar; return { label: 'GOAL · ' + G.label, short: 'GOAL ' + want + '★ ' + (ok ? 'READY' : Math.floor(v) + '/' + bar), line: ok ? 'Your value reaches ' + want + '★ teams: sign or trade your way there.' : want + '★ teams call at ' + bar + ' · you: ' + Math.floor(v), frac: clamp01(v / bar), stars: s }; }
-  if (G.k === 'start5') { const r = ladderRank(c); return { label: 'GOAL · ' + G.label, short: 'GOAL START 5★', line: s < 5 ? 'Get back to a 5★ team first (yours: ' + s + '★).' : r === 1 ? 'You are on the top rung: play the next game.' : 'Depth chart #' + r + ': win a practice challenge to move up.', frac: s < 5 ? 0.5 : r === 1 ? 1 : 1 / r, stars: s }; }
-  return { label: 'GOAL · ' + G.label, short: 'GOAL 5★ TITLE', line: s < 5 ? 'Win it all on a 5★ team (yours: ' + s + '★).' : 'Win the title with the ' + clubOf(meOf(c).club).name + '.', frac: s < 5 ? 0.6 : 0.8, stars: s };
+  if (G.k === 's3' || G.k === 's5') { const want = G.k === 's3' ? 3 : 5, bar = FRN.bar[want - 1], ok = v >= bar; return { label: 'GOAL · ' + G.label, short: 'GOAL ' + want + '★ ' + (ok ? 'READY' : Math.floor(v) + '/' + bar), line: ok ? 'Ready: ' + want + '★ teams would sign you.' : want + '★ teams call at ' + bar + ' · you: ' + Math.floor(v), frac: clamp01(v / bar), stars: s }; }
+  if (G.k === 'start5') { const r = ladderRank(c); return { label: 'GOAL · ' + G.label, short: 'GOAL START 5★', line: s < 5 ? 'First, a 5★ team again (now ' + s + '★).' : r === 1 ? 'Top rung: play the next game.' : 'Depth chart #' + r + ': win a challenge.', frac: s < 5 ? 0.5 : r === 1 ? 1 : 1 / r, stars: s }; }
+  return { label: 'GOAL · ' + G.label, short: 'GOAL 5★ TITLE', line: s < 5 ? 'Win it on a 5★ team (now ' + s + '★).' : 'Win the title with the ' + clubOf(meOf(c).club).abbr + '.', frac: s < 5 ? 0.6 : 0.8, stars: s };
 }
 function drawGoalBanner(ctx, ui, B, x, y, w) {
   ctx.fillStyle = 'rgba(255,210,63,0.10)'; ctx.beginPath(); roundRectPath(ctx, x, y, w, 64, 10); ctx.fill(); ctx.strokeStyle = 'rgba(255,210,63,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -11648,7 +11648,7 @@ function drawGoalBanner(ctx, ui, B, x, y, w) {
 // The Career menu (F7): your player, the news, the trophy case, the timeline.
 function careerMenuScreen(game) {
   const c = careerOf(game); if (!c) return mainMenu(game);
-  const items = [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game)), { sub: 'ratings · moves' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: 'headlines · the feed' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { sub: 'every award you won' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { sub: 'your career by age' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  const items = [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game)), { sub: 'ratings · moves' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: 'headlines · the feed' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { sub: 'every award you won' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { sub: 'your career by age' }), btn('Stats guide', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)), { sub: 'what each stat does' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; /* F9: the stats guide */
   const tiles = items.slice(0, -1), back = items[items.length - 1]; tiles.forEach((b, i) => Object.assign(b, { x: UI_W / 2 - 290 + (i % 2) * 300, y: 222 + Math.floor(i / 2) * 112, w: 280, h: 100 })); Object.assign(back, { x: UI_W / 2 - 290, y: 222 + Math.ceil(tiles.length / 2) * 112 + 6, w: 580, h: 50 }); /* F7: tiles tall enough for their sub-labels, the goal on top */
   const pb = phoneGrid(game.ui, items, UI_W / 2 - 420, 100, 840, 2, 0, 12); const G = frGoalBanner(c); /* phones: two columns */
   return { widgets: items, name: 'careermenu', draw(ctx, ui) { if (pb) { ui.panel(ctx, UI_W / 2 - 450, 12, 900, pb + 8); ui.title(ctx, 'CAREER', UI_W / 2 - 420, 50, 36); return; } ui.panel(ctx, UI_W / 2 - 320, 60, 640, back.y + back.h + 30 - 60); ui.title(ctx, 'CAREER', UI_W / 2 - 290, 108, 40); drawGoalBanner(ctx, ui, G, UI_W / 2 - 290, 136, 580); } };
@@ -13676,6 +13676,85 @@ function gearScreen(game) {
       kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, 770, 120, 440, t);
     } };
 }
+
+// ============================================================================
+// SECTION: UI (part 10) — F9, the stats guide (the user: "add something that allows us to see stats, like what does
+// hype do, or fame, etc."). Every meter the career shows, with your value right now, what it does in the game's own
+// numbers (read from CONFIG, so the guide never drifts from the rules) and how to move it. From the Career menu, the
+// amateur Stats screen and How to play (general, when there is no career).
+// ============================================================================
+const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['buzz', 'Hype, fame, confidence'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']];
+function guidePct(x, d) { let s = (x * 100).toFixed(d == null ? 1 : d); if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s + '%'; } // 0.0004 → 0.04%, 0.008 → 0.8%
+// The entries of one topic for career c (or none): { title, value, lines: [[text, color]] }.
+function guideEntries(game, topic) {
+  const pro = careerOf(game), am = !pro ? amateurOf(game) : null, c = pro || am, B = c ? holderOf(c) : null, T = c && c.team, dim = UI_DIM, good = UI_GREEN, bad = '#FF8A8A', out = [];
+  const add = (title, value, lines) => out.push({ title, value, lines: lines.map(l => Array.isArray(l) ? l : [l, UI_TEXT]) });
+  if (topic === 'you') {
+    const r = c ? (pro ? meOf(c).r : c.r) : null, h = c ? (pro ? meOf(c).h : c.height) : null, ovr = c ? (pro ? recOvr(meOf(c)) : amOvr(c)) : null;
+    add('OVR', c ? String(ovr) : '', ['The average of your seven ratings after your height shifts them (tall players trade Speed for Strength).', 'It decides your games and your depth chart; in the pros it is most of your value to the franchises.']);
+    add('The seven ratings', '', (c ? [['Yours: ' + RATING_KEYS.map(k => ({ sho: 'SHO', fin: 'FIN', han: 'HAN', spd: 'SPD', jmp: 'HOPS', def: 'DEF', str: 'STR' })[k] + ' ' + Math.floor(r[k])).join(' · '), UI_CYAN]] : []).concat(['Shooting: every jump shot and three. Finishing: layups, floaters and dunks. Handles: dribble moves, and keeping the ball.', 'Speed: your first step and staying in front. Hops: blocks, rebounds, dunks. Defense: contests and steals. Strength: post-ups and contact.']));
+    const f = c ? (CR.trainFocus[(pro ? c.me.focus : c.focus)] || CR.trainFocus.shooting) : null, fk = f ? Object.keys(f.split)[0] : 'sho', fr = c ? Math.floor(r[fk]) : 60;
+    add('XP', c ? 'next +1 ' + RATING_LONG[fk].toLowerCase() + ': ' + Math.round(xpNeed(fr)) + ' XP' : '', ['Games pay XP for what you do in them (makes, finishes, rebounds, steals, blocks); practice pays XP into your focus.', 'A +1 costs ' + CR.xpBase + ' + ' + CR.xpPer + ' × rating / 10 XP, and ' + Math.round(CR.xpTop * 100) + '% more per 10 points above ' + CR.xpTopFrom + '. You learn fastest young; after 30 the legs go first.']);
+  }
+  if (topic === 'buzz') {
+    const hy = B ? B.hype || 0 : 0;
+    add('Hype', c ? Math.round(hy) + ' / ' + MD.hypeMax : '', (c ? mdBuzzLines(c).map(([l, k]) => [l, k === 'bad' ? bad : k === 'good' ? good : dim]) : []).concat(['A win adds ' + MD.winHype + ' and a big night ' + MD.bigHype + '; a week without a big night loses ' + Math.round(MD.hypeDecay * 100) + '%. The press room moves it too.']));
+    const F = CR.fame; add('Fame', pro ? Math.round(c.me.fame || 0) + ' / 100' : c ? 'from the pros' : '', ['Sponsors and All-Star votes follow it, and the franchises count it in your value (fame / ' + FRN.fameDiv + ').', 'A win +' + F.win + ' and +' + F.perPt + ' a point (× your franchise\'s ' + FRN.fameByStars[0] + '–' + FRN.fameByStars[4] + '); a loss ' + F.loss + '.', 'A highlight +' + F.highlight + ', player of the week +' + F.potw + ', All-Star +' + F.allStar + ', a title +' + F.title + ', MVP +' + F.mvp + '.', 'Above ' + F.decayAbove + ', ' + guidePct(F.decay) + ' of the part above it fades each week.']);
+    const cf = B ? B.confidence || 0 : 0;
+    add('Confidence', c ? (cf > 0 ? '+' : '') + cf.toFixed(1).replace('.0', '') : '', ['From −' + MD.confMax + ' to +' + MD.confMax + ': each point is ' + MD.confSho + ' Shooting in games (±' + MD.confShoMax + ' at most). Every game moves it ' + MD.confFade + ' back toward 0.', 'The press room\'s Confident answer adds ' + MD.confidentConf + ' (lose the next game and it costs ' + MD.boastConf + '); story choices, a summer of rest and, in the pros, a house or a car add some.', 'A loss costs ' + MD.lossConf + ' × (1 + hype/100), a blowout ' + MD.confBlowout + ' more.']);
+  }
+  if (topic === 'body') {
+    const fa = B ? B.fatigue || 0 : 0, cut = fatigueCut(fa), ch = WK.injuryBase + WK.injuryPerFatigue * fa;
+    add('Fatigue', c ? Math.round(fa) + ' / 100' : '', ['Above ' + WK.fatigueFreeAt + ', every rating drops by (fatigue − ' + WK.fatigueFreeAt + ')% in games' + (c ? ' (now: ' + (cut > 0 ? '−' + guidePct(cut, 0) : 'none') + ').' : '.'), 'A game adds ' + WK.fatiguePerGame + (B && gearRegen(B) ? ' (your recovery kit takes ' + gearRegen(B) + ' off)' : '') + '; a Rest week takes ' + WK.restFatigue + ' off; a week on the bench, ' + TM.benchRecovery + '.']);
+    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. Ankle braces, nutrition & physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.']);
+    add('Gear', B ? gearSummary(B) || 'none yet' : '', ['Six pieces in the gear shop (Team → Gear shop; in the pros, the Office): +' + GEAR.rating + ' a level to one rating in games, fewer injuries, less fatigue.', 'Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']);
+  }
+  if (topic === 'team') {
+    const TT = TM.trust; add('Coach trust', T ? trustOf(c) + ' / 100' : '', ['Practice XP up to +' + Math.round(TM.trustXp * 100) + '% at full trust' + (T ? ' (now +' + Math.round(100 * (trustXpMul(c) - 1)) + '%)' : '') + '. In high school colleges ask your coach about you; in college, scouts do.', 'A win +' + TT.win + ', a loss ' + TT.loss + ' (a blowout ' + TT.blowout + '); a practice week +' + TT.practice + '; a challenge won +' + TT.challengeWin + ', lost ' + TT.challengeLoss + '; your spot defended +' + TT.defended + ', lost ' + TT.lostSpot + '; resting when fresh ' + TT.restFresh + '.']);
+    add('Depth chart', T ? '#' + ladderRank(c) + ' of ' + (ladderOf(c) || []).length : '', ['Only the top rung plays the week\'s game; the rest practice.', 'Beat the teammate above you in a practice challenge (first to 7) to take their spot; the one below you can challenge you too.']);
+    if (pro) { const v = frValue(c), s = frMine(c), fac = FRN.facByStars[s - 1];
+      add('Your value', v.toFixed(1), ['OVR + fame / ' + FRN.fameDiv + ' + hype / ' + FRN.hypeDiv + '. A franchise calls when it reaches its bar: ' + [2, 3, 4, 5].map(k => k + '★ ' + FRN.bar[k - 1]).join(', ') + '.', 'Free agency brings three offers when your deal ends; a trade request goes at most a star up, every ' + FRN.tradeGap + ' seasons.']);
+      add('Your franchise', s + '★', ['Practice XP +' + Math.round(CR.facilityBonus * 100 * (fac - 1)) + '%, pay ×' + FRN.payByStars[s - 1] + ', fame ×' + FRN.fameByStars[s - 1] + ' a game; a deeper bench at 4★ and 5★ (a harder depth chart).', 'Stars move every offseason with the standings: a title lifts a franchise, a bad season drops it.']); }
+    else { const sc = c ? Math.round(amDraftScore(c)) : 0, cap = c ? frCap(sc, FRN.rookieBar) : 1;
+      add('Your pro stock', c ? 'score ' + sc + ' · ' + cap + '★ offers' : '', ['At the end of your amateur years three franchises make offers; the scouts\' score caps their stars: ' + [2, 3, 4, 5].map(k => k + '★ at ' + FRN.rookieBar[k - 1]).join(', ') + '.', 'Your OVR, your college games (marquee and tournament games count twice), titles, hype and your coach\'s word raise it.']); }
+  }
+  if (topic === 'money') {
+    if (pro) add('Money', fmtMoney(c.me.money || 0), ['Your salary every week, sponsors (more with hype), shoe royalties.', 'It pays your training staff, the home gym, gear, looks and your lifestyle; houses count in your net worth.']);
+    else add('Cash', c ? gearMoney(c.cash || 0) : '', ['A summer job pays $' + HS.jobPay.toLocaleString('en-US') + '; in college, NIL deals pay for appearances. A skills camp costs $' + HS.campCost + '.', 'Gear costs money too. What you save comes with you to the pros.']);
+    if (!pro) add('GPA', c && c.stage === 'hs' ? (c.gpa || 0).toFixed(2) : c ? 'college: no GPA rule' : '', ['In high school a GPA under ' + HS.gpaMin.toFixed(1) + ' benches you. A Study week (behind Rest) adds ' + HS.studyGpa + '; a game week takes a little off.', 'Grades also count for college offers.']);
+    add('Legacy and the Hall of Fame', pro ? String(Math.round(legacyOf(c).score)) : '', ['Titles, MVPs, All-League teams, seasons and points add up to your legacy score; ' + CR.hofScore + ' gets you into the Hall of Fame.', 'About 1 career in 12 makes it.']);
+  }
+  return out;
+}
+function drawGuideEntry(ctx, ui, e, x, y, w) {
+  ui.heading(ctx, e.title.toUpperCase(), x, y, 16, UI_GOLD, 'left', w * 0.5); ctx.font = fontStr(16, true); const tw = Math.min(w * 0.5, ctx.measureText(e.title.toUpperCase()).width); if (e.value) kitChip(ctx, e.value, x + w, y, { size: 13, align: 'right', fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(94,224,255,0.6)', color: UI_CYAN, maxW: w - tw - 30 });
+  let yy = y + 26; for (const [l, col] of e.lines) yy += ui.para(ctx, l, x, yy, w, 13, col, 'left', 6) + 2; return yy - y + 10; // up to 6 lines: a narrow column at the 1.25× text size
+}
+// The guide's pages: one per topic on a desktop (a long one splits into two columns there); on a phone a topic that
+// doesn't fit above the bottom bar becomes parts ("Team & pro value 1/2").
+function guidePages(game, ctx, ui, P, room, w) {
+  const pages = [];
+  for (const [id, label] of GUIDE_TOPICS) { const E = guideEntries(game, id); if (!P) { pages.push({ id, part: 0, label, E }); continue; }
+    const parts = []; let cur = [], h = 0; for (const e of E) { const eh = guideEntryH(ctx, ui, e, w); if (cur.length && h + eh > room) { parts.push(cur); cur = []; h = 0; } cur.push(e); h += eh; } if (cur.length || !parts.length) parts.push(cur);
+    parts.forEach((E2, k) => pages.push({ id, part: k, label: label + (parts.length > 1 ? ' ' + (k + 1) + '/' + parts.length : ''), E: E2 })); }
+  return pages;
+}
+function statsGuideScreen(game, topic) {
+  const st = { t: 0, id: GUIDE_TOPICS.some(x => x[0] === topic) ? topic : GUIDE_TOPICS[0][0], part: 0, pages: GUIDE_TOPICS.map(([id, label]) => ({ id, part: 0, label, E: [] })) }, P = game.ui.phone; /* the page is kept as (topic, part): the list is measured every frame */
+  const pick = sel('Topic', 40, 88, 520, 40, st.pages.map(p => p.label), () => st.t, i => { const p = st.pages[i]; if (p) { st.t = i; st.id = p.id; st.part = p.part; } }), back = btn('Back', 40, 650, 200, 44, () => game.ui.pop()); const items = [pick, back]; phoneBar(game.ui, items, [2.6, 1]);
+  return { widgets: items, name: 'guide',
+    draw(ctx, ui) {
+      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'STATS GUIDE', 44, 56, 38); if (!P) ui.label(ctx, 'What every number does, and yours right now', 1236, 56, 14, UI_DIM, 'right', 560);
+      const top = P ? 100 : 150, bottom = P ? UI_H - tapH(ui, 44) - 22 : 636, x0 = 60, w = 1160;
+      st.pages = guidePages(game, ctx, ui, P, bottom - top, w); pick.options = st.pages.map(p => p.label); let pi = st.pages.findIndex(p => p.id === st.id && p.part === st.part); if (pi < 0) pi = st.pages.findIndex(p => p.id === st.id); st.t = Math.max(0, pi);
+      const E = st.pages[st.t].E; let y = top;
+      const two = !P && E.reduce((a, e) => a + guideEntryH(ctx, ui, e, w), 0) > bottom - top; /* a long topic on a desktop: two columns */
+      if (two) { const cw = 560; let yl = top, yr = top; E.forEach(e => { const h = guideEntryH(ctx, ui, e, cw); if (yl <= yr) { drawGuideEntry(ctx, ui, e, x0, yl, cw); yl += h; } else { drawGuideEntry(ctx, ui, e, x0 + cw + 40, yr, cw); yr += h; } }); return; }
+      for (const e of E) y += drawGuideEntry(ctx, ui, e, x0, y, w);
+    } };
+}
+// An entry's height at width w (the paragraphs wrapped the way drawGuideEntry wraps them).
+function guideEntryH(ctx, ui, e, w) { ctx.font = fontStr(13, false); const lh = Math.max(13 * 1.35, rbLineH(ctx)); let h = 26; for (const [l] of e.lines) h += Math.min(6, rbWrap(ctx, l, w).length) * lh + 2; return h + 10; }
 
 // ============================================================================
 // SECTION: UI (part 13) — R9 §3.10: the RPG dialogue box every story card is told in. A speaker's pixel portrait and

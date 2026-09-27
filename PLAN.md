@@ -237,7 +237,8 @@ starting for one, a title with one); the hub organized like a front office (Team
 flagged by the screen audit and fixed.
 **F8 — Shop** *(done)* — a gear shop (six pieces, three levels): +0.5 a level to one rating in games, fewer injuries,
 less fatigue; cash or money pays and gear comes along to the pros; +1 a level was tested and too strong.
-**F9 — Stats guide** — what every meter does, in numbers, with its current value and how to raise it.
+**F9 — Stats guide** *(done)* — every meter with its value right now, what it does in CONFIG's numbers and how to move
+it, from the Career menu, the amateur Stats screen and How to play.
 **F10 — QA and release** — the suite, every screen at every size, the report, the artifact republished.
 
 ## Testing every milestone
