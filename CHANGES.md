@@ -3,6 +3,81 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R2 — Size and framing: the 15 m compact court, players about 1/7 of it (the R pass, milestone 2)
+
+The problem on L19/R1: a 2 m player was 1/9 of an 18 m court and about 14% of the screen height, so the players read
+small (a head about 32 world px). §2 asks for about 1/7 of the court and 23–25% of a desktop screen.
+
+**Change of plan (from the user, during this milestone):** the career is 1v1 only, so the compact court and its camera
+are for 1v1 only. R2 first built the compact court for 3v3 too (±2 m follow toward the ball); that part was undone. 2v2,
+3v3 and every exhibition mode other than 1v1 stay on the Classic court and camera, as before.
+
+**What changed**
+
+| Layout (Legends View, 1v1) | L13–R1 | R2 |
+| --- | --- | --- |
+| Court length (baseline to baseline) | 18.0 m | 15.0 m |
+| Hoop inset from the baseline | 1.5 m | 1.4 m |
+| 3-point radius | 6.0 m | 5.2 m |
+| Free-throw distance | 4.2 m | 3.8 m |
+| Wall behind each baseline | 1.0 m | 0.9 m |
+| Visual scale (characters drawn) | 1.0× | 1.1× |
+| `h` (horizontal distances and speeds) | 0.78 | 0.70 |
+| Street half court: check ball / half line | 7.0 / 8.0 m | 6.2 / 6.8 m |
+| AI pick-up distance (solo / vs a big) | 8.0 / 6.5 m | 6.9 / 5.6 m |
+| Camera | ppm = W ÷ 20 | ppm = W ÷ 16.8 (the court and both walls) |
+
+- **The camera** shows the whole 15 m court and both walls on one screen, floor line at 70% of the height; no follow, no
+  zoom (as in R1). Settings → Camera → Classic still gives the Classic court and camera.
+- **Venues re-laid for the closer camera**: the rows of fans, the LED ribbon and the banners sit a little higher and
+  closer together (`lgRowY`, `lgLedY`, `lgBannerDX` 7.4 m), so the players still stand in front of the dark band (L17).
+- **The jumbotron** is clamped under the score bug (it could overlap it with the new framing).
+- **Body push-apart scales with the visual scale** (`ART.pushApart × LAY.V`): at 1.1× the L16 blob test measured 62% of
+  a face hidden at worst; with the scaled push-apart it is 59% (limit 60%).
+- **Smoke prints the size ratio** (below) and checks it every run.
+
+**Measured** (smoke, desktop 1280×720)
+
+| | R1 (18 m) | R2 (15 m) | Target |
+| --- | --- | --- | --- |
+| 2 m player ÷ court length (nominal, 1.1× drawn) | 1/9 | 1/6.82 | ≈ 1/7 |
+| 2 m player ÷ screen height (nominal) | about 14% (the spec's figure) | 23.3% | 23–25% |
+| As drawn, big head included (a 2 m player) | — | 27.2% (24.9–28.1% across the roster) | — |
+| Head width at game size | about 32 world px | 45 world px desktop, 51–66 phone | 44–52 (§1.2) |
+| Pro mirror PPP (the gate, 300 games) | 1.21 | 1.18 | 0.95–1.25 ✓ |
+| Pro mirror: team A wins | 49% | 48% | 45–55% ✓ |
+| Legend beats Pro | 86% | 83% | 75–95% ✓ |
+| Brute force vs Pro (harness) | 0.82 | 1.00 | ≤ 1.30 ✓ |
+| Timing/reads beat brute force (sniper) | 1.47 | 1.72 | > brute ✓ |
+
+Tuning rounds for `h` on the 15 m court (the gate, 120 mirror games): 0.66 → mirror 1.17, Legend beats Pro 71% ✗;
+0.70 → mirror 1.16, Legend beats Pro 84% ✓ (the full gate run above: 1.18 and 83%).
+
+**Deviations**
+
+- `h` is 0.70, not "about 0.66": at 0.66 Legend beat Pro only 71% of the time (target 75–95%).
+- The nominal size lands on target (23.3% of the screen, 1/6.82 of the court), but the characters' big heads make a
+  2 m player 25–28% of the screen as actually drawn. The spec's parameters (15 m, 1.1×, W ÷ 16.8) are kept as given.
+- 3v3 on the compact court (with its ±2 m ball follow) was built, then removed per the user's change of plan.
+
+**Tests on the committed build**
+
+- Smoke 100/100 (desktop 1280×720 and phone 844×390), including the new R2 step: a quick 1v1 plays the 15 m court seen
+  whole (ppm W ÷ 16.8, floor at 70%, size ratio 6.5–7.5, share 0.23–0.25), a headless Classic 3v3 sim in between does
+  not leak its layout, Settings → Camera → Classic, and 2v2/3v3 stay Classic. The freeze test's opponent starts 4 m from
+  the hoop (the court is shorter).
+- Modes 13/13 · old saves 16/16 · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 66 screens at 844×390: no text overflow, no errors.
+- Art Lab: 54 shots, no errors (`shots/r2/round-final/`).
+- The balance harness (Classic, unchanged): brute 1.24 ✓, perfect timing 2.12 ✓, Legend vs Pro 78% ✓.
+- The career simulator (40 careers): 0 stuck; OVR 57 / 69 / 77 at 17 / 21 / 25, peak 79; 1.02 titles a career; Hall
+  of Fame 13%; every target met.
+- Perf, 844×390 @2x in the pro arena (median / p95): guard 0 22.1 / 30.6 ms (R1 17.8 / 25.9), guard 1 22.6 / 33.6 ms.
+  The characters are 1.3× bigger on screen (1.7× the pixels), and they are painted and pixelized every frame: a CPU
+  profile puts the extra ~4 ms in painting faces and bodies (1.72× the area), `pixelize` (2.7 → 4.2 ms) and the bigger
+  fans (+22%). The face cache does not thrash (8 misses in 240 frames, the warm-up). It is back at L19's level (22.0 /
+  36.7); R10 looks at repainting the characters less often.
+
 ## R1 — Retro look: one pixel-art world (the R pass, milestone 1)
 
 The problem on the live build (L19): two styles on one screen. The players were chunky 3-px pixel sprites (the L15

@@ -175,6 +175,36 @@ stronger contests, tighter closeouts and a 1.3 s finisher recovery; team A 49%, 
 **Finish** *(done: the before/after gallery in `shots/before-after-l11-l19/`, every test's numbers and the deviations in
 CHANGES.md's report, and the artifact republished.)*
 
+## Retro look and a real career (R1–R10)
+
+Spec: `SPEC_R.md` in the working notes (the same rules: one index.html, renderers never throw, a commit per milestone,
+smoke and Art Lab before every commit, old saves migrate). **Change of plan from the user during R2, which overrides
+§3.3 and anything about team games or extras:** the career is 1v1 only — every career game (high school, college, pro,
+playoffs, tournaments, All-Star) is a 1v1 game, with no AI teammates on the court and no player-lock team games. The
+compact court and its camera are for 1v1 only; the exhibition team modes stay as they are. No arcade extras in the
+career, ever. Teams stay as your organization and story: name, colors, uniform, coach and teammates in story cards and
+practice; the team's record and titles are your 1v1 record and titles; a depth-chart ladder of 1v1 practice challenges
+against teammates decides whether you play each week's game (big programs start you lower); coach trust gives a practice
+XP bonus and stronger recruiting and draft recommendations; no chemistry.
+
+**R1 — Retro look** *(done: one 360-row pixel world, pixelize() for every sprite, stepped backgrounds, the Retro Ball
+Font, pixel characters in menus, the Retro check page, three visual rounds.)*
+**R2 — Size and framing** — the 15 m compact court (1v1 only), a 2 m player about 1/7 of the court and 23–25% of the
+screen, the Legends venue re-laid out for the bigger players, the gate retuned.
+**R3 — Career foundation** — save migration; teams as organizations (school, program, franchise: identity, coach,
+teammates); growth not locked to position (§3.2); two traits with rarities, adapted to 1v1, and the trait balance test.
+**R4 — Ladder and coach trust** — the depth-chart ladder, coach trust, teammates in practice; arcade extras out of the career.
+**R5 — High school** — tryouts, the season, district and state playoffs, rivalry game and senior night, stars and
+rankings, visits and commitment day, summers, academics.
+**R6 — College** — program choice, conference season and tournament, the 64-team bracket, NIL, draft stock, the
+transfer portal, declare or return.
+**R7 — Pro, money, epilogue** — contracts, free agency and trade requests with franchise rosters; the money sinks; the
+retirement epilogue and the net-worth board.
+**R8 — Hype and press** — the §3.8 and §3.9 rules adapted to 1v1, and both balance tests.
+**R9 — Story** — arcs from beats, RPG event cards with pixel portraits, the news and social feeds.
+**R10 — Polish and QA** — one Retro UI kit, settings, save slots, onboarding, every screen checked, full-length games
+restored, the gallery, the report, the artifact republished.
+
 ## Testing every milestone
 
 ```
