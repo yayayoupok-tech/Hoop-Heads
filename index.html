@@ -1002,7 +1002,21 @@ const CONFIG = {
     tierOvr: 3,                // a college program's teammates are this much better per program tier (on top of the schedule's collegePerTier)
     sd: 4,                     // teammates' OVR spread
     growOdds: 0.35,            // each summer every rating of a returning teammate goes up a step with this chance
-    proBench: -8,              // a pro franchise's bench players sit this far under the league's veteran mean OVR
+    proBench: -14,             // a pro franchise's bench players sit this far under the league's veteran mean OVR (R4: at -8 the career simulator's players sat 65 pro weeks a career on the bench, at -14 40)
+    tierGap: [-6, -2, 2, 6],   // R4: a team's teammates average this far from your OVR when you join, by program tier (a small school: you're the best; a blue blood: they are)
+    ladderStart: [1, 2, 3, 4], // R4: the depth-chart rung you start on, by program tier (high school teams are tier 0: the top)
+    proStartTop: 30,           // R4: a first-round pick starts at the top of the franchise's ladder; later picks start a rung down
+    challengeTarget: 7,        // R4: a ladder challenge is a practice game to 7 (2s and 3s)
+    challengeOdds: 0.2,        // R4: after each week's game the teammate a rung below you challenges you with this chance... (0.3 kept rookies benched half their first pro season in the career simulator)
+    challengeReach: 10,        // ...× (1 + (their OVR − yours) / challengeReach): nobody 10 OVR under you bothers
+    challengeScale: 9,         // R4: a simulated practice game to 7 is closer to a coin flip than a full game: win chance = 1 / (1 + e^(−ΔOVR / this)) (games use AMC.winScale 5.5)
+    benchXp: 1.0,              // R4: a week on the bench still pays scrimmage XP: this share of an average simmed game's pool (without it the career simulator's benched players stopped developing: peak OVR 65; at 0.75 OVR at 25 fell to 73). The bench costs the game itself: stats, highlights, the box score
+    benchRecovery: 10,         // R4: a week on the bench takes this much fatigue off (you practiced, you didn't play)
+    trustStart: { hs: 45, college: 40, pro: 40 }, // R4: coach trust (0–100) when you join a team
+    trust: { challengeWin: 6, challengeLoss: -1, defended: 3, lostSpot: -3, win: 2, loss: -1, blowout: -2, practice: 1, restFresh: -1, freshAt: 30 }, // R4: trust changes (a win or loss you played; Rest with fatigue under freshAt is skipping practice)
+    trustXp: 0.2,              // R4: practice XP × (1 + trustXp × trust/100): up to +20% at full trust
+    trustRecruit: 4,           // R4: the high school coach's recommendation adds up to this much to the college offer score (at full trust)
+    trustDraft: 5,             // R4: the college coach's recommendation adds up to this much to the draft score (at full trust)
   },
   roles: {                     // R3 §3.2: role labels from your ratings (after height), every season
     bigH: 2.02,                // a Stretch Big or a Rim Runner is at least this tall (m)
@@ -8318,7 +8332,7 @@ function settingsScreen(game) {
     sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }),
     sel('Key preset', 0, 0, 0, 0, ['A: WASD + J K L', 'B: Arrows + Z X C'], () => S.keyPreset === 'B' ? 1 : 0, i => { S.keyPreset = i ? 'B' : 'A'; apply(); }), tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }),
     tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }),
-    sel('Arcade extras', 0, 0, 0, 0, ['Quick games', 'Everywhere', 'Off'], () => Math.max(0, ['quick', 'all', 'off'].indexOf(S.arcadeExtras || 'quick')), i => { S.arcadeExtras = ['quick', 'all', 'off'][i]; }), // L9: super meter and power-ups (Legends View arcade 1v1)
+    sel('Arcade extras', 0, 0, 0, 0, ['Quick games', 'All exhibitions', 'Off'], () => Math.max(0, ['quick', 'exhibitions', 'off'].indexOf(S.arcadeExtras || 'quick')), i => { S.arcadeExtras = ['quick', 'exhibitions', 'off'][i]; }), // L9: super meter and power-ups (Legends View arcade 1v1); R4: never in the career, so no career option
   ];
   const feel = [
     sel('Camera (1v1)', 0, 0, 0, 0, ['Legends View', 'Classic'], () => S.camera === 'classic' ? 1 : 0, i => { S.camera = i ? 'classic' : 'legends'; }), sel('Graphics', 0, 0, 0, 0, ['Retro', 'Retro sharp', 'Smooth'], () => S.graphics === 'smooth' ? 2 : S.graphics === 'sharp' ? 1 : 0, i => { S.graphics = ['retro', 'sharp', 'smooth'][i]; }), // R1 §1.4: the pixel world (default), finer pixels, or the smooth art or the smooth painted renderer // §2: the whole short court on one screen, or the classic follow camera (2v2 and up are always Classic)
@@ -8447,7 +8461,7 @@ function nextEventLabel(c) {
 // ---------------- tale of the tape before tip-off ----------------
 function pregameScreen(game, g) {
   const s = game.save.data, c = careerOf(game); const me = meOf(c), opp = c.players[opponentOf(c, g)]; let t = 0;
-  const items = [btn('TIP OFF', 470, 600, 220, 54, () => { proStartGame(c); game.save.save(); const opts = careerMatchOpts(c, s, g, false); if (s.settings.colorblind) [opts.teams[0], opts.teams[1]] = colorblindTeams(opts.teams[0], opts.teams[1]); game.startMatch(opts, { kind: 'career' }); }, { primary: true }), btn('Back', 700, 600, 110, 54, () => game.ui.pop())]; phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12);
+  const items = [btn('TIP OFF', 470, 600, 220, 54, () => { proStartGame(c); game.save.save(); if (!isStarter(c)) { game.ui.clearTo(careerHub(game)); game.ui.toastMsg('You lost your spot in practice: your teammate starts.'); return; } const opts = careerMatchOpts(c, s, g, false); if (s.settings.colorblind) [opts.teams[0], opts.teams[1]] = colorblindTeams(opts.teams[0], opts.teams[1]); game.startMatch(opts, { kind: 'career' }); }, { primary: true }), btn('Back', 700, 600, 110, 54, () => game.ui.pop())]; phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12);
   const dh = Math.round((me.h - opp.h) / 0.0254), inch = n => n + (n === 1 ? ' inch' : ' inches');
   const edge = dh >= 3 ? 'You\'re ' + inch(dh) + ' taller: post up (hold Stance by the block), contest and block at the rim, win the boards. They\'re quicker off the dribble.' : dh >= 2 ? 'You\'re ' + inch(dh) + ' taller: you\'ll contest and rebound a little better. One more inch and you could post up.' : dh <= -3 ? 'They\'re ' + inch(-dh) + ' taller and can post you up: beat them off the dribble, keep it low, and use floaters and fadeaways over the length.' : dh <= -2 ? 'They\'re ' + inch(-dh) + ' taller: attack with quickness, keep the dribble low, use fadeaways over the length.' : 'Same size. Skill and hops decide it.';
   return { widgets: items, name: 'pregame', update(dt) { t += dt; },
@@ -8723,6 +8737,7 @@ function postgameScreen(game, m, after) {
   if (after.kind === 'career') { if (!after.applied) { after.applied = true; after.rec = careerAfterGame(s, boxScore(m, 0), 0); game.save.save(); } if (after.rec) return careerResultScreen(game, after.rec, m); }
   if (after.kind === 'amateur') { if (!after.applied) { after.applied = true; after.rec = amAfterMatch(game, boxScore(m, 0), after); game.save.save(); } if (after.rec) return amResultScreen(game, after.rec, m); }
   if (after.kind === 'drill') { if (!after.screen) after.screen = drillPostScreen(game, m, after); return after.screen; }
+  if (after.kind === 'ladder') { if (!after.screen) after.screen = ladderPostScreen(game, m, after); return after.screen; } // R4: a depth-chart challenge
   if (after.kind === 'allstar1v1') { if (!after.screen) after.screen = allStar1v1ResultScreen(game, m, after); return after.screen; }
   if (after.kind === 'allstar') { const c = careerOf(game); if (c && c.allStar && !c.allStar.done) { finishAllStar(c, m.contest3 ? m.contest3.score : 0); game.save.save(); } const sc = allStarResultScreen(game); sc.overlay = true; sc.widgets[0].onPress = () => game.quitToMenu(); return sc; }
   const items = []; const human = m.humanTeam; const won = m.winner === human; const rec = m.replay; let reward = null;
@@ -8761,7 +8776,7 @@ function devScreen(game) {
   const duel = (label, a, b, n, diffA, diffB, fmt) => startJob(label, n, i => { const flip = i % 2; const A_ = flip ? b : a, B_ = flip ? a : b; const r = simulateMatch({ mode: '1v1', teams: [Object.assign({}, TEAMS[2], { players: [A_] }), Object.assign({}, TEAMS[5], { players: [B_] })], teamDifficulties: flip ? [diffB, diffA] : [diffA, diffB], seed: (st.seed + i * 7919) >>> 0, ruleset: 'arcade', format: fmt, humanTeam: -1 }); if (flip) { r.teams.reverse(); r.winner = r.winner < 0 ? -1 : 1 - r.winner; } return r; }, results => { const agg = aggregateSims(results); agg.ms = 0; const L = [label].concat(formatSimTable(agg)); L.push('A win rate: ' + (100 * agg.wins[0] / agg.games).toFixed(0) + '%'); if (agg.invariantFails) L.push('invariant failures: ' + results.flatMap(r => r.invariantList).slice(0, 5).join(' | ')); log(L); });
   const items = [
     sel('Games', 0, 0, 0, 0, ns.map(String), () => st.n, i => { st.n = i; }), sel('Difficulty', 0, 0, 0, 0, DIFF_LABELS, () => st.diff, i => { st.diff = i; }), sel('Format', 0, 0, 0, 0, formats.map(f => f.label), () => st.format, i => { st.format = i; }), sld('Seed', 0, 0, 0, 0, 1, 999, 1, () => st.seed, v => { st.seed = v; }, v => String(v)),
-    btn('Mirror 1v1 sims (same player)', 0, 0, 0, 0, () => { const d = ROSTER.legends[1]; duel('Mirror · ' + d.name + ' vs himself · ' + DIFF_LABELS[st.diff], d, d, ns[st.n], DIFF_IDS[st.diff], DIFF_IDS[st.diff], formats[st.format].f); }),
+    btn('Mirror 1v1 sims (same player)', 0, 0, 0, 0, () => { const d = ROSTER.legends[1]; duel('Mirror · ' + d.name + ' vs a copy · ' + DIFF_LABELS[st.diff], d, d, ns[st.n], DIFF_IDS[st.diff], DIFF_IDS[st.diff], formats[st.format].f); }),
     btn('Height test: equal ratings, 2.12 m vs 1.82 m', 0, 0, 0, 0, () => duel('Height · lockdown 2.12 (A) vs 1.82 (B)', P1('lockdown', 2.12, 'Tall'), P1('lockdown', 1.82, 'Short'), ns[st.n], 'pro', 'pro', formats[st.format].f)),
     btn('Legend vs Pro · 1v1', 0, 0, 0, 0, () => { const d = ROSTER.legends[1]; duel('Legend (A) vs Pro (B)', d, d, ns[st.n], 'legend', 'pro', formats[st.format].f); }),
     btn('Pro vs Rookie · 1v1', 0, 0, 0, 0, () => { const d = ROSTER.legends[1]; duel('Pro (A) vs Rookie (B)', d, d, ns[st.n], 'pro', 'rookie', formats[st.format].f); }),
@@ -9616,7 +9631,7 @@ function genesRevealScreen(game, c, ev, done) {
       const note = clamp01((T - 1.9) / 0.4); ctx.font = fontStr(19, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 116; ctx.fillStyle = UI_TEXT; y += wrapTextH(ctx, 'You measure ' + fmtHeightFull(hNow) + ' as a freshman.', 700, y, 520, 26) + 6;
       ctx.globalAlpha = Math.max(0.15, band); ctx.fillStyle = UI_GOLD; y += wrapTextH(ctx, 'Doctors project ' + fmtHeight(proj) + ' as an adult, give or take an inch.', 700, y, 520, 26) + 6; ctx.fillStyle = UI_TEXT; y += wrapTextH(ctx, bloomText, 700, y, 520, 26) + 18; ctx.globalAlpha = 1;
       if (note > 0) { ctx.globalAlpha = note; kitHeader(ctx, 'What ' + fmtHeight(proj) + ' means for your game', 700, y + 8, 520); y += 30; ctx.font = fontStr(16, false); ctx.fillStyle = UI_TEXT; ctx.textBaseline = 'top'; for (const n of sizeNotes(proj)) y += wrapTextH(ctx, '• ' + n, 700, y, 520, 22) + 8; ctx.globalAlpha = 1; }
-      if (!P) ui.label(ctx, 'Height is in your genes: it can\'t be chosen, and it keeps changing until about 19.', 700, 590, 13, UI_DIM); /* a phone's taller button covers this line */
+      if (!P) { ctx.font = fontStr(13, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapTextH(ctx, 'Height is in your genes: it can\'t be chosen, and it keeps changing until about 19.', 700, 582, 520, 17); } /* a phone's taller button covers these lines; wrapped (a single line was cut short) */
     } };
 }
 
@@ -9695,8 +9710,8 @@ function drawHub(ctx, ui, H, t) {
   // center: the next game
   kitPanel(ctx, 400, 90, 480, 616); const O = H.opp;
   if (O) {
-    ui.label(ctx, O.label || 'NEXT', 640, 116, 13, UI_CYAN, 'center'); const vs = 'vs ' + String(O.def.name || '').toUpperCase(); const vsz = fitFont(ctx, vs, 440, 30, true); kitStamp(ctx, vs, 640, 148, vsz, [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
-    let px = 640; const pills = []; if (O.rival) pills.push(['RIVAL', 'rgba(255,90,90,0.9)', '#FFFFFF']); if (O.playoff) pills.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.where) pills.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); if (pills.length) { ctx.font = fontStr(12, true); const tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + 12 * 1.3 + 6, -6); px = 640 - tw / 2; for (const p of pills) px += kitChip(ctx, p[0], px, 180, { size: 12, fill: p[1], color: p[2], stroke: false }) + 6; }
+    ui.label(ctx, O.label || 'NEXT', 640, 116, 13, H.bench ? UI_ORANGE : UI_CYAN, 'center', 460); const vs = 'vs ' + String(O.def.name || '').toUpperCase(); const vsz = fitFont(ctx, vs, 440, 30, true); kitStamp(ctx, vs, 640, 148, vsz, [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
+    let px = 640; const pills = []; if (H.bench) pills.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.rival) pills.push(['RIVAL', 'rgba(255,90,90,0.9)', '#FFFFFF']); if (O.playoff) pills.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.where) pills.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); if (pills.length) { ctx.font = fontStr(12, true); const tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + 12 * 1.3 + 6, -6); px = 640 - tw / 2; for (const p of pills) px += kitChip(ctx, p[0], px, 180, { size: 12, fill: p[1], color: p[2], stroke: false }) + 6; }
     const cw = 176, ch = 246, cy = 198; drawTradingCard(ctx, 424, cy, cw, ch, H.myCard, { t }); drawTradingCard(ctx, 880 - 24 - cw, cy, cw, ch, H.oppCard, { t: t + 1.1 });
     kitStamp(ctx, 'VS', 640, cy + ch / 2, 34, [UI_GOLD, '#F2A91C'], { outline: 0.2 });
     const dh = Math.round((O.h - M.h) / 0.0254); ctx.font = fontStr(24, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fmtHeight(M.h), 424 + cw / 2, cy + ch + 26); ctx.fillText(fmtHeight(O.h), 880 - 24 - cw / 2, cy + ch + 26);
@@ -9729,8 +9744,9 @@ function hubWidgets(ui, actions, week, links, plan) {
 function amHub(game) {
   const s = game.save.data, c = amateurOf(game); if (!c) return careerOf(game) ? careerHub(game) : mainMenu(game);
   const ui = game.ui; let t = 0; const nx = amNext(c); const focusKeys = Object.keys(CR.trainFocus).filter(k => k !== 'recovery');
-  const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(amResultScreen(game, r, null)); return; } amStartGame(c); game.save.save(); game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id }); };
-  const actions = []; if (c.stage === 'combine') actions.push(btn('DRAFT COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : 'DRAFT DECISION', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (nx && nx.opp) actions.push(btn('PLAY', 0, 0, 0, 0, () => play(false), { primary: true }), btn('SIM', 0, 0, 0, 0, () => play(true)));
+  const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); return; } amStartGame(c); if (!isStarter(c)) { game.save.save(); game.ui.replace(amHub(game)); return; } game.save.save(); /* a challenge settled at tip-off can cost you the start */ game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id }); };
+  const actions = []; if (c.stage === 'combine') actions.push(btn('DRAFT COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : 'DRAFT DECISION', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (nx && nx.opp && !isStarter(c)) actions.push(btn('SIM THE GAME', 0, 0, 0, 0, () => { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); }, { primary: true })); /* R4: on the bench: your teammate starts */
+  else if (nx && nx.opp) actions.push(btn('PLAY', 0, 0, 0, 0, () => play(false), { primary: true }), btn('SIM', 0, 0, 0, 0, () => play(true)));
   const plan = nx && nx.opp ? planButtons(game, careerKit(game)) : [];
   const week = ui.phone || !plan.length ? [] : [sel('Focus', 0, 0, 0, 0, focusKeys.map(k => CR.trainFocus[k].label), () => Math.max(0, focusKeys.indexOf(c.focus)), i => { c.focus = focusKeys[i]; game.save.save(); })];
   const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game))), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })];
@@ -9746,7 +9762,8 @@ function amHub(game) {
       if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · FIRST TO ' + stg.target };
         H.myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school };
         H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' };
-        H.scout = scoutLine(myR, effRatings(o.r, o.height), c.height, o.height, o.rival ? 'Your rival will' : 'They'); if (o.rival) H.scout = H.scout.replace('Your rival will own', 'Your rival owns').replace('Your rival will want', 'Your rival wants'); }
+        H.scout = scoutLine(myR, effRatings(o.r, o.height), c.height, o.height, o.rival ? 'Your rival will' : 'They'); if (o.rival) H.scout = H.scout.replace('Your rival will own', 'Your rival owns').replace('Your rival will want', 'Your rival wants');
+        const sm = ladderStarterMate(c); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: 'starts this week' }; H.scout = 'Win a challenge in practice to take the spot back.'; } } // R4: benched
       else { H.idleTitle = c.stage === 'combine' ? 'THE DRAFT COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then draft night. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? 'Offers are in. Pick where you play next.' : 'Declare for the draft, or stay in school?') : ''; }
       if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + stg.size + (L.playoffs && !L.done ? ' · in the playoffs' : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
       drawHub(ctx, ui, H, t);
@@ -9758,7 +9775,7 @@ function careerHub(game) {
   const s = game.save.data, c = careerOf(game); if (!c) return mainMenu(game);
   if (c.phase === 'offseason' && !(c.events && c.events.length)) return offseasonScreen(game); // the press room and story cards first
   const ui = game.ui, me = meOf(c), club = clubOf(me.club), g = userGame(c), opp = g ? c.players[opponentOf(c, g)] : null; let t = 0;
-  const actions = g ? [btn('PLAY', 0, 0, 0, 0, () => game.ui.push(pregameScreen(game, g)), { primary: true }), btn('SIM', 0, 0, 0, 0, () => { const rec = simUserGame(s); game.save.save(); if (rec) game.ui.replace(careerResultScreen(game, rec, null)); })] : [];
+  const actions = g && !isStarter(c) ? [btn('SIM THE GAME', 0, 0, 0, 0, () => { const rec = simUserGame(s); game.save.save(); if (rec) game.ui.replace(rec.bench ? benchResultScreen(game, rec) : careerResultScreen(game, rec, null)); }, { primary: true })] : g ? [btn('PLAY', 0, 0, 0, 0, () => game.ui.push(pregameScreen(game, g)), { primary: true }), btn('SIM', 0, 0, 0, 0, () => { const rec = simUserGame(s); game.save.save(); if (rec) game.ui.replace(rec.bench ? benchResultScreen(game, rec) : careerResultScreen(game, rec, null)); })] : []; // R4: on the bench your teammate starts
   const plan = g ? planButtons(game, careerKit(game)) : [], focusKeys = Object.keys(CR.trainFocus);
   const week = ui.phone || !plan.length ? [] : [sel('Focus', 0, 0, 0, 0, focusKeys.map(k => CR.trainFocus[k].label), () => Math.max(0, focusKeys.indexOf(c.me.focus)), i => { c.me.focus = focusKeys[i]; game.save.save(); })];
   const links = [btn('League', 0, 0, 0, 0, () => game.ui.push(leagueScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game))), btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game))), btn('Business', 0, 0, 0, 0, () => game.ui.push(managementScreen(game)), { sub: c.me.offers.length ? c.me.offers.length + ' offer' + (c.me.offers.length > 1 ? 's' : '') : '' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game))), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { phoneHide: true }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })]; // R3: with Team added, a phone shows six links (the trophy case is under Player → Career & awards too)
@@ -9771,7 +9788,8 @@ function careerHub(game) {
         last5: c.me.log.slice(0, 5).reverse().map(l => l.win), weekY: 198, statusY: items.statusY, B: c.me };
       if (g && opp) { const meHome = g.h === c.meId; const oc = clubOf(opp.club), os = c.standings[opp.id]; H.opp = { def: drawDefOf(opp), h: opp.h, rival, playoff: !!g.playoff, where: meHome ? 'HOME' : 'AWAY', label: c.phase === 'playoffs' ? nextEventLabel(c) : 'NEXT · WEEK ' + (c.week + 1) + ' · ' + os.w + '-' + os.l };
         H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = cardOfRec(opp, { sub: oc.name });
-        H.scout = rival ? RIVAL_LINES[Math.min(2, c.me.rivalGames || 0)][(c.week + c.season) % 3] : scoutLine(effRatings(me.r, me.h), effRatings(opp.r, opp.h), me.h, opp.h, 'They'); }
+        H.scout = rival ? RIVAL_LINES[Math.min(2, c.me.rivalGames || 0)][(c.week + c.season) % 3] : scoutLine(effRatings(me.r, me.h), effRatings(opp.r, opp.h), me.h, opp.h, 'They');
+        const sm = ladderStarterMate(c); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'pm-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: club.colors, ovr: tmMateOvr(sm), style: ARCHETYPES[sm.style] ? ARCHETYPES[sm.style].label : '', sub: 'starts this week' }; H.scout = 'Win a challenge in practice to take the spot back.'; } } // R4: benched
       else { H.idleTitle = c.phase === 'playoffs' ? 'PLAYOFFS' : 'NO GAME THIS WEEK'; }
       const n = c.news && c.news[0]; if (n) H.headline = n.t;
       drawHub(ctx, ui, H, t);
@@ -9954,9 +9972,12 @@ function practiceScreen(game) {
   const drill = btn('PLAY THE DRILL', 60, 510, 380, 52, () => startCareerDrill(game, keys[st.focus], ints[st.intensity]), { primary: true });
   const sim = btn('SIM THE SESSION', 60, 572, 380, 46, () => { const f = keys[st.focus], i = ints[st.intensity]; const res = K.practice(f, i, K.sessionXp(f, i)); game.save.save(); if (res) game.ui.replace(practiceResultScreen(game, res, f, null)); });
   const back = btn('Back', 60, 628, 380, 42, () => game.ui.pop());
-  const items = focusBtns.concat([intensity, drill, sim, back]);
-  if (game.ui.phone) { const P = game.ui; phoneGrid(P, focusBtns, 40, 96, 420, 2, 0, 8); intensity.x = 40; intensity.w = 420; intensity.y = focusBtns[focusBtns.length - 1].y + tapH(P, 42) + 10; intensity.h = tapH(P, 42); phoneGrid(P, [drill, sim, back], 480, UI_H - tapH(P, 44) - 16, 760, 3, 0, 8); }
-  return { widgets: items, name: 'practice', update() { const k = keys[st.focus]; drill.hidden = !DRILL_FOCUS[k]; focusBtns.forEach((b, i) => { b.label = (i === st.focus ? '✓ ' : '') + CR.trainFocus[keys[i]].label; }); if (game.ui.phone) phoneGrid(game.ui, [drill, sim, back], 480, UI_H - tapH(game.ui, 44) - 16, 760, drill.hidden ? 2 : 3, 0, 8); },
+  const ladder = btn('DEPTH CHART', 60, 466, 380, 38, () => game.ui.push(ladderScreen(game)), { hidden: !(K.c && K.c.team) }); // R4: challenge the teammate above you
+  const items = focusBtns.concat([intensity, ladder, drill, sim, back]);
+  if (game.ui.phone) { const P = game.ui; phoneGrid(P, focusBtns, 40, 96, 420, 2, 0, 8); intensity.x = 40; intensity.w = 420; intensity.y = focusBtns[focusBtns.length - 1].y + tapH(P, 42) + 10; intensity.h = tapH(P, 42); }
+  if (game.ui.phone && !ladder.hidden) sim.label = 'SIM SESSION'; /* four buttons share the phone's bottom row */
+  const phoneRow = () => { const P = game.ui, row = [drill, sim, ladder, back].filter(w => !w.hidden); phoneGrid(P, row, 480, UI_H - tapH(P, 44) - 16, 760, row.length, 0, 8); }; if (game.ui.phone) phoneRow(); // phone: the depth chart joins the bottom row (the left column is full)
+  return { widgets: items, name: 'practice', update() { const k = keys[st.focus]; drill.hidden = !DRILL_FOCUS[k]; if (K.c && K.c.team) ladder.label = game.ui.phone ? 'DEPTH #' + ladderRank(K.c) : 'DEPTH CHART · #' + ladderRank(K.c) + (isStarter(K.c) ? ' (STARTER)' : ''); focusBtns.forEach((b, i) => { b.label = (i === st.focus ? '✓ ' : '') + CR.trainFocus[keys[i]].label; }); if (game.ui.phone) phoneRow(); },
     draw(ctx, ui) {
       const P = ui.phone; ui.panel(ctx, P ? 20 : 30, 20, P ? 450 : 440, 680); ui.title(ctx, 'PRACTICE', P ? 40 : 60, 62, 36);
       focusBtns.forEach((b, i) => { if (i === st.focus) { ctx.strokeStyle = UI_CYAN; ctx.lineWidth = 3; ctx.beginPath(); roundRectPath(ctx, b.x - 5, b.y - 5, b.w + 10, b.h + 10, 11); ctx.stroke(); } }); // the week's focus (a cyan outline and a check), apart from the keyboard focus (gold)
@@ -9991,8 +10012,8 @@ function practiceResultScreen(game, res, focus, drill) {
 function startCareerDrill(game, focus, intensity) {
   const K = careerKit(game); if (!K || !DRILL_FOCUS[focus]) return; K.setFocus(focus); K.B.intensity = intensity; const S = game.save.data.settings, seed = (Date.now() % 100000) >>> 0;
   let mine, partner, court, shift = 0;
-  if (K.pro) { const c = K.c, me = meOf(c); mine = matchTeamDef(c, c.meId, false); const mateId = c.active.find(id => id !== c.meId && c.players[id].club === me.club) || c.active.find(id => id !== c.meId); partner = matchTeamDef(c, mateId, true); court = CLUB_COURT[me.club] || 'gym'; shift = careerTierShift('pro', 1, recOvr(me), recOvr(c.players[mateId]), false); }
-  else { const c = K.c; mine = { id: 'amme', name: c.name, abbr: amAbbr(c.name), colors: c.colors.slice(), pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c)] }; const o = amMakeOpp(c, amRng(c), c.stage, amOvr(c), 'practice'); partner = { id: 'ampartner', name: o.name, abbr: amAbbr(o.name, mine.abbr), colors: ['#3A3F4A', '#F3F0FF'], pattern: 'solid', personality: archPersonality(o.style), blurb: '', players: [amOppDef(o)] }; court = (AMC.stages[c.stage] || AMC.stages.hs).court; shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(o.r, o.height), false); }
+  if (K.pro) { const c = K.c, me = meOf(c); mine = matchTeamDef(c, c.meId, false); const pm = practicePartner(c); if (pm) { partner = mateTeam(c, pm); shift = careerTierShift('pro', 1, recOvr(me), tmMateOvr(pm), false); } else { const mateId = c.active.find(id => id !== c.meId && c.players[id].club === me.club) || c.active.find(id => id !== c.meId); partner = matchTeamDef(c, mateId, true); shift = careerTierShift('pro', 1, recOvr(me), recOvr(c.players[mateId]), false); } court = CLUB_COURT[me.club] || 'gym'; } // R4: a teammate from the depth chart
+  else { const c = K.c; mine = { id: 'amme', name: c.name, abbr: amAbbr(c.name), colors: c.colors.slice(), pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c)] }; const pm = practicePartner(c); if (pm) { partner = mateTeam(c, pm); shift = careerTierShift(c.stage, c.stageYear, amOvr(c), tmMateOvr(pm), false); } else { const o = amMakeOpp(c, amRng(c), c.stage, amOvr(c), 'practice'); partner = { id: 'ampartner', name: o.name, abbr: amAbbr(o.name, mine.abbr), colors: ['#3A3F4A', '#F3F0FF'], pattern: 'solid', personality: archPersonality(o.style), blurb: '', players: [amOppDef(o)] }; shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(o.r, o.height), false); } court = (AMC.stages[c.stage] || AMC.stages.hs).court; } // R4: a teammate from the depth chart
   const after = { kind: 'drill', focus, intensity };
   if (focus === 'shooting') { game.startMatch({ mode: '1v1', teams: [mine, Object.assign({}, mine)], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 999 }, court, seed, controlMode: 'ball', contest3: {} }, after); return; }
   const kind = DRILL_FOCUS[focus];
@@ -10043,7 +10064,7 @@ function proEventScreen(game) {
   const done = () => { if (c && c.events && c.events.length) c.events.shift(); game.save.save(); game.ui.pop(); };
   return storyEventScreen(game, c, ev, done) || textEventScreen(game, ev, done);
 }
-function storyEventScreen(game, c, ev, done) { if (!c) return null; if (ev.kind === 'trait' || ev.kind === 'traitnew') return traitEventScreen(game, c, ev, done); if (ev.kind === 'press') return pressScreen(game, c, ev, done); if (ev.kind === 'rival') return rivalMomentScreen(game, c, ev, done); if (ev.kind === 'allstar' && isPro(c)) return allStarWeekendScreen(game, c, ev, done); return null; }
+function storyEventScreen(game, c, ev, done) { if (!c) return null; if (ev.kind === 'trait' || ev.kind === 'traitnew') return traitEventScreen(game, c, ev, done); if (ev.kind === 'ladder') return ladderEventScreen(game, c, ev, done); if (ev.kind === 'press') return pressScreen(game, c, ev, done); if (ev.kind === 'rival') return rivalMomentScreen(game, c, ev, done); if (ev.kind === 'allstar' && isPro(c)) return allStarWeekendScreen(game, c, ev, done); return null; }
 // A plain card: a title and lines of text.
 function textEventScreen(game, ev, done) {
   const items = [btn('Continue', 830, 600, 360, 58, done, { primary: true })]; if (game.ui.phone) phoneGrid(game.ui, items, 780, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0);
@@ -10348,6 +10369,7 @@ function migrateSave(obj) {
   const merged = Object.assign({}, d, obj); merged.settings = Object.assign({}, d.settings, obj.settings || {}); merged.unlocks = Object.assign({}, d.unlocks, obj.unlocks || {}); merged.records = Object.assign({}, d.records, obj.records || {}); merged.stats = Object.assign({}, d.stats, obj.stats || {});
   delete merged.settings.careerMode; merged.unlocks.arena = true;
   if (!['retro', 'sharp', 'smooth'].includes(merged.settings.graphics)) merged.settings.graphics = 'retro'; // R1: the L15 Pixel setting becomes Retro
+  if (merged.settings.arcadeExtras === 'all') merged.settings.arcadeExtras = 'exhibitions'; else if (!['quick', 'exhibitions', 'off'].includes(merged.settings.arcadeExtras)) merged.settings.arcadeExtras = 'quick'; // R4: Everywhere (careers included) is gone: the career never runs extras
   if (!Array.isArray(merged.posters)) merged.posters = []; if (!Array.isArray(merged.hallOfFame)) merged.hallOfFame = [];
   // the classic team league (v2 saves) moves to its own slot and keeps going; its player also prefills a new 1v1 career
   if (merged.career && typeof merged.career === 'object' && merged.career.v === 2 && merged.career.player) { if (!merged.teamCareer) merged.teamCareer = merged.career; if (!merged._legacyCareer) merged._legacyCareer = { name: merged.career.player.name, look: merged.career.player.look || null }; merged.career = null; }
@@ -10554,7 +10576,7 @@ function careerMatchOpts(c, save, g, forSim) {
 function strengthOf(p, c, bonus) { const w = LG.marginW, e = effAttrs(p, c, bonus); let s = 0; for (const k of RATING_KEYS) s += w[k] * e[k]; return s + w.h * p.h + w.wing * (p.wing || 1.03); }
 function linPts(o, d, c, bo, bd) { const W_ = LG.pts, eo = effAttrs(o, c, bo), ed = effAttrs(d, c, bd); let v = W_.c; for (const k of RATING_KEYS) { v += W_['o_' + k] * eo[k] + W_['d_' + k] * ed[k]; } return v + W_.h * o.h + W_.oh * d.h; }
 function simBox(c, hId, aId, rng) {
-  const H = c.players[hId], A = c.players[aId], len = c.gameLength / 120; const fire = c.me && c.me.rivalFire > 0 && (hId === c.meId || aId === c.meId) ? c.me.rivalFire : 0, po = c.phase === 'playoffs', fH = (hId === c.rivalId ? fire : 0) + trSimEdge(hId === c.meId ? c.me : H, po), fA = (aId === c.rivalId ? fire : 0) + trSimEdge(aId === c.meId ? c.me : A, po); // a rival you trash-talked plays you better; everyone's traits' in-game effects (R3)
+  const H = c.players[hId], A = c.players[aId], len = c.gameLength / 120; const fire = c.me && c.me.rivalFire > 0 && (hId === c.meId || aId === c.meId) ? c.me.rivalFire : 0, po = c.phase === 'playoffs', meB = c._benchSub || c.me, fH = (hId === c.rivalId ? fire : 0) + trSimEdge(hId === c.meId ? meB : H, po), fA = (aId === c.rivalId ? fire : 0) + trSimEdge(aId === c.meId ? meB : A, po); // a rival you trash-talked plays you better; everyone's traits' in-game effects (R3)
   const margin = strengthOf(H, c, fH) - strengthOf(A, c, fA) + LG.homeEdge; const baseH = linPts(H, A, c, fH, fA), baseA = linPts(A, H, c, fA, fH);
   let hs = Math.round((baseH + (margin - (baseH - baseA)) * 0.5 + LG.ptsNoise * rng.gauss()) * len), as = Math.round((baseA - (margin - (baseH - baseA)) * 0.5 + LG.ptsNoise * rng.gauss()) * len);
   hs = Math.max(6, hs); as = Math.max(6, as); let ot = 0; if (hs === as) { ot = 1; const pH = 0.5 + 0.5 * erf(margin / (LG.ptsNoise * 1.4 * Math.SQRT2)); if (rng.next() < pH) hs += 2 + rng.int(3); else as += 2 + rng.int(3); }
@@ -10577,9 +10599,9 @@ function boxFor(o, d, pts, rng, c, bo, bd) {
 
 // ---------------- results bookkeeping ----------------
 function addLine(c, id, s, win) { const t = c.stats[id]; if (!t) return; t.g++; if (win) t.w++; else t.l++; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk', 'to', 'dunk', 'ank']) t[k] += s[k] || 0; t.hi = Math.max(t.hi, s.pts || 0); }
-function recordResult(c, r, playoff) {
-  const hw = r.hs > r.as; if (!playoff) { const H = c.standings[r.h], A = c.standings[r.a]; H.pf += r.hs; H.pa += r.as; A.pf += r.as; A.pa += r.hs; if (hw) { H.w++; A.l++; H.strk = H.strk > 0 ? H.strk + 1 : 1; A.strk = A.strk < 0 ? A.strk - 1 : -1; } else { A.w++; H.l++; A.strk = A.strk > 0 ? A.strk + 1 : 1; H.strk = H.strk < 0 ? H.strk - 1 : -1; } addLine(c, r.h, r.box[r.h], hw); addLine(c, r.a, r.box[r.a], !hw); }
-  (c.results[c.week] || (c.results[c.week] = [])).push({ h: r.h, a: r.a, hs: r.hs, as: r.as, ot: r.ot, p: !!playoff, top: topLine(r) });
+function recordResult(c, r, playoff, skipId) { // skipId: a slot whose stat line isn't its player's (R4: your teammate started)
+  const hw = r.hs > r.as; if (!playoff) { const H = c.standings[r.h], A = c.standings[r.a]; H.pf += r.hs; H.pa += r.as; A.pf += r.as; A.pa += r.hs; if (hw) { H.w++; A.l++; H.strk = H.strk > 0 ? H.strk + 1 : 1; A.strk = A.strk < 0 ? A.strk - 1 : -1; } else { A.w++; H.l++; A.strk = A.strk > 0 ? A.strk + 1 : 1; H.strk = H.strk < 0 ? H.strk - 1 : -1; } if (r.h !== skipId) addLine(c, r.h, r.box[r.h], hw); if (r.a !== skipId) addLine(c, r.a, r.box[r.a], !hw); }
+  (c.results[c.week] || (c.results[c.week] = [])).push({ h: r.h, a: r.a, hs: r.hs, as: r.as, ot: r.ot, p: !!playoff, top: r.topOverride || topLine(r) });
 }
 function topLine(r) { const bh = r.box[r.h], ba = r.box[r.a]; return bh.pts >= ba.pts ? { id: r.h, pts: bh.pts, reb: bh.reb } : { id: r.a, pts: ba.pts, reb: ba.reb }; }
 function gameScore(s) { return s.pts + 0.4 * s.reb + 1.5 * s.stl + 1.5 * s.blk - s.to - 0.4 * Math.max(0, s.fga - s.fgm) + 0.5 * (s.dunk || 0) + 1.5 * (s.ank || 0); }
@@ -10643,7 +10665,7 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const M = c.me; let pay = 0; if (!g.playoff) pay += Math.round(M.contract.salary / c.seasonLength); else pay += LG.playoffGamePay;
   const fameGain = (win ? CR.fame.win : CR.fame.loss) + CR.fame.perPt * Math.max(0, my.pts - 20) + CR.fame.highlight * trMul(M, 'highlight') * ((my.dunkM || 0) * 0.3 + (my.posters || 0) + (my.ankles || 0)) + (g.playoff ? CR.fame.playoff : 0);
   M.fame = clamp(M.fame + fameGain, 0, 100); earn(c, pay);
-  const wk = wkAfterGame(M, careerRng(c), { ot: r.ot, physio: M.staff.physio }); const injury = wk.injury;
+  const wk = wkAfterGame(M, careerRng(c), { ot: r.ot, physio: M.staff.physio }); const injury = wk.injury; trustAfterGame(c, win, us, them); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   if (injury) pushNews(c, me.name + ' is playing through a ' + injury.name.toLowerCase() + ' (' + injury.games + ' game' + (injury.games > 1 ? 's' : '') + ').', 'injury'); else if (wk.healed) pushNews(c, me.name + ' is back to full health.', 'injury');
   // career totals and records
   const ss0 = c.stats[c.meId], ppgBefore = ss0 && ss0.g ? ss0.pts / ss0.g : 0; const cs = M.careerStats; cs.g++; if (win) cs.w++; else cs.l++; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk', 'to']) cs[k] += my[k] || 0; cs.dunk += my.dunkM || 0; cs.ank += my.ankles || 0; cs.posters += my.posters || 0; if (g.playoff) { if (win) cs.playoffW++; else cs.playoffL++; }
@@ -10667,6 +10689,7 @@ function careerAfterGame(save, box, meTeam, simmed) {
   if (press) (c.events || (c.events = [])).push(press); rec.press = !!press;
   proRivalMoments(c);
   { const tb = traitStoryAfterGame(M, { playoff: !!g.playoff, won: win, us, them }); if (tb) c.events.push(tb); if (traitRevealDue(M)) c.events.push(traitRevealCard(M)); } // R3: trait story beats
+  if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, careerRng(c)); // R4: the teammate below you may want your spot
   return rec;
 }
 // The rest of the league plays, the week advances, weekly money comes in.
@@ -10675,7 +10698,7 @@ function finishWeek(c, rec) {
   const rng = careerRng(c); const wk = c.schedule[c.week] || [];
   for (const g of wk) { if (g.h === c.meId || g.a === c.meId) continue; recordResult(c, simBox(c, g.h, g.a, rng), false); }
   // player of the week
-  let best = null, bs = -1; for (const r of c.results[c.week] || []) { for (const id of [r.h, r.a]) { const won = (id === r.h) === (r.hs > r.as); const line = r.top && r.top.id === id ? r.top.pts : 0; const s = line + (won ? 6 : 0); if (s > bs) { bs = s; best = id; } } }
+  let best = null, bs = -1; for (const r of c.results[c.week] || []) { for (const id of [r.h, r.a]) { if (rec && rec.bench && id === c.meId) continue; /* R4: no Player of the Week from the bench */ const won = (id === r.h) === (r.hs > r.as); const line = r.top && r.top.id === id ? r.top.pts : 0; const s = line + (won ? 6 : 0); if (s > bs) { bs = s; best = id; } } }
   if (best) { c.potw = best; if (best === c.meId) { c.me.potw++; earn(c, LG.potwBonus); c.me.fame = clamp(c.me.fame + CR.fame.potw, 0, 100); if (rec) rec.potw = true; pushNews(c, meOf(c).name + ' is the Player of the Week.', 'award'); } else pushNews(c, c.players[best].name + ' is the Player of the Week.', 'league'); }
   for (const r of c.results[c.week] || []) for (const id of [r.h, r.a]) { const sd = c.standings[id]; if (sd.strk === 5 || sd.strk === 8 || sd.strk === 12) pushNews(c, c.players[id].name + ' has won ' + sd.strk + ' straight.', id === c.meId ? 'award' : 'league'); }
   weeklyFinance(c, rec); weeklyEndorsementOffers(c);
@@ -10702,8 +10725,24 @@ function hireStaff(c, role, level) { c.me.staff[role] = level; }
 function buyGym(c) { const lvl = (c.me.gym || 0) + 1; const cost = CR.gymCost[lvl]; if (!cost || c.me.money < cost) return false; c.me.money -= cost; c.me.gym = lvl; pushNews(c, meOf(c).name + ' builds a level ' + lvl + ' home gym.', 'money'); return true; }
 
 // ---------------- simming the user's game ----------------
-function simUserGame(save) { const c = save.career; const g = userGame(c); if (!g) return null; proStartGame(c); const opts = careerMatchOpts(c, save, g, true); const box = simulateMatch(opts, { render: false }); return careerAfterGame(save, box, 0, true); }
+function simUserGame(save) { const c = save.career; const g = userGame(c); if (!g) return null; if (!isStarter(c) || (c.team && c.team.pending)) { proStartGame(c); ladderSettlePending(c); if (!isStarter(c)) return proSimBenchGame(c); } proStartGame(c); const opts = careerMatchOpts(c, save, g, true); const box = simulateMatch(opts, { render: false }); return careerAfterGame(save, box, 0, true); }
 
+// R4: a week you don't start: the teammate on the top rung of the franchise's ladder plays your slot's game (simulated;
+// the standings count it, your stat line doesn't). You still get paid.
+function proSimBenchGame(c) {
+  const g = userGame(c); if (!g || isStarter(c)) return null; const m = ladderStarterMate(c); if (!m) return null; const me = meOf(c), M = c.me, opp = opponentOf(c, g), rng = careerRng(c);
+  const sub = Object.assign({}, me, { name: m.name, nick: m.nick, arch: ARCHETYPES[m.style] ? m.style : me.arch, h: m.height, wing: m.wing || me.wing, r: m.r, isMe: false }); let r; c.players[c.meId] = sub; c._benchSub = m;
+  try { r = simBox(c, g.h, g.a, rng); } finally { c.players[c.meId] = me; delete c._benchSub; } r.topOverride = { id: opp, pts: r.box[opp].pts, reb: r.box[opp].reb }; // the week's top line is never yours when you didn't play
+  const us = g.h === c.meId ? r.hs : r.as, them = g.h === c.meId ? r.as : r.hs, win = us > them, O = c.players[opp];
+  if (c.team) { if (win) c.team.w++; else c.team.l++; }
+  if (!g.playoff) earn(c, Math.round(M.contract.salary / c.seasonLength)); else earn(c, LG.playoffGamePay);
+  M.log.unshift({ s: c.season, w: c.week, opp, home: g.h === c.meId, us, them, win, grade: 'DNP', pts: 0, reb: 0, stl: 0, blk: 0, to: 0, fg: '—', tp: '—', p: !!g.playoff, dnp: m.name }); if (M.log.length > 80) M.log.length = 80;
+  pushNews(c, (g.playoff ? 'Playoffs: ' : '') + 'The ' + (c.team ? c.team.name : 'club') + ' start ' + m.name + ', who ' + (win ? 'beats ' : 'loses to ') + O.name + ' ' + Math.max(us, them) + '–' + Math.min(us, them) + '. ' + me.name + ' does not play.', 'result');
+  const rec = { bench: true, starter: m.name, starterId: m.id, win, won: win, us, them, my: us, their: them, opp, oppName: O.name, playoff: !!g.playoff, home: g.h === c.meId, gains: {}, learned: [], xp: {}, ovrBefore: recOvr(me), ovrAfter: recOvr(me) };
+  if (g.playoff) { recordResult(c, r, true, c.meId); advancePlayoffGame(c, g.series, win ? c.meId : opp, rec); } else { recordResult(c, r, false, c.meId); finishWeek(c, rec); }
+  const bd = benchDevelop(c); rec.gains = bd.gains; rec.benchXp = bd.xp; rec.ovrAfter = recOvr(me); const wk = wkBenchWeek(M); rec.wk = wk; trustAfterWeek(c, wk.plan, wk.fatigueBefore); ladderBenchStory(c); if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, rng); rec.rank = ladderRank(c);
+  return rec;
+}
 // ---------------- practice, rest and film: the career week (part 4) ----------------
 
 // ---------------- All-Star weekend: the 3-point contest ----------------
@@ -10913,7 +10952,7 @@ function amCreate(save, form) {
   const proj = Math.round((c.heightFinal + rng.gauss() * AMC.projectionSd) * 100) / 100; c.projection = proj;
   c.events.push({ kind: 'genes', title: 'YOUR GENES', lines: ['You are ' + fmtHeightFull(c.height) + ' as a freshman.', 'Doctors project you will end up around ' + fmtHeight(proj) + ' (' + proj.toFixed(2) + ' m), give or take an inch.', c.bloom === 'late' ? 'Late bloomer: most of your growing is still ahead of you.' : c.bloom === 'early' ? 'Early bloomer: you have already done most of your growing.' : 'You should keep growing for a few more years.', 'Wingspan: ' + (c.wing >= 1.055 ? 'long arms, good for contests and blocks.' : c.wing <= 1.005 ? 'short arms; you will have to beat length with timing.' : 'normal for your height.'), 'At that height: ' + amHeightFxText(c.heightFinal) + '.', 'Your rival from day one is ' + rv.name + '. You will meet again at every level.'] });
   tlAdd(c, 'start', 'Freshman at ' + c.school + ', ' + fmtHeight(c.height) + '. Doctors project ' + fmtHeight(proj) + '.'); storyNews(c, c.name + ' starts high school at ' + c.school + '.', 'league'); amStoryStart(c);
-  c.team = tmNewAm(c, 'hs', { name: c.school, colors: c.colors, coach: c.coach }); c.pastTeams = []; amRivalMoments(c); // R3: your school's team (its coach is the one from the first day)
+  c.team = tmNewAm(c, 'hs', { name: c.school, colors: c.colors, coach: c.coach, base: amOvr(c) + TM.tierGap[0] }); ladderInit(c, TM.ladderStart[0]); c.pastTeams = []; amRivalMoments(c); // R3: your school's team (its coach is the one from the first day); R4: its depth chart
   save.c1 = c; return c;
 }
 
@@ -10957,7 +10996,7 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
   const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1, c);
   if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add)) gains.push(g2); } // the college coach's specialty
-  const wk = wkAfterGame(c, rng, {}); const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c)));
+  const wk = wkAfterGame(c, rng, {}); const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
   storyFill(c); const md = mdAfterGame(c, won, my, their); mdHighlights(c, st); const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
   if (opp.rival) { h2hAdd(c, won); c.rivalFire = 0; }
@@ -10971,15 +11010,30 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng);
   amRivalMoments(c);
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // R3: the hidden trait's story moment
+  if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
   return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: po ? po.round : 0, simmed: !!simmed, wk, recs, md, press: !!press };
 }
 function amSimGame(c) {
-  const g = amNext(c); if (!g || !g.opp) return null; amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id);
+  const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending)) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c)) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id);
   const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff), ovrOf(g.opp.r, g.opp.height) + (g.opp.rival ? c.rivalFire || 0 : 0), stg.target); const a = sc[0], b = sc[1]; // traits: what their in-game effects are worth
   let tpm = Math.min(Math.floor(a / 3), Math.round(a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3)); if ((a - 3 * tpm) % 2) tpm = tpm > 0 ? tpm - 1 : 1; const twos = Math.max(0, (a - 3 * tpm) / 2); /* 2s and 3s that add up to the score */ const fgm = tpm + twos; const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62);
   const st = { pts: 3 * tpm + 2 * twos, fgm, fga: Math.max(fgm, Math.round(fgm / pct)), tpm, tpa: Math.max(tpm, Math.round(tpm / 0.36)), reb: Math.round(2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12), stl: Math.floor(rng.next() * 3), blk: Math.floor(rng.next() * 2 + Math.max(0, c.height - 1.95) * 6), dunkM: 0, layM: Math.round(twos * 0.5) };
   st.dunkM = Math.min(st.layM, Math.round(twos * clamp((eff.jmp / 10 - 5) * 0.07 + (c.height - 1.9) * 0.6, 0, 0.45))); st.layM -= st.dunkM; st.ankles = Math.floor(rng.next() * clamp(eff.han / 10 - 3, 0, 6) * 0.45); // highlights of a simmed game (R3: hype)
   return amApplyResult(c, g.opp, a, b, st, true);
+}
+// R4: a week you don't start: the teammate on the top rung plays the team's game (simulated); you practiced.
+function amSimBenchGame(c) {
+  const g = amNext(c); if (!g || !g.opp || isStarter(c)) return null; const m = ladderStarterMate(c); if (!m) return null;
+  const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, stg = AMC.stages[c.stage] || AMC.stages.hs;
+  const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + (opp.rival ? c.rivalFire || 0 : 0), stg.target); const my = sc[0], their = sc[1], won = my > their;
+  if (c.team) { if (won) c.team.w++; else c.team.l++; }
+  if (!po) { amRec(L.me, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); }
+  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0, bench: m.name });
+  storyNews(c, (po ? 'Playoffs: ' : '') + teamShort(c.team.name) + ' (' + m.name + ') ' + (won ? 'beat ' : 'lost to ') + (opp.team ? teamShort(opp.team) + ' (' + opp.name + ')' : opp.name) + ' ' + Math.max(my, their) + '–' + Math.min(my, their) + '. ' + c.name + ' did not play.', opp.rival ? 'rival' : 'result');
+  const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); trustAfterWeek(c, wk.plan, wk.fatigueBefore); ladderBenchStory(c);
+  let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng);
+  if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); amRivalMoments(c);
+  return { bench: true, starter: m.name, starterId: m.id, won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains: bd.gains, benchXp: bd.xp, learned: [], note, ovrBefore: ovr0, ovrAfter: amOvr(c), line: {}, playoff: po ? po.round : 0, simmed: true, wk, recs: [], md: {}, press: false, rank: ladderRank(c) };
 }
 function amAfterMatch(game, box, after) { const c = game.save.data.c1; if (!c || c.stage === 'combine' || c.handedOff) return null; const opp = amOppById(c, after.oppId); if (!opp) return null; const me = box.teams[0], them = box.teams[1]; return amApplyResult(c, opp, me.score, them.score, Object.assign({}, me.players[0] || {}), false); }
 
@@ -11021,7 +11075,7 @@ function amAfterSeason(c, rng, lines) {
 // A new season at the same school: the seniors graduate, new freshmen arrive (R3).
 function amTeamSummer(c, lines) { if (!c.team) return; const gone = tmNewSeason(c); if (gone.length && lines) lines.push((c.team.kind === 'hs' ? 'Graduated: ' : 'Moved on: ') + gone.slice(0, 3).join(', ') + (gone.length > 3 ? ' and ' + (gone.length - 3) + ' more' : '') + '.'); }
 function amVertical(r) { const C = AMC.combine; return Math.round(C.vert + C.vertPer * r.jmp); }
-function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length - 1]; return amOvr(c) * D.ovr + (D.ageRef - c.age) * D.age + (c.collegeTier || 0) * D.tier + c.mvps * D.mvp + c.titles * D.title + (last ? last.ppg * D.ppg : 0) + D.wing * c.height * (c.wing - 1) + (amVertical(c.r) - D.vertRef) / D.vertDiv + (c.hype || 0); }
+function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length - 1]; return amOvr(c) * D.ovr + (D.ageRef - c.age) * D.age + (c.collegeTier || 0) * D.tier + c.mvps * D.mvp + c.titles * D.title + (last ? last.ppg * D.ppg : 0) + D.wing * c.height * (c.wing - 1) + (amVertical(c.r) - D.vertRef) / D.vertDiv + (c.hype || 0) + TM.trustDraft * trustOf(c) / 100; } // R4: your coach's word with the scouts
 function amPickFrom(score) { const D = AMC.draft; return Math.round(clamp(D.pickBase - (score - D.pickRef) * D.pickPer, 1, D.pickBase)); }
 function amProjLabel(c) { const p = amPickFrom(amDraftScore(c)); return p <= 5 ? 'a top-5 pick' : p <= 14 ? 'a lottery pick' : p <= 30 ? 'a first-round pick' : p <= 60 ? 'a second-round pick' : 'undrafted for now'; }
 function amDeclare(c, go) { const rng = amRng(c); c.decision = null; if (go) amGoToDraft(c); else { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, null); } }
@@ -11087,7 +11141,7 @@ function amRepair(c) {
 }
 
 // A pro league for tests and dev tools: a generated amateur, grown up and handed straight to draft night.
-function testProLeague(seed, save) { save = save || defaultSave(); const a = amCreate(save, { name: 'Model Check', look: PRESET_LOOKS[0], number: 1, style: 'slasher', seed: seed >>> 0 }); a.age = 20; a.height = a.heightFinal; a.stage = 'combine'; a.events = []; return createCareerFromAmateur(save, a); }
+function testProLeague(seed, save) { save = save || defaultSave(); const a = amCreate(save, { name: 'Model Check', look: PRESET_LOOKS[0], number: 1, style: 'slasher', seed: seed >>> 0 }); a.age = 20; a.height = a.heightFinal; a.stage = 'combine'; a.events = []; const c = createCareerFromAmateur(save, a); const L = ladderOf(c); if (L) { L.splice(L.indexOf('me'), 1); L.unshift('me'); } return c; } // tests and dev tools: you start (R4)
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 3) — the classic team league's data: rosters, schedule, results, playoffs, coins
@@ -11282,12 +11336,14 @@ function wkAfterGame(B, rng, opts) {
   B.fatigue = clamp((B.fatigue || 0) + WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0), 0, 100); out.fatigue = B.fatigue;
   wkNew(B); return out;
 }
+// R4: a week on the bench: you practiced but didn't play, so no game fatigue; an injury heals a game.
+function wkBenchWeek(B) { const out = { healed: false, injury: null, fatigueBefore: B.fatigue || 0, plan: (B.wk && B.wk.done) || null, practiceXp: (B.wk && B.wk.xp) || 0, bench: true }; if (B.injury) { B.injury.games--; if (B.injury.games <= 0) { B.injury = null; out.healed = true; } } B.fatigue = Math.max(0, (B.fatigue || 0) - TM.benchRecovery); out.fatigue = B.fatigue; wkNew(B); return out; }
 // A new season: fresh legs, healed.
 function wkNewSeason(B) { B.fatigue = 0; B.injury = null; wkNew(B); }
 
 // --- the amateur week ---
-function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age); }
-function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age); }
+function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c); }
+function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c); } // R4: coach trust pays up to +20%
 function amPractice(c, focus, intensity, xpIn) {
   if (CR.trainFocus[focus]) c.focus = focus; c.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = amOvr(c), movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c));
   const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, xpIn, c.intensity, amRng(c)); if (!res) return null;
@@ -11296,12 +11352,12 @@ function amPractice(c, focus, intensity, xpIn) {
 function amRest(c) { return wkRest(c); }
 function amFilm(c) { const g = amNext(c); return wkFilm(c, g && g.opp ? g.opp.id : null); }
 // Nobody skips a week: if you play without choosing, your standing plan runs (Practice is a simmed session).
-function amStartGame(c) { wkFill(c); if (c.wk.done) return null; const p = c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
+function amStartGame(c) { wkFill(c); ladderSettlePending(c); if (c.wk.done) return null; const p = c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
 
 // --- the pro week ---
 function proTrainMul(c, focus) { const M = c.me, me = meOf(c), F = CR.trainFocus[focus] || CR.trainFocus.shooting; return (1 + CR.staffBonus * (M.staff[F.staff] || 0)) * (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
-function proSessionXp(c, focus, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age); }
-function proDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age); }
+function proSessionXp(c, focus, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
+function proDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proPractice(c, focus, intensity, xpIn) {
   const M = c.me, me = meOf(c); if (CR.trainFocus[focus]) M.focus = focus; M.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = recOvr(me), movesBefore = learnedMoves(me, M);
   const res = wkPractice(M, me.r, M.xp, me.caps, M.focus, xpIn, M.intensity, careerRng(c)); if (!res) return null;
@@ -11310,7 +11366,7 @@ function proPractice(c, focus, intensity, xpIn) {
 }
 function proRest(c) { const M = c.me; return wkRest(M, WK.restPhysio * ((M.staff && M.staff.physio) || 0) + WK.restGym * (M.gym || 0)); }
 function proFilm(c) { const g = userGame(c); return wkFilm(c.me, g ? opponentOf(c, g) : null); }
-function proStartGame(c) { const M = wkFill(c.me); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
+function proStartGame(c) { const M = wkFill(c.me); ladderSettlePending(c); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 5) — the story (§8): press questions after big games and what your answers do
@@ -11419,12 +11475,12 @@ const COACH_PITCH = { // what a coach says on a campus visit, by the rating they
   speed: 'Our guards are the fastest in the conference. Sprints, sleds, first steps: you will fly.',
   hops: 'Our strength program is the best in the country. You will jump higher by Christmas.',
   athletic: 'Our strength program is the best in the country. You will jump higher by Christmas.',
-  defense: 'We win with defense. Stop your man and you will never come off the floor.',
+  defense: 'We win with defense. Stop your matchup and you will never come off the floor.',
   strength: 'You will grow into a grown body here. Nobody pushes our players around.',
 };
 // --- offers: one per tier from the best your résumé earns down, with facilities and a coach's specialty ---
 function amCollegeOffers(c, rng) {
-  const ovr = amOvr(c); const score = ovr + c.titles * 2 + c.mvps * 2 + (c.hype || 0) * 0.5; const cuts = AMC.offerCuts; const top = score >= cuts[0] ? 3 : score >= cuts[1] ? 2 : score >= cuts[2] ? 1 : 0; const out = []; const used = {};
+  const ovr = amOvr(c); const score = ovr + c.titles * 2 + c.mvps * 2 + (c.hype || 0) * 0.5 + TM.trustRecruit * trustOf(c) / 100; /* R4: your coach's recommendation */ const cuts = AMC.offerCuts; const top = score >= cuts[0] ? 3 : score >= cuts[1] ? 2 : score >= cuts[2] ? 1 : 0; const out = []; const used = {};
   const tiers = []; for (let t = top; t >= 0 && tiers.length < RCT.offers; t--) tiers.push(t); while (tiers.length < 3) tiers.push(0);
   const foci = Object.keys(CR.trainFocus);
   for (const tier of tiers) { const pool = AM_COLLEGES[tier].filter(n => !used[n]); if (!pool.length) continue; const name = rng.pick(pool); used[name] = 1; const coach = 'Coach ' + genName(rng, new Set(), new Set()).split(' ')[1];
@@ -11451,7 +11507,7 @@ function amChooseCollege(c, o) {
     storyNews(c, contested && contested.name === o.name ? c.name + ' beats ' + c.rival.name + ' to ' + o.name + '. ' + c.rival.nick + ' signs with ' + rvSchool + '.' : c.rival.name + ' takes the last spot at ' + rvSchool + '.', 'rival'); }
   storyNews(c, c.name + ' commits to ' + o.name + '!', 'draft'); tlAdd(c, 'commit', 'Committed to ' + o.name + ' (' + AMC.tiers[o.tier] + ')');
   c.events.push({ kind: 'commit', title: 'COMMITMENT DAY', offers: offers.map(x => ({ name: x.name, colors: x.colors, tier: x.tier })), chosen: offers.findIndex(x => x.name === o.name), lines: [c.name + ' commits to ' + o.name + '.', AMC.tiers[o.tier] + ' · ' + (o.coach || 'the coach') + ' · facilities ' + '★'.repeat(o.fac || 1) + '☆'.repeat(3 - (o.fac || 1)), c.rival && c.rival.college ? c.rival.name + ' will be at ' + c.rival.college + ', in your conference.' : 'Bigger programs play tougher schedules, and more scouts are watching.'] });
-  tmArchive(c); c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach }); // R3: the program is your team now
+  tmArchive(c); c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach, base: amOvr(c) + TM.tierGap[o.tier] }); ladderInit(c, TM.ladderStart[o.tier]); // R3: the program is your team now; R4: bigger programs start you lower on the depth chart
   amNewSeason(c, rng); c.events.push({ kind: 'story', title: 'WELCOME TO ' + o.name.toUpperCase(), lines: [(o.coach || 'Your coach') + ': “' + (COACH_PITCH[o.focus] || 'Work hard and you will play.') + '”', 'College games are first to 21. Every game here pays ' + Math.round(RCT.facXp * 100 * ((o.fac || 1) - 1)) + '% more XP from the facilities' + (o.focus ? ', and your coach adds extra ' + (CR.trainFocus[o.focus] || {}).label + ' work after every game.' : '.'), 'Declare for the draft after any season. Scouts will tell you where you would go.'] });
   amRivalMoments(c);
 }
@@ -11559,7 +11615,7 @@ function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) { cons
 function traitRevealDue(c) { const T = traitsOf(c); return !!T && !T.found && T.hidden && ((c.stage === 'hs' && c.age >= TR.revealAge && c.seasonStats && c.seasonStats.g >= TR.revealGames) || c.stage !== 'hs'); }
 function traitRevealCard(c) {
   const T = traitsOf(c); T.found = true; const d = TR.list[T.hidden];
-  const lines = { gymrat: 'The janitor finds you in the gym at 6 a.m. again. He stops asking why.', streaky: 'Three straight buckets, then three straight bricks. Your coach calls you a weather system.', glueguy: 'Your coach keeps putting you with the freshmen. "They listen to you," he says.', fasttwitch: 'The trainer times your first step twice. Then a third time, to be sure.', quickstudy: 'You pick up a move in one practice that took the seniors a month.', clutch: 'Tie game, last shot of practice, everybody watching. You want the ball. You make it.', ironman: 'You play through a sprained ankle and nobody even notices you limping.', floorgeneral: 'Nobody in practice can take the ball from you. They stop trying.', showman: 'The crowd roars when you show off. You notice. You like it.', paintprotector: 'Anything near the rim is yours. Even the ball you shouldn\'t have touched.', latebloomer: 'The doctor looks at your growth plates and smiles: you are not done yet.', microwave: 'Two in a row and you feel it: the rim looks as wide as a hula hoop.', filmjunkie: 'You watch the same tape four times. Your coach starts asking you what you saw.', freak: 'The trainer measures your vertical and calls the head coach over.', generational: 'A scout from three states away is sitting in the bleachers. For you.', unbreakable: 'Everyone else is sore after two-a-days. You feel great.', iceveins: 'Pressure? You don\'t feel it. Your pulse at the line barely moves.' };
+  const lines = { gymrat: 'The janitor finds you in the gym at 6 a.m. again, and has stopped asking why.', streaky: 'Three straight buckets, then three straight bricks. Your coach calls you a weather system.', glueguy: 'Your coach keeps putting you with the freshmen. "They listen to you."', fasttwitch: 'The trainer times your first step twice. Then a third time, to be sure.', quickstudy: 'You pick up a move in one practice that took the seniors a month.', clutch: 'Tie game, last shot of practice, everybody watching. You want the ball. You make it.', ironman: 'You play through a sprained ankle and nobody even notices you limping.', floorgeneral: 'Nobody in practice can take the ball from you. They stop trying.', showman: 'The crowd roars when you show off. You notice. You like it.', paintprotector: 'Anything near the rim is yours. Even the ball you shouldn\'t have touched.', latebloomer: 'The doctor looks at your growth plates and smiles: you are not done yet.', microwave: 'Two in a row and you feel it: the rim looks as wide as a hula hoop.', filmjunkie: 'You watch the same tape four times. Your coach starts asking you what you saw.', freak: 'The trainer measures your vertical and calls the head coach over.', generational: 'A scout from three states away is sitting in the bleachers. For you.', unbreakable: 'Everyone else is sore after two-a-days. You feel great.', iceveins: 'Pressure? You don\'t feel it. Your pulse at the line barely moves.' };
   return { kind: 'trait', title: 'HIDDEN TRAIT: ' + d.name.toUpperCase(), trait: T.hidden, lines: [lines[T.hidden] || 'Something about your game shows itself.', d.up + '.', 'The catch: ' + d.down.charAt(0).toLowerCase() + d.down.slice(1) + '.'] };
 }
 // Rarity helpers for the UI.
@@ -11626,7 +11682,7 @@ const TEAM_MASCOTS = ['Wolves', 'Hornets', 'Falcons', 'Titans', 'Rockets', 'Pant
 const COACH_STYLES = {
   fiery: { label: 'Fiery', line: 'Loud on the sideline, louder in the film room. Hates excuses.' },
   teacher: { label: 'Teacher', line: 'Explains every drill twice. Loves a player who asks why.' },
-  players: { label: 'Players\' coach', line: 'Knows your mom\'s name. Goes to bat for you with anyone.' },
+  players: { label: 'Players\' coach', line: 'Knows your family by name. Goes to bat for you with anyone.' },
   oldschool: { label: 'Old school', line: 'Fundamentals, conditioning, and no dunking in warm-ups.' },
   numbers: { label: 'Numbers coach', line: 'Keeps a shot chart on everyone. Trusts the math over the hype.' },
 };
@@ -11650,13 +11706,14 @@ function tmMakeMate(c, rng, stage, ovr, id, used, cls) {
   mate.tr.found = true; return mate;
 }
 function tmMateOvr(m) { return ovrOf(m.r, m.height); }
-// A new amateur team. o: { name, colors, tier, coach, mascot }.
+// A new amateur team. o: { name, colors, tier, coach, mascot, base }: base is the OVR its teammates center on (R4: your
+// OVR + tierGap: at a small school you're the best, at a blue blood they are).
 function tmNewAm(c, kind, o) {
   const rng = tmRng(c); const used = new Set([c.name].concat(c.rival ? [c.rival.name] : []));
   const T = { kind, name: o.name, mascot: o.mascot || schoolMascot(o.name), colors: (o.colors || schoolColors(o.name)).slice(), tier: o.tier || 0, coach: tmCoach(rng, o.coach), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0 };
-  const mean = kind === 'hs' ? AMC.stageMean.hs : AMC.stageMean.college + AMC.stageMean.collegePerTier * T.tier + TM.tierOvr * T.tier;
+  const mean = o.base != null ? o.base : kind === 'hs' ? AMC.stageMean.hs : AMC.stageMean.college + AMC.stageMean.collegePerTier * T.tier + TM.tierOvr * T.tier;
   for (let i = 0; i < TM.roster[kind]; i++) { const cls = 1 + (i % 4); T.mates.push(tmMakeMate(c, rng, kind, Math.round(clamp(mean + TM.classOvr[cls - 1] + TM.sd * rng.gauss(), 28, 92)), 'tm' + (c.tmn = (c.tmn || 0) + 1), used, cls)); }
-  return T;
+  T.trust = TM.trustStart[kind] || 40; return T;
 }
 // Each summer: the seniors leave, everyone moves up a year and gets better, new freshmen arrive.
 function tmNewSeason(c, rng) {
@@ -11664,7 +11721,7 @@ function tmNewSeason(c, rng) {
   for (const m of T.mates.slice()) { m.cls++; m.age++; if (m.cls > 4) { gone.push(m.name); T.mates.splice(T.mates.indexOf(m), 1); continue; } for (const k of RATING_KEYS) if (rng.next() < TM.growOdds) m.r[k] = Math.min(CR.ratingMax, m.r[k] + CR.xpStep); if (T.kind === 'hs' && m.age <= 17) m.height = Math.round((m.height + 0.015) * 100) / 100; }
   const mean = T.kind === 'hs' ? AMC.stageMean.hs : AMC.stageMean.college + AMC.stageMean.collegePerTier * T.tier + TM.tierOvr * T.tier;
   while (T.mates.length < TM.roster[T.kind]) T.mates.push(tmMakeMate(c, rng, T.kind, Math.round(clamp(mean + TM.classOvr[0] + TM.sd * rng.gauss(), 28, 92)), 'tm' + (c.tmn = (c.tmn || 0) + 1), used, 1));
-  T.seasons++; return gone;
+  T.seasons++; ladderRepair(c); return gone;
 }
 // Leaving a team (graduation, college, the draft, a trade): it goes to c.pastTeams with your record there.
 function tmArchive(c) { const T = c.team; if (!T) return; if (!Array.isArray(c.pastTeams)) c.pastTeams = []; c.pastTeams.push({ kind: T.kind, name: T.name, mascot: T.mascot, colors: T.colors.slice(), w: T.w, l: T.l, titles: T.titles, coach: T.coach ? T.coach.name : '', seasons: T.seasons }); c.team = null; }
@@ -11680,9 +11737,9 @@ function amAssignOppTeams(c, recolor) {
 // A pro franchise: your club, its coach, the league players on its roster and a bench that practices with you.
 function tmNewPro(c) {
   const me = meOf(c); const club = clubOf(me.club); const rng = tmRng(c); const used = new Set(Object.values(c.players).map(p => p.name));
-  const T = { kind: 'pro', club: me.club, name: club.name, mascot: '', colors: club.colors.slice(), tier: (c.facilities && c.facilities[me.club]) || 1, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0 };
+  const T = { kind: 'pro', club: me.club, name: club.name, mascot: '', colors: club.colors.slice(), tier: (c.facilities && c.facilities[me.club]) || 1, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0, trust: TM.trustStart.pro };
   for (let i = 0; i < TM.roster.pro; i++) { const m = tmMakeMate(c, rng, 'pro', Math.round(clamp(CR.proMean + TM.proBench + TM.sd * rng.gauss(), 55, 85)), 'tb' + (c.tmn = (c.tmn || 0) + 1), used, 0); T.mates.push(m); }
-  return T;
+  const best = Math.max(...T.mates.map(tmMateOvr)), prev = c.team; c.team = T; ladderInit(c, (me.draftPick && me.draftPick <= TM.proStartTop && c.season <= 1) || recOvr(me) >= best ? 1 : 2); c.team = prev; return T; // a high pick (or anyone better than the bench) starts
 }
 // Your league teammates at the club (real league players) + the bench.
 function tmProRoster(c) { const T = c.team; if (!T) return []; const me = meOf(c); const league = c.active.filter(id => id !== c.meId && c.players[id].club === me.club).map(id => { const p = c.players[id]; return { id, name: p.name, nick: p.nick, style: p.arch, height: p.h, wing: p.wing, r: p.r, look: p.look, tr: p.tr || null, age: p.age, league: true }; }); return league.concat(T.mates); }
@@ -11694,11 +11751,70 @@ function teamOf(c) { return c ? c.team || null : null; }
 function teamRecordText(T) { return T ? T.w + '-' + T.l + (T.titles ? ' · ' + T.titles + ' title' + (T.titles > 1 ? 's' : '') : '') : ''; }
 // Fill in a team for a save from before R3 (amateur): the school or college you are at, its coach, teammates.
 function amEnsureTeam(c) {
-  if (c.stage === 'hs' && (!c.team || c.team.kind !== 'hs')) { c.team = tmNewAm(c, 'hs', { name: c.school || AM_SCHOOLS[0], colors: c.colors, coach: c.coach }); }
-  else if (c.stage === 'college' && (!c.team || c.team.kind !== 'college')) { const P = c.program || {}; c.team = tmNewAm(c, 'college', { name: c.college || P.name || 'College', colors: c.colors, tier: c.collegeTier || 0, coach: P.coach }); }
+  if (c.stage === 'hs' && (!c.team || c.team.kind !== 'hs')) { c.team = tmNewAm(c, 'hs', { name: c.school || AM_SCHOOLS[0], colors: c.colors, coach: c.coach, base: amOvr(c) + TM.tierGap[0] }); ladderInit(c, 1); }
+  else if (c.stage === 'college' && (!c.team || c.team.kind !== 'college')) { const P = c.program || {}, tier = c.collegeTier || 0; c.team = tmNewAm(c, 'college', { name: c.college || P.name || 'College', colors: c.colors, tier, coach: P.coach, base: amOvr(c) + TM.tierGap[tier] }); ladderInit(c, 1); } /* a career from before the depth chart keeps you starting */
   if (c.rival && c.stage === 'hs' && !c.rival.school) { const pool = AM_SCHOOLS.filter(n => n !== c.school); c.rival.school = pool[tmHash(c.seed + ':rival') % pool.length]; }
   if (c.league) amAssignOppTeams(c, false);
   return c.team;
+}
+
+// ---------------- R4: the depth-chart ladder and coach trust ----------------
+// The ladder is the team's order: whoever is on the top rung plays each week's game (the career is 1v1: one player a
+// team). You move up by beating the teammate a rung above you in a practice challenge (a 1v1 game to 7); the one a
+// rung below can challenge you after any game. Coach trust (0–100) pays a practice XP bonus and a stronger
+// recommendation to colleges and scouts; Glue Guy earns it half again as fast.
+function ladderInit(c, startRank) { const T = c.team; if (!T) return; const ids = T.mates.slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a)).map(m => m.id); ids.splice(clamp((startRank || 1) - 1, 0, ids.length), 0, 'me'); T.ladder = ids; if (!(T.trust >= 0)) T.trust = TM.trustStart[T.kind] || 40; T.pending = null; }
+// After roster changes: gone teammates leave the ladder, new ones join at the bottom (best first), you stay put.
+function ladderRepair(c) { const T = c.team; if (!T) return null; const have = new Set(T.mates.map(m => m.id)); let L = Array.isArray(T.ladder) ? T.ladder.filter(id => id === 'me' || have.has(id)) : null; if (!L) { ladderInit(c, 1); return T.ladder; } const fresh = T.mates.filter(m => !L.includes(m.id)).sort((a, b) => tmMateOvr(b) - tmMateOvr(a)).map(m => m.id); L = L.concat(fresh); if (!L.includes('me')) L.unshift('me'); T.ladder = L; if (!(T.trust >= 0)) T.trust = TM.trustStart[T.kind] || 40; if (T.pending && !have.has(T.pending)) T.pending = null; return L; }
+function ladderOf(c) { const T = c && c.team; if (!T) return null; const L = T.ladder; if (!Array.isArray(L) || L.length !== T.mates.length + 1 || !L.includes('me') || L.some(id => id !== 'me' && !T.mates.some(m => m.id === id))) ladderRepair(c); return T.ladder; } // repaired after roster turnover (graduations, new freshmen)
+function ladderRank(c) { const L = ladderOf(c); return L ? L.indexOf('me') + 1 : 1; }
+function isStarter(c) { return ladderRank(c) === 1; }
+function ladderMate(c, id) { const T = c && c.team; return T ? T.mates.find(m => m.id === id) || null : null; }
+function ladderAboveId(c) { const L = ladderOf(c), i = L ? L.indexOf('me') : 0; return i > 0 ? L[i - 1] : null; }
+function ladderBelowId(c) { const L = ladderOf(c), i = L ? L.indexOf('me') : -1; return L && i >= 0 && i < L.length - 1 ? L[i + 1] : null; }
+function ladderStarterMate(c) { const L = ladderOf(c); return L && L[0] !== 'me' ? ladderMate(c, L[0]) : null; }
+function ladderSwapUp(c, id) { const L = ladderOf(c), i = L.indexOf('me'), j = L.indexOf(id); if (i < 0 || j < 0) return; L[i] = id; L[j] = 'me'; }
+function trustOf(c) { return c && c.team ? Math.round(c.team.trust || 0) : 0; }
+function trustAdd(c, v) { const T = c && c.team; if (!T || !v) return 0; const d = v > 0 ? v * trMul(holderOf(c), 'trust') : v; const before = T.trust || 0; T.trust = clamp(before + d, 0, 100); return T.trust - before; } // Glue Guy: gains ×1.5
+function trustXpMul(c) { return 1 + TM.trustXp * trustOf(c) / 100; }
+// Your effective OVR for a practice challenge (this week's fatigue and injury count; traits as in simmed games).
+function myChallengeOvr(c) { const B = holderOf(c); if (isPro(c)) { const me = meOf(c); return effOvr(wkEff(me.r, me.h, B)) + trSimEdge(B, false); } return effOvr(wkEff(c.r, c.height, c)) + trSimEdge(c, false); }
+// A challenge's result. who: 'you' (you challenged the teammate above) or 'them' (the one below challenged you).
+function ladderResolve(c, mateId, won, who) {
+  const m = ladderMate(c, mateId); if (!m) return null; const rank0 = ladderRank(c); let dt = 0;
+  if (who === 'you') { if (won && ladderAboveId(c) === mateId) { ladderSwapUp(c, mateId); dt = trustAdd(c, TM.trust.challengeWin); } else dt = trustAdd(c, TM.trust.challengeLoss); }
+  else { const L = ladderOf(c); if (!won && ladderBelowId(c) === mateId) { const i = L.indexOf('me'); L[i] = mateId; L[i + 1] = 'me'; dt = trustAdd(c, TM.trust.lostSpot); } else dt = trustAdd(c, TM.trust.defended); }
+  if (c.team.pending === mateId) c.team.pending = null; const rank1 = ladderRank(c); ladderStory(c, rank0, rank1, m);
+  const nm = isPro(c) ? meOf(c).name : c.name; storyNews(c, who === 'you' ? (won ? nm + ' beats ' + m.name + ' in practice and takes the #' + rank1 + ' spot.' : m.name + ' holds off ' + nm + ' in a practice challenge.') : (won ? nm + ' holds off a challenge from ' + m.name + '.' : m.name + ' beats ' + nm + ' in practice and takes the #' + rank0 + ' spot.'), 'league');
+  return { mate: m.name, mateId, won, who, rankBefore: rank0, rankAfter: rank1, trust: dt, starter: rank1 === 1 };
+}
+// Simulated challenge (the SIM button, the career simulator, and a challenge left unplayed at the next game).
+function ladderSimChallenge(c, mateId, who, rng) { const m = ladderMate(c, mateId); if (!m) return null; rng = rng || tmRng(c); const won = rng.next() < 1 / (1 + Math.exp(-(myChallengeOvr(c) - tmMateOvr(m) - trSimEdge(m, false)) / TM.challengeScale)); return ladderResolve(c, mateId, won, who); }
+// After each week's game: maybe the teammate below you wants your spot (an event card: play it or sim it).
+function ladderMaybeChallenge(c, rng) { const T = c.team; if (!T || T.pending) return; const below = ladderBelowId(c); const m = below ? ladderMate(c, below) : null; if (!m) return; const p = TM.challengeOdds * clamp01(1 + (tmMateOvr(m) - myChallengeOvr(c)) / TM.challengeReach); if (rng.next() >= p) return; T.pending = below; (c.events || (c.events = [])).push({ kind: 'ladder', mate: below, title: 'CHALLENGE!', lines: [m.name + ' wants your spot on the depth chart (#' + ladderRank(c) + ').', 'A practice game to ' + TM.challengeTarget + ': win and you keep it; lose and you drop a rung' + (ladderRank(c) === 1 ? ', and ' + m.nick + ' starts the next game.' : '.'), (T.coach ? T.coach.name : 'Coach') + ': "Settle it on the court."'] }); }
+// A challenge still pending when the next game comes is settled (simulated) first.
+function ladderSettlePending(c) { const T = c && c.team; if (T && T.pending) return ladderSimChallenge(c, T.pending, 'them'); return null; }
+// Trust from a game you played, and from the week's plan (Rest when you're fresh is skipping practice).
+function trustAfterGame(c, won, us, them) { if (!c.team) return 0; let d = won ? TM.trust.win : TM.trust.loss; if (!won && them > 0 && them - us > MD.blowoutFrac * them) d += TM.trust.blowout; return trustAdd(c, d); }
+function trustAfterWeek(c, plan, fatigue) { if (!c.team) return 0; if (plan === 'practice') return trustAdd(c, TM.trust.practice); if (plan === 'rest' && (fatigue || 0) < TM.trust.freshAt) return trustAdd(c, TM.trust.restFresh); return 0; }
+// R4: match kinds that belong to a career. Arcade extras (super meter, specials, power-ups) never run in them.
+const CAREER_KINDS = ['career', 'amateur', 'drill', 'ladder', 'allstar', 'allstar1v1'];
+// Teammates in the story: the first time you lose the start and the first time you win it at a team (coach's lines by personality).
+const COACH_BENCH = { fiery: 'You want the ball? Take it from %s in practice. Nobody hands you anything here.', teacher: '%s earned it this week. Watch how the defense gets read, then go take it back.', players: 'I know it stings. %s starts this week. Keep your head up and win it back.', oldschool: 'Seniority is earned. %s earned it. Go earn it back.', numbers: 'The numbers say %s this week. Change the numbers.' };
+const COACH_START = { fiery: 'That is what I want to see. It is your spot. Keep it.', teacher: 'You out-read %s. Remember how that felt. You start.', players: 'Told you. You start. Now let us go win some games.', oldschool: 'You earned it the right way. You start.', numbers: 'Your numbers in practice made the call. You start.' };
+function ladderStory(c, rank0, rank1, m) {
+  const T = c.team; if (!T) return; const S = T.story || (T.story = {}); const co = T.coach || {}, st = co.style || 'teacher', fill = s => s.replace('%s', m.nick || m.name);
+  if (rank0 === 1 && rank1 > 1 && !S.lost) { S.lost = true; (c.events || (c.events = [])).push({ kind: 'story', title: 'BENCHED', lines: [m.name + ' beat you for the starting spot on the ' + T.name + (T.mascot ? ' ' + T.mascot : '') + '.', (co.name || 'Coach') + ': "' + fill(COACH_BENCH[st] || COACH_BENCH.teacher) + '"', 'Practice → Depth chart: beat the teammate above you in a game to ' + TM.challengeTarget + ' and you swap places.'] }); }
+  if (rank1 === 1 && rank0 > 1 && !S.won) { S.won = true; (c.events || (c.events = [])).push({ kind: 'story', title: 'THE STARTING SPOT', lines: ['You beat ' + m.name + ' and moved to the top of the depth chart.', (co.name || 'Coach') + ': "' + fill(COACH_START[st] || COACH_START.teacher) + '"', 'You start the next game. The teammate below you can challenge you after any game.'] }); }
+}
+// Benched from the day you arrive (a big program): the first week you don't play.
+function ladderBenchStory(c) { const T = c.team; if (!T) return; const S = T.story || (T.story = {}); if (S.firstBench) return; S.firstBench = true; const m = ladderStarterMate(c); if (!m) return; const co = T.coach || {}; (c.events || (c.events = [])).push({ kind: 'story', title: 'THE DEPTH CHART', lines: [m.name + ' starts for the ' + T.name + (T.mascot ? ' ' + T.mascot : '') + '. You are #' + ladderRank(c) + ' on the depth chart.', (co.name || 'Coach') + ': "' + (co.style === 'fiery' ? 'Nobody starts here on reputation. Beat the players in front of you.' : co.style === 'players' ? 'Your time is coming. Show me in practice.' : 'Everybody earns their minutes here. Practice is where you earn them.') + '"', 'Every week you can challenge the teammate a rung above you in practice. Win and you swap places.'] }); }
+// A week on the bench still develops you: scrimmages pay benchXp of an average simmed game's XP (the usual split: your
+// focus gets its share, the rest spreads evenly).
+function benchDevelop(c) {
+  const pro = isPro(c), B = holderOf(c), p = pro ? meOf(c) : null, r = pro ? p.r : c.r, xp = pro ? B.xp : c.xp, caps = pro ? p.caps : c.caps, age = pro ? p.age : c.age, X = CR.xpGame;
+  const split = (CR.trainFocus[B.focus] || CR.trainFocus.shooting).split; const line = { pts: X.perfCap * 0.5 / X.pts * 0.5, reb: 3, stl: 1, blk: 0, fgm: 4, tpm: 1, layM: 2 };
+  const g = developFromGame(r, xp, caps, split, age, line, false, true, 1, TM.benchXp * (X.base + X.win * 0.5 + X.perfCap * 0.5) / (X.base + X.perfCap * 0.5), B); return { gains: gainsMap(g), xp: Math.round(g.pool) };
 }
 
 // ============================================================================
@@ -11746,10 +11862,10 @@ function traitHint(B) { return B && B.stage === 'hs' && (B.age || 14) < TR.revea
 function teamScreen(game) {
   const pro = careerOf(game), am = !pro ? amateurOf(game) : null, c = pro || am; if (!c) return mainMenu(game);
   if (pro) tmSyncPro(pro); else amEnsureTeam(am);
-  const T = c.team, ui = game.ui, P = ui.phone; const items = [btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  const roster = teamRoster(c); const st = { page: 0 }; const per = P ? 4 : 8, pages = Math.max(1, Math.ceil(roster.length / per));
+  const T = c.team, ui = game.ui, P = ui.phone; const items = [btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Depth chart', 0, 0, 0, 0, () => game.ui.push(ladderScreen(game)))];
+  const L0 = ladderOf(c) || [], rk = id => { const i = L0.indexOf(id); return i < 0 ? 99 : i; }; const roster = teamRoster(c).sort((a, b) => rk(a.id) - rk(b.id)); const st = { page: 0 }; /* R4: in depth-chart order */ const per = P ? 4 : 8, pages = Math.max(1, Math.ceil(roster.length / per));
   if (pages > 1) items.push(btn('◀ Page', 0, 0, 0, 0, () => { st.page = (st.page + pages - 1) % pages; }), btn('Page ▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages; }));
-  if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 14, 600, items.length, 0, 10); else { items[0].x = 60; items[0].y = 640; items[0].w = 200; items[0].h = 48; if (items[1]) { Object.assign(items[1], { x: 900, y: 640, w: 150, h: 48 }); Object.assign(items[2], { x: 1062, y: 640, w: 150, h: 48 }); } }
+  if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 14, 1200, items.length, 0, 10); else { Object.assign(items[0], { x: 60, y: 640, w: 170, h: 48 }); Object.assign(items[1], { x: 240, y: 640, w: 200, h: 48 }); if (items[2]) { Object.assign(items[2], { x: 900, y: 640, w: 150, h: 48 }); Object.assign(items[3], { x: 1062, y: 640, w: 150, h: 48 }); } }
   const rt = pro ? (c.rivalId && c.players[c.rivalId] ? { name: clubOf(c.players[c.rivalId].club).name, colors: clubOf(c.players[c.rivalId].club).colors } : null) : tmRivalTeam(am);
   const meRec = pro ? { name: meOf(c).name, r: meOf(c).r, height: meOf(c).h, look: meOf(c).look } : { name: am.name, r: am.r, height: am.height, look: Object.assign({}, am.look, { number: am.number }) };
   return { widgets: items, name: 'team', draw(ctx, ui) {
@@ -11761,18 +11877,20 @@ function teamScreen(game) {
     ctx.textAlign = 'right'; ctx.font = fontStr(13, false); ctx.fillText('1v1: the team\'s record is yours', 1220, 94, 380);
     // the coach
     const cx = P ? 50 : 60, cy = 136; kitHeader(ctx, 'The coach', cx, cy + 6, P ? 520 : 360); try { drawPortrait(ctx, { name: T.coach.name, look: T.coach.look, age: T.coach.age || 50 }, col, cx, cy + 22, P ? 92 : 104); } catch (e) { /* decoration */ }
-    const S_ = coachStyle(T.coach); ui.heading(ctx, T.coach.name, cx + (P ? 104 : 118), cy + 40, P ? 18 : 20, UI_TEXT, 'left', P ? 400 : 240); ui.label(ctx, S_.label.toUpperCase(), cx + (P ? 104 : 118), cy + 66, 13, UI_GOLD, 'left', P ? 400 : 240); ui.para(ctx, S_.line, cx + (P ? 104 : 118), cy + 92, P ? 420 : 250, 12, UI_DIM, 'left', 4);
+    const S_ = coachStyle(T.coach); ui.heading(ctx, T.coach.name, cx + (P ? 104 : 118), cy + 40, P ? 18 : 20, UI_TEXT, 'left', P ? 400 : 240); ui.label(ctx, S_.label.toUpperCase(), cx + (P ? 104 : 118), cy + 66, 13, UI_GOLD, 'left', P ? 400 : 240); ui.para(ctx, S_.line, cx + (P ? 104 : 118), cy + 92, P ? 420 : 250, 12, UI_DIM, 'left', P ? 2 : 3);
     // you and the rival team
-    const yx = P ? 50 : 60, yy = P ? 290 : 300; kitHeader(ctx, 'You', yx, yy, P ? 520 : 360); ui.label(ctx, meRec.name + ' · ' + fmtHeight(meRec.height) + ' · OVR ' + ovrOf(meRec.r, meRec.height), yx, yy + 26, 14, UI_GOLD, 'left', P ? 520 : 360); ui.label(ctx, roleLabel(meRec.r, meRec.height), yx, yy + 48, 13, UI_TEXT, 'left', 360);
+    const yx = P ? 50 : 60, yy = P ? 290 : 300; kitHeader(ctx, 'You', yx, yy, P ? 520 : 360); ui.label(ctx, meRec.name + ' · ' + fmtHeight(meRec.height) + ' · OVR ' + ovrOf(meRec.r, meRec.height), yx, yy + 26, 14, UI_GOLD, 'left', P ? 520 : 360); ui.label(ctx, roleLabel(meRec.r, meRec.height) + (P && T.ladder ? ' · depth chart #' + ladderRank(c) : ''), yx, yy + 48, 13, UI_TEXT, 'left', P ? 520 : 360); if (T.ladder && !P) ui.label(ctx, 'DEPTH CHART #' + ladderRank(c) + ' OF ' + (ladderOf(c) || []).length + (isStarter(c) ? ' · STARTER' : ''), yx, yy + 126, 12, isStarter(c) ? UI_GOLD : UI_ORANGE, 'left', 360);
     const B = holderOf(c), TR_ = traitsOf(B); if (TR_ && !P) { let tx = yx; tx += traitChip(ctx, TR_.sig, tx, yy + 74) + 8; traitChip(ctx, TR_.found ? TR_.hidden : null, tx, yy + 74); }
-    if (rt && !P) { kitHeader(ctx, 'Rival team', yx, yy + 110, 360); ctx.fillStyle = rt.colors[0]; ctx.fillRect(yx, yy + 126, 16, 16); ctx.fillStyle = rt.colors[1]; ctx.fillRect(yx + 16, yy + 126, 6, 16); ui.label(ctx, rt.name + (rt.mascot ? ' ' + rt.mascot : ''), yx + 30, yy + 134, 14, UI_RED, 'left', 320); }
-    if (!P) { const past = c.pastTeams; if (past && past.length) { kitHeader(ctx, 'Before', yx, yy + 170, 360); past.slice(-2).forEach((p, i) => ui.label(ctx, p.name + ' · ' + p.w + '-' + p.l + (p.titles ? ' · ' + p.titles + ' title' + (p.titles > 1 ? 's' : '') : ''), yx, yy + 196 + i * 22, 13, UI_DIM, 'left', 360)); } }
+    if (T.trust != null) { const ty = yy + (P ? 72 : 102); ctx.font = fontStr(12, false); const lw = ctx.measureText('COACH TRUST ' + trustOf(c)).width; ui.label(ctx, 'COACH TRUST ' + trustOf(c), yx, ty, 12, UI_CYAN); meterBar(ctx, yx + lw + 10, ty - 6, Math.max(60, (P ? 460 : 350) - lw - 10), 12, trustOf(c) / 100, UI_CYAN); } /* R4: coach trust */
+    if (rt && !P) { kitHeader(ctx, 'Rival team', yx, yy + 152, 360); ctx.fillStyle = rt.colors[0]; ctx.fillRect(yx, yy + 168, 16, 16); ctx.fillStyle = rt.colors[1]; ctx.fillRect(yx + 16, yy + 168, 6, 16); ui.label(ctx, rt.name + (rt.mascot ? ' ' + rt.mascot : ''), yx + 30, yy + 176, 14, UI_RED, 'left', 320); }
+    if (!P) { const past = c.pastTeams; if (past && past.length) { kitHeader(ctx, 'Before', yx, yy + 206, 360); past.slice(-1).forEach((p, i) => ui.label(ctx, p.name + ' · ' + p.w + '-' + p.l + (p.titles ? ' · ' + p.titles + ' title' + (p.titles > 1 ? 's' : '') : ''), yx, yy + 230 + i * 22, 13, UI_DIM, 'left', 360)); } }
     // teammates: portrait, name, class or age, height, OVR, role, traits
-    const rx = P ? 600 : 440, rw = P ? 640 : 790, ry = 136; kitHeader(ctx, 'Teammates (' + roster.length + ')' + (pages > 1 ? ' · page ' + (st.page + 1) + ' of ' + pages : ''), rx, ry + 6, rw); const rowH = P ? 112 : 60;
+    const rx = P ? 600 : 440, rw = P ? 640 : 790, ry = 136; kitHeader(ctx, 'Teammates (' + roster.length + ')' + (pages > 1 ? ' · page ' + (st.page + 1) + ' of ' + pages : ''), rx, ry + 6, rw); const rowH = P ? 104 : 60; /* phone: four rows end above the button row */
     roster.slice(st.page * per, st.page * per + per).forEach((m, i) => { const y = ry + 24 + i * rowH; if (i % 2) { ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(rx - 6, y, rw + 12, rowH - 4); }
       const ps = rowH - 12; try { drawPortrait(ctx, { name: m.name, look: m.look, age: m.age || 16 }, col, rx, y + 4, ps); } catch (e) { /* decoration */ }
+      if (!m.league && L0.includes(m.id)) { ctx.fillStyle = 'rgba(8,12,36,0.85)'; ctx.fillRect(rx, y + 4, 26, 18); ui.label(ctx, '#' + (L0.indexOf(m.id) + 1), rx + 13, y + 13, 11, L0.indexOf(m.id) === 0 ? UI_GOLD : UI_TEXT, 'center'); } /* the rung, on the portrait's corner */
       const tx = rx + ps + 12, sub = (m.cls ? TEAM_CLASS[Math.min(3, m.cls - 1)] + ' · ' : m.age ? 'age ' + m.age + ' · ' : '') + fmtHeight(m.height) + ' · ' + roleLabel(m.r, m.height) + (m.league ? ' · in the league' : '');
-      if (P) { ui.heading(ctx, m.name, tx, y + 22, 17, UI_TEXT, 'left', rw - ps - 110); ui.label(ctx, sub, tx, y + 50, 13, UI_DIM, 'left', rw - ps - 20); if (m.tr) traitChip(ctx, m.tr.sig, tx, y + 80, { size: 11 }); hexBadge(ctx, rx + rw - 40, y + 30, 22, m.ovr, {}); }
+      if (P) { ui.heading(ctx, m.name, tx, y + 22, 17, UI_TEXT, 'left', rw - ps - 110); ui.label(ctx, sub, tx, y + 50, 13, UI_DIM, 'left', rw - ps - 20); if (m.tr) traitChip(ctx, m.tr.sig, tx, y + 78, { size: 11 }); hexBadge(ctx, rx + rw - 40, y + 30, 22, m.ovr, { sub: false }); } /* phone: the number alone (a 4 px OVR under it overlapped the digits) */
       else { ui.heading(ctx, m.name, tx, y + 18, 16, UI_TEXT, 'left', 250); ui.label(ctx, sub, tx, y + 40, 12, UI_DIM, 'left', m.tr ? 300 : rw - ps - 80); if (m.tr) { let cx2 = tx + 318; cx2 += traitChip(ctx, m.tr.sig, cx2, y + 28, { size: 10 }) + 6; if (m.tr.hidden && cx2 < rx + rw - 150) traitChip(ctx, m.tr.hidden, cx2, y + 28, { size: 10 }); } hexBadge(ctx, rx + rw - 26, y + 28, 20, m.ovr, {}); } });
     if (!P) ui.para(ctx, 'Every game is 1v1: you against another team\'s player. Your teammates practice with you.', 60, 566, 360, 12, UI_DIM, 'left', 3);
   } };
@@ -11805,6 +11923,98 @@ function genesPage2(ctx, ui, c, t) {
   const k = uiReduceMotion() ? 1 : easeOutCubic(clamp01(t / 0.45)); ctx.save(); ctx.globalAlpha = k; ctx.translate(0, (1 - k) * 24);
   drawTraitCard(ctx, T.sig, 700, 110, 520, 214, { tag: 'SIGNATURE' }); drawTraitCard(ctx, T.hidden, 700, 344, 520, 150, { tag: 'HIDDEN', hidden: !T.found, hint: traitHint(c) }); ctx.restore();
   ui.para(ctx, 'Every trait has an upside and a catch.' + (ui.phone ? '' : ' Rarity: Common 55%, Uncommon 28%, Rare 13%, Legendary 4%.'), 700, 522, 520, 13, UI_DIM);
+}
+
+// ---------------- R4: the depth chart ----------------
+// Match defs for a teammate (practice games and drills: their real ratings, traits and face).
+function mateMatchDef(m) { const eff = effRatings(m.r, m.height), attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: m.name, nick: m.nick, arch: ARCHETYPES[m.style] ? m.style : 'slasher', height: m.height, wing: m.wing || 1.03, attrs, look: m.look, moves: movesFor(eff), traits: traitIdsFor(m) }; }
+function mateTeam(c, m) { const T = c.team, cols = T ? [T.colors[1], T.colors[0]] : ['#3A3F4A', '#F3F0FF']; if (luminance(cols[0]) < 0.25 && luminance(cols[1]) < 0.25) cols[0] = '#F3F0FF'; return { id: 'mate', name: m.name, abbr: amAbbr(m.name), colors: cols, pattern: 'solid', personality: archPersonality(m.style), blurb: '', players: [mateMatchDef(m)] }; } // practice: the teammate wears the reversed practice jersey
+function myPracticeTeam(c) { if (isPro(c)) return matchTeamDef(c, c.meId, false, { week: true }); return { id: 'amme', name: c.name, abbr: amAbbr(c.name), colors: (c.team ? c.team.colors : c.colors).slice(), pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c)] }; }
+// A practice partner for drills: the teammate a rung below you (or above, if you're last).
+function practicePartner(c) { const id = ladderBelowId(c) || ladderAboveId(c); return id ? ladderMate(c, id) : null; }
+// The ladder challenge as a real game: first to 7 (2s and 3s) in the team's gym. who: 'you' or 'them'.
+function startLadderChallenge(game, mateId, who) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return; const m = ladderMate(c, mateId); if (!m) return; const S = game.save.data.settings;
+  const shift = careerTierShift(isPro(c) ? 'pro' : c.stage, isPro(c) ? 1 : c.stageYear, isPro(c) ? recOvr(meOf(c)) : amOvr(c), tmMateOvr(m), false);
+  game.startMatch({ mode: '1v1', teams: [myPracticeTeam(c), mateTeam(c, m)], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'half', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'first', target: TM.challengeTarget, winBy2: false }, court: isPro(c) ? 'gym' : (AMC.stages[c.stage] || AMC.stages.hs).court, seed: (Date.now() % 100000) >>> 0, controlMode: 'lock', adaptive: false, extras: false }, { kind: 'ladder', mateId, who });
+}
+// The week's practice from a challenge you started: its XP goes to your focus (a win pays like a good drill).
+function challengePractice(game, won) { const K = careerKit(game); if (!K) return null; const f = K.focus(), i = 'normal'; const xp = K.drillXp(f, i, 0) + (K.drillXp(f, i, 999) - K.drillXp(f, i, 0)) * (won ? 0.75 : 0.3); return K.practice(f, i, xp); }
+function ladderPostScreen(game, m, after) {
+  const c = careerOf(game) || amateurOf(game); const won = m.winner === 0; const res = c ? ladderResolve(c, after.mateId, won, after.who) : null; const prac = after.who === 'you' && c ? challengePractice(game, won) : null; game.save.save();
+  return ladderResultScreen(game, res, prac, true, m);
+}
+function ladderResultScreen(game, res, prac, overlay, m) {
+  const c = careerOf(game) || amateurOf(game); const items = [btn('CONTINUE', 0, 0, 0, 0, () => { if (overlay) game.quitToMenu(); else game.ui.pop(); }, { primary: true })]; column(items, UI_W / 2 - 180, 610, 360, tapH(game.ui, 54), 0); if (game.ui.phone) phoneGrid(game.ui, items, UI_W / 2 - 240, UI_H - tapH(game.ui, 54) - 16, 480, 1, 0, 0);
+  return { widgets: items, name: 'ladderres', overlay: !!overlay, onBack() { if (overlay) game.quitToMenu(); else game.ui.pop(); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 200, 40, 880, 640, UI_PANEL2); if (!res) { ui.title(ctx, 'PRACTICE', 240, 100, 40); return; }
+      const up = res.rankAfter < res.rankBefore, down = res.rankAfter > res.rankBefore; ui.title(ctx, res.won ? (res.who === 'you' ? (up ? 'SPOT TAKEN' : 'YOU WIN') : 'SPOT KEPT') : (down ? 'SPOT LOST' : 'NOT YET'), 240, 100, 44);
+      const score = m ? m.teams[0].score + ' – ' + m.teams[1].score : ''; ui.label(ctx, 'Practice challenge vs ' + res.mate + (score ? ' · ' + score : ' · simmed'), 240, 146, 17, UI_TEXT);
+      ui.heading(ctx, 'DEPTH CHART: #' + res.rankBefore + ' → #' + res.rankAfter, 240, 196, 26, up ? UI_GREEN : down ? UI_RED : UI_GOLD);
+      const lines = [res.rankAfter === 1 ? 'You start the next game.' : 'The teammate on the top rung starts the next game. Challenge the one above you in practice.', 'Coach trust ' + (res.trust >= 0 ? '+' : '') + Math.round(res.trust) + ' → ' + trustOf(c) + '.'];
+      if (prac) lines.push('It was this week\'s practice: +' + prac.xp + ' XP (' + (CR.trainFocus[careerKit(game).focus()] || {}).label + ').');
+      let y = 246; for (const l of lines) y += ui.para(ctx, l, 240, y, 800, 17, UI_TEXT) + 10;
+      drawLadderList(ctx, ui, c, 240, y + 16, 800, Math.max(1, Math.min(7, (ladderOf(c) || []).length, Math.floor((590 - y - 16) / 36))), 36);
+    } };
+}
+// The ladder as a list: rank, portrait, name, OVR; you in gold.
+function drawLadderList(ctx, ui, c, x, y, w, rows, rh) {
+  const L = ladderOf(c) || [], T = c.team; if (!T) return; const i0 = clamp(ladderRank(c) - 1 - Math.floor(rows / 2), 0, Math.max(0, L.length - rows));
+  L.slice(i0, i0 + rows).forEach((id, k) => { const i = i0 + k, yy = y + k * rh, me = id === 'me'; const m = me ? null : ladderMate(c, id); if (me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(x - 6, yy - rh / 2 + 2, w + 12, rh - 4); }
+    ui.heading(ctx, '#' + (i + 1), x, yy, 16, i === 0 ? UI_GOLD : UI_DIM); const ps = rh - 8; try { drawPortrait(ctx, me ? (isPro(c) ? drawDefOf(meOf(c)) : amDrawDef(c)) : { name: m.name, look: m.look, age: m.age }, T.colors, x + 44, yy - ps / 2, ps); } catch (e) { /* decoration */ }
+    const nm = me ? (isPro(c) ? meOf(c).name : c.name) + ' (you)' : m.name, ovr = me ? (isPro(c) ? recOvr(meOf(c)) : amOvr(c)) : tmMateOvr(m); const rt = 'OVR ' + ovr + (i === 0 ? ' · STARTS' : ''); ctx.font = fontStr(14, false); const rw = ctx.measureText(rt).width; ui.label(ctx, rt, x + w, yy, 14, i === 0 ? UI_GOLD : UI_DIM, 'right'); ui.heading(ctx, nm, x + 54 + ps, yy, 16, me ? UI_GOLD : UI_TEXT, 'left', Math.max(40, w - 54 - ps - rw - 14)); });
+}
+// The depth chart screen (from Practice and the TEAM screen): challenge the teammate above you, as this week's practice.
+function ladderScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c || !c.team) return mainMenu(game); const K = careerKit(game), B = holderOf(c), ui = game.ui, P = ui.phone;
+  const above = () => ladderAboveId(c), done = () => !!(B.wk && B.wk.done);
+  const play = btn('CHALLENGE (PLAY, FIRST TO ' + TM.challengeTarget + ')', 0, 0, 0, 0, () => { const id = above(); if (!id || done()) return; startLadderChallenge(game, id, 'you'); }, { primary: true });
+  const sim = btn('SIM THE CHALLENGE', 0, 0, 0, 0, () => { const id = above(); if (!id || done()) return; const res = ladderSimChallenge(c, id, 'you'); const prac = challengePractice(game, res && res.won); game.save.save(); game.ui.replace(ladderResultScreen(game, res, prac, false, null)); });
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()); const items = [play, sim, back];
+  if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 16, 1200, 3, 0, 10); else { column([play, sim], 800, 512, 420, 52, 10); Object.assign(back, { x: 800, y: 638, w: 200, h: 46 }); }
+  return { widgets: items, name: 'ladder', update() { const ok = !!above() && !done(); play.enabled = ok; sim.enabled = ok; const m = above() ? ladderMate(c, above()) : null; play.label = m ? 'CHALLENGE ' + m.nick.toUpperCase() + ' (FIRST TO ' + TM.challengeTarget + ')' : 'CHALLENGE'; },
+    draw(ctx, ui) {
+      ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'DEPTH CHART', 60, 70, 40); const T = c.team;
+      ui.label(ctx, T.name + (T.mascot ? ' ' + T.mascot : '') + ' · you are #' + ladderRank(c) + ' of ' + (ladderOf(c) || []).length, 60, 112, 16, UI_TEXT, 'left', 700);
+      drawLadderList(ctx, ui, c, 70, 160, 640, P ? 7 : 11, P ? 50 : 44);
+      const x = 800; kitHeader(ctx, 'How it works', x, 146, 420); let y = 172;
+      for (const l of ['The top rung starts every game.', 'Beat the teammate a rung above you in a practice game to ' + TM.challengeTarget + ' and you swap places. It is this week\'s practice.', 'After any game, the one below you can challenge you.']) y += ui.para(ctx, l, x, y, 420, 14, UI_TEXT) + 6;
+      kitHeader(ctx, 'Coach trust', x, y + 14, 420); meterBar(ctx, x, y + 32, 300, 14, trustOf(c) / 100, UI_CYAN); ui.heading(ctx, String(trustOf(c)), x + 312, y + 39, 16, UI_CYAN); y += 58;
+      y += ui.para(ctx, 'Practice XP +' + Math.round(100 * (trustXpMul(c) - 1)) + '%. ' + (T.kind === 'hs' ? 'Colleges ask your coach about you (offers).' : T.kind === 'college' ? 'Scouts ask your coach about you (the draft).' : 'Wins, practice and challenges build it; losses cost a little.'), x, y, 420, 13, UI_DIM);
+      if (!above()) ui.para(ctx, 'You start. Keep the spot: the one below you can challenge you after any game.', x, y + 16, 420, 14, UI_GOLD, 'left', 2); else if (done()) ui.para(ctx, 'You already practiced this week. Play (or sim) the week\'s game first.', x, y + 16, 420, 14, UI_ORANGE, 'left', 2);
+    } };
+}
+// An incoming challenge (event card): play it or sim it; it doesn't use your week's plan.
+function ladderEventScreen(game, c, ev, done) {
+  const m = ladderMate(c, ev.mate); const st = { res: null };
+  const playB = btn('PLAY IT (FIRST TO ' + TM.challengeTarget + ')', 0, 0, 0, 0, () => { if (!m || st.res) return; done(); startLadderChallenge(game, ev.mate, 'them'); }, { primary: true });
+  const simB = btn('SIM IT', 0, 0, 0, 0, () => { if (!m || st.res) return; st.res = ladderSimChallenge(c, ev.mate, 'them'); game.save.save(); });
+  const cont = btn('Continue', 0, 0, 0, 0, () => done(), { hidden: true }); const items = [playB, simB, cont]; const ui = game.ui;
+  if (ui.phone) phoneGrid(ui, items, 520, UI_H - tapH(ui, 44) - 16, 720, 2, 0, 10); else { column([playB, simB], 800, 540, 400, 54, 12); Object.assign(cont, { x: 830, y: 600, w: 360, h: 58 }); }
+  return { widgets: items, name: 'ladderevent', overlay: true, onBack() { if (st.res || !m) done(); },
+    update() { const r = !!st.res || !m; playB.hidden = r; simB.hidden = r; cont.hidden = !r; if (ui.phone && r) phoneGrid(ui, [cont], 780, UI_H - tapH(ui, 44) - 16, 440, 1, 0, 0); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 60, 40, 1160, 640); ui.title(ctx, st.res ? (st.res.won ? 'SPOT KEPT' : 'SPOT LOST') : ev.title || 'CHALLENGE!', 100, 100, 42);
+      if (m) try { drawPortrait(ctx, { name: m.name, look: m.look, age: m.age }, c.team.colors, 820, 110, 200, st.res ? (st.res.won ? 'tired' : 'hyped') : 'focused'); } catch (e) { /* decoration */ }
+      let y = 160; const lines = st.res ? [(st.res.won ? 'You held off ' + st.res.mate + '.' : st.res.mate + ' beat you and took your spot.'), 'Depth chart: #' + st.res.rankBefore + ' → #' + st.res.rankAfter + ' · coach trust ' + (st.res.trust >= 0 ? '+' : '') + Math.round(st.res.trust) + '.'] : (ev.lines || []);
+      lines.forEach((l, i) => { y += ui.para(ctx, l, 100, y, 660, 18, i === 0 ? UI_GOLD : UI_TEXT) + 10; });
+    } };
+}
+// A week on the bench: the result of the game your teammate started.
+function benchGainsText(g) { const ks = RATING_KEYS.filter(k => g && g[k] > 0); return ks.length ? ' (' + ks.map(k => RATING_SHORT[k] + ' +' + Math.round(g[k])).join(', ') + ')' : ''; }
+function benchResultScreen(game, rec) {
+  const c = careerOf(game) || amateurOf(game); const items = [btn('CONTINUE', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(careerOf(game) ? careerHub(game) : amHub(game)); }, { primary: true }), btn('DEPTH CHART', 0, 0, 0, 0, () => game.ui.push(ladderScreen(game)))];
+  column(items, 840, 560, 380, tapH(game.ui, 52), 12); if (game.ui.phone) phoneGrid(game.ui, items, 500, UI_H - tapH(game.ui, 44) - 16, 740, 2, 0, 10);
+  return { widgets: items, name: 'benchres', onBack() { game.ui.replace(careerOf(game) ? careerHub(game) : amHub(game)); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2); const won = rec.won != null ? rec.won : rec.win; ui.title(ctx, (won ? 'TEAM WIN' : 'TEAM LOSS'), 60, 80, 52); const T = c.team;
+      ui.heading(ctx, (rec.my != null ? rec.my : rec.us) + ' – ' + (rec.their != null ? rec.their : rec.them), 60, 138, 34, UI_TEXT);
+      ui.label(ctx, (rec.playoff ? 'Playoffs · ' : '') + (T ? T.name : 'Your team') + ' (' + rec.starter + ') vs ' + (isPro(c) ? rec.oppName : rec.opp), 60, 178, 16, UI_DIM, 'left', 720);
+      if (rec.note) ui.heading(ctx, rec.note, 60, 220, 22, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed/.test(rec.note) ? UI_RED : UI_CYAN);
+      let y = 262; for (const l of [rec.starter + ' started. You were #' + (rec.rank || ladderRank(c)) + ' on the depth chart and did not play.', 'Scrimmages with the second unit: +' + (rec.benchXp || 0) + ' XP' + benchGainsText(rec.gains) + '. Fatigue ' + Math.round((rec.wk && rec.wk.fatigue) || 0) + ' (a week off the court).', 'Take the spot back: challenge the teammate above you in practice (Practice → Depth chart).']) y += ui.para(ctx, l, 60, y, 740, 17, UI_TEXT) + 10;
+      drawLadderList(ctx, ui, c, 840, 120, 380, 8, 46);
+    } };
 }
 
 // ============================================================================
@@ -12114,7 +12324,7 @@ class Game {
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
-    const S = this.save.data.settings; opts.dev = true; if (opts.extras == null) { const X = S.arcadeExtras || 'quick', k = (after && after.kind) || 'quick'; opts.extras = X === 'all' || (X === 'quick' && (k === 'quick' || k === 'tournament')); } /* L9: quick games and the tournament by default, never the careers unless Everywhere */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
+    const S = this.save.data.settings; opts.dev = true; const k = (after && after.kind) || 'quick'; if (CAREER_KINDS.includes(k)) opts.extras = false; else if (opts.extras == null) { const X = S.arcadeExtras || 'quick'; opts.extras = X === 'exhibitions' || (X === 'quick' && (k === 'quick' || k === 'tournament')); } /* L9: quick games and the tournament by default; R4: never in a career game (the user's rule), whatever the setting */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;

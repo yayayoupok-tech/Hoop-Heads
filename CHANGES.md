@@ -3,6 +3,106 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R4 — The depth chart: 1v1 challenges decide who plays, coach trust, no extras in the career (the R pass, milestone 4)
+
+The spec's milestone 4 was "teams and team games". Under the change of plan the career is 1v1 only, so there are no
+team games, no AI teammates on the court and no chemistry. What replaces the spec's minutes and roles (bench →
+rotation → starter → star) is a **depth-chart ladder**: every team is one player a game, and whoever is on the top rung
+plays it.
+
+**The ladder**
+
+- Your team (high school, college program, pro franchise) orders you and your teammates. The top rung starts every
+  week's game: at a school or program that's you against the other team's player, as before.
+- **Where you start:** a high school team starts you on top. A college program starts you by its tier: a small
+  school on top, a mid-major 2nd, a power-conference program 3rd, a blue blood 4th (its teammates are centered 6 OVR
+  under you at a small school and 6 over you at a blue blood; seniors higher, freshmen lower). A pro franchise starts a first-round pick on top in the first
+  season; a later pick (or a player traded in) starts a rung down unless they're better than the whole bench.
+  Careers from before R4 keep you on top.
+- **Challenges:** on the Practice screen, **DEPTH CHART** opens the ladder. Challenge the teammate a rung above you: a
+  practice game to 7 (2s and 3s, half court, in the team's gym), played or simulated. Win and you swap places. It is
+  that week's practice (its XP goes to your focus: a win pays like a good drill, a loss like a poor one).
+- **Incoming challenges:** after any game, the teammate a rung below you may challenge you (20% a week, less if
+  they're far behind: nobody 10 OVR under you bothers). An event card: **PLAY IT** or **SIM IT**. A challenge left
+  unanswered is simulated before the next game. Lose and you drop a rung (from the top: you don't start).
+- **A week on the bench:** the teammate on the top rung plays your team's game (simulated); the team's record and
+  the standings count it; you get no stat line (the pro game log shows DNP), no highlights, no press; a pro still gets
+  paid. Scrimmages with the second unit still pay XP (about an average simmed game's), fatigue drops 10, and the
+  result screen says who started, the score, your scrimmage XP and how to take the spot back. The hub shows
+  "BENCH · YOU'RE #k · <starter> STARTS", the starter's card, and SIM THE GAME in place of PLAY.
+- **Teammates in the story:** a card the first week you sit (the coach's line by personality), BENCHED the first time
+  a teammate takes your start, THE STARTING SPOT the first time you win it; challenges and bench games in the news.
+  Drills in practice are against your teammate a rung below (or above), in the reversed practice jersey.
+- The TEAM screen lists the roster in depth-chart order (rank badges on the portraits) and shows your coach trust and
+  your rung.
+
+**Coach trust** (0–100; a high school coach starts at 45, college and pro at 40)
+
+- Up: +6 for winning a challenge you started, +3 for defending your spot, +2 for a win, +1 for a practice week.
+  Down: −1 for a challenge you lose, −3 for losing your spot, −1 for a loss (−2 more in a blowout), −1 for resting
+  when you're fresh (fatigue under 30). Glue Guy's gains are ×1.5 (the R3 trait).
+- It pays: practice XP ×(1 + 0.2 × trust/100), up to +20%; your high school coach's recommendation adds up to 4 to
+  the college offer score, your college coach's up to 5 to the draft score (press answers join in R8).
+
+**No arcade extras in the career** (change of plan)
+
+- Settings → Arcade extras is now Quick games / All exhibitions / Off. "Everywhere" (careers included) is gone; a
+  save that had it gets All exhibitions. Every career match (games, drills, depth-chart challenges, the All-Star
+  events) runs without the super meter, specials or power-ups, whatever the setting. Exhibition modes are unchanged.
+
+**Tuning (the career simulator: challenges when benched, answers every challenge by simulation)**
+
+| Step | OVR at 17 / 21 / 25 | Peak | Titles | Hall of Fame | Bench weeks (amateur / pro) |
+| --- | --- | --- | --- | --- | --- |
+| First version (60 careers): no bench XP, full-game odds for challenges, 30% incoming, pro bench −8 | 55 / 63 / 64 | 65 | 0.47 | 2% | 18.1 / 119.1 |
+| Bench scrimmage XP ×0.6, challenges closer to a coin flip (scale 9), reach 10 | 56 / 66 / 71 | 75 | 0.87 | 7% | 12.2 / 65.5 |
+| Pro bench −14 (was −8), first-round picks start (was top 10), bench XP ×0.75 | 56 / 67 / 73 | 76 | 0.83 | 12% | 12.1 / 37.6 |
+| Incoming challenges 20% (100 careers, seed 7) | 56 / 66 / 73 | 76 | 0.98 | 15% | 13.3 / 27.3 (bench XP ×0.9) |
+| Bench XP ×1.0 (chosen, 100 careers, seed 7) | 56 / 67 / 74 | 77 | 1.07 | 15% | 12.9 / 26.2 |
+| Control: the ladder off (everyone starts, no challenges) | 56 / 67 / 74 | 77 | 1.10 | 20% | 0 / 4.4 |
+
+The first version had a death spiral: a player who lost the start stopped getting game XP, fell further behind the
+teammate above and never won the spot back (peak OVR 65, Hall of Fame 2%). Bench weeks now develop you like an
+average game; what the bench costs is the game itself (stats, highlights, the box score, the stat awards). Pro bench
+weeks by pro season with the chosen values: 4.3, 4.0, 2.4, 1.3, 2.0, … (a rookie sits about a third of the first
+season).
+
+**Also**
+
+- The genes screen's footer line was cut off on desktop; it wraps now.
+- On phones the Practice screen's DEPTH CHART button shares the bottom row (the left column is full).
+
+**Saves:** no version change; a team without a ladder gets one on load (you on top), trust starts at the team's
+default. The R3 fixtures and every older one load and play (old saves test).
+
+**New constants** (all with a one-line comment): `CONFIG.team.tierGap` [−6, −2, 2, 6], `ladderStart` [1, 2, 3, 4],
+`proStartTop` 30, `challengeTarget` 7, `challengeOdds` 0.2, `challengeReach` 10, `challengeScale` 9, `benchXp` 1.0,
+`benchRecovery` 10, `trustStart` {hs 45, college 40, pro 40}, `trust` {challengeWin 6, challengeLoss −1, defended 3,
+lostSpot −3, win 2, loss −1, blowout −2, practice 1, restFresh −1, freshAt 30}, `trustXp` 0.2, `trustRecruit` 4,
+`trustDraft` 5. Changed: `team.proBench` −8 → −14.
+
+**Tests on the committed build**
+
+- Smoke 106/106 (desktop 1280×720 and phone 844×390). The new step: a high school freshman starts on top; a blue
+  blood starts you 4th; a challenge you win swaps rungs, a lost one keeps yours; a benched week is the starter's game
+  (the team record counts it, your stat line doesn't, scrimmage XP, fatigue down); an incoming challenge settles at the
+  next game; trust pays practice XP (×1.2 at 100) and Glue Guy's gains are ×1.5; a pro bench week; no extras in any
+  career match kind with the setting on All exhibitions; Everywhere migrates to All exhibitions; a team from before
+  R4 (and an old college save) keeps you starting. The first suite run failed one smoke step: the season-recap loop
+  didn't expect a teammate's challenge card (the career's seed is random); the step (and the gallery script) handle it
+  now, and the rerun passed.
+- Modes 14/14 (new: a practice challenge played live) · old saves 19/19 · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 75 screens at 844×390 (5 new: the depth chart, a challenge result, the incoming challenge card, a
+  high school bench week, a pro bench week): nothing flagged, no errors. The same 75 at 1280×720: nothing flagged.
+- Art Lab: 54 shots, no errors (`shots/r4/round-final/`). Screenshots of the new screens: `shots/r4/`.
+- §2 gate and the balance harness: identical to R3 (the gate's players have no career).
+- The career simulator (40 careers, seed 1): 0 stuck; OVR 56 / 67 / 75 at 17 / 21 / 25, peak 78; 1.23 titles a
+  career; Hall of Fame 10%; bench weeks 11.0 amateur and 27.9 pro a career, 42 challenges; every target met.
+- Trait balance (200 careers per trait): all 17 in range (overall median legacy 50; Late Bloomer −18%, Generational
+  +29%, Floor General +10%).
+- Perf, 844×390 @2x in the pro arena (median / p95): guard 0 21.8 / 26.3 ms, guard 1 23.2 / 30.5 ms; the R3 build right
+  after it on the same machine: 22.1 / 34.4 ms. No change.
+
 ## R3 — Career foundation: traits, growth not locked to position, teams as organizations (the R pass, milestone 3)
 
 **The user's change of plan (during R2):** the career is 1v1 only. Every career game is you against one opponent; no

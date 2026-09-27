@@ -20,8 +20,8 @@ const FIX = path.join(__dirname, 'fixtures');
     switch (s.name) {
       case 'title': g.ui.clearTo(mainMenu(g)); break;
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
-      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|DRAFT COMBINE)$/) || by(/^SIM$/)); break;
-      case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM$/)); break;
+      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|DRAFT COMBINE)$/) || by(/^SIM( THE GAME)?$/)); break;
+      case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM( THE GAME)?$/)); break;
       case 'recruit': pr(i % 3 === 0 ? by(/^VISIT$/) || by(/^COMMIT$/) : by(/^COMMIT$/)); break;
       case 'visit': pr(by(/^COMMIT HERE$/)); break;
       case 'confirm': pr(by(/^Yes$/)); break;
@@ -32,6 +32,9 @@ const FIX = path.join(__dirname, 'fixtures');
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
       case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => /^(Re-sign|Sign with)/.test(w.label || '')) || by(/^START SEASON/) || by(/^RETIRE/)); break;
+      case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
+      case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result
+      case 'ladder': pr(by(/^Back$/)); break;
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

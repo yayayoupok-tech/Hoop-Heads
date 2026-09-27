@@ -48,7 +48,7 @@ const { launch, openPage, runner } = require('./lib');
   }, P);
   await teamLeague('5v5'); await teamLeague('3v3');
   // the career
-  const drain = async () => { await P.page.waitForTimeout(150); /* let the hub's update push a pending story card first */ for (let i = 0; i < 14; i++) { const s = await P.screen(); if (s === 'press') { await press(/^HUMBLE$/); await press(/^CONTINUE$/); continue; } if (s === 'allstarweekend' || !/^(amevent|rivalmoment|commitday)$/.test(s)) return s; await press(/^(Continue|CONTINUE)$/); } return P.screen(); };
+  const drain = async () => { await P.page.waitForTimeout(150); /* let the hub's update push a pending story card first */ for (let i = 0; i < 14; i++) { const s = await P.screen(); if (s === 'press') { await press(/^HUMBLE$/); await press(/^CONTINUE$/); continue; } if (s === 'ladderevent') { await press(/^SIM IT$/); await press(/^Continue$/); continue; } /* R4: a teammate's challenge */ if (s === 'allstarweekend' || !/^(amevent|rivalmoment|commitday)$/.test(s)) return s; await press(/^(Continue|CONTINUE)$/); } return P.screen(); };
   await R.step('career, high school: a live game to the end, the result, back to the hub', async () => {
     await toMenu(); await ev(() => { const g = HH.game, s = g.save.data; s.c1 = null; s.career = null; amCreate(s, { name: 'Mode Kid', look: PRESET_LOOKS[6], number: 12, style: 'shooter', seed: 5 }); g.save.save(); g.ui.clearTo(amHub(g)); }); await drain();
     await waitScreen(/^amhub$/); await press(/^PLAY$/); const r = await finish(); await waitScreen(/^amresult$/); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/); await frames(); console.log('     ' + r.score + ' in ' + r.secs + ' s');
@@ -56,6 +56,10 @@ const { launch, openPage, runner } = require('./lib');
   await R.step('career drill: practice → PLAY THE DRILL → 60 s → the drill result → hub', async () => {
     await ev(() => { const g = HH.game; g.save.data.c1.plan = 'practice'; g.ui.clearTo(amHub(g)); g.ui.push(practiceScreen(g)); }); await waitScreen(/^practice$/); await press(/PLAY THE DRILL/); const r = await finish(100);
     await waitScreen(/^practiceres$|^drillpost$|^practice/); const s = await P.screen(); await press(/BACK TO THE HUB|CONTINUE/); await drain(); await frames(); console.log('     drill over after ' + r.secs + ' s, result screen ' + s);
+  }, P);
+  await R.step('career depth chart (R4): Practice → Depth chart → a live challenge to 7 → the result → hub', async () => {
+    await ev(() => { const g = HH.game, c = g.save.data.c1; c.events.length = 0; c.wk = { done: null, xp: 0 }; const L = ladderOf(c); L.splice(L.indexOf('me'), 1); L.splice(1, 0, 'me'); g.ui.clearTo(amHub(g)); g.ui.push(practiceScreen(g)); }); await waitScreen(/^practice$/);
+    await press(/DEPTH CHART/, /^ladder$/); await press(/^CHALLENGE /); const r = await finish(); await waitScreen(/^ladderres$/); const rank = await ev(() => ladderRank(HH.game.save.data.c1)); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/); await frames(); console.log('     ' + r.score + ' in ' + r.secs + ' s · now #' + rank + ' on the depth chart');
   }, P);
   await R.step('career, pro: pregame → tip off → final → result → hub', async () => {
     await ev(() => { const g = HH.game; const c = testProLeague(21, g.save.data); if (c.events) c.events.length = 0; g.save.data.c1.handedOff = true; g.save.save(); g.ui.clearTo(careerHub(g)); }); await drain(); await waitScreen(/^career$/);
