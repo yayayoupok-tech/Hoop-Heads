@@ -1199,6 +1199,13 @@ const CONFIG = {
     tradeGap: 2,               // ...and you can ask for one every this many seasons
     goalFame: [3, 6, 4, 8],    // fame for the goals: a 3★ team, a 5★ team, starting for a 5★ team, a title with a 5★ team
   },
+  gear: {                      // F8 (the user: "add items you can buy to improve some stuff, nothing too broken though"): gear with small edges, in games only (your OVR and value don't change)
+    levels: 3,                 // each piece: Basic, Pro, Elite
+    price: [250, 2500, 250000], // what each level costs ($): Basic fits a high school summer job, Pro a college NIL deal, Elite a pro contract
+    rating: 0.5,               // a rating piece: this much of its rating per level, in games (Elite: +1.5). At 1 (Elite +3), 80 simulated careers that bought every piece won 1.26 titles each and 25% made the Hall of Fame (0.84 and 6% without gear); at 0.5, 0.76 and 10%
+    injury: 0.1,               // ankle braces: the injury chance × (1 − this × level) (Elite: −30%; nutrition & physio is ×0.6)
+    regen: 1,                  // recovery kit: this much less fatigue after every game, per level (Elite: −3 of the 10 a game adds)
+  },
   story: {                     // R9 (§3.10): story arcs told in RPG dialogue cards, and the social feed
     beatsMin: 3,               // beats a season at least (a check-in fills the gap by the season's last weeks)...
     beatsMax: 5,               // ...and at most (injuries, titles, the draft, a first contract and the tour always get theirs)
@@ -1508,10 +1515,10 @@ function normLook(look, seedName) {
     const f = l.face && typeof l.face === 'object' ? l.face : faceParamsFromSeed(seed); const face = {};
     for (const k in FACE_RANGES) { const [a, b] = FACE_RANGES[k]; face[k] = _num(f[k], a, b, (a + b) / 2); }
     const fs = Number(f.shape), fn = Number(f.nose); face.shape = isFinite(fs) ? clamp(Math.round(fs), 0, FACE_SHAPES.length - 1) : seed % FACE_SHAPES.length; face.nose = isFinite(fn) ? clamp(Math.round(fn), 0, NOSE_TYPES.length - 1) : (seed >>> 4) % NOSE_TYPES.length; // older faces get a shape and a nose from their name
-    return { v: 2, skin: _lookIx(l.skin, 12), face, hair: _lookIx(l.hair, 14), hairColor: _lookIx(l.hairColor, 14), facialHair: _lookIx(l.facialHair, 6), iris: _lookIx(l.iris, 6), acc: { headband: !!acc0.headband, sleeve: !!acc0.sleeve, wristband: !!acc0.wristband, earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100) };
+    return { v: 2, skin: _lookIx(l.skin, 12), face, hair: _lookIx(l.hair, 14), hairColor: _lookIx(l.hairColor, 14), facialHair: _lookIx(l.facialHair, 6), iris: _lookIx(l.iris, 6), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100) }; // F8: the flags on top (the Office's looks, gear) count too: before, a v2 look dropped them
   }
   const M = OLD_LOOK_MAP, ix = (a, v) => a[_lookIx(v, a.length)];
-  return { v: 2, skin: ix(M.skin, l.skin), face: faceParamsFromSeed(seed), hair: ix(M.hair, l.hair), hairColor: ix(M.hairColor, l.hairColor), facialHair: ix(M.beard, l.beard), iris: ix(M.eyes, l.eyes), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!acc0.wristband, earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100) };
+  return { v: 2, skin: ix(M.skin, l.skin), face: faceParamsFromSeed(seed), hair: ix(M.hair, l.hair), hairColor: ix(M.hairColor, l.hairColor), facialHair: ix(M.beard, l.beard), iris: ix(M.eyes, l.eyes), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100) };
 }
 // A fresh random look (bots, generated league players). 'teen' limits facial hair.
 function randomLook(rng, opts) {
@@ -8166,7 +8173,7 @@ function splashScreen(game) {
 // --- first-time tips: one short card the first time you reach each part of the career (Settings → Gameplay turns them
 // off; turning them back on shows the ones not seen yet) ---
 const TIPS = {
-  'hs-week': ['YOUR WEEK', ['Every week has one game. Before it, pick the week: Practice (XP in your focus rating), Rest (fatigue down), Film (learn the next opponent) or Study (your GPA).', 'Then PLAY the game yourself or SIM it. Above 50 fatigue you play worse.', 'Your GPA must stay at 2.0 or better, or you sit.']],
+  'hs-week': ['YOUR WEEK', ['Every week has one game. Before it, pick the week: Practice (XP in your focus rating), Rest (fatigue down; in high school Rest also offers Study, for your GPA) or Film (learn the next opponent).', 'Then PLAY the game yourself or SIM it. Above 50 fatigue you play worse.', 'Your GPA must stay at 2.0 or better, or you sit.']],
   'ladder': ['THE DEPTH CHART', ['Only the teammate on the top rung plays the week\'s game.', 'Beat the one a rung above you in a practice challenge (first to 7) and you take their spot. The one below you can challenge you too.', 'Coach trust grows with wins and good weeks: it adds practice XP and puts in a good word with recruiters and scouts.']],
   'recruiting': ['RECRUITING', ['Colleges watch your OVR, titles, hype, points per game and what your coach says about you.', 'The best offers come after your sophomore season, more after your junior season and during your senior year.', 'Official visits show you a program: its facilities, its coach and where you would start on its depth chart.']],
   'summer': ['YOUR SUMMER', ['Each summer is one choice: the AAU circuit (recruiters see you, but you start the season tired), a skills camp (XP), rest, or a summer job (money).']],
@@ -8175,7 +8182,8 @@ const TIPS = {
   'portal': ['THE TRANSFER PORTAL', ['Programs that would start you. Moving means a new coach and a new depth chart; staying means earning your spot where you are.']],
   'nil': ['NIL', ['Name, image and likeness: money that is yours to keep (it comes with you to the pros).', 'Each deal asks for appearances, which cost fatigue. Turn one down and nothing happens.']],
   'pro': ['THE PROS', ['Twelve franchises, rated 1 to 5 stars. The goal: a 5★ team, then its starting spot, then a title.', 'Better franchises call when your value (OVR, fame, hype) reaches their bar: in free agency, or ask for a trade in the Front office.', 'Your franchise\'s depth chart still decides who plays each week.']], // F7
-  'business': ['FRONT OFFICE', ['Staff is paid week by week from your money: a trainer (practice XP), a skills coach (your focus rating), a nutritionist (fewer injuries, fresher legs).', 'Sponsors pay more with hype. A shoe line opens at 60 hype.']],
+  'business': ['FRONT OFFICE', ['Staff is paid week by week from your money: a trainer (practice XP), a skills coach (your focus rating), a nutritionist (fewer injuries, fresher legs).', 'Sponsors pay more with hype. A shoe line opens at 60 hype.', 'Gear (small edges in games) and Looks are the last two tabs.']],
+  'gear': ['GEAR', ['Six pieces, three levels each. Shoes, insoles, the sleeve and the wristbands add a little Speed, Hops, Shooting or Handles in games; braces cut injuries; the recovery kit cuts fatigue.', 'Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']],
   'contracts': ['CONTRACTS', ['Pick the length and your role: both change the salary. A promised starting spot costs 10% of it.']],
   'press': ['THE PRESS ROOM', ['Four answers and none of them is best: each button says what it does to your hype, your confidence and your coach\'s trust.', 'Trash talk fires up the player you talk about.']],
   'hype': ['HYPE', ['Hype (0 to 100) is how loud the world is about you: it lifts sponsor offers, your pro offers and the crowd at home.', 'From 60 defenses key on you; from 70 the media eats into your practice time.']],
@@ -8188,7 +8196,7 @@ function tipFor(game, s) {
   if (n === 'career') return 'pro'; if (n === 'recruit' || n === 'recruiting') return 'recruiting';
   if (n === 'amdecision') { const a = amateurOf(game); return a && a.decision && a.decision.kind === 'portal' ? 'portal' : null; }
   if (n === 'dialog') return s.asks ? 'choices' : null;
-  return { ladder: 'ladder', summer: 'summer', draftstock: 'draftstock', colchoice: 'nil', management: 'business', negotiate: 'contracts', press: 'press', news: 'hype' }[n] || null;
+  return { ladder: 'ladder', summer: 'summer', draftstock: 'draftstock', colchoice: 'nil', management: 'business', negotiate: 'contracts', press: 'press', news: 'hype', gear: 'gear' }[n] || null;
 }
 function tipOnce(game, id) {
   const S = game.save.data.settings; if (window.HH_NO_TIPS || S.tips === false || !TIPS[id]) return false; const seen = S.tipsSeen && typeof S.tipsSeen === 'object' ? S.tipsSeen : (S.tipsSeen = {}); if (seen[id]) return false;
@@ -8706,7 +8714,7 @@ function meterBar(ctx, x, y, w, h, f, color, label) { ctx.fillStyle = 'rgba(0,0,
 function wrapText(ctx, text, x, y, maxW, lineH) { lineH = Math.max(lineH || 0, rbLineH(ctx)); const words = String(text).split(' '); let line = '', n = 0; for (const w of words) { const t = line ? line + ' ' + w : w; if ((ctx.measureText(t).width > maxW || t.length > ART.rbBodyChars) && line) { ctx.fillText(line, x, y + n * lineH); n++; line = w; } else line = t; } if (line) { ctx.fillText(line, x, y + n * lineH); n++; } return n; }
 // wrapText, returning the height it used (lines × the line height the font really draws at).
 function wrapTextH(ctx, text, x, y, maxW, lineH) { return wrapText(ctx, text, x, y, maxW, lineH) * Math.max(lineH || 0, rbLineH(ctx)); }
-function drawDefOf(rec) { return { name: rec.name, look: rec.look, height: rec.h, wing: rec.wing, attrs: {} }; }
+function drawDefOf(rec, c) { return { name: rec.name, look: c && rec.isMe && c.me ? proLook(c, rec.look) : rec.look, height: rec.h, wing: rec.wing, attrs: {} }; } // F8: c: your career (your looks and gear on you)
 function recPortrait(ctx, rec, x, y, size, colors) { drawPortrait(ctx, drawDefOf(rec), colors || clubOf(rec.club).colors, x, y, size); }
 function defOvr(def) { const r = {}; for (const k of RATING_KEYS) r[k] = attrToRating(def.attrs[k]); return ovrOf(r, def.height, def.wing); }
 function overallOf(attrs) { const r = {}; for (const k of RATING_KEYS) r[k] = attrToRating(attrs[k]); return ovrOf(r); }
@@ -8756,7 +8764,7 @@ function mainMenu(game) {
       kitLogo(ctx, 260, ui.phone ? 48 : 62, ui.phone ? 48 : 54); if (s.badges && s.badges.owner) kitChip(ctx, 'OWNER', ui.phone ? 476 : 260, ui.phone ? 48 : 104, { size: 14, color: UI_GOLD, align: ui.phone ? 'left' : 'center' }); /* R7: a franchise stake's badge (a phone: beside the logo, clear of the buttons) */
       ui.panel(ctx, 500, 40, 740, 640);
       if (c) { const me = meOf(c); const club = clubOf(me.club); const st = c.standings[c.meId];
-        kitHeader(ctx, 'Your career', 530, 78, 680); drawPlatform(ctx, 690, 620, 160, club.colors); drawMannequin(ctx, drawDefOf(me), club, 690, 620, 400, 'focused', 1, t);
+        kitHeader(ctx, 'Your career', 530, 78, 680); drawPlatform(ctx, 690, 620, 160, club.colors); drawMannequin(ctx, drawDefOf(me, c), club, 690, 620, 400, 'focused', 1, t);
         drawTradingCard(ctx, 960, 100, 230, 322, cardOfRec(me, { number: me.look.number }), { t });
         const lines = [[c.phase === 'offseason' ? 'Season ' + c.season + ' offseason' : 'Season ' + c.season + (c.phase === 'playoffs' ? ' · playoffs' : ' · week ' + Math.min(c.week + 1, c.schedule.length) + ' of ' + c.schedule.length), UI_TEXT], ['Record ' + st.w + '-' + st.l + ' · ' + fmtMoney(c.me.money) + ' · fame ' + Math.round(c.me.fame), UI_TEXT]];
         const aw = c.me.awards.filter(a => !/trait/.test(a.name)); lines.push([aw.length ? aw.slice(-3).map(a => 'S' + a.s + ' ' + a.name).join(' · ') : 'No awards yet.', UI_DIM]);
@@ -8901,7 +8909,7 @@ function pregameScreen(game, g) {
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'TALE OF THE TAPE', UI_W / 2 - 200, 56, 40);
       const sz = 380, floor = 640; heightScale(ctx, 60, floor, sz, 64, 1216, 'stance');
-      drawMannequin(ctx, drawDefOf(me), clubOf(me.club), 250, floor, sz, 'focused', 1, t, 'stance'); drawMannequin(ctx, drawDefOf(opp), clubOf(opp.club), 1030, floor, sz, 'focused', -1, t + 1, 'stance');
+      drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 250, floor, sz, 'focused', 1, t, 'stance'); drawMannequin(ctx, drawDefOf(opp), clubOf(opp.club), 1030, floor, sz, 'focused', -1, t + 1, 'stance');
       ui.heading(ctx, me.name.toUpperCase(), 250, 100, 24, UI_GOLD, 'center'); ui.heading(ctx, opp.name.toUpperCase(), 1030, 100, 24, UI_TEXT, 'center');
       weekChips(ctx, c.me, 250, 134, c.rivalId === opp.id);
       const rows = [['OVR', recOvr(me), recOvr(opp)], ['AGE', me.age, opp.age, true], ['HEIGHT', fmtHeight(me.h), fmtHeight(opp.h), false, me.h, opp.h], ['WINGSPAN', fmtHeight(me.h * me.wing), fmtHeight(opp.h * opp.wing), false, me.h * me.wing, opp.h * opp.wing], ['RECORD', c.standings[me.id].w + '-' + c.standings[me.id].l, c.standings[opp.id].w + '-' + c.standings[opp.id].l], ['PPG', (c.stats[me.id].pts / Math.max(1, c.stats[me.id].g)).toFixed(1), (c.stats[opp.id].pts / Math.max(1, c.stats[opp.id].g)).toFixed(1)]];
@@ -9037,7 +9045,7 @@ function playerCard(ctx, ui, c, id, x, y) {
 
 // ---------------- management: contract, sponsors, staff, gym, shop, money ----------------
 function managementScreen(game) {
-  const c = careerOf(game), M = c.me; proStaffMigrate(M); const st = game.mgmtTab || (game.mgmtTab = { tab: 0 }); const tabs = ['Moving up', 'Contract & money', 'Sponsors', 'Training', 'Home gym', 'Lifestyle', 'Shop']; // F7: Moving up (your value, the franchises' bars, a trade request); R7: Training (was Staff) and Lifestyle
+  const c = careerOf(game), M = c.me; proStaffMigrate(M); const st = game.mgmtTab || (game.mgmtTab = { tab: 0 }); const tabs = ['Moving up', 'Contract & money', 'Sponsors', 'Training', 'Home gym', 'Lifestyle', 'Gear', 'Looks']; // F7: Moving up (your value, the franchises' bars, a trade request); R7: Training (was Staff) and Lifestyle
   const refresh = () => game.ui.replace(managementScreen(game)); if (st.tab >= tabs.length) st.tab = 0;
   const items = [sel('View', 40, 88, 460, 40, tabs, () => st.tab, i => { st.tab = i; refresh(); })]; const P = game.ui.phone, TH = tapH(game.ui, 44); // phones: 64 px targets, View and Back in the bottom bar
   if (st.tab === 0) { const can = proTradeOpen(c), to = can ? proTradeDest(c) : null; items.push(btn(can ? 'Ask for a trade · to a ' + frStars(c, to) + '★ franchise' : 'Ask for a trade', P ? 40 : 60, P ? 470 : 580, P ? 820 : 560, P ? TH : 48, () => { if (!proTradeOpen(c)) return; game.ui.push(confirmScreen(game, 'Ask for a trade? Your agent finds the best franchise that takes you, at most a star up (' + frStars(c, to) + '★). A trade up means earning the start there. Hype −' + Math.round(PR.tradeHype * MD.hypeMax * 10) / 10 + '; once every ' + FRN.tradeGap + ' seasons, before the deadline.', () => { c.me.tradeSeason = c.season; proTrade(c); game.save.save(); game.ui.replace(careerHub(game)); })); }, { primary: can, enabled: can, align: 'left' })); } /* F7 */
@@ -9054,7 +9062,8 @@ function managementScreen(game) {
   if (st.tab === 5) { // R7: a car and a house (confidence and a story, never a rating)
     const life = PR.lifestyle.map((it, i) => { const own = M.lifestyle && M.lifestyle[it.id]; return btn(own ? it.name + ' · yours since season ' + own : it.name + ' · ' + fmtMoney(it.cost), 60, 170 + i * 60, 620, 48, () => { if (own) return; if (proBuy(c, it.id)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { align: 'left', enabled: !own, sub: P ? 'Confidence +' + it.conf : null }); });
     items.push(...life); if (P) phoneGrid(game.ui, life, 40, 176, 1200, 2, 0, 10); }
-  if (st.tab === 6) { const C = M.cosmetics, P_ = CR.cosmeticCosts; const buy = (key, fn) => { if (M.money < P_[key]) { game.ui.toastMsg('Not enough money.'); return; } M.money -= P_[key]; fn(); game.save.save(); game.audio.ui('coin'); refresh(); };
+  if (st.tab === 6) { const rows = gearRows(game, c, refresh); layoutGearRows(game.ui, rows, 60, 150, 640); items.push(...rows); } // F8: gear that helps a little (the looks moved to their own tab)
+  if (st.tab === 7) { const C = M.cosmetics, P_ = CR.cosmeticCosts; const buy = (key, fn) => { if (M.money < P_[key]) { game.ui.toastMsg('Not enough money.'); return; } M.money -= P_[key]; fn(); game.save.save(); game.audio.ui('coin'); refresh(); };
     items.push(btn(C.headband ? 'Headband: ' + (C.headbandOn ? 'on' : 'off') : 'Headband · ' + fmtMoney(P_.headband), 60, 160, 520, 44, () => { if (C.headband) { C.headbandOn = !C.headbandOn; game.save.save(); refresh(); } else buy('headband', () => { C.headband = true; C.headbandOn = true; }); }, { align: 'left' }));
     items.push(btn(C.sleeves ? 'Arm sleeve: ' + (C.sleevesOn ? 'on' : 'off') : 'Arm sleeve · ' + fmtMoney(P_.sleeves), 60, 214, 520, 44, () => { if (C.sleeves) { C.sleevesOn = !C.sleevesOn; game.save.save(); refresh(); } else buy('sleeves', () => { C.sleeves = true; C.sleevesOn = true; }); }, { align: 'left' }));
     { const u = signatureUnlocked(M), nu = u.filter(Boolean).length; items.push(btn(C.shoes ? 'Signature shoes: ' + SIG_UNLOCKS[(C.shoes - 1) % SIG_UNLOCKS.length][0] + ' colorway (' + nu + ' of ' + SIGNATURE_SHOES.length + ' unlocked)' : 'Signature shoes · ' + fmtMoney(P_.shoes), 60, 268, 520, 44, () => { if (C.shoes) { C.shoes = nextSignature(M); game.save.save(); refresh(); } else buy('shoes', () => { C.shoes = 1; }); }, { align: 'left', sub: C.shoes ? 'More colorways unlock at the All-Star Game, a title, MVP, 10 posters and 5 seasons' : null })); }
@@ -9083,7 +9092,8 @@ function managementScreen(game) {
       else { ui.label(ctx, intro, 60, 146, 14, UI_TEXT, 'left', 1180); for (const w of items) if (w.what) ui.label(ctx, w.what, 700, w.y + w.h / 2, 14, UI_DIM, 'left', 530); } }
     if (st.tab === 4) { const lvl = M.gym || 0; ui.heading(ctx, 'HOME GYM · LEVEL ' + lvl, 60, 160, 22, UI_GOLD); ui.para(ctx, 'Every level: +' + Math.round(CR.gymBonus * 100) + '% practice XP and ' + WK.restGym + ' more fatigue off a Rest week. Yours forever, whatever club you play for.', 60, 196, 1160, 15, UI_TEXT); if (!CR.gymCost[lvl + 1]) ui.label(ctx, 'Maxed out. It has a sauna now.', 60, 300, 16, UI_GREEN); }
     if (st.tab === 5) { if (P) ui.label(ctx, 'Confidence and a story. Never a rating.', 60, 140, 18, UI_DIM, 'left', 1160); else { ui.label(ctx, 'Off the court: confidence and a story, never a rating. Houses count in your net worth.', 60, 140, 14, UI_TEXT, 'left', 1180); PR.lifestyle.forEach((it, i) => ui.label(ctx, 'Confidence +' + it.conf + (it.asset ? ' · an asset' : ''), 700, 194 + i * 60, 14, UI_DIM, 'left', 520)); } }
-    if (st.tab === 6) { drawMannequin(ctx, engineDef(c, c.meId), clubOf(me.club), 900, P ? 570 : 640, P ? 380 : 420, 'hyped', -1, 0); ui.label(ctx, 'Looks only.', 60, P ? 360 : 400, P ? 18 : 14, UI_DIM); }
+    if (st.tab === 6 && !P) { kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, 770, 120, 440, 0); } else if (st.tab === 6) ui.label(ctx, gearSummary(M) || 'Small edges, in games only.', 360, UI_H - tapH(ui, 44) - 50, 15, UI_DIM, 'left', 880); /* F8 */
+    if (st.tab === 7) { drawMannequin(ctx, engineDef(c, c.meId), clubOf(me.club), 900, P ? 570 : 640, P ? 380 : 420, 'hyped', -1, 0); ui.label(ctx, 'Looks only.', 60, P ? 360 : 400, P ? 18 : 14, UI_DIM); }
   } };
 }
 // ---------------- the offseason ----------------
@@ -9095,7 +9105,7 @@ function offseasonScreen(game) {
   if (O.step === 2 && !O.moves) { offseasonMoves(c); game.save.save(); }
   if (O.step === 3 && O.fa === null && !O.contractDone) { offseasonContract(c); O.contractDone = true; game.save.save(); }
   const items = []; const advance = () => { O.step++; game.save.save(); game.ui.replace(offseasonScreen(game)); }; const P = game.ui.phone, TH = tapH(game.ui, 44);
-  if (O.step === 3 && O.fa && !O.fa.done) { const faRole = o => o.kind ? proOfferKind(o) + ' · ' + (o.promise ? 'starts you' : 'earn the start') : ''; O.fa.offers.forEach((o, i) => items.push(btn(clubOf(o.club).name + ' ' + (o.stars || frStars(c, o.club)) + '★ · ' + fmtMoney(o.salary) + ' × ' + o.years, /* F7: the franchise's stars; the kind and the role beside it (the label was cut) */ 60, P ? 196 + i * (TH + 8) : 300 + i * 66, P ? 1160 : 760, P ? TH : 54, () => { if (o.base) game.ui.push(negotiateScreen(game, i)); else { acceptContract(c, i); game.save.save(); game.ui.replace(offseasonScreen(game)); } }, { align: 'left', primary: i === 0, sub: P ? (o.kind ? faRole(o) + ' · ' : '') + 'facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) : undefined }))); } /* R7: each offer opens the negotiation (years, role) */
+  if (O.step === 3 && O.fa && !O.fa.done) { const faRole = o => o.kind ? proOfferKind(o) + ' · ' + (o.promise ? 'starts you' : 'earn the start') : ''; O.fa.offers.forEach((o, i) => items.push(btn(clubOf(o.club).name + ' ' + (o.stars || frStars(c, o.club)) + '★ · ' + fmtMoney(o.salary) + ' × ' + o.years, /* F7: the franchise's stars; the kind and the role beside it (the label was cut) */ 60, P ? 196 + i * (TH + 8) : 300 + i * 66, P ? 1160 : 760, P ? TH : 54, () => { if (o.base) game.ui.push(negotiateScreen(game, i)); else { acceptContract(c, i); game.save.save(); game.ui.replace(offseasonScreen(game)); } }, { align: 'left', primary: i === 0, fa: i + 1, sub: P ? (o.kind ? faRole(o) + ' · ' : '') + 'facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) : undefined }))); } /* R7: each offer opens the negotiation (years, role) */
   else if (O.step < 4) items.push(btn('CONTINUE', 940, 630, 290, 50, advance, { primary: true }));
   else { if (!mustRetire(c)) items.push(btn('START SEASON ' + (c.season + 1), 60, 560, 420, 56, () => { newSeason(c); game.save.save(); game.ui.clearTo(careerHub(game)); }, { primary: true })); if (canRetire(c)) items.push(btn(mustRetire(c) ? 'RETIRE (age ' + me.age + ')' : 'Retire', 60, mustRetire(c) ? 560 : 630, 420, 48, () => { if (mustRetire(c)) { retireCareer(s); game.save.save(); game.ui.clearTo(epilogueScreen(game)); /* R7: the epilogue first */ } else game.ui.push(confirmScreen(game, 'Hang it up? Your career ends and your legacy is judged.', () => { retireCareer(s); game.save.save(); game.ui.clearTo(epilogueScreen(game)); /* R7: the epilogue first */ })); }, { primary: mustRetire(c) })); }
   items.push(btn('Main menu', 40, 650, 180, 40, () => { game.save.save(); game.ui.replace(mainMenu(game)); }));
@@ -9120,7 +9130,7 @@ function offseasonScreen(game) {
       if (O.step === 3) { if (O.fa && !O.fa.done) { const txt = 'Your deal is up. Market value: ' + fmtMoney(O.fa.value) + ' a season (OVR, fame and hype). Your club, the best franchise that wants you, or one a star lower that starts you: pick one, then negotiate the years and the role.'; ui.heading(ctx, 'CONTRACT YEAR · FREE AGENCY', 60, 110, 22, UI_GOLD);
           if (P) { ctx.font = fontStr(19, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Your deal is up. Market value: ' + fmtMoney(O.fa.value) + ' a season. Pick an offer, then negotiate.', 60, 132, 1160, 25); } /* a phone: the short version (facilities are on each offer) */ else { ui.para(ctx, txt, 60, 150, 1160, 16, UI_TEXT); O.fa.offers.forEach((o, i) => { const k = o.kind ? proOfferKind(o) + ' · ' + (o.promise ? 'starts you' : 'earn the start') : ''; if (k) ui.label(ctx, k, 840, 327 + i * 66 - 14, 14, o.promise ? UI_GREEN : UI_GOLD, 'left', 390); ui.label(ctx, 'Facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) + ' · ' + clubCourt(o.club).short + ' court', 840, 327 + i * 66 + (k ? 10 : -4), 13, UI_DIM, 'left', 390); }); } }
         else ui.label(ctx, O.fa && O.fa.done ? 'Signed: ' + clubOf(me.club).name + ', ' + fmtMoney(c.me.contract.salary) + ' a season for ' + c.me.contract.years + '.' : 'You\'re under contract: ' + c.me.contract.years + ' more season' + (c.me.contract.years === 1 ? '' : 's') + ' with the ' + clubOf(me.club).name + ' at ' + fmtMoney(c.me.contract.salary) + '.', 60, 130, 17, UI_TEXT, 'left', 1180); }
-      if (O.step === 4) { ui.heading(ctx, 'SEASON ' + (c.season + 1) + ' AWAITS', 60, 120, 26, UI_GOLD); ui.label(ctx, 'Age ' + me.age + ' · OVR ' + recOvr(me) + ' · ' + clubOf(me.club).name, 60, 160, 18, UI_TEXT); const L = legacyOf(c); ui.label(ctx, 'Legacy score ' + L.score + ' (Hall of Fame line ' + CR.hofScore + ')', 60, 190, 16, UI_DIM); if (mustRetire(c)) ui.label(ctx, 'At ' + me.age + ', it\'s time. Every career ends.', 60, 230, 18, UI_RED); else if (canRetire(c)) ui.label(ctx, 'You can retire now, or play on.', 60, 230, 16, UI_TEXT); drawMannequin(ctx, drawDefOf(me), clubOf(me.club), 900, P ? 570 : 640, P ? 380 : 420, 'hyped', -1, t); }
+      if (O.step === 4) { ui.heading(ctx, 'SEASON ' + (c.season + 1) + ' AWAITS', 60, 120, 26, UI_GOLD); ui.label(ctx, 'Age ' + me.age + ' · OVR ' + recOvr(me) + ' · ' + clubOf(me.club).name, 60, 160, 18, UI_TEXT); const L = legacyOf(c); ui.label(ctx, 'Legacy score ' + L.score + ' (Hall of Fame line ' + CR.hofScore + ')', 60, 190, 16, UI_DIM); if (mustRetire(c)) ui.label(ctx, 'At ' + me.age + ', it\'s time. Every career ends.', 60, 230, 18, UI_RED); else if (canRetire(c)) ui.label(ctx, 'You can retire now, or play on.', 60, 230, 16, UI_TEXT); drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 900, P ? 570 : 640, P ? 380 : 420, 'hyped', -1, t); }
     } };
 }
 function hallOfFameScreen(game) {
@@ -9234,7 +9244,7 @@ function devScreen(game) {
 // SECTION: UI (part 4) — the amateur years: the high school and college hub, the genes reveal and season recaps
 // (with a height chart, so you watch yourself grow), recruiting and draft decisions, standings, history and results
 // ============================================================================
-function amDrawDef(c) { return { name: c.name, look: Object.assign({}, c.look, { number: c.number }), height: c.height, attrs: {} }; }
+function amDrawDef(c) { return { name: c.name, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), height: c.height, attrs: {} }; } // F8: in your gear
 function amKit(c) { return { colors: c.colors || AM_COLORS[0], pattern: 'solid' }; }
 // Events: the genes reveal, season recaps (with the growth spurt drawn), commitments, the draft.
 function amEventScreen(game) {
@@ -10028,7 +10038,7 @@ function amHub(game) {
   else if (nx && nx.opp) actions.push(btn('PLAY', 0, 0, 0, 0, () => play(false), { primary: true }), btn('SIM', 0, 0, 0, 0, () => play(true)));
   const plan = nx && nx.opp ? planButtons(game, careerKit(game)) : [];
   const week = ui.phone || !plan.length ? [] : [sel('Focus', 0, 0, 0, 0, focusKeys.map(k => CR.trainFocus[k].label), () => Math.max(0, focusKeys.indexOf(c.focus)), i => { c.focus = focusKeys[i]; game.save.save(); })];
-  const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' })].concat(c.stage === 'hs' ? [btn('Recruiting', 0, 0, 0, 0, () => game.ui.push(recruitingScreen(game)))] : c.stage === 'college' ? [btn('Pro stock', 0, 0, 0, 0, () => game.ui.push(draftStockScreen(game)))] : []) /* R6 */.concat([btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { phoneHide: c.stage === 'hs' || c.stage === 'college' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })]);
+  const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' }), btn('Gear shop', 0, 0, 0, 0, () => game.ui.push(gearScreen(game)), { phoneHide: true })] /* F8 (phones: Team → Gear shop) */.concat(c.stage === 'hs' ? [btn('Recruiting', 0, 0, 0, 0, () => game.ui.push(recruitingScreen(game)))] : c.stage === 'college' ? [btn('Pro stock', 0, 0, 0, 0, () => game.ui.push(draftStockScreen(game)))] : []) /* R6 */.concat([btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { phoneHide: c.stage === 'hs' || c.stage === 'college' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })]);
   const items = hubWidgets(ui, actions, week, links, plan);
   const L = c.league, def = amDrawDef(c), kit = amKit(c), last = c.log.length ? c.log[c.log.length - 1] : null;
   const hLast = last ? last.height : (c.growthLog && c.growthLog[0] ? c.growthLog[0].h : c.height);
@@ -10066,7 +10076,7 @@ function careerHub(game) {
   const scr = { widgets: items, name: 'career', update(dt) { t += dt; if (game.ui.screen !== scr) return; if (c.events && c.events.length) game.ui.push(proEventScreen(game)); else if (c.phase === 'offseason') game.ui.replace(offseasonScreen(game)); }, onEnter() { game.audio.setBeat(true); }, onBack() { game.save.save(); game.ui.replace(mainMenu(game)); },
     draw(ctx, ui) {
       const H = { header: 'SEASON ' + c.season, sub: 'PRO · ' + club.name.toUpperCase(), stars: frMine(c), goal: frGoalBanner(c), weeks: c.phase === 'regular' ? c.schedule.length : 0, week: Math.min(c.week, c.schedule.length), playoffs: c.phase === 'playoffs', weekLabel: c.phase === 'playoffs' ? nextEventLabel(c) : '',
-        me: { def: drawDefOf(me), kit: club, ovr: recOvr(me), delta: prev ? recOvr(me) - prev.ovr : 0, h: me.h, hLast: null, age: me.age, style: roleLabel(me.r, me.h), r: me.r, tr: traitsOf(c.me), info: fmtMoney(c.me.money) + ' · hype ' + Math.round(c.me.hype || 0) }, // R8: hype on the card (fame is in Business)
+        me: { def: drawDefOf(me, c), kit: club, ovr: recOvr(me), delta: prev ? recOvr(me) - prev.ovr : 0, h: me.h, hLast: null, age: me.age, style: roleLabel(me.r, me.h), r: me.r, tr: traitsOf(c.me), info: fmtMoney(c.me.money) + ' · hype ' + Math.round(c.me.hype || 0) }, // R8: hype on the card (fame is in Business)
         last5: c.me.log.slice(0, 5).reverse().map(l => l.win), weekY: 198, statusY: items.statusY, B: c.me };
       if (g && opp) { const meHome = g.h === c.meId; const oc = clubOf(opp.club), os = c.standings[opp.id]; H.opp = { def: drawDefOf(opp), h: opp.h, rival, playoff: !!g.playoff, where: meHome ? 'HOME' : 'AWAY', label: c.phase === 'playoffs' ? nextEventLabel(c) : 'NEXT · WEEK ' + (c.week + 1) + ' · ' + os.w + '-' + os.l };
         H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = cardOfRec(opp, { sub: oc.name });
@@ -10376,7 +10386,7 @@ function textEventScreen(game, ev, done) {
   return { widgets: items, name: 'amevent', overlay: true, onBack: done, draw(ctx, ui) { ui.panel(ctx, 60, 40, 1160, 640); ui.title(ctx, ev.title || '', 100, 100, 42); ctx.font = fontStr(18, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 150; (ev.lines || []).forEach((l, i) => { ctx.fillStyle = i === 0 ? UI_GOLD : UI_TEXT; y += wrapTextH(ctx, l, 100, y, 1060, 26) + 8; }); } };
 }
 function wrapCount(ctx, text, maxW) { const words = String(text).split(' '); let line = '', n = 0; for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { n++; line = w; } else line = t; } return n + (line ? 1 : 0); }
-function meDrawOf(c) { return isPro(c) ? { def: drawDefOf(meOf(c)), kit: clubOf(meOf(c).club) } : { def: amDrawDef(c), kit: amKit(c) }; }
+function meDrawOf(c) { return isPro(c) ? { def: drawDefOf(meOf(c), c), kit: clubOf(meOf(c).club) } : { def: amDrawDef(c), kit: amKit(c) }; }
 function rivalDrawOf(c) {
   if (isPro(c)) { const r = c.rivalId && c.players[c.rivalId]; return r ? { def: drawDefOf(r), kit: clubOf(r.club), name: r.name, h: r.h } : null; }
   const r = c.rival; return r ? { def: { name: r.name, look: r.look, height: r.height, attrs: {} }, kit: { colors: r.colors || AM_COLORS[1], pattern: r.pattern || 'solid' }, name: r.name, h: r.height } : null;
@@ -10829,6 +10839,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
     amateur: { school: a.school, college: a.college, tier: a.collegeTier || 0, titles: a.titles || 0, mvps: a.mvps || 0, awards: (a.awards || []).slice(), log: (a.log || []).slice(), totals: Object.assign({}, a.totals || {}), growthLog: (a.growthLog || []).slice(), projection: a.projection || null, heightFinal: a.heightFinal } };
   if (a.cash > 0) c.me.money += Math.round(a.cash); // R5: what you saved in high school comes with you (R6: and your NIL money)
   c.me.agent = a.agent || null; // R6: the agent you signed on the way to the draft (+10% on every contract, 4% of your salary)
+  c.me.gear = Object.assign({}, a.gear || {}); // F8: your gear comes with you
   const rng = careerRng(c); const used = new Set([a.name]);
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
   rng.shuffle(pool);
@@ -10877,7 +10888,7 @@ function engineDef(c, id, opts) {
   let look = Object.assign({}, p.look); if (!p.isMe && opts.fire) for (const k of RATING_KEYS) attrs[k] = ratingToAttr(effRatings(p.r, p.h)[k] + opts.fire); // R8: an opponent you trash-talked, a fired-up rival
   if (p.isMe) { const me = c.me;
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
-    look = Object.assign(look, { headband: !!me.cosmetics.headband && me.cosmetics.headbandOn, sleeves: !!me.cosmetics.sleeves && me.cosmetics.sleevesOn, shoes: me.cosmetics.shoes ? SIGNATURE_SHOES[(me.cosmetics.shoes - 1) % SIGNATURE_SHOES.length] : null });
+    look = proLook(c, look); // the Office's looks and your gear (F8)
   }
   return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }; // R8: crowd: your hype's home crowd (make chance +)
 }
@@ -11452,7 +11463,7 @@ function amCombine(c) {
 }
 
 // ---------------- the match: you against one opponent ----------------
-function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: Object.assign({}, c.look, { number: c.number }), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c) }; }
+function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c) }; } // F8: in your gear
 // fire: an opponent you trash-talked or a fired-up rival plays you this much better (every rating; R8)
 function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff) }; }
 function amAbbr(name, other) { const parts = String(name).split(' '); const last = (parts[parts.length - 1] || String(name)).toUpperCase(); let a = last.slice(0, 3); if (other && other === a) a = ((parts[0] || 'X')[0] + last.slice(0, 2)).toUpperCase(); return a; }
@@ -11674,6 +11685,7 @@ function effOvr(e) { let s = 0; for (const k of RATING_KEYS) s += e[k]; return M
 // The ratings you take into this week's game: height, then injury and film, then fatigue on top of everything.
 function wkEff(r, h, B, oppId) {
   const e = effRatings(r, h); if (!B) return e; const w = B.wk || {};
+  const gb = gearBonus(B); for (const k in gb) e[k] += gb[k]; // F8: gear, in games only
   if (B.injury) e.spd -= WK.injurySpd;
   if (w.done === 'film' && (w.filmOpp == null || oppId == null || w.filmOpp === oppId)) { const fb = trFilmBonus(B); e.def += fb; e.sho += fb; } // Film Junkie: double
   e.sho += confShoOf(B); // confidence: ±0.2 Shooting at most (the press room)
@@ -11718,8 +11730,8 @@ function drillXpFor(focus, score) { const g = WK.drillGreat[focus] || 10; return
 function wkAfterGame(B, rng, opts) {
   opts = opts || {}; const out = { healed: false, injury: null, fatigueBefore: B.fatigue || 0, plan: (B.wk && B.wk.done) || null, practiceXp: (B.wk && B.wk.xp) || 0 };
   if (B.injury) { B.injury.games--; if (B.injury.games <= 0) { B.injury = null; out.healed = true; } }
-  else if (injuriesOn()) { const ch = Math.max(0, WK.injuryBase + WK.injuryPerFatigue * (B.fatigue || 0)) * trMul(B, 'injury') * (opts.nutrition ? PR.nutritionInjury : 1) * stInjuryMul(B); /* R7: nutrition & physio (the old physio stars are gone); R9: a rushed comeback */ if (rng.next() < ch) out.injury = Object.assign({}, wkInjure(B, rng)); } // Iron Man ×0.6, Unbreakable never
-  B.fatigue = clamp((B.fatigue || 0) + WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0) - (opts.nutrition ? PR.nutritionRegen : 0), 0, 100); out.fatigue = B.fatigue; /* R7: nutrition & physio recover faster */
+  else if (injuriesOn()) { const ch = Math.max(0, WK.injuryBase + WK.injuryPerFatigue * (B.fatigue || 0)) * trMul(B, 'injury') * (opts.nutrition ? PR.nutritionInjury : 1) * stInjuryMul(B) * gearInjuryMul(B); /* R7: nutrition & physio (the old physio stars are gone); R9: a rushed comeback; F8: ankle braces */ if (rng.next() < ch) out.injury = Object.assign({}, wkInjure(B, rng)); } // Iron Man ×0.6, Unbreakable never
+  B.fatigue = clamp((B.fatigue || 0) + WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0) - (opts.nutrition ? PR.nutritionRegen : 0) - gearRegen(B), 0, 100); out.fatigue = B.fatigue; /* R7: nutrition & physio recover faster; F8: the recovery kit */
   wkNew(B); return out;
 }
 // R4: a week on the bench: you practiced but didn't play, so no game fatigue; an injury heals a game.
@@ -12316,7 +12328,8 @@ function teamScreen(game) {
   const T = c.team, ui = game.ui, P = ui.phone; const items = [btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Depth chart', 0, 0, 0, 0, () => game.ui.push(ladderScreen(game)))];
   const L0 = ladderOf(c) || [], rk = id => { const i = L0.indexOf(id); return i < 0 ? 99 : i; }; const roster = teamRoster(c).sort((a, b) => rk(a.id) - rk(b.id)); const st = { page: 0 }; /* R4: in depth-chart order */ const per = P ? 4 : 8, pages = Math.max(1, Math.ceil(roster.length / per));
   if (pages > 1) items.push(btn('◀ Page', 0, 0, 0, 0, () => { st.page = (st.page + pages - 1) % pages; }), btn('Page ▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages; }));
-  if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 14, 1200, items.length, 0, 10); else { Object.assign(items[0], { x: 60, y: 640, w: 170, h: 48 }); Object.assign(items[1], { x: 240, y: 640, w: 200, h: 48 }); if (items[2]) { Object.assign(items[2], { x: 900, y: 640, w: 150, h: 48 }); Object.assign(items[3], { x: 1062, y: 640, w: 150, h: 48 }); } }
+  const shop = btn('Gear shop', 450, 640, 200, 48, () => game.ui.push(gearScreen(game))); items.push(shop); /* F8 */
+  if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 14, 1200, items.length, 0, 10); else { Object.assign(items[0], { x: 60, y: 640, w: 170, h: 48 }); Object.assign(items[1], { x: 240, y: 640, w: 200, h: 48 }); if (items[2] && items[2] !== shop) { Object.assign(items[2], { x: 900, y: 640, w: 150, h: 48 }); Object.assign(items[3], { x: 1062, y: 640, w: 150, h: 48 }); } }
   const rt = pro ? (c.rivalId && c.players[c.rivalId] ? { name: clubOf(c.players[c.rivalId].club).name, colors: clubOf(c.players[c.rivalId].club).colors } : null) : tmRivalTeam(am);
   const meRec = pro ? { name: meOf(c).name, r: meOf(c).r, height: meOf(c).h, look: meOf(c).look } : { name: am.name, r: am.r, height: am.height, look: Object.assign({}, am.look, { number: am.number }) };
   return { widgets: items, name: 'team', draw(ctx, ui) {
@@ -12414,7 +12427,7 @@ function ladderResultScreen(game, res, prac, overlay, m) {
 function drawLadderList(ctx, ui, c, x, y, w, rows, rh) {
   const L = ladderOf(c) || [], T = c.team; if (!T) return; const i0 = clamp(ladderRank(c) - 1 - Math.floor(rows / 2), 0, Math.max(0, L.length - rows));
   L.slice(i0, i0 + rows).forEach((id, k) => { const i = i0 + k, yy = y + k * rh, me = id === 'me'; const m = me ? null : ladderMate(c, id); if (me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(x - 6, yy - rh / 2 + 2, w + 12, rh - 4); }
-    ui.heading(ctx, '#' + (i + 1), x, yy, 16, i === 0 ? UI_GOLD : UI_DIM); const ps = rh - 8; try { drawPortrait(ctx, me ? (isPro(c) ? drawDefOf(meOf(c)) : amDrawDef(c)) : { name: m.name, look: m.look, age: m.age }, T.colors, x + 44, yy - ps / 2, ps); } catch (e) { /* decoration */ }
+    ui.heading(ctx, '#' + (i + 1), x, yy, 16, i === 0 ? UI_GOLD : UI_DIM); const ps = rh - 8; try { drawPortrait(ctx, me ? (isPro(c) ? drawDefOf(meOf(c), c) : amDrawDef(c)) : { name: m.name, look: m.look, age: m.age }, T.colors, x + 44, yy - ps / 2, ps); } catch (e) { /* decoration */ }
     const nm = me ? (isPro(c) ? meOf(c).name : c.name) + ' (you)' : m.name, ovr = me ? (isPro(c) ? recOvr(meOf(c)) : amOvr(c)) : tmMateOvr(m); const rt = 'OVR ' + ovr + (i === 0 ? ' · STARTS' : ''); ctx.font = fontStr(14, false); const rw = ctx.measureText(rt).width; ctx.font = fontStr(16, true); const room = w - 54 - ps - rw - 14;
     if (ctx.measureText(nm).width > room && rh >= 40) { ui.heading(ctx, nm, x + 54 + ps, yy - 10, 16, me ? UI_GOLD : UI_TEXT, 'left', w - 54 - ps); ui.label(ctx, rt, x + 54 + ps, yy + 12, 12, i === 0 ? UI_GOLD : UI_DIM, 'left'); } /* F7: a narrow list puts the OVR under the name (the name was cut) */
     else { ui.label(ctx, rt, x + w, yy, 14, i === 0 ? UI_GOLD : UI_DIM, 'right'); ui.heading(ctx, nm, x + 54 + ps, yy, 16, me ? UI_GOLD : UI_TEXT, 'left', Math.max(40, room)); } });
@@ -13584,6 +13597,84 @@ function socialPress(c, P, a) {
   const me = stFirst((P.x && P.x.name) || stMeName(c)), pick = l => l[stRng(c, 'sp' + stWeek(c) + a.kind).int(l.length)];
   const t = { team: pick([me + ' giving credit to the practice squad. Love to see it.', 'Humble. ' + me + ' gets it.']), confident: pick([me + ' said "just getting started." I believe it.', 'Confidence is contagious. ' + me + ' has it.']), trash: pick(['OH ' + me.toUpperCase() + ' CHOSE VIOLENCE AT THE PODIUM', 'This quote is going on a t-shirt.', me + ' talking like that? Somebody\'s getting cooked next time.']), nocomment: pick(['Two words and out. ' + me + ' is the most boring interview in the league.', '"No comment." Okay then.']) }[a.kind] || '';
   if (t) socialPost(c, 'press', t, a.kind === 'trash' ? 2.5 : a.kind === 'nocomment' ? 0.5 : 1);
+}
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION + UI (part 9) — F8, gear (the user: "add items you can buy to improve some stuff, nothing
+// too broken though"). Six pieces, three levels each (Basic, Pro, Elite). Four add a little to one rating in games; two
+// cut injuries and fatigue. You pay with your cash (high school, college) or your money (the pros), and your gear comes
+// along when you turn pro. Your OVR and your value to the franchises don't change: gear is an edge on game day.
+// ============================================================================
+const GEAR = CONFIG.gear;
+const GEAR_ITEMS = [
+  { id: 'shoes', name: 'Court shoes', rating: 'spd', what: 'Speed' },
+  { id: 'insoles', name: 'Spring insoles', rating: 'jmp', what: 'Hops' },
+  { id: 'sleeve', name: 'Shooter\'s sleeve', rating: 'sho', what: 'Shooting' },
+  { id: 'wristbands', name: 'Grip wristbands', rating: 'han', what: 'Handles' },
+  { id: 'braces', name: 'Ankle braces', what: 'injuries' },
+  { id: 'recovery', name: 'Recovery kit', what: 'fatigue' },
+];
+const GEAR_LEVEL = ['Not owned', 'Basic', 'Pro', 'Elite'];
+function gearOf(B) { if (!B) return {}; if (!B.gear || typeof B.gear !== 'object') B.gear = {}; return B.gear; }
+function gearLevel(B, id) { return clamp(B && B.gear ? (B.gear[id] | 0) : 0, 0, GEAR.levels); }
+// The ratings your gear adds in games ({ sho: 2, ... }).
+function gearBonus(B) { const o = {}; for (const it of GEAR_ITEMS) if (it.rating) { const l = gearLevel(B, it.id); if (l) o[it.rating] = (o[it.rating] || 0) + l * GEAR.rating; } return o; }
+function gearInjuryMul(B) { return 1 - GEAR.injury * gearLevel(B, 'braces'); }
+function gearRegen(B) { return GEAR.regen * gearLevel(B, 'recovery'); }
+function gearEffect(it, l) { return it.rating ? '+' + l * GEAR.rating + ' ' + it.what + ' in games' : it.id === 'braces' ? 'injury chance −' + Math.round(100 * GEAR.injury * l) + '%' : '−' + GEAR.regen * l + ' fatigue a game'; }
+// Everything you wear, in one line ('Shooting +2 · Speed +1 · injuries −10%'), or ''.
+function gearSummary(B) { const out = []; for (const it of GEAR_ITEMS) { const l = gearLevel(B, it.id); if (!l) continue; out.push(it.rating ? it.what + ' +' + l * GEAR.rating : it.id === 'braces' ? 'injuries −' + Math.round(100 * GEAR.injury * l) + '%' : 'fatigue −' + GEAR.regen * l + ' a game'); } return out.join(' · '); }
+// The money: an amateur's cash, a pro's money.
+// Money in the shop: exact under $10K ($2,500, not $3K), then the usual $250K and $1.2M.
+function gearMoney(n) { n = Math.round(n || 0); return Math.abs(n) < 1e4 ? (n < 0 ? '−$' : '$') + String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : fmtMoney(n); }
+function gearWallet(c) { return isPro(c) ? (c.me.money || 0) : (c.cash || 0); }
+function gearNextPrice(B, id) { const l = gearLevel(B, id); return l >= GEAR.levels ? null : GEAR.price[l]; }
+function gearBuy(c, id) {
+  const B = holderOf(c), it = GEAR_ITEMS.find(x => x.id === id); if (!it) return false; const price = gearNextPrice(B, id); if (price == null || gearWallet(c) < price) return false;
+  if (isPro(c)) c.me.money -= price; else c.cash = (c.cash || 0) - price; gearOf(B)[id] = gearLevel(B, id) + 1; return true;
+}
+// What your gear shows on your player: the sleeve, the wristbands, and shoes by level (white, black and pink, gold);
+// signature shoes from the Office's looks win over them.
+const GEAR_SHOES = [null, ['#F3F0FF', '#1B1B22'], ['#1B1B22', '#FF4FA3'], ['#FFD23F', '#1A1206']];
+function gearLook(B, look) { const o = Object.assign({}, look); if (gearLevel(B, 'sleeve')) o.sleeves = true; if (gearLevel(B, 'wristbands')) o.wristbands = true; const s = gearLevel(B, 'shoes'); if (s && !o.shoes) o.shoes = GEAR_SHOES[s]; return o; }
+// A pro's look with the Office's looks (headband, sleeve, signature shoes) and the gear on.
+function proLook(c, look) { const M = c.me, C = M.cosmetics || {}; return gearLook(M, Object.assign({}, look, { headband: !!C.headband && C.headbandOn, sleeves: !!C.sleeves && C.sleevesOn, shoes: C.shoes ? SIGNATURE_SHOES[(C.shoes - 1) % SIGNATURE_SHOES.length] : null })); }
+
+// ---------------- the shop (from the high school and college hub, the Team screen and the Office) ----------------
+// A row per piece: its name and what you have, the level pips, and the next level's price (gold when you can pay).
+function drawGearRow(ctx, b, focused, ui, c) {
+  const B = holderOf(c), it = b.gear, l = gearLevel(B, it.id), price = gearNextPrice(B, it.id), can = price != null && gearWallet(c) >= price; b.enabled = true;
+  kitButton(ctx, Object.assign({}, b, { primary: false, enabled: price != null }), focused, ui.t, {}); const h = b.h - kitBtnLip(b), y1 = b.y + h * 0.33, y2 = b.y + h * 0.7, ink = price == null ? 'rgba(243,240,255,0.75)' : UI_TEXT;
+  ctx.textBaseline = 'middle'; ui.heading(ctx, it.name, b.x + 16, y1, 16, ink, 'left', b.w * 0.56); ui.label(ctx, l ? GEAR_LEVEL[l] + ' · ' + gearEffect(it, l) : 'Not owned yet', b.x + 16, y2, 12, l ? '#FFE9A6' : 'rgba(243,240,255,0.7)', 'left', b.w * 0.62);
+  for (let k = 0; k < GEAR.levels; k++) { ctx.fillStyle = k < l ? UI_GOLD : 'rgba(0,0,0,0.35)'; ctx.fillRect(b.x + b.w - 16 - (GEAR.levels - k) * 16, y1 - 5, 12, 10); } /* the level pips */
+  ui.label(ctx, price == null ? 'MAXED' : (l ? 'Upgrade ' : 'Buy ') + gearMoney(price), b.x + b.w - 16, y2, 13, price == null ? UI_GREEN : can ? UI_GOLD : '#FFB0B0', 'right', b.w * 0.36);
+}
+function gearRows(game, c, refresh) {
+  const B = holderOf(c);
+  return GEAR_ITEMS.map(it => ({ kind: 'custom', gear: it, label: it.name, x: 0, y: 0, w: 0, h: 0, enabled: true,
+    onPress() { const l = gearLevel(B, it.id), price = gearNextPrice(B, it.id); if (price == null) { game.ui.toastMsg(it.name + ': maxed out.'); return; } if (gearWallet(c) < price) { game.ui.toastMsg(GEAR_LEVEL[l + 1] + ' ' + it.name.toLowerCase() + ' cost ' + gearMoney(price) + '. You have ' + gearMoney(gearWallet(c)) + '.'); return; }
+      if (gearBuy(c, it.id)) { game.save.save(); game.audio.ui('coin'); game.ui.toastMsg(it.name + ': ' + GEAR_LEVEL[l + 1] + ' · ' + gearEffect(it, l + 1) + '.'); refresh(); } },
+    draw(ctx, focused, ui) { drawGearRow(ctx, this, focused, ui, c); } }));
+}
+// Lays the rows out: a desktop column (x, y, w), or a phone's grid of two columns under the title.
+function layoutGearRows(ui, rows, x, y, w) { if (ui.phone) { phoneGrid(ui, rows, 40, 96, 1200, 2, 0, 8); return; } rows.forEach((b, i) => Object.assign(b, { x, y: y + i * 76, w, h: 68 })); }
+// The side panel: your player in the gear and what it adds up to.
+function drawGearSide(ctx, ui, c, x, y, w, t) {
+  const B = holderOf(c), me = isPro(c) ? meOf(c) : null, def = isPro(c) ? drawDefOf(me, c) : amDrawDef(c), kit = isPro(c) ? clubOf(me.club) : amKit(c);
+  drawPlatform(ctx, x + w / 2, y + 330, 120, kit.colors); drawMannequin(ctx, def, kit, x + w / 2, y + 330, 300, 'hyped', 1, t || 0);
+  ui.heading(ctx, 'ON GAME DAY', x, y + 372, 15, UI_CYAN, 'left', w); ui.para(ctx, gearSummary(B) || 'Nothing yet. Every piece is a small edge, in games only.', x, y + 398, w, 14, UI_TEXT, 'left', 3);
+}
+function gearScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const P = game.ui.phone; let t = 0;
+  const rows = gearRows(game, c, () => game.ui.replace(gearScreen(game))), back = btn('Back', 40, 650, 200, 44, () => game.ui.pop()); const items = rows.concat([back]);
+  layoutGearRows(game.ui, rows, 60, 150, 640); phoneBar(game.ui, [back], null, 40, 300);
+  return { widgets: items, name: 'gear', update(dt) { t += dt; },
+    draw(ctx, ui) {
+      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'GEAR SHOP', 44, 56, 38); ui.heading(ctx, (isPro(c) ? '' : 'Cash ') + gearMoney(gearWallet(c)), 1236, 50, 22, UI_GOLD, 'right');
+      if (P) { ui.label(ctx, gearSummary(holderOf(c)) || 'Small edges, in games only. Your OVR doesn\'t change.', 360, UI_H - tapH(ui, 44) - 50, 15, UI_DIM, 'left', 880); return; }
+      ui.para(ctx, 'Small edges on game day. Your OVR and value don\'t change; your gear comes with you to the pros.', 60, 106, 640, 14, UI_DIM, 'left', 2);
+      kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, 770, 120, 440, t);
+    } };
 }
 
 // ============================================================================

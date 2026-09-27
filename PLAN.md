@@ -235,7 +235,8 @@ move with the standings); no draft: three offers capped by the scouts' score, th
 value (OVR, fame, hype) reaches a franchise's bar, in free agency or by a trade; the goal track (a 3★ team, a 5★ team,
 starting for one, a title with one); the hub organized like a front office (Team, League, Office, Career). Cut text is
 flagged by the screen audit and fixed.
-**F8 — Shop** — gear bought with money: small capped bonuses, visible on the player, balance-tested.
+**F8 — Shop** *(done)* — a gear shop (six pieces, three levels): +0.5 a level to one rating in games, fewer injuries,
+less fatigue; cash or money pays and gear comes along to the pros; +1 a level was tested and too strong.
 **F9 — Stats guide** — what every meter does, in numbers, with its current value and how to raise it.
 **F10 — QA and release** — the suite, every screen at every size, the report, the artifact republished.
 

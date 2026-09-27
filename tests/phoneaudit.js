@@ -59,6 +59,7 @@ const { launch, openPage } = require('./lib');
   await audit('create', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(createPlayerScreen(HH.game)); });
   await audit('customize-face', () => { const g = HH.game; const s = g.ui.screen; const w = (s.widgets || []).find(x => /face|Customize|Edit/i.test(x.label || '')); if (w) w.onPress(); });
   await audit('am-hub', () => { const g = HH.game; g.ui.clearTo(amHub(g)); });
+  await audit('am-gear', () => { const g = HH.game, a = g.save.data.c1; a.cash = 2600; a.gear = { sleeve: 1, shoes: 2 }; g.ui.clearTo(amHub(g)); g.ui.push(gearScreen(g)); }); // F8: the gear shop
   await audit('am-tryout', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: tryouts, the shootout first
   await audit('am-tryout-1v1', () => { const g = HH.game, a = g.save.data.c1; if (a.tryout && a.tryout.step === 'drill') hsTryoutDrill(a, 12); g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: then the 1v1 against a senior
   await audit('am-tryout-post', () => { const g = HH.game; g.ui.push(tryoutPostScreen(g, { contest3: { score: 12 }, winner: 0, teams: [{ score: 7 }, { score: 5 }] }, { part: 'none' })); }); // R10: the tryout's result card
@@ -120,7 +121,7 @@ const { launch, openPage } = require('./lib');
   await audit('pro-film', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(filmRoomScreen(HH.game)); }); // R10: every screen
   await audit('league', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(leagueScreen(HH.game)); });
   await audit('player', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(playerScreen(HH.game)); });
-  for (let t = 0; t < 7; t++) await audit('management-tab' + t, t => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.mgmtTab = { tab: t }; const s = managementScreen(HH.game); HH.game.ui.push(s); }, t);
+  for (let t = 0; t < 8; t++) await audit('management-tab' + t, t => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.mgmtTab = { tab: t }; const s = managementScreen(HH.game); HH.game.ui.push(s); }, t);
   for (const t of [1, 3, 5]) await audit('business-r7-tab' + t, t => { const g = HH.game, c = g.save.data.career; c.me.money = 3e7; c.me.hype = PR.shoeHype * MD.hypeMax; g.ui.clearTo(careerHub(g)); g.mgmtTab = { tab: t }; g.ui.push(managementScreen(g)); }, t); // R7: contract & money (agent, shoe line), training, lifestyle
   await audit('pro-trade-card', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; c.events.push({ kind: 'trade', title: 'UNHAPPY', why: 'bench', lines: ['You have watched 4 of the 6 games from the bench.', 'Your agent can ask for a trade: to a club that starts you, your contract comes with you.', 'Or stay and fight for it.'] }); g.ui.clearTo(careerHub(g)); }); // R7
   await audit('pro-shoe-card', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; c.me.shoePitched = false; c.me.shoe = null; c.me.hype = PR.shoeHype * MD.hypeMax; proShoePitch(c); g.ui.clearTo(careerHub(g)); }); // R7

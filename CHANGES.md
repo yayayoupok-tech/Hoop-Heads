@@ -3,6 +3,80 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F8 — A gear shop: small edges you can buy (the F pass, milestone 8)
+
+The user: "add items you can buy to improve some stuff, nothing too broken though".
+
+**Six pieces of gear, three levels each** (Basic, Pro, Elite):
+
+| Piece | Each level | Elite |
+| --- | --- | --- |
+| Court shoes | +0.5 Speed in games | +1.5 |
+| Spring insoles | +0.5 Hops in games | +1.5 |
+| Shooter's sleeve | +0.5 Shooting in games | +1.5 |
+| Grip wristbands | +0.5 Handles in games | +1.5 |
+| Ankle braces | injury chance −10% | −30% |
+| Recovery kit | 1 less fatigue after a game | −3 of the 10 a game adds |
+
+- **Only on game day.** The bonuses count in every game you play or simulate and in depth-chart challenges. Your OVR
+  and your value to the franchises don't change.
+- **Prices climb with the career:**
+  - Basic $250: a high school summer job pays $1,000;
+  - Pro $2,500: a college NIL deal;
+  - Elite $250,000: a pro contract.
+- High school and college pay with their cash, the pros with their money. Your gear comes along when you turn pro.
+- **Where to buy:**
+  - Gear shop on the high school and college hub (desktop);
+  - Team → Gear shop (every screen, a phone included);
+  - in the pros, the Office's new Gear tab. The old Shop tab is now Looks: headband, sleeve, signature shoes, ball skins.
+- **On your player:**
+  - the sleeve and the wristbands show;
+  - shoes change color by level (white; black and pink; gold). Signature shoes from Looks win.
+- A first-time tip explains the shop. The high school week tip now says Study sits behind Rest (F7 moved it).
+
+**Fixed along the way:** the Office's headband and arm sleeve never showed on the player. A newer look dropped the
+flags that put them on. The Office said "Headband: on" and nothing changed. Both show now.
+
+**How much is "nothing too broken".** The career simulator's player bought every piece as soon as its money covered
+the price twice over (four times in the pros). By the pros that is about half the levels; by retirement, all of them.
+
+| Rating bonus a level | Titles a career | Hall of Fame | Legacy median |
+| --- | --- | --- | --- |
+| No gear (seed 3, 80 careers) | 0.84 | 6% | 47 |
+| **0.5 (chosen)** | 0.76 | 10% | 48 |
+| 1 (Elite +3) | 1.26 | 25% | 58 |
+| No gear (seed 1, 40) | 0.80 | 10% | 40 |
+| 0.5 | 0.90 | 15% | 49 |
+| 1 | 1.10 | 13% | 55 |
+| No gear (seed 2, 40; the suite) | 0.42 | 3% | 41 |
+| 0.5 (the suite) | 0.65 | 5% | 43 |
+
+- At +1 a level, full gear made titles half again as likely and the Hall of Fame four times as likely: broken.
+- At +0.5, the three seeds give −0.08, +0.10 and +0.23 titles a career and +2 to +5 points of Hall of Fame.
+  - That is a small edge, about the size of the simulator's noise with 40 careers.
+  - Injuries fall from 2.6 to 2.1 a career and fatigue at tip-off from 16.5 to 14.6 (seed 2).
+- Every career target holds with gear on both seeds.
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `gear.levels` | 3 | Basic, Pro, Elite |
+| `gear.price` | 250, 2,500, 250,000 | the price of each level ($) |
+| `gear.rating` | 0.5 | a rating piece: this much of its rating per level, in games |
+| `gear.injury` | 0.1 | ankle braces: the injury chance × (1 − 0.1 × level) |
+| `gear.regen` | 1 | recovery kit: this much less fatigue after a game, per level |
+
+| Test | Result |
+| --- | --- |
+| Smoke | 133 of 133. The F8 step: prices and levels; no money, no gear; +rating × level in games with OVR unchanged; the recovery kit and the braces through the game-week code; the look; carried to the pros; money pays; value unchanged; the Office headband shows; an old save; the screens. |
+| Modes | 13 of 13 |
+| Old saves | 31 of 31 |
+| Dev tools | all OK |
+| Screen audit (phone, desktop) | 119 and 121 screens, none flagged (the gear shop and the Office's Gear and Looks tabs included) |
+| Art Lab | 54 screenshots, no errors |
+| Gate, balance | ✓ (brute force vs Pro 1.00 PPP; Legend beats Pro 78%) |
+| Career simulator (the player buys gear) | seed 1: every target met (titles 0.90, Hall of Fame 15%); seed 2: every target met (0.65, 5%); seed 2 without gear: 0.42, 3% |
+| Trait balance | every trait in range |
+
 ## F7 — Franchises instead of the draft; the goal is a great team (the F pass, milestone 7)
 
 The user: "the nba team concept should be improved and team/business should be more organized to fit like retro ball";
