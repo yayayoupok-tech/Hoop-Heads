@@ -12,7 +12,7 @@ async function launch() { const { chromium } = loadPlaywright(); const o = {}; i
 const isFont = u => /^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(u || '');
 async function openPage(browser, opts = {}) {
   const phone = !!opts.phone;
-  const context = await browser.newContext(phone ? { viewport: opts.portrait ? { width: 390, height: 844 } : { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport: { width: 1280, height: 720 } }); // phone: 844×390, or 390×844 with portrait
+  const context = await browser.newContext(phone ? { viewport: opts.portrait ? { width: 390, height: 844 } : { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: opts.dpr || 2 } : { viewport: opts.viewport || { width: 1280, height: 720 }, deviceScaleFactor: opts.dpr || 1 }); /* F4: any window size and pixel ratio */ // phone: 844×390, or 390×844 with portrait
   const page = await context.newPage(); const errors = []; const notes = new Set();
   page.on('pageerror', e => errors.push('[pageerror] ' + e.message + ' ' + String(e.stack || '').split('\n').slice(1, 3).join(' | ')));
   page.on('console', m => {

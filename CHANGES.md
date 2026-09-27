@@ -3,6 +3,119 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F3–F4 — The lag and the overlapping text (the F pass, milestones 3 and 4)
+
+The user: "the game lags a LOT, especially during dunking" and "text overlaps, so we can't read other stuff".
+
+**F3: why it lagged, and what changed.**
+A CPU profile of AI-vs-AI frames in the pro arena showed four causes.
+
+1. **Every frame, both characters were repainted and re-pixelized from a 3× supersampled paint.** A high-quality 3×
+   downscale, a pixel readback and four per-pixel passes made up about two thirds of a frame (44–47% was the downscale
+   alone).
+   - A character's sprite is now repainted 20 times a second of game time (12 at guard level 2), which is pixel-art
+     animation's own rate.
+   - It is repainted at once on a new move, a turn, a catch or release, or a size change.
+   - In between, the last sprite rides along with the body, so movement stays smooth every frame.
+   - When both players are due on the same frame they take turns, so no frame paints two.
+2. **A dunk's screen shake re-baked the whole arena.** The background layers and the crowd atlases were keyed on the
+   camera's vertical pixel offset, which the shake moves. On a phone every 1-pixel shake meant a 400 ms frame, twice in a
+   row. The bake now ignores the shake (the baked layers already move with it).
+3. **A posterizer stopped the game three ways.**
+   - Slow motion: 0.35 s at 0.4×.
+   - A freeze-frame poster card: 1.4 s.
+   - An automatic 5-second replay.
+   - Its capture also re-rendered the whole scene a second time, encoded a JPEG and wrote the entire save, all in one frame.
+
+   Now:
+   - The poster is taken from the frame already drawn.
+   - The JPEG and the save wait for the final buzzer (or quitting).
+   - No card freezes play (the posters show on the results screen).
+   - Automatic replays are a Graphics setting, off by default. Holding Fade during a dead ball still replays the last
+     highlight.
+   - Slow motion is 0.2 s at 0.6×, and the hit-stops are shorter (dunk 70 → 40 ms, block 90 → 60, ankles 50 → 40).
+4. **The pixel jumbotron's replay was drawn and snapped 15 times a second.** Each snap allocated two 1 MB tables. The
+   tables are now reused, and the pixel jumbotron runs at 8 frames a second.
+
+Frame times, AI against AI in the pro arena over 240 frames (`f3/prof.js`, the same machine, before and after):
+
+| Window | Before: median / p95 (ms) | After: median / p95 (ms) |
+| --- | --- | --- |
+| Desktop 1280×720 | 22.1 / 32.1 | 13.7 / 24.1 |
+| Phone 844×390 at 2× | 33.1 / 44.9 | 17.0 / 28.9 |
+| Square 1000×1000 | 11.6 / 18.7 | 7.8 / 14.2 |
+
+A posterizer's frame took 47–55 ms before, and was followed by a 1.4 s freeze, a 5 s replay and a 49 KB save written mid-game.
+It now takes 18–25 ms, with no freeze and no replay; the save waits for the buzzer. In the 900-frame traces no frame took
+over 60 ms, and the shake re-bakes (400 ms on a phone) are gone.
+
+**F4: why text overlapped, and what changed.**
+- **Menus.** All menus are one 1280×720 layout, letterboxed into the window. The bitmap font's smallest pixel size came
+  from the whole window's height.
+  - In any window taller than 16:9 (the claude.ai artifact panel, a square or portrait browser window), every string was
+    drawn up to 1.8× too big for its layout. On a 1000×1000 retina window the smallest text was 6× instead of 3×.
+  - Menus now size text from their letterboxed area. That size rounds up only past .75, so a string is never more than
+    about 12% bigger than its layout (it could be 50%). A window that shrinks the menus below 7/8 may draw 1× text.
+- **The match HUD.** It is laid out in CSS pixels, so its smallest text now keeps its 720p size in CSS pixels. At 1080p,
+  or in a tall window, it was 1.5–3× too big for its boxes.
+- **Screen-by-screen fixes the new checks found:**
+  - The team roster's small OVR badges show the number alone where the two lines collided.
+  - Trait chips stop before the badge.
+  - The hub's LAST chips start after their label.
+  - The press room's answers are taller, with the label, the effect and two lines of the quote inside them.
+- **Callouts in a match:**
+  - At most two at once (three stacked over the players).
+  - They start at 20% of the screen height (30% before).
+  - They sit a whole stamp apart (0.95 overlapped).
+  - A phone shows the newest one at a time, sized by the screen's height.
+- **Contest lines:** shorter; they sit on their own strip.
+- **Two bugs found on the way:**
+  - The practice shot chart drew even when switched off, over the tutorial's panel: its on/off setting was overwritten
+    by its list of shots.
+  - After the performance guard's low-resolution step resized the canvas, the touch controls lost the floor band until
+    the next match. The band is now recomputed after any resize; the phone smoke test caught this once under load.
+
+The new overlap check (every string's box from the bitmap font, on the top screen of 111 screens, and 35 HUD scenes):
+
+| Window | Screens flagged |
+| --- | --- |
+| 1280×720 | 0 of 111 |
+| 1000×1000 at 2× (a square artifact panel) | 0 of 111 (before: 9 with text overflowing its widget) |
+| 800×1000 (portrait) | 0 of 111 |
+| 1920×1080 | 0 of 111 |
+| 1440×900 at 2× | 0 of 111 |
+| 1280×720, text size 1.25× | 0 of 111 |
+| The HUD: 7 scenes × 5 sizes | 0 of 35 |
+
+The "before" row comes from the F1–F2 build. That build has no string recorder, so it can only show overflow, not
+overlaps; the before/after sheets in `shots/f3/` show the overlaps. Also fixed: three overlaps on the Art Lab's UI kit page
+(the card back's caption, a chip under a badge, a caption past its panel).
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `ART.rtPoseHz` / `rtPoseHzLow` | 20 / 12 | character repaints a second of game time (guard level 0–1 / 2+) |
+| `ART.rtJumboFps` | 8 | the pixel jumbotron's replay frames a second |
+| `fx.hitStop` | 40 / 60 / 40 ms | dunk / block / ankles (was 70 / 90 / 50) |
+| `fx.slowMo` | 0.2 s at 0.6× | posterizers and clutch shots (was 0.35 s at 0.4×) |
+| `fx.posterInPlay` | false | a poster card no longer freezes the game |
+| `settings.autoReplay` | false | automatic replays of posterizers and buzzer beaters |
+| `ui.kBias` | 0.25 | the menus' pixel size rounds up only past .75 |
+| `fx.calloutMax` / `calloutY` / `calloutGap` / `calloutShortH` | 2 / 0.2 / 1.12 / 520 px | callouts at once, where they start, their spacing, the short-screen rule |
+
+| Test | Result |
+| --- | --- |
+| Smoke | 129 of 129 (one check failed on the first run: the retro check saw no sprites, because a reused sprite skipped the audit list. Fixed and rerun.) |
+| Modes | 12 of 12 |
+| Old saves | 31 of 31 |
+| Dev tools | all OK |
+| Phone audit | no errors |
+| Art Lab | 54 shots, no errors (looked at: the retro checks pass, 400 sprites scanned, 0 gaps, at most 23 colors) |
+| Screen and HUD audits | above |
+| §2 gate | brute force vs Pro 1.00 PPP (≤ 1.30 ✓); reads beat brute force 1.72 ✓ |
+| Balance | Legend beats Pro 78% (75–95% ✓) |
+| Career simulator (40) | unchanged from F1: OVR 56 / 69 / 74, peak 79, titles 0.78. Hall of Fame 8%, which misses its 10–20% target, as it did before. |
+| Trait balance | every trait in range |
+
 ## F1–F2 — Extras removed; practice and the 3-point contest fixed (the F pass, milestones 1 and 2)
 
 The F pass answers the user's playtest notes on the R10 build (the full list and plan are in `PLAN.md`). These two

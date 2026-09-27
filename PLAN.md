@@ -221,9 +221,11 @@ commit per milestone after the suite).
 tutorial); the classic team league and the street tournament are gone (their save data kept); credits in Settings, the
 Art Lab in the dev menu; power-ups off by default. The contest and the career's shootouts count only rack threes, walk
 you rack to rack and hand you every ball; practice passes every rebound back.
-**F3 — Performance** — find what costs a frame (the character pixelize) and what spikes on dunks; fix both; measure.
-**F4 — Text** — an automated check for overlapping text on every screen and in the match HUD at several window sizes
-(square and tall windows included); fix what it finds.
+**F3 — Performance** *(done)* — the character pixelize ran every frame (sprites now repaint at 20 per second of game
+time and on every new move); a dunk's shake re-baked the arena; a posterizer froze the game three ways. Median frames:
+desktop 22.1 → 13.7 ms, phone 33.1 → 17.0.
+**F4 — Text** *(done)* — menus size the pixel font from their letterboxed area (square and tall windows drew text up
+to 1.8× too big); an overlap audit of every string at six window sizes and a HUD audit find nothing.
 **F5–F6 — One-minute games and harder XP** — timed one-minute career games with sudden death; slower progression; the
 career simulator retuned.
 **F7 — Teams** — star-rated pro franchises with rosters; no draft: teams sign you by level; moving up through free agency

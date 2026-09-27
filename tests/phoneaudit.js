@@ -4,11 +4,22 @@
 const path = require('path'), fs = require('fs');
 const { launch, openPage } = require('./lib');
 (async () => {
-  const desk = process.argv.includes('--desktop'), big = process.argv.includes('--text125'); /* R10: --text125 runs every screen at the 1.25× text size */ const dir = process.argv.slice(2).find(a => !a.startsWith('--')); if (dir) fs.mkdirSync(dir, { recursive: true });
-  const browser = await launch(); const P = await openPage(browser, { phone: !desk }); /* --desktop: the same screens at 1280×720 (overflow, overlap and off-screen only) */ const { page, ev } = P; const wait = ms => page.waitForTimeout(ms);
+  const sizeArg = (process.argv.find(a => a.startsWith('--size=')) || '').slice(7), sz = /^(\d+)x(\d+)(?:@([\d.]+))?$/.exec(sizeArg); /* F4: --size=WxH[@dpr] runs the desktop audit in any window */
+  const desk = process.argv.includes('--desktop') || !!sz, big = process.argv.includes('--text125'); /* R10: --text125 runs every screen at the 1.25× text size */ const dir = process.argv.slice(2).find(a => !a.startsWith('--')); if (dir) fs.mkdirSync(dir, { recursive: true });
+  const browser = await launch(); const P = await openPage(browser, sz ? { viewport: { width: +sz[1], height: +sz[2] }, dpr: +(sz[3] || 1) } : { phone: !desk }); /* --desktop: the same screens at 1280×720 (overflow, overlap and off-screen only) */ const { page, ev } = P; const wait = ms => page.waitForTimeout(ms);
   await ev(() => { const F = CanvasRenderingContext2D.prototype.fillText; window.__txt = []; CanvasRenderingContext2D.prototype.fillText = function (t, x, y, mw) { try { const m = /(\d+(?:\.\d+)?)px/.exec(this.font); if (m && window.__txtOn && String(t).trim()) { const a = this.getTransform().a / (window.devicePixelRatio || 1); window.__txt.push({ px: +m[1] * a, t: String(t).slice(0, 40) }); } } catch (e) {} return F.call(this, t, x, y, mw); }; });
   // text wider than the widget it is drawn in (a label running off its button)
   await ev(() => { const U = UI.prototype, D = U.drawWidget; window.__ovf = new Set(); U.drawWidget = function (ctx, w, f) { const F = ctx.fillText; ctx.fillText = function (t, x, y, mw) { try { if (window.__txtOn && w.kind !== 'text') { const m = Math.min(ctx.measureText(String(t)).width, mw > 0 ? mw : 1e9), al = ctx.textAlign; /* a maxWidth draws the text truncated to fit (the bitmap font adds …) */ const x0 = al === 'center' ? x - m / 2 : al === 'right' || al === 'end' ? x - m : x; if (x0 < w.x - 3 || x0 + m > w.x + w.w + 3) window.__ovf.add((w.label || w.kind) + ': "' + String(t).slice(0, 34) + '"'); } } catch (e) {} return F.call(this, t, x, y, mw); }; try { return D.call(this, ctx, w, f); } finally { delete ctx.fillText; } }; });
+  // F4 (the user: "text overlaps, so we can't read other stuff"): every string's ink box from one synchronous UI draw;
+  // two different strings whose boxes share more than a font pixel each way are flagged.
+  await ev(() => { const U = UI.prototype, DS = U.drawScreen; U.drawScreen = function (ctx, s) { const on = RBF.boxes; if (on && s !== this.screen) RBF.boxes = null; try { return DS.call(this, ctx, s); } finally { if (on) RBF.boxes = on; } }; });
+  await ev(() => { const U = UI.prototype, DW = U.drawWidget; U.drawWidget = function (ctx, w, f) { const n0 = RBF.boxes ? RBF.boxes.length : 0; try { return DW.call(this, ctx, w, f); } finally { if (RBF.boxes) for (let i = n0; i < RBF.boxes.length; i++) RBF.boxes[i].w8 = w; } }; }); // F4: which widget drew each string (a string drawn outside every widget must not run under one) // only the top screen's text: an overlay's panel hides the screen under it
+  await ev(() => { window.__textOverlaps = () => { const g = HH.game; RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } catch (e) { /* the audit's own draw */ } const raw = RBF.boxes || []; RBF.boxes = null; const B = [];
+    for (const b of raw) { if (!String(b.t).trim() || b.a < 0.35 || b.w < 1) continue; if (B.some(a => a.t === b.t && Math.abs(a.x - b.x) <= 4 * b.s && Math.abs(a.y - b.y) <= 4 * b.s)) continue; B.push(b); }
+    const out = []; for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) { const a = B[i], b = B[j]; if (a.t === b.t) continue; const px = Math.max(a.s, b.s), ix = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), iy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (ix > px && iy > px) out.push('"' + String(a.t).slice(0, 28) + '" × "' + String(b.t).slice(0, 28) + '"'); }
+    const ui = g.ui, s = ui.screen, dpr = g.dpr, ws = ((s && s.widgets) || []).filter(w => !w.hidden && w.w > 0 && w.h > 0); // a string drawn by the screen (not by a widget) under a widget's box
+    for (const b of B) { if (b.w8) continue; for (const w of ws) { if (w.label && String(w.label).trim() === String(b.t).trim()) continue; /* a screen drawing a widget's own symbol */ const x0 = (ui.ox + w.x * ui.scale) * dpr, y0 = (ui.oy + w.y * ui.scale) * dpr, x1 = x0 + w.w * ui.scale * dpr, y1 = y0 + w.h * ui.scale * dpr, ix = Math.min(b.x + b.w, x1) - Math.max(b.x, x0), iy = Math.min(b.y + b.h, y1) - Math.max(b.y, y0); if (ix > 2 * b.s && iy > 2 * b.s) { out.push('"' + String(b.t).slice(0, 28) + '" under [' + String(w.label || w.kind).slice(0, 20) + ']'); break; } } }
+    return out; }; });
   if (big) await ev(() => { const D0 = defaultSave; window.defaultSave = () => { const d = D0(); d.settings.textSize = 1.25; return d; }; RBF.textScale = 1.25; });
   await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Phone Audit', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 31 }); a.events.length = 0; g.save.save(); });
   const audit = async (name, open, arg) => {
@@ -19,6 +30,7 @@ const { launch, openPage } = require('./lib');
       return { name: s.name, n: ws.length, bad }; });
     if (dir) await P.shot(path.join(dir, name + '.jpg'));
     for (const o of ovf) r.bad.push('TEXT OVERFLOW ' + o);
+    for (const o of await ev(() => window.__textOverlaps())) r.bad.push('TEXT OVERLAP ' + o); // F4
     const minTxt = tx.length ? tx[0].px : 99; texts.push({ name, min: minTxt, tx });
     console.log((r.bad.length ? 'FLAG  ' : 'ok    ') + name + ' (' + r.name + ', ' + r.n + ' widgets, min text ' + minTxt.toFixed(1) + ' px)' + (r.bad.length ? ': ' + r.bad.slice(0, 12).join(' | ') + (r.bad.length > 12 ? ' …+' + (r.bad.length - 12) : '') : ''));
   };

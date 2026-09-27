@@ -691,13 +691,18 @@ const CONFIG = {
     },
   },
   fx: {
-    hitStop: { dunk: 70, block: 90, ankle: 50 }, // hit-stop durations (ms)
-    slowMo: { duration: 0.35, scale: 0.4 },     // slow-mo on posterizers and clutch shots
+    hitStop: { dunk: 40, block: 60, ankle: 40 }, // hit-stop durations (ms) (F3: 70/90/50 before: every dunk stopped the game)
+    slowMo: { duration: 0.2, scale: 0.6 },      // slow-mo on posterizers and clutch shots (F3: 0.35 s at 0.4× before)
     particleBudget: 400,       // max live particles
     reducedBudget: 120,        // particle budget after the perf guard trips
     posterMs: 1400,            // poster card duration (ms)
+    posterInPlay: false,       // F3: a poster card no longer freezes the game for posterMs; the posters show after the game
     calloutMs: 1100,           // callout duration (ms)
     calloutTilt: 4,            // callout tilt (degrees)
+    calloutMax: 2,             // F4: callouts on screen at once (3 before: they stacked over the players)
+    calloutY: 0.2,             // F4: the first callout's height, as a share of the screen (0.3 before)
+    calloutGap: 1.12,          // F4: callouts stack a whole stamp apart (× the font size; 0.95 overlapped)
+    calloutShortH: 520,        // F4: a screen shorter than this (a phone) shows one callout at a time, scaled by its height
     laneOffsetPx: 54,          // vertical screen offset across the full lane range at zoom 1 (px)
     laneScale: 0.20,           // scale change across the full lane range
     misregPx: 1.6,             // ink misregistration (px)
@@ -742,6 +747,7 @@ const CONFIG = {
     hintUses: 2,               // hints fade after each action is used this many times
     touchMinPx: 64,            // minimum touch button size (px)
     dprCap: 2,                 // devicePixelRatio cap
+    kBias: 0.25,               // F4: the menus' pixel size rounds up only past .75 (at most ~12% bigger text than its layout, never 50%)
     designW: 1280,             // virtual UI width
     designH: 720,              // virtual UI height
     focusPulseHz: 2,           // focus ring pulse rate
@@ -3046,6 +3052,7 @@ function rbDraw(ctx, text, x, y, px, o, style, maxW) {
   const key = rbStyleKey(style); let spr;
   if (key) spr = rbSprite(text, key, s, o);
   else { const m = rbSprite(text, '#FFFFFF', s, o); const t = RBF.tmp || (RBF.tmp = document.createElement('canvas')); if (t.width < m.width || t.height < m.height) { t.width = Math.max(t.width, m.width); t.height = Math.max(t.height, m.height); } const g = t.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy'; g.drawImage(m, 0, 0); g.globalCompositeOperation = 'source-in'; g.setTransform(M.a, M.b, M.c, M.d, M.e - X, M.f - Y); g.fillStyle = style; g.fillRect(-1e5, -1e5, 2e5, 2e5); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; spr = t; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(t, 0, 0, m.width, m.height, X, Y, m.width, m.height); ctx.restore(); if (RBF.audit) RBF.audit.push(s); return; } // a gradient or pattern fill: the glyph mask filled through the context's own transform
+  if (RBF.boxes && ctx.canvas === RBF.mainCanvas) { const top = /[A-Z0-9!?'"()\/#$%&@\[\]{}|:;*+=^<>~`ÀÉ€£★☆▲▼◀▶]/.test(text) ? 0 : 2, bot = /[gjpqy,;_]/.test(text) ? 10 : 8; const ma = typeof style === 'string' && /^rgba\(/.test(style) ? +(style.split(',')[3] || '1').replace(')', '') : 1; RBF.boxes.push({ x: X + o * s, y: Y + (o + top) * s, w: tw * s, h: (bot - top) * s, t: text, s, a: ctx.globalAlpha * ma }); } // F4: the tests' text-overlap audit (each string's ink box in device px)
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(spr, X, Y); ctx.restore(); if (RBF.audit) RBF.audit.push(s);
 }
 CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxW) { const px = rbFontPx(this.font); if (px == null) return _rbNative.fill.call(this, text, x, y, maxW); try { rbDraw(this, text, x, y, px, 0, this.fillStyle, maxW); } catch (e) { /* text never throws */ } };
@@ -3071,7 +3078,7 @@ function rbWrap(ctx, text, maxW, maxChars) {
 const RB_BALL = ['..KKKK..', '.KLLOOK.', 'KLLOSOOK', 'KSSSSSSK', 'KOOOSOOK', 'KOOOSODK', '.KDDSDK.', '..KKKK..'];
 const RB_BALL_COL = { K: '#150B10', L: '#FFB866', O: '#F07A22', D: '#B4480F', S: '#3A1A08' };
 function rbTitle(ctx, text, x, y, px, opts) {
-  opts = opts || {}; text = String(text); const M = ctx.getTransform(), main = ctx.canvas === RBF.mainCanvas, k = main ? uiK(ctx.canvas) : 1;
+  opts = opts || {}; text = String(text); const M = ctx.getTransform(), main = ctx.canvas === RBF.mainCanvas, k = main ? RBF.minMain : 1; /* F4: the UI's pixel size where the UI draws */
   const s = Math.min(main ? (opts.max != null ? opts.max : ART.rbTitleMax) * k : 1e9, Math.max(main ? (opts.min != null ? opts.min : ART.rbTitleMin) * k : 1, rbScaleOf(ctx, px, M))), ol = (opts.outline != null ? opts.outline : ART.rbTitleOutline) * k, sh = (opts.shadow != null ? opts.shadow : ART.rbTitleShadow) * k;
   const ramp = opts.ramp || ART.rbTitleRamp, ink = opts.ink || ART.rbTitleInk, chars = [...text], ws = chars.map((ch, i) => i === opts.ballAt ? 8 : rbGlyph(ch).w), tw = (ws.reduce((a, b) => a + b + 1, 0) - (ws.length ? 1 : 0)) * s;
   let X = M.a * x + M.c * y + M.e, Y = M.b * x + M.d * y + M.f; const al = opts.align || 'center'; if (al === 'center') X -= tw / 2; else if (al === 'right') X -= tw; Y -= 4 * s; X = Math.round(X); Y = Math.round(Y);
@@ -3809,7 +3816,7 @@ class Match {
       if (t !== this.humanTeam && o.opponentTierShift) team.tierShift = o.opponentTierShift;
     }
     this.ball = new Ball(); this.ball.skin = o.ballSkin || 0;
-    if (this.format.type === 'timed') { this.gameClock = this.format.half || CONFIG.rules.halfLengthDefault; }
+    if (this.format.type === 'timed') { this.gameClock = this.format.half || CONFIG.rules.halfLengthDefault; if (this.format.periods >= 1) this.periods = this.format.periods | 0; } // F5: a one-period game (career games are one minute)
     // Human control setup
     this.human = null;
     if (!this.headless && this.humanTeam >= 0) {
@@ -5750,17 +5757,17 @@ function ftResult(m, made) {
 
 // --- practice, contest and the 3-point mode rules ---
 function setupPractice(m) {
-  const pr = m.practice; pr.shots = 0; pr.makes = 0; pr.byZone = { mid: [0, 0], three: [0, 0], deep: [0, 0], heave: [0, 0], lay: [0, 0], dunk: [0, 0] }; pr.respawnT = 0; pr.chart = [];
+  const pr = m.practice; pr.shots = 0; pr.makes = 0; pr.byZone = { mid: [0, 0], three: [0, 0], deep: [0, 0], heave: [0, 0], lay: [0, 0], dunk: [0, 0] }; pr.respawnT = 0; pr.marks = []; /* F4: the chart's shots (pr.chart stays the on/off setting: the list made it always on, over the tutorial's panel) */
   const hp = m.human; if (hp) { hp.x = m.hoopFor(hp.team).x - LR(5); hp.y = 0; }
   const dummy = m.players.find(p => p.team !== m.humanTeam); if (dummy) { if (pr.noDefender) { dummy.x = -50; dummy.zTarget = 0.5; dummy.hidden = true; } else { dummy.x = m.hoopFor(hp.team).x - LX(2.5); } }
   m.possession = m.humanTeam; m.shotClock = 99;
-  m.bus.on('SHOT_RELEASED', s => { if (s.shooter.team !== m.humanTeam) return; pr.shots++; pr.chart.push({ x: s.x0, d: s.d, zone: s.zone, make: s.make, type: s.type, grade: s.grade, id: s.id }); const k = s.type === 'layup' || s.type === 'tip' ? 'lay' : s.type === 'dunk' ? 'dunk' : s.zone; pr.byZone[k][1]++; });
+  m.bus.on('SHOT_RELEASED', s => { if (s.shooter.team !== m.humanTeam) return; pr.shots++; pr.marks.push({ x: s.x0, d: s.d, zone: s.zone, make: s.make, type: s.type, grade: s.grade, id: s.id }); const k = s.type === 'layup' || s.type === 'tip' ? 'lay' : s.type === 'dunk' ? 'dunk' : s.zone; pr.byZone[k][1]++; });
   m.bus.on('MISS', e => { if (e.shooter.team === m.humanTeam) pr.respawnT = CONFIG.rebounder.afterMissS; });
 }
 function practiceScore(m, hoop, shot) {
   const pr = m.practice || m.contest3; const b = m.ball; if (!shot) { b.shot = null; return; }
   if (!shot.resolved) { resolveShotOutcome(m, true, 'shot'); }
-  if (m.practice) { if (shot.shooter.team === m.humanTeam) { m.practice.makes++; const k = shot.type === 'layup' || shot.type === 'tip' ? 'lay' : shot.type === 'dunk' ? 'dunk' : shot.zone; m.practice.byZone[k][0]++; const c = m.practice.chart.find(q => q.id === shot.id); if (c) c.make = true; } m.practice.respawnT = CONFIG.rebounder.afterMakeS; }
+  if (m.practice) { if (shot.shooter.team === m.humanTeam) { m.practice.makes++; const k = shot.type === 'layup' || shot.type === 'tip' ? 'lay' : shot.type === 'dunk' ? 'dunk' : shot.zone; m.practice.byZone[k][0]++; const c = m.practice.marks.find(q => q.id === shot.id); if (c) c.make = true; } m.practice.respawnT = CONFIG.rebounder.afterMakeS; }
   m.bus.emit('SCORE', { team: shot.shooter.team, player: shot.shooter, points: shot.points, shot, buzzer: false, clutch: false, hoop, reason: 'shot', dunk: shot.type === 'dunk', three: shot.points === 3, practice: true });
   if (m.contest3) contest3Score(m, shot);
   b.shot = null;
@@ -6340,10 +6347,12 @@ function drawDrillHud(ctx, m, W_) {
   ctx.font = fontStr(34 * k, true); ctx.fillStyle = UI_TEXT; ctx.fillText('SCORE ' + drillScore(m), cx + w / 2 - 16 * k, y + 46 * k);
   if (m.phase === 'check' || m.phase === 'pregame') { ctx.textAlign = 'center'; ctx.font = fontStr(14 * Math.max(0.8, k), false); ctx.fillStyle = UI_TEXT; ctx.fillText(info.how, cx, y + h + 18 * k); }
 }
-function pushCallout(m, text, color, big) { m.callouts.push({ text, color: color || '#FF4FA3', t: 0, life: FX_C.calloutMs / 1000 * (big ? 1.3 : 1), big: !!big, tilt: (m.callouts.length % 2 ? 1 : -1) * FX_C.calloutTilt }); if (m.callouts.length > 3) m.callouts.shift(); }
+function pushCallout(m, text, color, big) { m.callouts.push({ text, color: color || '#FF4FA3', t: 0, life: FX_C.calloutMs / 1000 * (big ? 1.3 : 1), big: !!big, tilt: (m.callouts.length % 2 ? 1 : -1) * FX_C.calloutTilt }); while (m.callouts.length > FX_C.calloutMax) m.callouts.shift(); } // F4: at most two at once (three stacked over the players)
+function calloutK(W_, H_) { return Math.min(1, W_ / 900, H_ / FX_C.calloutShortH); } // F4: callouts shrink with a short screen too
 function drawCallouts(ctx, m, W_, H_, dt) { // stamped text with an ink outline and a drop shadow, popping 0 → 1.2 → 1.0 (§5)
-  for (let i = m.callouts.length - 1; i >= 0; i--) { const c = m.callouts[i]; c.t += dt; if (c.t > c.life) { m.callouts.splice(i, 1); continue; } const k = calloutScale(c.t); if (k < 0.02) continue; const fade = clamp01((c.life - c.t) / 0.3); const px = (c.big ? 92 : 64) * Math.min(1, W_ / 900); const col = c.color || CALLOUT.make;
-    ctx.globalAlpha = fade; kitStamp(ctx, c.text, W_ / 2, H_ * 0.3 + i * px * 0.95, px, [mixHex(col, '#FFFFFF', 0.5), col, shadeHex(col, -0.28)], { tilt: c.tilt, scale: k, outline: 0.16 }); ctx.globalAlpha = 1; }
+  for (let i = m.callouts.length - 1; i >= 0; i--) { const c = m.callouts[i]; c.t += dt; if (c.t > c.life) { m.callouts.splice(i, 1); continue; } const k = calloutScale(c.t); if (k < 0.02) continue; const fade = clamp01((c.life - c.t) / 0.3); const px = (c.big ? 92 : 64) * calloutK(W_, H_); const col = c.color || CALLOUT.make; if (H_ < FX_C.calloutShortH && i < m.callouts.length - 1) continue; /* F4: a short screen shows the newest callout only */
+    const y0 = m.contest3 ? Math.max(H_ * FX_C.calloutY, 150) : H_ * FX_C.calloutY; /* F4: higher, clear of the players' heads and the contest strip; each line a whole stamp apart */ let dy = 0; if (H_ >= FX_C.calloutShortH) for (let j = 0; j < i; j++) dy += (m.callouts[j].big ? 92 : 64) * calloutK(W_, H_) * FX_C.calloutGap;
+    ctx.globalAlpha = fade; kitStamp(ctx, c.text, W_ / 2, y0 + dy, px, [mixHex(col, '#FFFFFF', 0.5), col, shadeHex(col, -0.28)], { tilt: c.tilt, scale: k, outline: 0.16 }); ctx.globalAlpha = 1; }
 }
 function drawHints(ctx, m, input, W_, H_, offense) {
   const L = input.hintLabels(); const counts = m.hintCounts; const N = CONFIG.ui.hintUses; const items = [];
@@ -7227,6 +7236,9 @@ Object.assign(ART, {
   rtReflectH: 0.3,             // ...only this share of the body's height below the feet (the shoes and legs)
   rtShadowA: 0.34,             // floor shadows: flat ellipses at this opacity
   rtBudget: [5, 9],            // ms of pixel work per frame (desktop / phone) before the guard sheds
+  rtPoseHz: 20,                // F3: a character is repainted this many times a second of game time (and at once on a new move, a turn, a catch or a release); in between, its last sprite moves with the body
+  rtPoseHzLow: 12,             // F3: ...this many once the performance guard reaches level 2
+  rtJumboFps: 8,               // F3: the pixel jumbotron's replay frame rate (15 in the smooth renderer; each frame is drawn and snapped)
   rtBallFrames: 8,             // pre-pixelized ball rotation frames
   rtCheckerA: [0.55, 0.28],    // a glow's two checker steps: inner and outer opacity
   rtBannerW: 1.75,             // banners are this wide (m, before the far-object scale) in the pixel world, so their 1× text fits
@@ -7280,17 +7292,20 @@ function rtCanvas(w, h) { const c = document.createElement('canvas'); c.width = 
 function rtSnapLayer(c) {
   const g = c.getContext('2d', { willReadFrequently: true }), w = c.width, h = c.height, img = g.getImageData(0, 0, w, h), d = img.data, n = w * h; const t0 = performance.now();
   // colors counted in an open-addressing table (keys 24-bit RGB + 1; 0 = empty)
-  const SZ = 1 << 18, keys = new Int32Array(SZ), cnt = new Int32Array(SZ), slot = new Int32Array(n); const find = key => { let hsh = (Math.imul(key, 2654435761) >>> 14) & (SZ - 1); while (keys[hsh] && keys[hsh] !== key) hsh = (hsh + 1) & (SZ - 1); return hsh; };
-  for (let i = 0, q = 0; i < n; i++, q += 4) { if (d[q + 3] < 128) { d[q + 3] = 0; slot[i] = -1; continue; } d[q + 3] = 255; const key = ((d[q] << 16) | (d[q + 1] << 8) | d[q + 2]) + 1, hsh = find(key); keys[hsh] = key; cnt[hsh]++; slot[i] = hsh; }
-  const minN = Math.max(ART.rtDominantMin, n * ART.rtDominant), domArr = []; for (let k = 0; k < SZ; k++) if (keys[k] && cnt[k] >= minN) domArr.push(keys[k] - 1);
-  if (!domArr.length) { g.putImageData(img, 0, 0); return c; }
+  // (F3: the two 1 MB tables are kept between calls and only their used slots are cleared: the jumbotron snaps a small
+  // replay frame several times a second, and allocating them each time was most of its cost)
+  const SZ = 1 << 18, keys = RT.snapKeys || (RT.snapKeys = new Int32Array(SZ)), cnt = RT.snapCnt || (RT.snapCnt = new Int32Array(SZ)), slot = new Int32Array(n), used = []; const find = key => { let hsh = (Math.imul(key, 2654435761) >>> 14) & (SZ - 1); while (keys[hsh] && keys[hsh] !== key) hsh = (hsh + 1) & (SZ - 1); return hsh; };
+  for (let i = 0, q = 0; i < n; i++, q += 4) { if (d[q + 3] < 128) { d[q + 3] = 0; slot[i] = -1; continue; } d[q + 3] = 255; const key = ((d[q] << 16) | (d[q + 1] << 8) | d[q + 2]) + 1, hsh = find(key); if (!keys[hsh]) { keys[hsh] = key; used.push(hsh); } cnt[hsh]++; slot[i] = hsh; }
+  const minN = Math.max(ART.rtDominantMin, n * ART.rtDominant), domArr = []; for (const k of used) if (cnt[k] >= minN) domArr.push(keys[k] - 1);
+  const clean = () => { for (const k of used) { keys[k] = 0; cnt[k] = 0; } }; // the shared tables are left empty for the next call
+  if (!domArr.length) { clean(); g.putImageData(img, 0, 0); return c; }
   const isDom = hsh => cnt[hsh] >= minN, out = new Uint8ClampedArray(d), memo = new Map();
   const near = (r, gg, b) => { let best = 0, bd = 1e12; for (const k of domArr) { const dr = r - (k >> 16), dg = gg - ((k >> 8) & 255), db = b - (k & 255), e = dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11; if (e < bd) { bd = e; best = k; } } return best; };
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x, sl = slot[i]; if (sl < 0 || isDom(sl)) continue; const q = i * 4;
     let best = -1, bd = 1e12; for (let dy = -1; dy <= 1; dy++) { const Y = y + dy; if (Y < 0 || Y >= h) continue; for (let dx = -1; dx <= 1; dx++) { const X = x + dx; if ((!dx && !dy) || X < 0 || X >= w) continue; const j = Y * w + X, s2 = slot[j]; if (s2 < 0 || !isDom(s2)) continue; const p = j * 4, dr = d[q] - d[p], dg = d[q + 1] - d[p + 1], db = d[q + 2] - d[p + 2], e = dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11; if (e < bd) { bd = e; best = keys[s2] - 1; } } }
     if (best < 0) { const key = keys[sl] - 1; best = memo.get(key); if (best == null) { best = near(d[q], d[q + 1], d[q + 2]); memo.set(key, best); } }
     out[q] = best >> 16; out[q + 1] = (best >> 8) & 255; out[q + 2] = best & 255; }
-  img.data.set(out); g.putImageData(img, 0, 0); RT.snapMs = (RT.snapMs || 0) + performance.now() - t0; return c;
+  clean(); img.data.set(out); g.putImageData(img, 0, 0); RT.snapMs = (RT.snapMs || 0) + performance.now() - t0; return c;
 }
 
 // --- palettes: each color of a sprite's palette gets a 15-bit LUT bin the first time it is seen ---
@@ -7407,6 +7422,19 @@ function rtCharSprite(cam, p, alpha, ball, team, opts, f, ballPaintFor) {
   const spr = pixelize(g.canvas, x0, y0, x1 - x0, y1 - y0, ss, pal, { inner: false, post, owner: opts.spriteOwner || p });
   return { spr, X: Math.round(bx0 * f + x0 / ss) - 1, Y: Math.round(by0 * f + y0 / ss) - 1, head: P.head, gm, P, k: k * f };
 }
+// F3 (the user: "the game lags a lot"): painting and pixelizing a character was two thirds of a frame. The sprite is
+// now repainted at ART.rtPoseHz (pixel-art animation rates) and at once when the move, the facing, the ball or the size
+// changes; in between the last sprite rides along with the body, so movement stays smooth every frame.
+function rtCharSpriteCached(cam, p, alpha, ball, team, opts, own, ballPaintFor, t) {
+  const C = RT.cache || (RT.cache = new WeakMap()), c = C.get(p); const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
+  const ax = Math.round(cam.sx(x)), ay = Math.round(cam.sy(y + ((p.anim && p.anim.lift) || 0), z)), sc = cam.scale(z), hz = RT.level >= 2 ? ART.rtPoseHzLow : ART.rtPoseHz;
+  const key = p.state + '|' + p.facing + '|' + (own ? 1 : 0) + '|' + (opts.replay ? 1 : 0) + '|' + RT.ss + '|' + RT.k + '|' + (p.hidden ? 1 : 0) + '|' + (p.controlled ? 1 : 0);
+  const same = c && c.key === key && t >= c.t && Math.abs(sc - c.sc) < c.sc * 0.015, age = same ? t - c.t : 1e9;
+  if (same && (age < 1 / hz || (RT.dueFrame === RT.frame && age < 2 / hz))) { if (RT.audit) RT.audit.push(c.r.spr); return { spr: c.r.spr, X: ax + c.dx, Y: ay + c.dy, head: c.r.head, gm: c.r.gm, P: c.r.P, k: c.r.k, cached: true }; } // one timed repaint a frame: two players due together take turns
+  if (same) RT.dueFrame = RT.frame;
+  const r = rtCharSprite(cam, p, alpha, ball, team, opts, 1, ballPaintFor); if (!r) { C.delete(p); return null; }
+  C.set(p, { key, t, sc, r, dx: r.X - ax, dy: r.Y - ay }); RT.repaints = (RT.repaints || 0) + 1; return r;
+}
 // Draws a character sprite into the world buffer (identity transform, world px). Guard level 3: every other frame
 // reuses last frame's sprite.
 function rtDrawCharacter(g, cam, p, alpha, ball, team, opts, ballPaintFor) {
@@ -7471,7 +7499,8 @@ function drawMatchSceneRetro(g, env, m, alpha) {
   if (V) rtVenueBack(g, cam, V, m, guard, env.phone); else rtPlainBack(g, cam, world, court, m);                  // L0–L3: baked backgrounds, fans, the floor
   // the sprites first (reflections need them), then reflections, shadows and the hoops' backs
   const spr = []; let ballInHand = false; const o = { replay: !!rp, glow: false, noShadow: true };
-  for (const p of order) { const own = ball.owner === p; if (own) ballInHand = true; const oo = Object.assign({}, o, { depth: p._depth || 0 }); const r = rtCharSprite(cam, p, alpha, ball, m.teams[p.team], oo, 1, own ? (sg, pc) => () => drawBallNew(sg, pc, ball, alpha, m.ball.skin, p.onFire > 0, o) : null); spr.push([p, r]); }
+  const tPose = rp ? 1e6 + (rp.t || 0) : m.time; /* F3: poses at ART.rtPoseHz of game time (a replay has its own clock) */
+  for (const p of order) { const own = ball.owner === p; if (own) ballInHand = true; const oo = Object.assign({}, o, { depth: p._depth || 0 }); const r = rtCharSpriteCached(cam, p, alpha, ball, m.teams[p.team], oo, own, own ? (sg, pc) => () => drawBallNew(sg, pc, ball, alpha, m.ball.skin, p.onFire > 0, o) : null, tPose); spr.push([p, r]); }
   const refA = (V && (V.kind === 'legends' || V.bright())) ? ART.rtReflectA : ART.rtReflectA * 0.6;
   if (guard < 2) { g.save(); g.globalAlpha = refA; for (const [p, r] of spr) { if (!r) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), fy = Math.round(cam.sy(0, z)), dh = Math.max(4, Math.round((fy - r.Y) * ART.rtReflectH)); g.save(); g.beginPath(); g.rect(r.X - 2, fy, r.spr.width + 4, dh); g.clip(); g.translate(0, 2 * fy); g.scale(1, -1); g.drawImage(r.spr, r.X, r.Y); g.restore(); } g.restore(); } /* only the shoes and legs reflect (the floor under them), not a whole ghost */
   rtShadows(g, cam, order, ball, alpha, rp);
@@ -7508,9 +7537,11 @@ function rtMarkers(g, cam, spr, m, alpha) {
 // B2: the floor and the hoops' backs, C: the rims), each snapped to its dominant colors; fans, signage and lights live ---
 function rtBakeCanvas(b) { const c = rtCanvas(b.W, b.H); const g = c.getContext('2d'); g.imageSmoothingEnabled = true; return c; }
 function rtCrop(c) { const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1; for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } if (x1 < 0) return null; const o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, -x0, -y0); return { spr: o, x: x0, y: y0 }; }
+// F3: the key uses the camera without its shake: rtLayerXY already moves the layers with the shake, and a dunk's
+// screen shake (a 1-px move of cam.oy) used to re-bake the whole arena, 400 ms a time on a phone.
 function rtVenueBakes(V, cam, m) {
   const mid = COURT_L / 2, halfW = cam.W / 2 / cam.ppm, pan = LAY.legends ? 0.5 : Math.max(0.5, (WALL_R - WALL_L) / 2 - halfW + 0.5), padY = 8, pad = f => Math.ceil(pan * f * cam.ppm) + 8;
-  const key = [cam.W, cam.H, cam.ppm.toFixed(3), cam.oy, V.kind, m.courtId, m.halfCourt ? 1 : 0, LAY.id, V.home.join(), V.away.join(), pan.toFixed(2)].join('|'); if (V._rt && V._rt.key === key) return V._rt;
+  const key = [cam.W, cam.H, cam.ppm.toFixed(3), cam.oy - (cam.shy || 0), V.kind, m.courtId, m.halfCourt ? 1 : 0, LAY.id, V.home.join(), V.away.join(), pan.toFixed(2)].join('|'); if (V._rt && V._rt.key === key) return V._rt;
   const t0 = performance.now(), bake = f => { const b = new RetroCam(); b.sync({ ppm: cam.ppm, zoom: cam.zoom, x: { x: mid }, y: cam.y, shakeX: 0, shakeY: 0 }, 1, cam.W + 2 * pad(f), cam.H + 2 * padY, true); b.padX = pad(f); return b; };
   const at0 = b => { const at = f => { const v = parView(b, f, 1); v.pad = [0, 0]; v.d = 1; v.r = 1; v.at = at; return v; }; return at; };
   const R = { key, padY, pads: {}, bx: mid, A: null, B1: null, B2: null, C: [], fans: new Map() }; RT.painting = true;
@@ -7645,12 +7676,12 @@ function rtJumbotron(V, g, cam, m) {
 }
 function rtJumboReplay(V, g, m, x, y, w, h) {
   const J = V.jumbo; if (!J.rtCanvas || J.rtCanvas.width !== w || J.rtCanvas.height !== h) { J.rtCanvas = document.createElement('canvas'); J.rtCanvas.width = w; J.rtCanvas.height = h; J.rtCam = new Camera(); J.rtCam.resize(w, h); J.reader = J.reader || Object.create(ReplayRecorder.prototype); J.reader.m = m; J.reader.ghosts = J.reader.ghosts || null; J.frameT = 1; }
-  if (J.frameT >= 1 / ART.jumboFps) { J.frameT = 0; try { const clip = J.clip, start = Math.max(0, clip.count - Math.round(ART.jumboReplayS * CONFIG.replay.hz)); J.reader.applyFrame(clip, Math.min(clip.count - 1, start + J.clipT * CONFIG.replay.hz)); const jg = J.rtCanvas.getContext('2d'); drawMiniScene(jg, J.rtCam, m, J.reader); rtSnapLayer(J.rtCanvas); } catch (e) { reportFrameError(e); } }
+  if (J.frameT >= 1 / ART.rtJumboFps) { J.frameT = 0; try { const clip = J.clip, start = Math.max(0, clip.count - Math.round(ART.jumboReplayS * CONFIG.replay.hz)); J.reader.applyFrame(clip, Math.min(clip.count - 1, start + J.clipT * CONFIG.replay.hz)); const jg = J.rtCanvas.getContext('2d'); drawMiniScene(jg, J.rtCam, m, J.reader); rtSnapLayer(J.rtCanvas); } catch (e) { reportFrameError(e); } }
   g.drawImage(J.rtCanvas, x, y); g.fillStyle = '#FF4444'; g.fillRect(x + 2, y + 2, 2, 2);
 }
 // --- plain courts (the rooftop and the beach): one baked layer ---
 function rtPlainBack(g, cam, world, court, m) {
-  const key = [cam.W, cam.H, cam.ppm.toFixed(3), cam.oy, m.courtId, LAY.id].join('|'), mid = COURT_L / 2, halfW = cam.W / 2 / cam.ppm, pan = LAY.legends ? 0.5 : Math.max(0.5, (WALL_R - WALL_L) / 2 - halfW + 0.5), padX = Math.ceil(pan * cam.ppm) + 8;
+  const key = [cam.W, cam.H, cam.ppm.toFixed(3), cam.oy - (cam.shy || 0), m.courtId, LAY.id].join('|'), mid = COURT_L / 2, halfW = cam.W / 2 / cam.ppm, pan = LAY.legends ? 0.5 : Math.max(0.5, (WALL_R - WALL_L) / 2 - halfW + 0.5), padX = Math.ceil(pan * cam.ppm) + 8;
   if (!world._rt || world._rt.key !== key) { const b = new RetroCam(); b.sync({ ppm: cam.ppm, zoom: cam.zoom, x: { x: mid }, y: cam.y, shakeX: 0, shakeY: 0 }, 1, cam.W + 2 * padX, cam.H + 16, true); const c = rtBakeCanvas(b), bg = c.getContext('2d'); RT.painting = true; try { world.drawBackdrop(bg, b, court, m); world.drawFloor(bg, b, court, m.courtId); world.drawGloss(bg, b); HOOPS.forEach((h, i) => drawHoopBackNew(bg, b, h, null, i, null, null)); } catch (e) { reportFrameError(e); } finally { RT.painting = false; } world._rt = { key, A: rtSnapLayer(c), padX, padY: 8, bx: mid, C: [] }; }
   const R = world._rt, xy = rtLayerXY(R, cam, 1); g.drawImage(R.A, xy[0], xy[1]);
 }
@@ -7833,7 +7864,7 @@ function attachPresentation(m, game) {
     else if (e.shot && e.shot.flavor === 'bank') { au.swish(); }
     if (e.shot && e.shot.type === 'hook' && !e.practice) pushCallout(m, 'HOOK', CALLOUT.make); else if (e.shot && e.shot.fade && !e.practice && !e.three) pushCallout(m, 'FADEAWAY', CALLOUT.make);
     if (e.dunk) { au.dunk(); fx.hitStop(CONFIG.fx.hitStop.dunk); cam.addTrauma(0.5); cam.addPunch(); fx.spawn('shock', e.hoop.x, RIM_Y, 0.5, 1, '#FFFFFF'); game.input.rumble(0.8, 0.5, 180); if (e.player && e.player.stats.dunkM % 3 === 0 && !e.shot.poster) pushCallout(m, 'SLAM', CALLOUT.make); }
-    if (e.buzzer) { pushCallout(m, 'BUZZER BEATER', CALLOUT.make, true); au.stinger('buzzerbeater'); fx.slowMo(CONFIG.fx.slowMo.duration); fx.posterRequest = { headline: 'BUZZER BEATER', sub: e.player ? e.player.name.toUpperCase() : '', freeze: true }; m.replayRequested = true; }
+    if (e.buzzer) { pushCallout(m, 'BUZZER BEATER', CALLOUT.make, true); au.stinger('buzzerbeater'); fx.slowMo(CONFIG.fx.slowMo.duration); fx.posterRequest = { headline: 'BUZZER BEATER', sub: e.player ? e.player.name.toUpperCase() : '', freeze: true }; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ }
     else if (e.clutch && !e.practice) { fx.slowMo(CONFIG.fx.slowMo.duration); au.crowdSwell(0.8, 1.2); }
     if (e.player && e.player.onFire > 0) { fx.spawn('flame', e.hoop.x, RIM_Y, 0.5, 12, ['#FF8A2A', '#FFD23F']); }
   });
@@ -7845,7 +7876,7 @@ function attachPresentation(m, game) {
   bus.on('STEAL', e => { au.noise(0.08, 0.2, { filter: 'bandpass', freq: 1800 }); pushCallout(m, e.intercept ? 'PICKED' : 'STEAL', CALLOUT.defense); fx.spawn('dust', e.player.x, 0.05, e.player.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('SWIPE', e => au.noise(0.05, 0.08, { filter: 'highpass', freq: 4000 }));
   bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
-  bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; m.replayRequested = true; au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
+  bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
   bus.on('TRAIT_FX', e => { const txt = TRAIT_FX_TEXT[e.id]; if (txt) pushCallout(m, txt, traitFrame(e.id)); }); // R3: a trait kicking in (Microwave heat, a Streaky hot hand, Clutch Gene in crunch time)
   bus.on('HEAT_ON', e => { pushCallout(m, 'ON FIRE', CALLOUT.make, true); au.stinger('fire'); fx.spawn('flame', e.player.x, e.player.y + 1, e.player.z, 16, ['#FF8A2A', '#FFD23F', '#FF4FA3'], { spread: 0.6, spreadY: 1 }); });
   bus.on('SHOVE', e => { au.shove(); cam.addTrauma(0.2); fx.spawn('dust', e.victim.x, 0.3, e.victim.z, 4, 'rgba(243,240,255,0.5)'); });
@@ -7971,7 +8002,8 @@ function settingsScreen(game, tab0) {
     [H(sel('Graphics', 0, 0, 0, 0, ['Retro', 'Retro sharp', 'Smooth'], () => S.graphics === 'smooth' ? 2 : S.graphics === 'sharp' ? 1 : 0, i => { S.graphics = ['retro', 'sharp', 'smooth'][i]; }), 'Retro: the pixel world (the default). Retro sharp: the same world in finer pixels. Smooth: the painted renderer.'),
       H(sel('Camera (1v1)', 0, 0, 0, 0, ['Legends View', 'Classic'], () => S.camera === 'classic' ? 1 : 0, i => { S.camera = i ? 'classic' : 'legends'; }), 'Legends View: the whole short court on one screen, big players. Classic: the older side view that follows the ball.'),
       H(sld('Screen shake', 0, 0, 0, 0, 0, 1, 0.1, () => S.shake, v => { S.shake = v; apply(); }), 'How hard the screen shakes on dunks, blocks and posters.'),
-      H(tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }), 'Frames per second in the corner.')],
+      H(tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }), 'Frames per second in the corner.'),
+      H(tgl('Instant replays of big plays', 0, 0, 0, 0, () => !!S.autoReplay, v => { S.autoReplay = v; }), 'A posterizer or a buzzer beater replays by itself before the next play (5 seconds). Off: hold Fade during a dead ball to watch the last highlight; the game\'s replays are on the results screen.')],
     [H(sld('Master volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.master, v => { S.master = v; apply(); }), 'Everything at once.'),
       H(sld('SFX volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.sfx, v => { S.sfx = v; apply(); }), 'The ball, the rim, the crowd, the whistles and the menus.'),
       H(sld('Music volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.music, v => { S.music = v; apply(); }), 'The music in the menus and the arenas.')],
@@ -8280,11 +8312,11 @@ function drawSelectHead(ctx, w, def, colors, focused, selected, t) {
   ctx.restore();
 }
 function kitChip(ctx, text, x, y, opts) {
-  opts = opts || {}; const size = opts.size || 13; ctx.font = fontStr(size, true); const tw = ctx.measureText(text).width; const w = tw + size * 1.3, h = size * 1.75;
+  opts = opts || {}; const size = opts.size || 13; ctx.font = fontStr(size, true); const maxT = opts.maxW ? Math.max(8, opts.maxW - size * 1.3) : 0; const tw = maxT ? Math.min(maxT, ctx.measureText(text).width) : ctx.measureText(text).width; const w = tw + size * 1.3, h = size * 1.75; /* F4: maxW keeps a chip out of its neighbours */
   const x0 = opts.align === 'right' ? x - w : opts.align === 'center' ? x - w / 2 : x;
   ctx.fillStyle = opts.fill || 'rgba(8,12,36,0.75)'; ctx.beginPath(); roundRectPath(ctx, x0, y - h / 2, w, h, h / 2); ctx.fill();
   if (opts.stroke !== false) { ctx.strokeStyle = opts.stroke || 'rgba(94,224,255,0.55)'; ctx.lineWidth = 1.2; ctx.stroke(); }
-  ctx.fillStyle = opts.color || UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x0 + w / 2, y + 1); return w;
+  ctx.fillStyle = opts.color || UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (maxT) ctx.fillText(text, x0 + w / 2, y + 1, maxT); else ctx.fillText(text, x0 + w / 2, y + 1); return w;
 }
 
 // --- hexagon OVR badge ---
@@ -8295,6 +8327,7 @@ function hexBadge(ctx, cx, cy, r, ovr, opts) {
   const g = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r); g.addColorStop(0, M[3]); g.addColorStop(0.35, M[2]); g.addColorStop(0.75, M[1]); g.addColorStop(1, M[0]);
   ctx.fillStyle = g; ctx.beginPath(); hexPath(ctx, cx, cy, r); ctx.fill(); ctx.strokeStyle = UI_INK; ctx.lineWidth = Math.max(1.5, r * 0.09); ctx.lineJoin = 'round'; ctx.stroke();
   ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = Math.max(1, r * 0.04); ctx.beginPath(); hexPath(ctx, cx, cy, r * 0.82); ctx.stroke();
+  if (opts.sub !== false && ctx.canvas === RBF.mainCanvas) { const M = ctx.getTransform(), T = Math.hypot(M.a, M.b) || 1, sN = rbScaleOf(ctx, r * 0.86, M), sL = rbScaleOf(ctx, Math.max(7, r * 0.27), M); if (8 * (sN + sL) + 2 * T > 1.3 * r * T) opts = Object.assign({}, opts, { sub: false }); } // F4: a small badge on a big pixel grid shows its number alone (the two lines collided)
   ctx.fillStyle = UI_INK; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = fontStr(r * (opts.sub === false ? 1.0 : 0.86), true); ctx.fillText(String(Math.round(Number(ovr) || 0)), cx, cy - (opts.sub === false ? 0 : r * 0.1));
   if (opts.sub !== false) { ctx.font = fontStr(Math.max(7, r * 0.27), true); ctx.fillText(opts.sub || 'OVR', cx, cy + r * 0.5); }
 }
@@ -8421,7 +8454,7 @@ function drawTradingCard(ctx, x, y, w, h, P, opts) {
 function drawCardBack(ctx, x, y, w, h, label) {
   const R = w * 0.075; const g = ctx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, '#1C2A78'); g.addColorStop(1, '#0A1036'); ctx.fillStyle = g; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, R); ctx.fill(); ctx.strokeStyle = UI_GOLD; ctx.lineWidth = Math.max(2, w * 0.02); ctx.stroke();
   ctx.save(); ctx.beginPath(); roundRectPath(ctx, x, y, w, h, R); ctx.clip(); ctx.strokeStyle = 'rgba(255,210,63,0.12)'; ctx.lineWidth = w * 0.03; for (let k = -h; k < w + h; k += w * 0.12) { ctx.beginPath(); ctx.moveTo(x + k, y); ctx.lineTo(x + k - h, y + h); ctx.stroke(); } ctx.restore();
-  kitStamp(ctx, label || 'ISO', x + w / 2, y + h * 0.46, w * 0.3, [UI_GOLD, '#F7B52A']); ctx.font = fontStr(w * 0.07, true); ctx.fillStyle = 'rgba(243,240,255,0.7)'; ctx.textAlign = 'center'; ctx.fillText('THE ISO LEAGUE', x + w / 2, y + h * 0.64);
+  kitStamp(ctx, label || 'ISO', x + w / 2, y + h * 0.46, w * 0.3, [UI_GOLD, '#F7B52A']); ctx.font = fontStr(w * 0.07, true); ctx.fillStyle = 'rgba(243,240,255,0.7)'; ctx.textAlign = 'center'; const M = ctx.getTransform(); if (Math.abs(M.a) > 0.6 * Math.abs(M.d)) ctx.fillText('ISO LEAGUE', x + w / 2, y + h * 0.64, w * 0.84); /* F4: inside the card; not on a card squeezed mid-flip */
 }
 // Card data for a career record (pro), an amateur player and a roster def.
 function cardOfRec(rec, extra) { return Object.assign({ key: 'rec' + rec.id, name: rec.name, look: rec.look, height: rec.h, colors: clubOf(rec.club).colors, ovr: recOvr(rec), style: ARCHETYPES[rec.arch] ? ARCHETYPES[rec.arch].label : '', number: rec.look && rec.look.number, age: rec.age, sub: clubOf(rec.club).name }, extra || {}); }
@@ -8590,7 +8623,10 @@ class UI {
   drawToast(ctx) { if (this.toastT <= 0) return; ctx.globalAlpha = clamp01(this.toastT / 0.4); kitPanel(ctx, UI_W / 2 - 250, UI_H - 76, 500, 46, 'rgba(20,28,80,0.95)', { radius: 23, accent: UI_GOLD }); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.toast, UI_W / 2, UI_H - 52); ctx.globalAlpha = 1; }
   // One screen's content in design space (no background).
   drawScreen(ctx, s, noFocus) { this.begin(ctx); try { if (s.draw) s.draw(ctx, this); this.drawWidgets(ctx, s, noFocus); } finally { this.end(ctx); } }
-  draw(ctx, W_, H_) {
+  // F4: menus draw in the letterboxed 1280×720 area, so their text keeps the pixel size of that area (RBF.kUI): a window
+  // taller than 16:9 used to size every string from the whole window's height, up to 1.8× too big for its layout.
+  draw(ctx, W_, H_) { const k0 = RBF.minMain; RBF.minMain = RBF.kUI || k0; try { this.drawInner(ctx, W_, H_); } finally { RBF.minMain = k0; } }
+  drawInner(ctx, W_, H_) {
     const s = this.screen; if (!s) return; this._drawn = true; const T = this.trans; const k0 = T ? clamp01((this.t - T.t0) / T.dur) : 1, k = easeOutCubic(k0), pop = popScale(k0);
     const zoom = sc => { const cx = W_ / 2, cy = H_ / 2; ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy); };
     if (!s.overlay) {
@@ -8810,7 +8846,7 @@ function amCombineScreen(game) {
       drawMannequin(ctx, { name: a.name, look: Object.assign({}, a.look, { number: a.number }), height: a.height, attrs: {} }, { colors: a.colors, pattern: 'solid' }, 270, floor, size, t > REV[6] ? 'hyped' : 'focused', 1, t);
       const barY = headTopY(floor, size, shownH); ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(150, barY); ctx.lineTo(420, barY); ctx.stroke(); pill(ctx, fmtHeight(shownH), 424, barY, UI_GOLD, UI_INK, 16);
       const rows = [['HEIGHT', fmtHeight(ms.h) + ' barefoot · ' + fmtHeight(ms.hShoes) + ' in shoes', sizeWord(ms.h)], ['WINGSPAN', fmtHeight(ms.wingspan) + ' (' + (ms.wing >= 1.055 ? 'long arms' : ms.wing <= 1.005 ? 'short arms' : 'normal arms') + ')', ''], ['STANDING REACH', fmtHeight(ms.reach), ''], ['MAX VERTICAL', ms.vertical + ' cm', 'Hops ' + Math.round(effRatings(a.r, a.height).jmp)], ['LANE AGILITY', ms.lane.toFixed(2) + ' s', 'Speed ' + Math.round(effRatings(a.r, a.height).spd)], ['BENCH REPS', ms.reps + ' reps', 'Strength ' + Math.round(effRatings(a.r, a.height).str)]];
-      rows.forEach((r, i) => { if (t < REV[i]) return; const al = clamp01((t - REV[i]) / 0.3); ctx.globalAlpha = al; const y = 130 + i * 62; ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); roundRectPath(ctx, 520, y, 700, 52, 8); ctx.fill(); ui.heading(ctx, r[0], 540, y + 26, 16, UI_CYAN); ui.heading(ctx, r[1], 740, y + 26, 22, UI_TEXT); if (r[2]) ui.label(ctx, r[2], 1200, y + 26, 15, UI_GOLD, 'right'); ctx.globalAlpha = 1; });
+      rows.forEach((r, i) => { if (t < REV[i]) return; const al = clamp01((t - REV[i]) / 0.3); ctx.globalAlpha = al; const y = 130 + i * 62; ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); roundRectPath(ctx, 520, y, 700, 52, 8); ctx.fill(); ui.heading(ctx, r[0], 540, y + 26, 16, UI_CYAN, 'left', 190); let lw = 0; if (r[2]) { ctx.font = fontStr(15, false); lw = ctx.measureText(r[2]).width + 18; } ui.heading(ctx, r[1], 740, y + 26, 22, UI_TEXT, 'left', 1200 - lw - 740); if (r[2]) ui.label(ctx, r[2], 1200, y + 26, 15, UI_GOLD, 'right'); /* F4: the value stops short of the right label */ ctx.globalAlpha = 1; });
       if (t >= REV[6]) { const al = clamp01((t - REV[6]) / 0.4); ctx.globalAlpha = al; const y = 520; ui.heading(ctx, 'SCOUTS', 540, y, 16, UI_CYAN); pill(ctx, 'PROJECTED ' + amProjLabel(a).toUpperCase(), 640, y, UI_GOLD, UI_INK, 16); pill(ctx, 'CEILING ' + potGrade(ovrOf(a.caps, a.height)), 640 + 300, y, 'rgba(94,224,255,0.3)', UI_TEXT, 16); ctx.font = fontStr(14, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let yy = 548; for (const n of sizeNotes(a.height)) yy += wrapTextH(ctx, '• ' + n, 540, yy, 660, 18) + 2; ctx.globalAlpha = 1; }
       else ui.label(ctx, game.input.hasTouch ? 'Tap to skip ahead' : 'Press Enter to skip ahead', 870, 620, 13, UI_DIM, 'center');
     } };
@@ -9593,7 +9629,7 @@ function labViewUIKit(ctx, ui, st, t) {
   cards.forEach((P, i) => drawTradingCard(ctx, 40 + i * 188, 70, 170, 238, P, { t: t + i * 0.8 }));
   drawCardBack(ctx, 800, 70, 170, 238, 'ISO'); const F = flipState(0.12); ctx.save(); ctx.translate(1075, 0); ctx.scale(F.sx, 1); ctx.translate(-1075, 0); drawCardBack(ctx, 990, 70, 170, 238, 'ISO'); ctx.restore(); labCaption(ctx, 'card back · mid-flip', 985, 322, 12, UI_DIM, 'center');
   const bw = (label, x, extra) => Object.assign({ kind: 'button', label, x, y: 350, w: 190, h: 52, enabled: true }, extra || {});
-  const wds = [[bw('PLAY', 40, { primary: true }), false], [bw('PLAY', 250, { primary: true }), true], [bw('Standings', 460), false], [bw('Standings', 670), true], [bw('Locked', 880, { enabled: false }), false], [bw('Extras', 1090 - 20, { sub: 'modes', w: 210 }), false]];
+  const wds = [[bw('PLAY', 40, { primary: true }), false], [bw('PLAY', 250, { primary: true }), true], [bw('Standings', 460), false], [bw('Standings', 670), true], [bw('Locked', 880, { enabled: false }), false], [bw('Practice', 1090 - 20, { sub: 'shooting', w: 210 }), false]];
   for (const [w, f] of wds) ui.drawWidget(ctx, w, f);
   labCaption(ctx, 'primary · focused · secondary · focused · disabled · with a sub-label', 40, 420, 12, UI_DIM, 'left');
   _labSkin.y = 440; ui.drawWidget(ctx, _labSkin, true);
@@ -9601,9 +9637,9 @@ function labViewUIKit(ctx, ui, st, t) {
   ui.drawWidget(ctx, { kind: 'slider', label: 'Music volume', x: 840, y: 440, w: 400, h: 46, min: 0, max: 1, step: 0.1, get: () => 0.6, set: () => {}, fmt: v => Math.round(v * 100) + '%', enabled: true }, false);
   ui.drawWidget(ctx, { kind: 'toggle', label: 'Reduce motion', x: 840, y: 500, w: 400, h: 46, get: () => true, set: () => {}, enabled: true }, false);
   let x = 40; for (const [txt, o] of [['6′4″', {}], ['SLASHER', {}], ['RIVAL', { fill: 'rgba(255,90,90,0.9)', stroke: false, color: '#FFFFFF' }], ['PLAYOFFS', { fill: 'rgba(255,210,63,0.92)', stroke: false, color: UI_INK }], ['▲ 3', { fill: 'rgba(76,224,122,0.25)', stroke: false, color: UI_GREEN }]]) x += kitChip(ctx, txt, x, 524, Object.assign({ size: 14 }, o)) + 8;
-  [45, 62, 78, 90].forEach((v, i) => hexBadge(ctx, 480 + i * 80, 524, 28, v, {}));
+  const bx = Math.max(480, x + 36); [45, 62, 78, 90].forEach((v, i) => hexBadge(ctx, bx + i * 80, 524, 28, v, {})); // F4: after the chips, not on them
   statTile(ctx, 40, 570, 220, 104, 'POINTS / GAME', 21.4, 9, { decimals: 1 }); statTile(ctx, 276, 570, 220, 104, 'RECORD', (tt, r) => '9-2', 9, { sub: 'CHAMPIONS', accent: UI_GOLD });
-  kitPanel(ctx, 520, 570, 300, 104); kitHeader(ctx, 'Glass panel', 540, 596, 260); ui.label(ctx, 'radius 14 · 2 px inner highlight', 540, 626, 13, UI_DIM);
+  kitPanel(ctx, 520, 570, 300, 104); kitHeader(ctx, 'Glass panel', 540, 596, 260); ui.label(ctx, 'radius 14 · highlight', 540, 626, 13, UI_DIM, 'left', 270);
   weekDots(ctx, 1230, 600, 7, 3, 7); labCaption(ctx, 'week dots', 1230, 628, 12, UI_DIM, 'right'); formChips(ctx, 900, 660, [true, true, false, true, true], 14);
 }
 // §L14 Symmetry: the 12 cast faces front-on at 256 px, four a page, each with its printed score (the right half against
@@ -9907,7 +9943,7 @@ function drawHub(ctx, ui, H, t) {
     ctx.strokeStyle = 'rgba(243,240,255,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(560, cy + ch + 26); ctx.lineTo(720, cy + ch + 26); ctx.stroke(); kitChip(ctx, dh === 0 ? 'SAME HEIGHT' : (dh > 0 ? '+' + dh + '″ THEM' : '+' + (-dh) + '″ YOU'), 640, cy + ch + 26, { size: 12, align: 'center', fill: 'rgba(8,12,36,0.95)', color: dh > 0 ? UI_RED : dh < 0 ? UI_GREEN : UI_TEXT });
     if (H.scout) { ctx.font = fontStr(17, false); ctx.fillStyle = UI_GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, '“' + H.scout + '”', 640, cy + ch + 50, 430, 22); }
   } else { ui.heading(ctx, H.idleTitle || 'NO GAME', 640, 300, 28, UI_TEXT, 'center'); if (H.idleText) { ctx.font = fontStr(16, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, H.idleText, 640, 330, 420, 22); } if (H.idleDraw) H.idleDraw(ctx, t); }
-  const l5y = P && H.statusY >= 0 ? 556 : 610; if (H.last5 && H.last5.length) { ui.label(ctx, 'LAST ' + H.last5.length, 424, l5y, 13, UI_CYAN); formChips(ctx, 480, l5y, H.last5, 13); } else ui.label(ctx, 'No games yet this season.', 424, l5y, 13, UI_DIM);
+  const l5y = P && H.statusY >= 0 ? 556 : 610; if (H.last5 && H.last5.length) { ui.label(ctx, 'LAST ' + H.last5.length, 424, l5y, 13, UI_CYAN); ctx.font = fontStr(13, true); formChips(ctx, Math.max(480, 424 + ctx.measureText('LAST ' + H.last5.length).width + 10), l5y, H.last5, 13); } /* F4: the chips start after the label at every pixel size */ else ui.label(ctx, 'No games yet this season.', 424, l5y, 13, UI_DIM);
   if (H.headline && !(P && H.statusY >= 0)) { ctx.font = fontStr(13, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, H.headline, 424, 640, 436, 18); }
   // right: actions
   kitPanel(ctx, 896, 90, 360, 616);
@@ -10282,7 +10318,7 @@ function pressScreen(game, c, ev, done) {
     onPress() { if (answered) return; answered = pressAnswer(c, ev, kind); game.save.save(); for (const b of answers) b.hidden = true; cont.hidden = false; scr.focus = items.indexOf(cont); game.audio.ui('confirm'); },
     draw(ctx, focused, ui) { drawPressAnswer(ctx, this, focused, ui, A[kind]); } }));
   const cont = btn('CONTINUE', 860, 612, 360, 58, () => done(), { primary: true });
-  answers.forEach((b, i) => { const h = P ? tapH(game.ui, 44) : 96; Object.assign(b, { x: 680, y: P ? 226 + i * (h + 4) : 246 + i * (h + 8), w: 560, h }); }); if (P) phoneGrid(game.ui, [cont], 800, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0); cont.hidden = true; // (laid out first: the phone grid skips hidden buttons)
+  answers.forEach((b, i) => { const h = P ? tapH(game.ui, 44) : 98; Object.assign(b, { x: 680, y: P ? 226 + i * (h + 4) : 250 + i * (h + 4), w: 560, h }); }); /* F4: taller answers, so the label, the effect and two lines of quote fit at every pixel size */ if (P) phoneGrid(game.ui, [cont], 800, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0); cont.hidden = true; // (laid out first: the phone grid skips hidden buttons)
   const items = answers.concat([cont]);
   const scr = { widgets: items, name: 'press', overlay: false, onBack() { if (answered) done(); }, update(dt) { t += dt; },
     draw(ctx, ui) {
@@ -10297,7 +10333,7 @@ function pressScreen(game, c, ev, done) {
         ctx.fillStyle = '#EDE6D2'; ctx.beginPath(); roundRectPath(ctx, 684, 262, 552, 300, 10); ctx.fill(); ctx.fillStyle = '#1B1B22'; ctx.fillRect(700, 292, 520, 3); ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('THE DAILY DRIBBLE', 700, 280);
         ctx.font = fontStr(21, true); ctx.textBaseline = 'top'; const hh = wrapTextH(ctx, answered.headline, 700, 306, 520, 26);
         const fx = pressEffectLines(c, x, answered, B); let fy = Math.max(410, 306 + hh + 14); fx.forEach(f => { fy += ui.para(ctx, f[0], 700, fy, 520, 14, f[1] ? '#B8322D' : '#3D6EA8', 'left', 2) + 2; });
-      } else if (!P) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (hasTrait(B, 'generational') ? ' · the spotlight never leaves' : ''), 690, 672, 13, UI_DIM, 'left', 540); // (phones: the BUZZ line in the headlines)
+      } else if (!P) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (hasTrait(B, 'generational') ? ' · the spotlight never leaves' : ''), 690, 672, 13, UI_DIM, 'left', 540); /* F4: under the taller answers, above the key hints */ // (phones: the BUZZ line in the headlines)
     } };
   return scr;
 }
@@ -10314,9 +10350,9 @@ function pressEffectLines(c, x, a, B) {
 }
 function drawPressAnswer(ctx, b, focused, ui, quote) {
   kitButton(ctx, b, focused, ui.t, {}); const col = b.ans === 'trash' ? UI_RED : b.ans === 'confident' ? UI_GOLD : b.ans === 'nocomment' ? UI_DIM : UI_CYAN, P = ui.phone;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, b.y + 16); // R8: the answer, what it does, then the quote
-  ui.para(ctx, PRESS_EFFECT[b.ans], b.x + 18, b.y + 36, b.w - 36, 12, UI_DIM, 'left', 1);
-  ui.para(ctx, '“' + quote + '”', b.x + 18, b.y + 60, b.w - 36, 16, UI_TEXT, 'left', P || RBF.textScale > 1 ? 1 : 2); /* R10: at 1.25× text a second line would spill out of the button */
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, b.y + 17, b.w - 36); // R8: the answer, what it does, then the quote
+  ui.para(ctx, PRESS_EFFECT[b.ans], b.x + 18, b.y + 32, b.w - 36, 12, UI_DIM, 'left', 1);
+  ui.para(ctx, '“' + quote + '”', b.x + 18, b.y + 54, b.w - 36, 16, UI_TEXT, 'left', P || RBF.textScale > 1 ? 1 : 2); /* R10: at 1.25× text a second line would spill out of the button */
 }
 // A press backdrop: step-and-repeat logos, you behind a table of microphones, camera flashes.
 function drawPressRoom(ctx, c, me, t, org) {
@@ -10545,7 +10581,7 @@ function commitDayScreen(game, c, ev, done) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { graphics: 'retro', arcadeExtras: 'off', extrasF1: true, difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {} },
+    settings: { graphics: 'retro', arcadeExtras: 'off', extrasF1: true, autoReplay: false, difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {} },
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -10573,10 +10609,10 @@ class SaveSystem {
   eraseKeepSettings() { const S = this.data.settings; this.reset(); this.data.settings = S; this.save(); } // R10: erase a slot, keep the device's settings
   // Another slot: this one is saved first and the settings go along. Returns the new slot's SaveSystem.
   switchTo(n) { this.save(); const next = new SaveSystem(n); next.data.settings = Object.assign({}, next.data.settings, this.data.settings); try { localStorage.setItem(CONFIG.save.slotKey, String(next.slot)); } catch (e) { /* private mode */ } next.save(); return next; }
-  addPoster(dataUrl, label) {
+  addPoster(dataUrl, label, noSave) {
     const P_ = this.data.posters; P_.unshift({ url: dataUrl, label, t: Date.now() }); while (P_.length > CONFIG.save.maxPosters) P_.pop();
     let bytes = P_.reduce((a, p) => a + p.url.length, 0); while (bytes > CONFIG.save.posterBytesCap && P_.length) { const last = P_.pop(); bytes -= last.url.length; }
-    this.save();
+    if (!noSave) this.save(); // F3: the game's posters are saved together after the final buzzer
   }
 }
 // Older saves: settings, records and posters carry over. Careers from older builds (the team career and the first
@@ -12050,7 +12086,7 @@ function drawTraitCard(ctx, id, x, y, w, h, opts) {
 // A wrapped paragraph (the ui object's para without a ui): returns the height used.
 function ui_para(ctx, text, x, y, maxW, size, color, maxLines) { ctx.font = fontStr(size, false); ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; const lh = Math.max(size * 1.35, rbLineH(ctx)); let lines = rbWrap(ctx, text, maxW); if (maxLines && lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; } lines.forEach((l, i) => ctx.fillText(l, x, y + i * lh, maxW)); return lines.length * lh; }
 // A trait as a small chip in its rarity color (the hub, rosters). Returns the width.
-function traitChip(ctx, id, x, y, opts) { opts = opts || {}; const d = traitDef(id); if (!d) return kitChip(ctx, '???', x, y, { size: opts.size || 11, fill: 'rgba(110,117,144,0.25)', stroke: '#6E7590', color: UI_DIM, align: opts.align }); return kitChip(ctx, (opts.short ? d.name : d.name).toUpperCase(), x, y, { size: opts.size || 11, fill: 'rgba(8,12,36,0.85)', stroke: traitFrame(id), color: traitFrame(id), align: opts.align }); }
+function traitChip(ctx, id, x, y, opts) { opts = opts || {}; const d = traitDef(id); if (!d) return kitChip(ctx, '???', x, y, { size: opts.size || 11, fill: 'rgba(110,117,144,0.25)', stroke: '#6E7590', color: UI_DIM, align: opts.align, maxW: opts.maxW }); return kitChip(ctx, (opts.short ? d.name : d.name).toUpperCase(), x, y, { size: opts.size || 11, fill: 'rgba(8,12,36,0.85)', stroke: traitFrame(id), color: traitFrame(id), align: opts.align, maxW: opts.maxW }); }
 // Both of a career's traits, side by side (the signature, and the hidden one or ???).
 function drawTraitPair(ctx, B, x, y, w, h) { const T = traitsOf(B); if (!T) return; const gw = (w - 12) / 2; ctx.font = fontStr(12, true); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('SIGNATURE', x, y + 8); ctx.fillText('HIDDEN', x + gw + 12, y + 8); drawTraitCard(ctx, T.sig, x, y + 22, gw, h - 22); drawTraitCard(ctx, T.hidden, x + gw + 12, y + 22, gw, h - 22, { hidden: !T.found, hint: traitHint(B) }); }
 // Where the hidden trait will show itself.
@@ -12089,7 +12125,7 @@ function teamScreen(game) {
       if (!m.league && L0.includes(m.id)) { ctx.fillStyle = 'rgba(8,12,36,0.85)'; ctx.fillRect(rx, y + 4, 26, 18); ui.label(ctx, '#' + (L0.indexOf(m.id) + 1), rx + 13, y + 13, 11, L0.indexOf(m.id) === 0 ? UI_GOLD : UI_TEXT, 'center'); } /* the rung, on the portrait's corner */
       const tx = rx + ps + 12, sub = (m.cls ? TEAM_CLASS[Math.min(3, m.cls - 1)] + ' · ' : m.age ? 'age ' + m.age + ' · ' : '') + fmtHeight(m.height) + ' · ' + roleLabel(m.r, m.height) + (m.league ? ' · in the league' : '');
       if (P) { ui.heading(ctx, m.name, tx, y + 22, 17, UI_TEXT, 'left', rw - ps - 110); ui.label(ctx, sub, tx, y + 50, 13, UI_DIM, 'left', rw - ps - 20); if (m.tr) traitChip(ctx, m.tr.sig, tx, y + 78, { size: 11 }); hexBadge(ctx, rx + rw - 40, y + 30, 22, m.ovr, { sub: false }); } /* phone: the number alone (a 4 px OVR under it overlapped the digits) */
-      else { ui.heading(ctx, m.name, tx, y + 18, 16, UI_TEXT, 'left', 250); ui.label(ctx, sub, tx, y + 40, 12, UI_DIM, 'left', m.tr ? 300 : rw - ps - 80); if (m.tr) { let cx2 = tx + 318; cx2 += traitChip(ctx, m.tr.sig, cx2, y + 28, { size: 10 }) + 6; if (m.tr.hidden && cx2 < rx + rw - 150) traitChip(ctx, m.tr.hidden, cx2, y + 28, { size: 10 }); } hexBadge(ctx, rx + rw - 26, y + 28, 20, m.ovr, {}); } });
+      else { ui.heading(ctx, m.name, tx, y + 18, 16, UI_TEXT, 'left', 250); ui.label(ctx, sub, tx, y + 40, 12, UI_DIM, 'left', m.tr ? 300 : rw - ps - 80); if (m.tr) { let cx2 = tx + 318; const end = rx + rw - 56; cx2 += traitChip(ctx, m.tr.sig, cx2, y + 28, { size: 10, maxW: end - cx2 }) + 6; if (m.tr.hidden && end - cx2 > 70) traitChip(ctx, m.tr.hidden, cx2, y + 28, { size: 10, maxW: end - cx2 }); } /* F4: the chips end before the badge */ hexBadge(ctx, rx + rw - 26, y + 28, 20, m.ovr, {}); } });
     if (!P) ui.para(ctx, 'Every game is 1v1: you against another team\'s player. Your teammates practice with you.', 60, 566, 360, 12, UI_DIM, 'left', 3);
   } };
 }
@@ -13443,9 +13479,9 @@ class Game {
     const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; applyKeyMap(S); this.input.setPreset(KEY_PRESETS[S.keyPreset] ? S.keyPreset : 'A'); RBF.textScale = S.textSize === 1.25 ? 1.25 : 1; /* R10: the Custom keys; text size 1× or 1.25× */ const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.computeLayout(this.W, this.H);
   }
   resize() {
-    const W = window.innerWidth, H = window.innerHeight; this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.ui.dprCap, this.lowRes ? CONFIG.perf.lowDpr : 99); this.W = W; this.H = H; this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(H * this.dpr); this.canvas.style.width = W + 'px'; this.canvas.style.height = H + 'px'; this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); RBF.minMain = uiK(this.canvas); RBF.textScale = this.save && this.save.data.settings.textSize === 1.25 ? 1.25 : 1;
+    const W = window.innerWidth, H = window.innerHeight; this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.ui.dprCap, this.lowRes ? CONFIG.perf.lowDpr : 99); this.W = W; this.H = H; this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(H * this.dpr); this.canvas.style.width = W + 'px'; this.canvas.style.height = H + 'px'; this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); RBF.minMain = RBF.kHUD = Math.max(2, Math.min(uiK(this.canvas), Math.round(2 * this.dpr))); /* F4: the HUD is laid out in CSS px, so its smallest text is never bigger than its 720p design (a 1080p or a tall window made it 1.5–3× too big for its boxes) */ RBF.textScale = this.save && this.save.data.settings.textSize === 1.25 ? 1.25 : 1;
     try { const probe = document.getElementById('fontprobe'); probe.style.padding = 'env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; const cs = getComputedStyle(probe); this.safe = { top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0, bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0 }; } catch (e) {}
-    this.cam.resize(W, H); this.ui.layout(W, H, this.safe); this.input.touch.computeLayout(W, H, this.safe); this.portrait = this.input.hasTouch && H > W * 1.15 && W < 900; this.sceneCanvas.width = Math.min(960, W); this.sceneCanvas.height = Math.round(this.sceneCanvas.width * H / W);
+    this.cam.resize(W, H); this.ui.layout(W, H, this.safe); RBF.kUI = Math.max(1, Math.round(UI_H * this.ui.scale * this.dpr / 360 - CONFIG.ui.kBias)); /* (a window the menus shrink to under 7/8 draws 1× text: 2× was 60% too big for an 800 px wide layout) */ /* F4: the menus' pixel size comes from their letterboxed area */ this.input.touch.computeLayout(W, H, this.safe); this._touchKey = null; /* F4: a resize (the guard's low-res step included) lays the controls out again in the match's floor band next frame; it used to leave them over the players */ this.portrait = this.input.hasTouch && H > W * 1.15 && W < 900; this.sceneCanvas.width = Math.min(960, W); this.sceneCanvas.height = Math.round(this.sceneCanvas.width * H / W);
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
@@ -13461,13 +13497,20 @@ class Game {
   }
   startTutorial() { const c = careerOf(this); const a = c ? matchTeamDef(c, c.meId, false) : Object.assign({}, TEAMS[2], { players: [ROSTER.legends[1]] }), b = Object.assign({}, TEAMS[5], { players: [ROSTER.nephews[2]] }); this.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'rookie', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'blacktop', seed: 7, controlMode: 'ball', practice: { noDefender: false, infiniteStamina: true, slowMo: false, breakdown: false, chart: false, easyTiming: true }, tutorial: true }, { kind: 'tutorial' }); }
   restartMatch(newSeed) { const o = Object.assign({}, this.matchOpts); if (newSeed || true) o.seed = (Date.now() % 1000000) >>> 0; const after = { kind: this.after.kind, nextKind: this.after.nextKind, opp: this.after.opp }; this.startMatch(o, after); }
-  quitToMenu() { this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
+  quitToMenu() { this.flushPosters(this.match); this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
   // Career games always count: the pause menu can finish one headlessly, with a bot playing your player on your ratings.
   simRestOfMatch() { const m = this.match; if (!m || m.ended) { this.resume(); return; } for (const p of m.players) { if (p.controlled) { p.controlled = false; p.input.reset(); if (p.brain) { p.brain.intent = null; p.brain.commitT = 0; } } } m.controlledPlayer = null; let n = 0; const wasHeadless = m.headless; m.headless = true; while (!m.ended && n < 120 * 60 * 20) { simStep(m, STEP); n++; } m.headless = wasHeadless; this.ui.stack.length = 0; this.paused = true; this.postgameOpened = false; this.openPostgame(); }
   pause() { if (this.mode !== 'match' || this.ui.screen) return; this.paused = true; this.ui.push(pauseScreen(this)); this.input.touch.clearAll(); }
   autoPause() { if (this.mode === 'match' && !this.ui.screen && !this.match.ended) this.pause(); }
   resume() { while (this.ui.screen) this.ui.pop(); this.paused = false; this.acc = 0; this.applySettings(); }
-  openPostgame() { if (this.postgameOpened) return; this.postgameOpened = true; this.paused = true; this.ui.push(postgameScreen(this, this.match, this.after)); }
+  // F3: a highlight's poster: the scene just drawn (no HUD yet) is printed as a card now (a few ms); the JPEG and the save
+  // wait for the end of the game (they were a long frame at every posterizer, with a full save written mid-play).
+  capturePoster(m, req) {
+    try { const sc = this.sceneCanvas, g = sc.getContext('2d', { willReadFrequently: true }); g.drawImage(this.canvas, 0, 0, sc.width, sc.height); const pal = COURTS[m.courtId].palette; const card = buildPoster(sc, req.headline, req.sub, pal, m.teams[0].abbr + ' ' + m.teams[0].score + ' – ' + m.teams[1].score + ' ' + m.teams[1].abbr); const copy = document.createElement('canvas'); copy.width = card.width; copy.height = card.height; copy.getContext('2d').drawImage(card, 0, 0); m.posterCards.push(copy); (m.posterSaves || (m.posterSaves = [])).push({ canvas: copy, headline: req.headline });
+      if (CONFIG.fx.posterInPlay && req.freeze && !this.fx.reduceMotion) { const show = { canvas: copy, t: CONFIG.fx.posterMs / 1000, headline: req.headline }; if (req.delay > 0) this.posterPending = { show, t: req.delay }; else { this.posterShow = show; this.fx.hitStopMs = Math.max(this.fx.hitStopMs, CONFIG.fx.posterMs); } } } catch (e) { reportFrameError(e); }
+  }
+  flushPosters(m) { const list = m && m.posterSaves; if (!list || !list.length) return; m.posterSaves = []; try { for (const p of list) { const small = document.createElement('canvas'); small.width = CONFIG.save.posterW; small.height = CONFIG.save.posterH; small.getContext('2d').drawImage(p.canvas, 0, 0, small.width, small.height); this.save.addPoster(small.toDataURL('image/jpeg', 0.6), p.headline, true); } this.save.save(); } catch (e) { /* posters are keepsakes */ } }
+  openPostgame() { if (this.postgameOpened) return; this.postgameOpened = true; this.paused = true; this.flushPosters(this.match); this.ui.push(postgameScreen(this, this.match, this.after)); }
   playReplay(clip, onDone) { if (!clip) return; this.replayPlayer = new ReplayPlayer(this.match.replay, clip, { seconds: 5 }); this.replayDone = onDone || null; }
   playReel(plays) { this.reel = { plays, i: 0 }; this.ui.stack.length = 0; this.playReplay(plays[0], () => this.nextReel()); }
   nextReel() { const r = this.reel; if (!r) return; r.i++; if (r.i >= r.plays.length) { this.reel = null; this.replayPlayer = null; this.openPostgameAgain(); return; } this.playReplay(r.plays[r.i], () => this.nextReel()); }
@@ -13524,10 +13567,10 @@ class Game {
     const alpha = clamp01(this.acc / STEP);
     this.world.update(dt, m); fx.update(dt, m); this.cam.fixed = m.phase === 'freethrow' && m.ftState ? { x: m.ftState.shooter.hoop.x - sgn(m.ftState.shooter.hoop.x - COURT_L / 2) * 2.2, zoom: CONFIG.camera.ftZoom } : null;
     if (this.replayPlayer) { const gb = m.replay.ghostBall; this.cam.update(m, dt, { x: gb.x + gb.vx * 0, zoom: CONFIG.camera.replayZoom }); } else this.cam.update(m, dt);
-    // poster request: capture the frame, print it, freeze if asked
-    if (fx.posterRequest) { const req = fx.posterRequest; fx.posterRequest = null; this.renderSceneAny(ctx, m, alpha, 0); const sc = this.sceneCanvas; const g = sc.getContext('2d', { willReadFrequently: true }); g.drawImage(this.canvas, 0, 0, sc.width, sc.height); const pal = COURTS[m.courtId].palette; const card = buildPoster(sc, req.headline, req.sub, pal, m.teams[0].abbr + ' ' + m.teams[0].score + ' – ' + m.teams[1].score + ' ' + m.teams[1].abbr); const copy = document.createElement('canvas'); copy.width = card.width; copy.height = card.height; copy.getContext('2d').drawImage(card, 0, 0); m.posterCards.push(copy); if (req.freeze && !fx.reduceMotion) { const show = { canvas: copy, t: CONFIG.fx.posterMs / 1000, headline: req.headline }; if (req.delay > 0) this.posterPending = { show, t: req.delay }; else { this.posterShow = show; fx.hitStopMs = Math.max(fx.hitStopMs, CONFIG.fx.posterMs); } } try { const small = document.createElement('canvas'); small.width = CONFIG.save.posterW; small.height = CONFIG.save.posterH; small.getContext('2d').drawImage(copy, 0, 0, small.width, small.height); this.save.addPoster(small.toDataURL('image/jpeg', 0.6), req.headline); } catch (e) {} }
+    const posterReq = fx.posterRequest; fx.posterRequest = null; // F3: the poster is taken from this frame once it is drawn (no second render)
     if (this.posterPending) { this.posterPending.t -= dt; if (this.posterPending.t <= 0) { this.posterShow = this.posterPending.show; this.posterPending = null; fx.hitStopMs = Math.max(fx.hitStopMs, CONFIG.fx.posterMs); } } // a posterizer's card waits for its slow motion
     this.renderSceneAny(ctx, m, alpha, dt);
+    if (posterReq) this.capturePoster(m, posterReq);
     if (fx.blur && !this.replayPlayer) drawRadialBlur(ctx, this, fx.blur);
     this.drawHUD(ctx, m, alpha, dt);
     if (this.posterShow) { this.posterShow.t -= dt; this.drawPosterCard(ctx, this.posterShow); if (this.posterShow.t <= 0) this.posterShow = null; }
@@ -13567,11 +13610,11 @@ class Game {
     if (rp) { kitStamp(ctx, 'REPLAY', W_ / 2, 60, 44, ['#FFFFFF', '#C9CCE0'], { tilt: -3, outline: 0.16 }); ctx.fillStyle = 'rgba(243,240,255,0.8)'; ctx.fillRect(W_ * 0.3, 90, W_ * 0.4 * rp.progress, 4); ctx.font = fontStr(14, false); ctx.textAlign = 'center'; ctx.fillStyle = '#F3F0FF'; ctx.fillText(rp.clip.label + (rp.clip.player ? ' · ' + rp.clip.player : '') + '   (jump to skip)', W_ / 2, 112); ctx.restore(); return; }
     if (!m.practice && !m.contest3 && !m.drill) drawScoreBug(ctx, m, W_, H_); 
     if (m.drill) drawDrillHud(ctx, m, W_);
-    if (m.contest3) { const c = m.contest3; const l1 = 'SCORE ' + c.score + '   ·   rack ' + Math.min(c.rack + 1, 5) + '/5   ball ' + Math.min(c.ball + 1, 5) + '/5', l2 = c.started ? '' : 'Hold Shoot, let go at the top. You move rack to rack on your own; the clock starts on your first shot.'; /* F2/F4: the contest's lines sit on their own dark strip, clear of the arena's banners */
+    if (m.contest3) { const c = m.contest3; const l1 = 'SCORE ' + c.score + '   ·   rack ' + Math.min(c.rack + 1, 5) + '/5   ball ' + Math.min(c.ball + 1, 5) + '/5', l2 = c.started ? '' : 'Hold Shoot, let go at the top. You walk rack to rack on your own.'; /* F2/F4: the contest's lines sit on their own dark strip, clear of the arena's banners */
       ctx.font = fontStr(22, true); let w = ctx.measureText(l1).width; ctx.font = fontStr(16, false); if (l2) w = Math.max(w, Math.min(W_ - 40, ctx.measureText(l2).width)); w = Math.max(w, 200) + 40; const hh = l2 ? 124 : 100; ctx.fillStyle = 'rgba(8,12,40,0.78)'; ctx.beginPath(); roundRectPath(ctx, W_ / 2 - w / 2, 8, w, hh, 12); ctx.fill();
       stampText(ctx, fmtClockTenths(c.timeLeft), W_ / 2, 40, 44, '#F3F0FF', INK, 0); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(22, true); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(l1, W_ / 2, 88); if (l2) { ctx.font = fontStr(16, false); ctx.fillStyle = UI_GOLD; ctx.fillText(l2, W_ / 2, 114, W_ - 60); } }
     if (m.practice && m.practice.breakdown) { const pr = m.practice; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(10, 10, 230, 120); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(14, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; const z = pr.byZone; const line = (k, l) => l + ' ' + z[k][0] + '/' + z[k][1] + (z[k][1] ? ' (' + Math.round(100 * z[k][0] / z[k][1]) + '%)' : ''); [ 'PRACTICE · ' + pr.makes + '/' + pr.shots + ' made', line('lay', 'Layups'), line('mid', 'Mid'), line('three', 'Threes'), line('deep', 'Deep'), line('dunk', 'Dunks') ].forEach((l, i) => ctx.fillText(l, 18, 16 + i * 18)); }
-    if (m.practice && m.practice.chart) { const pr = m.practice; const hoop = m.human.hoop; const x0 = W_ - 250, y0 = 10, w = 240, h = 70; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(x0, y0, w, h); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(12, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('SHOT CHART (distance)', x0 + 6, y0 + 4); for (const s of pr.chart.slice(-60)) { const px = x0 + 10 + clamp01(s.d / 13) * (w - 20), py = y0 + 40 + ((s.id * 7) % 20); ctx.fillStyle = s.make ? '#B8FF5A' : '#FF4FA3'; ctx.beginPath(); ctx.arc(px, py, 3, 0, TAU); ctx.fill(); } ctx.fillStyle = '#F3F0FF'; ctx.fillText('0 m', x0 + 6, y0 + 56); ctx.textAlign = 'right'; ctx.fillText('13 m', x0 + w - 6, y0 + 56); }
+    if (m.practice && m.practice.chart) { const pr = m.practice; const hoop = m.human.hoop; const x0 = W_ - 250, y0 = 10, w = 240, h = 70; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(x0, y0, w, h); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(12, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('SHOT CHART (distance)', x0 + 6, y0 + 4); for (const s of (pr.marks || []).slice(-60)) { const px = x0 + 10 + clamp01(s.d / 13) * (w - 20), py = y0 + 40 + ((s.id * 7) % 20); ctx.fillStyle = s.make ? '#B8FF5A' : '#FF4FA3'; ctx.beginPath(); ctx.arc(px, py, 3, 0, TAU); ctx.fill(); } ctx.fillStyle = '#F3F0FF'; ctx.fillText('0 m', x0 + 6, y0 + 56); ctx.textAlign = 'right'; ctx.fillText('13 m', x0 + w - 6, y0 + 56); }
     // shot meter for the controlled player (and any shooter when the meter is on)
     for (const p of m.players) if (p.controlled || (p.inState('jumpshot', 'floater') && S.meter === 'on' && false)) drawShotMeter(ctx, cam, p, alpha, S.meter, m.lastShot, m.time);
     drawCallouts(ctx, m, W_, H_, dt); // (L15: the display font in both modes)
