@@ -3,6 +3,167 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## The R pass (R1–R10): the report
+
+The spec "Hoop Heads: retro look + real career", in ten milestones with a commit each. During R2 the user changed
+the plan (it overrides §3.3 and anything else about team games or extras): the career is 1v1 only — every career game,
+playoffs and tournaments and the All-Star game included — with no AI teammates on the court and no arcade extras in
+the career, ever. Teams are your organization and story (a school, a college program, a pro franchise: name, colors,
+uniform, coach, teammates in the story and in practice); the team's record and titles are your 1v1 record and titles;
+a depth-chart ladder of 1v1 practice challenges decides who plays; coach trust gives practice XP and stronger
+recruiting and draft recommendations; no chemistry. Everything else in the spec stayed. Before every commit: the smoke
+test on desktop and phone, the Art Lab screenshots (looked at), old saves migrated (never wiped), and the whole suite:
+the §2 gate, the balance harness, the career simulator and the rest. The before/after gallery is
+`shots/before-after-r/` (27 captioned pairs, L19 against R10); every screen of the final build, desktop and phone, is in
+`shots/final/`.
+
+### What each milestone measured
+
+| Milestone | Measured | Before → after | Spec |
+| --- | --- | --- | --- |
+| R1 Retro look | two styles on one screen → one 360-row pixel world; the Retro check: smoothed draws, glyph draws off a whole scale, gaps in a character's outline, colors in one sprite | 0 · 0 of 96 · 0 in 400 sprites · 23 (limit 24) | §1 ✓ |
+| R2 Size and framing | a 2 m player ÷ court length; ÷ screen height; head width (desktop) | 1/9 → 1/6.82 · about 14% → 23.3% · about 32 → 45 world px | ≈ 1/7 · 23–25% · 44–52 ✓ |
+| R2 (the gate after the retune) | Pro mirror PPP · Legend beats Pro · brute · sniper | 1.21 → 1.18 · 86% → 83% · 0.82 → 1.00 · 1.47 → 1.72 | 0.95–1.25 · brute ≤ 1.3 ✓ |
+| R3 Career foundation | trait balance (median legacy against all, 200 careers a trait): Generational | +92% → +31%; all 17 in range | C/U/R ±20%, L −20…+40% ✓ |
+| R4 The depth chart | the ladder's first version → the one shipped (100 careers): peak OVR · titles · Hall of Fame | 65 · 0.47 · 2% → 77 · 1.07 · 15% | the career targets ✓ |
+| R5 High school | freshmen on varsity; summers' legacy median (AAU / rest / job) | 55%; 65 / 61 / 44 → 59 / 61 / 55 | §3.4 ✓ |
+| R6 College | seasons ending in the national tournament; NIL; median mock pick | 7% → 27%; 3.8 offers, 2.4 taken, $15,750; #39 | §3.5 ✓ |
+| R7 Pros and money | a careful spender: titles · Hall of Fame; net worth | 1.6 · 28% → 1.02 · 14%; $217M against $232M for buying nothing | the career targets ✓ |
+| R8 Hype and press | "always X" press test, titles (1,000 careers); hype chase vs quiet (legacy · earned · titles) | +1.3 / +2.5 / −2.2 / −1.5%; +0.5 / +2.2 / −2.2% | ±8% · ±10% ✓ |
+| R9 Story | beats a season | 3.27; 3–5 in 99.6% and 99.7% of the seasons | 3–5 |
+| R10 Polish and QA | every screen at 1280×720 and 844×390, at 1× and 1.25× text; a whole career through the screens | 126 + 124 screens, nothing flagged; title → Hall of Fame on desktop and phone | §4 ✓ |
+
+### Tests on the final build (R10)
+
+| Test | Result |
+| --- | --- |
+| Syntax (`tests/check-syntax.js`) | ok |
+| Smoke: the game through the UI at 1280×720 and 844×390 | 128/128 |
+| Modes: every mode played to its end | 15/15 |
+| Old saves: every fixture, from the first 1v1 career to the R8 build, reloaded and played on | 31/31 |
+| Dev tools | all OK (1,000 balls, 0 tunneled) |
+| Every screen at 844×390: 64 px targets, off-screen, overlapping or unlaid widgets, labels off their buttons, errors | 124 screens, nothing flagged; the same at 1.25× text |
+| Every screen at 1280×720 | 126 screens, nothing flagged; the same at 1.25× text |
+| A whole career through the screens (new) | desktop: 984 actions, a real match in high school, college and the pros, retired after 13 pro seasons at 35, on the Hall of Fame list; phone: the same, passed |
+| Art Lab | 54 screenshots, no errors; the Retro check's automated checks all pass |
+| §2 gate (300 mirror games, 200 Legend-vs-Pro games) | Pro mirror 1.18 PPP (0.95–1.25 ✓), team A 48% (45–55% ✓), Legend beats Pro 83% (75–95% ✓), brute vs Pro 1.00 (≤ 1.30 ✓), sniper 1.72 (timing beats brute force ✓) |
+| Balance harness (Classic) | brute vs Pro 1.24 (≤ 1.30 ✓), perfect timing 2.12, Legend beats Pro 78% (75–95% ✓) |
+| Career simulator, 40 careers (seed 1) | 0 stuck; OVR 56 / 69 / 74 at 17 / 21 / 25, peak 79; 0.78 titles; Hall of Fame 8% (✗: 3 of 40, the target's 10% is 4) |
+| Career simulator, 200 careers | seed 1: every target met (OVR 56 / 68 / 74, peak 76, 1.14 titles, Hall of Fame 16%); seed 2: OVR@25 73 ✗ (0.88 titles, Hall of Fame 13%); 0 stuck; 3.27 story beats a season |
+| Trait balance (200 careers a trait) | all 17 in range (Generational +20%, Paint Protector +14%, Late Bloomer −16%) |
+| Press test (200 careers a policy, seed 1) | Team first, Confident and No comment in range; Trash talk titles −8.8% ✗ (its legacy −2.5%, earnings +0.5%). These are R9's careers exactly; there seeds 2 and 3 and 1,000 careers were all in range |
+| Hype test (200 careers, seed 1) | in range: legacy +0.1%, earnings +1.4%, titles −2.1% |
+| Perf (844×390 at 2×, pro arena, headless) | frame guard off: median 23.7 ms, p95 33.2; its last step: 12.4 ms |
+
+The gate, the harness, the career simulator and trait balance give R9's numbers line for line: R10 changed nothing
+the simulations run.
+
+### Deviations from the spec, and why
+
+1. **The change of plan** (the user's, during R2). §3.3's team games were not built: no 3v3 default or 5v5 setting, no
+   player-lock with AI teammates, no calling for the ball, no roles by minutes and usage, no chemistry. The compact
+   court's 3v3 layout (with its ±2 m camera follow) was built in R2 and taken out; milestone 4 became the depth chart.
+   Team first builds your coach's trust instead of chemistry, and trash talk has no chemistry cost. The spec's "summer
+   1v1 circuit each offseason" was part of §3.3: high school summers keep the AAU circuit; a pro offseason has none.
+   The Settings option that put arcade extras in career games is gone. The tutorial's "team play" became the depth
+   chart's first-time tip. Traits whose downside only made sense in team games were given 1v1 ones (Floor General,
+   Glue Guy, Showman: R3).
+2. **§1.2 supersampling**: characters are painted at 3× before `pixelize()` (the spec: 2×, faces 3×). A character's face
+   is part of its sprite, so one 3× paint covers both (`ART.rtSuper`); fans and props use 2×.
+3. **§1.2 head size on a phone**: 45 world px on a desktop, but 51–66 px on the phone test (844×390 at 2×). A phone draws
+   a 390-row world at k 2 instead of 360 rows; the spec's number is for the desktop view.
+4. **§2 screen share**: a 2 m player's body is 23.3% of the screen height, but the big heads make the drawn figure
+   25–28%. The court's framing (`h` 0.70, not "about 0.66") is where Legend still beats Pro 83% (at 0.66: 71%).
+5. **R7 money**: a personal trainer adds practice XP only (the spec says XP) and all pro XP is ×0.85: a careful spender
+   won 1.6 titles with a 28% Hall of Fame before, against the targets' "about 1" and 10–20%.
+6. **The career simulator's edges**: OVR at 25 is 73 on seed 2 (target 74–78) in R7 to R10, and R9's 40-career run
+   has a Hall of Fame of 8% (3 of 40; the target's 10% is 4). The 200-career runs on seed 1 meet every target.
+7. **The balance tests at the spec's size**: 200 careers move a titles average about ±8% on its own. One seed out of
+   three fell just outside twice (R8 seed 3: Trash talk titles −9.7%; R9 seed 1: −8.8%); 1,000 careers put every
+   answer in range both times.
+8. **Story beats**: 3 to 5 a season in 99.6–99.7% of seasons; the rest have 6 or 7 because some beats are always told
+   (an injury call, a title, draft night, the first contract, the tour question, the rival's moments).
+9. **Perf**: R2 left "repainting the characters less often" for R10, and it wasn't done. The headless frame median at
+   844×390 at 2× in the pro arena is about 24 ms (a 16.7 ms budget; headless Chromium draws the canvas on the CPU,
+   so it isn't a phone measurement). The frame guard sheds cost step by step when frames run slow.
+10. **Credits**: the Credits screen names the repository's owner, yayayoupok-tech, as the maker. Change it in
+    `CREDITS` (148_ui_polish part) if that isn't right.
+
+### Known issues
+
+- State titles and national titles are rare in the career simulator (it plays games from OVR; a player well above the
+  level wins state, an average one rarely): 0 state titles and 0 national titles in the 40-career runs.
+- On a phone, a select row's small label (above its big value) is about 12 CSS px.
+- The recruiting card's RIVAL WANTS THIS SPOT chip sits tight under the card's last line.
+- The old 3-point contest screen (`allStarScreen`) is no longer opened by anything since R7's All-Star weekend.
+- Perf as above; nothing was measured on a real phone.
+
+## R10 — Polish and QA: settings in five tabs, your own keys, three save slots, first-time tips, real game lengths (the R pass, milestone 10)
+
+**Polish (§4)**
+
+- **Settings in five tabs**: Graphics (the graphics mode, the camera, screen shake, FPS), Audio (three volumes),
+  Controls (keys A, B or Custom and Remap keys…, the touch controls' size, opacity and left-handed layout), Gameplay
+  (difficulty, adaptive difficulty, charges, the career's court, career injuries, the shot meter, arcade extras,
+  first-time tips) and Accessibility (text size 1× or 1.25×, reduce motion, colorblind-safe jerseys). On a desktop the
+  panel on the right says what the setting under the cursor does; on a phone each tab is a page of 64 px rows (the key
+  settings are for keyboards, so a phone doesn't show them).
+- **Your own keys**: pick an action and press its key. A key that belongs to another action swaps with it; Esc cancels
+  (it always pauses a game and backs out of menus, and the menus keep the arrows, WASD, Enter and Space). Reset to A or
+  B. Your keys are the Custom set; the match hints and the tutorial name them.
+- **Text size 1.25×**: menus, the career and the match HUD draw their text 1.25× bigger; a line that doesn't fit wraps
+  or shrinks. Every screen was checked at 1.25× at both sizes (below).
+- **Three save slots**: slot 1 is the save you already have (same key: nothing moves), slots 2 and 3 are new. Save slots
+  (main menu) shows each slot's player, where they are, their Hall of Fame count and when you last played, with START
+  HERE, CONTINUE, PLAY and Erase (confirmed). Your settings follow you from slot to slot. Settings → Erase this save slot
+  replaces Reset all save data and keeps your settings. A save that can't be read is set aside (under `.corrupt`), not
+  deleted.
+- **A boot splash**: a pixel ball bounces in and the logo lands (1.8 s, 0.8 s with Reduce Motion); any key or tap skips
+  it. **Credits** are in Extras.
+- **Sounds**: a win and a loss sound different at the final whistle (four notes up; three steps down and a long low
+  note), and a simulated game's result plays them too; a tick when the mouse moves to another button; Back and No make
+  the back sound.
+- **Colorblind-safe jerseys in every two-sided game**: pro career games, the All-Star 1v1 and practice challenges
+  ignored the setting. It's applied once, when any match starts: solid blue against gold stripes.
+- **Onboarding**: a new tutorial step for the picked-up dribble (after a fake: pivot, then shoot or fade; a dribble move
+  is a double dribble, walking is a travel); How to play has a Violations tip (travel, double dribble, held ball).
+  **First-time tips**: one short card the first time you reach each part of the career (your week, the depth chart,
+  recruiting, summers, college, draft stock, the transfer portal, NIL, the pros, business, contracts, the press room,
+  hype, story choices), with Got it or Turn tips off. Settings → Gameplay turns them back on, and the ones you haven't
+  seen come back. (The career is 1v1, so the tutorial's "team play" is the depth chart's tip.)
+- **Real game lengths**: `CONFIG.dev.gameSeconds` is back to 0. Every match plays its real format again (the 24-second
+  development games of R1–R9 are gone).
+
+**Fixed**
+
+- With a career loaded, the phone main menu ran its new Save slots button off the bottom: the credits moved to Extras
+  and the grid moved up 14 px with 6 px gaps.
+- The Film Room's list of the opponent's moves ran into THE PLAN column on a phone.
+- The press room at 1.25× text: a quote's second line spilled out of its button (one line at 1.25×).
+- The 3-point contest's results screen threw if it drew before the contest had scores.
+
+**QA (§4)**
+
+- **Every screen at both sizes**: the audit (`tests/phoneaudit.js`) now opens 126 screens at 1280×720 and
+  124 at 844×390 (new: the title, the five settings tabs, key remapping (desktop), save slots, credits, the splash,
+  a tip, the tryout's result card, the Film Room, the All-Star 1v1's and the 3-point contest's results, the dev menu
+  (desktop)). It checks tap targets under 64 px (phone), widgets off the screen, overlapping or never laid out, and
+  labels running off their buttons, and fails on any error. It saved a screenshot of every screen: `shots/final/desktop`
+  and `shots/final/phone`. `--text125` runs the same screens at 1.25× text. Not in it: the Art Lab (`tests/artlab.js`
+  covers it) and the old 3-point contest screen that nothing opens since the All-Star weekend (R7) replaced it.
+- **A whole career through the screens** (`tests/fullcareer.js`, new): title, create, tryouts, four high school
+  seasons, college, the combine, the draft, pro seasons to retirement, the epilogue and the Hall of Fame, with one real
+  match at each level and every story card, press question and choice answered on screen; desktop and phone.
+- 40 simulated careers: 0 stuck (and 400 more in the 200-career runs in the report above).
+
+**New constants**: `CONFIG.polish` (splashS 1.8, splashReduceS 0.8); `CONFIG.save.slots` 3 and `slotKey`
+'hoopheads.slot'; `CONFIG.dev.gameSeconds` 24 → 0 (the release).
+
+**Tests on the committed build**
+
+The table in the report above (every test on this build). New in R10: the whole-career test on desktop and phone,
+the audit at 1.25× text, and the audit's check for widgets that were never laid out.
+
 ## R9 — Story: arcs from templated beats, RPG dialogue boxes and a social feed (the R pass, milestone 9)
 
 Every game is still 1v1 (the change of plan): the story is about you, told by the people around you (your coach, the

@@ -750,7 +750,9 @@ const CONFIG = {
     titleTapsForDev: 5,        // taps on the title logo to open the dev menu
   },
   save: {
-    key: 'hoopheads.save.v1',  // localStorage key (the schema version lives inside)
+    key: 'hoopheads.save.v1',  // localStorage key (the schema version lives inside); save slot 1 (R10), slots 2 and 3 add .slot2 / .slot3
+    slots: 3,                  // R10 §4: save slots
+    slotKey: 'hoopheads.slot', // the slot this device played last
     version: 5,                // save schema version (5: painted-face looks; 4: one career from high school to retirement, ratings = engine attribute × 10)
     maxPosters: 6,             // posters kept in the save
     posterBytesCap: 1.5e6,     // poster storage cap (bytes)
@@ -1200,8 +1202,12 @@ const CONFIG = {
     socialMax: 60,             // posts kept in the social feed
     likesBase: 40,             // a post's likes: this × (1 + hype/40) × (1 + fame/50) × a random 0.5–1.5
   },
+  polish: {                    // R10 (§4): the boot splash and the first-time tips
+    splashS: 1.8,              // the boot splash's length (s; any key or tap skips it)
+    splashReduceS: 0.8,        // ...with Reduce Motion (the ball doesn't bounce)
+  },
   dev: {                       // development switches (the R-pass build): off in the release
-    gameSeconds: 24,           // every match started from the menus lasts this long in all (two halves; 0 = the real formats). The gate, the harness and the career simulator keep their own formats
+    gameSeconds: 0,            // every match started from the menus lasts this long in all (two halves; 0 = the real formats, the release: R10). The gate, the harness and the career simulator keep their own formats
     otSeconds: 8,              // ...and an overtime this long
   },
 };
@@ -3377,6 +3383,8 @@ class AudioSys {
     if (kind === 'big') { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 'square', 0.25, 0.12, { at: t + i * 0.06 })); }
     else if (kind === 'fire') { [392, 523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 'sawtooth', 0.2, 0.08, { at: t + i * 0.05 })); this.noise(0.8, 0.15, { filter: 'bandpass', freq: 3000, freqEnd: 600, Q: 0.8 }); }
     else if (kind === 'ankle') { this.tone(200, 'sawtooth', 0.3, 0.15, { freqEnd: 60 }); this.tone(1200, 'square', 0.08, 0.1, { at: t + 0.1 }); }
+    else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 'square', 0.25, 0.12, { at: t + i * 0.06 })); this.tone(784, 'square', 0.14, 0.1, { at: t + 0.34 }); this.tone(1047, 'square', 0.5, 0.12, { at: t + 0.44 }); } // R10: the final whistle, won: up and up
+    else if (kind === 'loss') { [392, 349, 311].forEach((f, i) => this.tone(f, 'triangle', 0.3, 0.13, { at: t + i * 0.2 })); this.tone(262, 'triangle', 0.8, 0.12, { at: t + 0.6, freqEnd: 247 }); } // ...lost: three steps down and a long low note
     else if (kind === 'buzzerbeater') { [659, 784, 1047, 1319, 1568].forEach((f, i) => this.tone(f, 'square', 0.3, 0.12, { at: t + i * 0.07 })); }
     else { this.tone(660, 'triangle', 0.12, 0.12); }
   }
@@ -7833,7 +7841,7 @@ function attachPresentation(m, game) {
   bus.on('TIPOFF_TOSS', e => au.whistle());
   bus.on('PERIOD_END', e => { au.buzzer(); if (m.period === 1 && m.periods === 2 && m.overtime === 0) pushCallout(m, 'HALFTIME', CALLOUT.call); });
   bus.on('OVERTIME', e => pushCallout(m, m.arcade ? 'SUDDEN DEATH' : 'OVERTIME', CALLOUT.call, true));
-  bus.on('FINAL', e => { au.buzzer(); pushCallout(m, 'FINAL', CALLOUT.call, true); const wt = m.teams[e.winner]; if (wt && !m.practice && !m.contest3 && !m.drill) { const wc = wt.colors || ['#FFD23F', '#F3F0FF']; fx.spawn('confetti', cam.x.x, 7, 0.5, CONFIG.fx.confettiCount, [wc[0], wc[1], shadeHex(wc[0], 0.35), mixHex(wc[1], '#FFFFFF', 0.3)], { spread: cam.W / Math.max(20, cam.ppm || 60) + 2, spreadY: 2.5 }); } /* 120 pieces in the winner's colors (§5) */ if (e.winner === humanTeam) { au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 2); } });
+  bus.on('FINAL', e => { au.buzzer(); pushCallout(m, 'FINAL', CALLOUT.call, true); const wt = m.teams[e.winner]; if (wt && !m.practice && !m.contest3 && !m.drill) { const wc = wt.colors || ['#FFD23F', '#F3F0FF']; fx.spawn('confetti', cam.x.x, 7, 0.5, CONFIG.fx.confettiCount, [wc[0], wc[1], shadeHex(wc[0], 0.35), mixHex(wc[1], '#FFFFFF', 0.3)], { spread: cam.W / Math.max(20, cam.ppm || 60) + 2, spreadY: 2.5 }); } /* 120 pieces in the winner's colors (§5) */ if (e.winner === humanTeam) { au.stinger('win'); world.crowdHype = 1; au.crowdSwell(1, 2); } else if (humanTeam >= 0 && !m.practice && !m.contest3 && !m.drill) au.stinger('loss'); }); // R10: a win and a loss sound different
   bus.on('CONTEST_POINTS', e => { if (e.pts > 1) pushCallout(m, 'MONEY BALL', CALLOUT.make); au.ui('coin'); });
   bus.on('CONTEST_END', e => { au.buzzer(); pushCallout(m, 'TIME', CALLOUT.call, true); });
   bus.on('PHASE', e => { if (e.phase === 'tipoff') pushCallout(m, m.overtime ? 'OVERTIME' : 'TIP-OFF', CALLOUT.call); });
@@ -7931,6 +7939,186 @@ class ReplayPlayer {
   constructor(rec, clip, opts) { this.rec = rec; this.clip = clip; this.f = 0; this.done = false; this.opts = opts || {}; const total = clip.count / CONFIG.replay.hz; this.startF = Math.max(0, clip.count - Math.round((this.opts.seconds || 5) * CONFIG.replay.hz)); this.f = this.startF; this.info = null; this.t = 0; }
   update(dt) { const total = this.clip.count; const slowFrom = total - CONFIG.replay.keyMomentS * CONFIG.replay.hz; const speed = this.f > slowFrom ? CONFIG.replay.slowScale : 1; this.f += dt * CONFIG.replay.hz * speed; this.t += dt; if (this.f >= total - 1) { this.f = total - 1; this.done = true; } this.info = this.rec.applyFrame(this.clip, this.f); }
   get progress() { return (this.f - this.startF) / Math.max(1, this.clip.count - 1 - this.startF); }
+}
+
+// ============================================================================
+// SECTION: UI (part 0) — R10 §4 polish: Settings in five tabs (Graphics, Audio, Controls, Gameplay, Accessibility) with
+// what each setting does, and key remapping (a Custom key set next to presets A and B).
+// ============================================================================
+const PL = CONFIG.polish;
+const SET_TABS = ['Graphics', 'Audio', 'Controls', 'Gameplay', 'Accessibility'];
+const SET_TAB_HELP = ['How the game looks: the pixel world or the painted one, the camera, the shake.', 'Three volumes. Sound starts after your first tap or key press.', 'Your keys (or your own), and the touch controls on a phone or tablet.', 'How the games play: the computer\'s smarts, the rules, the career\'s court and injuries, the shot meter, the arcade extras and the tips.', 'Bigger text, less motion, clearer jerseys.'];
+function settingsScreen(game, tab0) {
+  const S = game.save.data.settings, ui0 = game.ui, P = ui0.phone, apply = () => game.applySettings(); let tab = clamp(tab0 | 0, 0, SET_TABS.length - 1);
+  const diffs = ['rookie', 'pro', 'allstar', 'legend'], diffL = ['Rookie', 'Pro', 'All-Star', 'Legend'], H = (w, help) => Object.assign(w, { help });
+  const groups = [
+    [H(sel('Graphics', 0, 0, 0, 0, ['Retro', 'Retro sharp', 'Smooth'], () => S.graphics === 'smooth' ? 2 : S.graphics === 'sharp' ? 1 : 0, i => { S.graphics = ['retro', 'sharp', 'smooth'][i]; }), 'Retro: the pixel world (the default). Retro sharp: the same world in finer pixels. Smooth: the painted renderer.'),
+      H(sel('Camera (1v1)', 0, 0, 0, 0, ['Legends View', 'Classic'], () => S.camera === 'classic' ? 1 : 0, i => { S.camera = i ? 'classic' : 'legends'; }), 'Legends View: the whole short court on one screen, big players. Classic: the older side view that follows the ball.'),
+      H(sld('Screen shake', 0, 0, 0, 0, 0, 1, 0.1, () => S.shake, v => { S.shake = v; apply(); }), 'How hard the screen shakes on dunks, blocks and posters.'),
+      H(tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }), 'Frames per second in the corner.')],
+    [H(sld('Master volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.master, v => { S.master = v; apply(); }), 'Everything at once.'),
+      H(sld('SFX volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.sfx, v => { S.sfx = v; apply(); }), 'The ball, the rim, the crowd, the whistles and the menus.'),
+      H(sld('Music volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.music, v => { S.music = v; apply(); }), 'The music in the menus and the arenas.')],
+    [H(sel('Keys', 0, 0, 0, 0, ['A: WASD + J K L', 'B: Arrows + Z X C', 'Custom'], () => S.keyPreset === 'B' ? 1 : S.keyPreset === 'C' ? 2 : 0, i => { if (i === 2 && !validKeyMap(S.keyMap)) S.keyMap = keyMapOf('A'); S.keyPreset = ['A', 'B', 'C'][i]; apply(); }), 'A: move with A and D, jump W, shoot J, fade K, dribble move L. B: the arrow keys with Z X C. Custom: your own keys.'),
+      H(btn('Remap keys…', 0, 0, 0, 0, () => game.ui.push(remapScreen(game))), 'Pick your own key for every action (it switches Keys to Custom).'),
+      H(sld('Touch size', 0, 0, 0, 0, 0.7, 1.5, 0.1, () => S.touchSize, v => { S.touchSize = v; apply(); }, v => v.toFixed(1) + 'x'), 'The on-screen stick and buttons on a touch screen.'),
+      H(sld('Touch opacity', 0, 0, 0, 0, 0.2, 1, 0.1, () => S.touchOpacity, v => { S.touchOpacity = v; apply(); }), 'How solid the touch controls look (they fade when idle).'),
+      H(tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }), 'The stick on the right and the buttons on the left.')],
+    [H(sel('Opponent difficulty', 0, 0, 0, 0, diffL, () => diffs.indexOf(S.difficulty), i => { S.difficulty = diffs[i]; }), 'How smart the computer plays in the games you play: reactions, reads and shot timing. (Its ratings come from the league.)'),
+      H(tgl('Adaptive difficulty (quick games)', 0, 0, 0, 0, () => S.adaptive, v => { S.adaptive = v; }), 'Quick games only: the computer tightens up when you lead by 10 and eases off when you trail by 10.'),
+      H(tgl('Charges (offensive fouls)', 0, 0, 0, 0, () => S.charges !== false, v => { S.charges = v; }), 'Sprint into a defender who is set and it can be a charge: their ball.'),
+      H(sel('Career games', 0, 0, 0, 0, ['Full court', 'Street half court'], () => S.careerCourt === 'half' ? 1 : 0, i => { S.careerCourt = i ? 'half' : 'full'; }), 'The career on the full short court, or street rules: one hoop, every possession starts with a check ball at the top.'),
+      H(tgl('Career injuries', 0, 0, 0, 0, () => S.injuries !== false, v => { S.injuries = v; }), 'Injuries in the career (off: never injured, in played or simulated games).'),
+      H(sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }), 'On: the full meter over your head. Minimal: only its sweet spot. Off: shoot by feel.'),
+      H(sel('Arcade extras', 0, 0, 0, 0, ['Quick games', 'All exhibitions', 'Off'], () => Math.max(0, ['quick', 'exhibitions', 'off'].indexOf(S.arcadeExtras || 'quick')), i => { S.arcadeExtras = ['quick', 'exhibitions', 'off'][i]; }), 'The super meter and power-ups, in quick games or in every exhibition. Never in the career.'),
+      H(tgl('First-time tips', 0, 0, 0, 0, () => S.tips !== false, v => { S.tips = v; }), 'A short tip the first time you reach each part of the career. Turning it back on shows the ones you haven\'t seen.')],
+    [H(sel('Text size', 0, 0, 0, 0, ['1×', '1.25×'], () => S.textSize === 1.25 ? 1 : 0, i => { S.textSize = i ? 1.25 : 1; apply(); }), 'Bigger text in the menus, the career and the match HUD. Long lines wrap or shrink to fit.'),
+      H(tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }), 'No screen transitions, camera punches or bobbing heads; story text shows at once.'),
+      H(tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }), 'Every game: one side in solid blue, the other in gold stripes, two colors and two patterns that never look alike.')],
+  ];
+  const tabs = SET_TABS.map((t, i) => btn(t.toUpperCase(), 0, 0, 0, 0, () => { tab = i; sync(); scr.focus = items.indexOf(tabs[i]); }));
+  const erase = btn('Erase this save slot', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase save slot ' + game.save.slot + '? Its career, Hall of Fame and records go; your settings stay.', () => { game.save.eraseKeepSettings(); game.applySettings(); game.ui.toastMsg('Save slot ' + game.save.slot + ' erased.'); game.ui.clearTo(titleScreen(game)); })));
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()), tail = [erase, back];
+  if (P) { groups[2][0].off = true; groups[2][1].off = true; } // phones: the keys are for keyboards
+  const rows = [].concat(...groups), th = P ? tapH(ui0, 44) : 44, box = P ? { x: 40, y: 20 + th + 12, w: 1200, h: UI_H - th - 24 - (20 + th + 12) } : null;
+  const pagers = P ? groups.map(g => phonePager(ui0, g, tail, box, 1)) : [];
+  const items = tabs.concat(rows, tail, ...pagers.map(p => [p.prev, p.next]));
+  function sync() {
+    tabs.forEach((b, i) => { b.primary = i === tab; });
+    for (const r of rows) r.hidden = true; for (const p of pagers) p.prev.hidden = p.next.hidden = true;
+    if (P) { const tw = (1200 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 40 + i * (tw + 8), y: 20, w: tw, h: th })); pagers[tab].sync(); }
+    else { const tw = (1060 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 110 + i * (tw + 8), y: 96, w: tw, h: 44 })); const g = groups[tab]; column(g, 110, 164, 640, 44, 8); for (const r of g) r.hidden = !!r.off; Object.assign(erase, { x: 110, y: 590, w: 400, h: 46 }); Object.assign(back, { x: 770, y: 590, w: 400, h: 46 }); }
+  }
+  const scr = { widgets: items, name: 'settings', onExit() { game.save.save(); game.applySettings(); },
+    draw(ctx, ui) {
+      if (P) { ui.panel(ctx, 20, 10, 1240, 700); return; }
+      ui.panel(ctx, 80, 30, 1120, 620); ui.title(ctx, 'SETTINGS', 110, 72, 36); ui.label(ctx, 'SAVE SLOT ' + game.save.slot, 1170, 64, 14, UI_DIM, 'right');
+      const f = items[scr.focus], row = f && rows.includes(f) ? f : null; ui.panel(ctx, 770, 164, 400, 408, 'rgba(8,12,36,0.55)');
+      ui.heading(ctx, (row ? row.label : SET_TABS[tab]).toUpperCase(), 794, 196, 16, UI_CYAN, 'left', 352);
+      ui.para(ctx, row ? row.help : SET_TAB_HELP[tab], 794, 232, 352, 15, UI_TEXT, 'left', 9);
+    } };
+  sync(); return scr;
+}
+
+// --- key remapping: the Custom key set (S.keyMap: action → key code), shown as KEY_PRESETS.C and KEY_LABELS.C ---
+const REMAP_ACTIONS = [['left', 'Move left'], ['right', 'Move right'], ['jump', 'Jump · block'], ['down', 'Post up · defensive stance'], ['shoot', 'Shoot (hold) · pump fake (tap)'], ['pass', 'Fadeaway (hold) · pass in team games'], ['action', 'Dribble move · steal'], ['sprint', 'Sprint'], ['pause', 'Pause']];
+const KEY_RESERVED = ['Escape', 'Backquote', 'F1', 'F2', 'F3', 'Tab', 'MetaLeft', 'MetaRight']; // Esc always pauses and backs out of menus; ` is the dev menu
+function keyMapOf(preset) { const src = KEY_PRESETS[preset] || KEY_PRESETS.A, out = {}; for (const [a] of REMAP_ACTIONS) { const code = Object.keys(src).find(k => src[k] === a && k !== 'Escape' && k !== 'Space'); out[a] = code || null; } return out; }
+function validKeyMap(M) { return !!M && typeof M === 'object' && REMAP_ACTIONS.every(([a]) => typeof M[a] === 'string' && M[a]); }
+function keyName(code) { if (!code) return '—'; const m = /^Key([A-Z])$/.exec(code) || /^Digit(\d)$/.exec(code); if (m) return m[1]; const n = /^Numpad(.+)$/.exec(code); if (n) return 'Num ' + n[1]; return { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'R Shift', ControlLeft: 'Ctrl', ControlRight: 'R Ctrl', AltLeft: 'Alt', AltRight: 'R Alt', Enter: 'Enter', Backspace: 'Backspace', Semicolon: ';', Quote: '\'', Comma: ',', Period: '.', Slash: '/', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Minus: '-', Equal: '=', CapsLock: 'Caps' }[code] || code; }
+// The Custom preset from the settings (called by applySettings): Esc always pauses too.
+function applyKeyMap(S) { const M = validKeyMap(S.keyMap) ? S.keyMap : keyMapOf('A'), map = { Escape: 'pause' }; for (const [a] of REMAP_ACTIONS) map[M[a]] = a; KEY_PRESETS.C = map; KEY_LABELS.C = { move: keyName(M.left) + ' / ' + keyName(M.right), jump: keyName(M.jump), down: keyName(M.down), shoot: keyName(M.shoot), pass: keyName(M.pass), action: keyName(M.action), sprint: keyName(M.sprint) }; }
+function remapScreen(game) {
+  const S = game.save.data.settings; if (!validKeyMap(S.keyMap)) S.keyMap = keyMapOf(S.keyPreset === 'B' ? 'B' : 'A'); let waiting = null, note = '';
+  const stop = () => { waiting = null; game.input.textTarget = null; };
+  const capture = a => { waiting = a; note = ''; game.input.textTarget = e => { const code = e.code; if (code === 'Escape') { stop(); note = 'Cancelled.'; return; } if (KEY_RESERVED.includes(code)) { note = keyName(code) + ' is taken by the game: pick another key.'; return; }
+    const M = S.keyMap, other = REMAP_ACTIONS.find(([b]) => b !== a && M[b] === code); if (other) { M[other[0]] = M[a]; note = keyName(code) + ' was ' + other[1].toLowerCase() + ': that one now uses ' + keyName(M[a]) + '.'; } else note = REMAP_ACTIONS.find(([b]) => b === a)[1] + ': ' + keyName(code) + '.';
+    M[a] = code; S.keyPreset = 'C'; stop(); game.applySettings(); game.save.save(); }; };
+  const rows = REMAP_ACTIONS.map(([a, label]) => btn(label, 0, 0, 0, 0, () => capture(a), { kind: 'custom', act: a, draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); ui.label(ctx, this.label, this.x + 18, this.y + this.h / 2, 16, UI_TEXT, 'left', this.w - 200); const k = waiting === a ? 'PRESS A KEY…' : keyName(S.keyMap[a]); kitChip(ctx, k, this.x + this.w - 16, this.y + this.h / 2, { size: 16, color: waiting === a ? UI_GOLD : UI_CYAN, align: 'right' }); } }));
+  const reset = ['A', 'B'].map(p => btn('Reset to ' + p, 0, 0, 0, 0, () => { stop(); S.keyMap = keyMapOf(p); S.keyPreset = p; note = 'Keys: preset ' + p + '.'; game.applySettings(); game.save.save(); }));
+  const back = btn('Back', 0, 0, 0, 0, () => { stop(); game.ui.pop(); });
+  column(rows, 110, 120, 640, 44, 6); reset.forEach((b, i) => Object.assign(b, { x: 110 + i * 214, y: 590, w: 206, h: 46 })); Object.assign(back, { x: 770, y: 590, w: 400, h: 46 });
+  const items = rows.concat(reset, [back]);
+  return { widgets: items, name: 'remap', onExit: stop, onBack() { if (waiting) { stop(); note = 'Cancelled.'; return; } back.onPress(); },
+    draw(ctx, ui) { ui.panel(ctx, 80, 30, 1120, 620); ui.title(ctx, 'REMAP KEYS', 110, 72, 36); ui.label(ctx, S.keyPreset === 'C' ? 'KEYS: CUSTOM' : 'KEYS: PRESET ' + (S.keyPreset || 'A'), 1170, 64, 14, UI_DIM, 'right');
+      ui.panel(ctx, 770, 120, 400, 452, 'rgba(8,12,36,0.55)'); ui.heading(ctx, waiting ? 'PRESS A KEY' : 'HOW IT WORKS', 794, 152, 16, UI_CYAN, 'left', 352);
+      ui.para(ctx, waiting ? 'Press the key for ' + REMAP_ACTIONS.find(([b]) => b === waiting)[1].toLowerCase() + '. Esc cancels.' : 'Pick an action, then press its new key. A key that belongs to another action swaps with it. Esc always pauses a game and backs out of menus; the menus also keep the arrows, WASD, Enter and Space.', 794, 188, 352, 15, UI_TEXT, 'left', 9);
+      if (note) ui.para(ctx, note, 794, 470, 352, 15, UI_GOLD, 'left', 4); } };
+}
+
+// --- three save slots (R10 §4) ---
+// A slot's summary without loading it into the game: the career's player and where they are, the Hall of Fame, when.
+function slotSummary(n) {
+  let raw = null; try { raw = localStorage.getItem(slotKey(n)); } catch (e) { return null; } if (!raw) return null;
+  let d = null; try { d = JSON.parse(raw); } catch (e) { return { n, broken: true }; } if (!d || typeof d !== 'object') return { n, broken: true };
+  const c = d.career, a = d.c1, hof = Array.isArray(d.hallOfFame) ? d.hallOfFame.length : 0; let who = '', what = '';
+  try { if (c && c.players && c.players[c.meId]) { who = c.players[c.meId].name; what = c.phase === 'retired' ? 'Retired · ' + c.season + ' pro seasons' : 'Pro · season ' + c.season + (c.phase === 'playoffs' ? ' · playoffs' : c.phase === 'offseason' ? ' · offseason' : ''); } else if (a && !a.handedOff && a.name) { who = a.name; what = a.stage === 'combine' ? 'Draft prospect' : amStageLabel(a); } } catch (e) { what = what || 'A career'; }
+  return { n, who, what, hof, at: +d.savedAt || 0, empty: !who && !hof };
+}
+function agoText(t) { if (!t) return ''; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'played today' : d === 1 ? 'played yesterday' : 'played ' + d + ' days ago'; }
+function useSlot(game, n) {
+  if (n !== game.save.slot) { game.save = game.save.switchTo(n); game.tournament = null; game.quickOpts = null; game.tourOpts = null; game.practiceOpts = null; game.tradeSt = null; game.newCareer = null; game.applySettings(); }
+  game.ui.clearTo(mainMenu(game)); game.ui.toastMsg('Save slot ' + n);
+}
+function slotsScreen(game) {
+  const P = game.ui.phone, N = CONFIG.save.slots, bh = P ? tapH(game.ui, 44) : 46; let sum = [];
+  const refresh = () => { sum = Array.from({ length: N }, (_, i) => slotSummary(i + 1)); rows.forEach((r, i) => { const s = sum[i], mine = i + 1 === game.save.slot, empty = !s || s.empty || s.broken; r.play.label = mine ? 'CONTINUE' : empty ? 'START HERE' : 'PLAY'; r.play.primary = mine; r.erase.hidden = empty && !(s && s.broken); }); };
+  const rows = Array.from({ length: N }, (_, i) => ({ play: btn('PLAY', 0, 0, 0, 0, () => useSlot(game, i + 1)), erase: btn('Erase', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase save slot ' + (i + 1) + '? Its career, Hall of Fame and records go for good.', () => { if (i + 1 === game.save.slot) game.save.eraseKeepSettings(); else { try { localStorage.removeItem(slotKey(i + 1)); } catch (e) { /* private mode */ } } refresh(); game.ui.toastMsg('Save slot ' + (i + 1) + ' erased.'); }))) }));
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()), cardH = P ? bh + 24 : 132, x0 = P ? 40 : 110, cw = P ? 1200 : 1060, y0 = P ? 20 : 112;
+  rows.forEach((r, i) => { const y = y0 + i * (cardH + (P ? 10 : 14)); Object.assign(r.play, { x: x0 + cw - (P ? 400 : 330), y: y + (cardH - bh) / 2, w: P ? 190 : 160, h: bh }); Object.assign(r.erase, { x: x0 + cw - (P ? 200 : 160), y: y + (cardH - bh) / 2, w: P ? 186 : 140, h: bh }); r.y = y; });
+  Object.assign(back, P ? { x: 40, y: UI_H - bh - 12, w: 1200, h: bh } : { x: 770, y: 590, w: 400, h: 46 }); refresh();
+  const items = [].concat(...rows.map(r => [r.play, r.erase]), [back]);
+  return { widgets: items, name: 'slots',
+    draw(ctx, ui) {
+      if (!P) { ui.panel(ctx, 80, 30, 1120, 620); ui.title(ctx, 'SAVE SLOTS', 110, 72, 36); ui.para(ctx, 'Each slot is its own career, Hall of Fame and records. Settings stay with this device.', 110, 584, 620, 14, UI_DIM, 'left', 2); } else ui.panel(ctx, 20, 10, 1240, 700);
+      rows.forEach((r, i) => { const s = sum[i], mine = i + 1 === game.save.slot; kitPanel(ctx, x0, r.y, cw, cardH, mine ? 'rgba(40,52,110,0.9)' : 'rgba(10,14,40,0.8)'); kitChip(ctx, 'SLOT ' + (i + 1) + (mine ? ' · NOW' : ''), x0 + 20, r.y + (P ? 26 : 30), { size: P ? 18 : 15, color: mine ? UI_GOLD : UI_CYAN, align: 'left' });
+        const tx = x0 + 20, tw = cw - (P ? 440 : 370) - 20; if (!s || s.empty) ui.heading(ctx, 'Empty', tx, r.y + cardH / 2 + (P ? 14 : 12), P ? 24 : 22, UI_DIM, 'left', tw);
+        else if (s.broken) ui.heading(ctx, 'This save could not be read', tx, r.y + cardH / 2 + 12, P ? 22 : 20, UI_RED, 'left', tw);
+        else { ui.heading(ctx, s.who || 'No career', tx, r.y + (P ? 62 : 66), P ? 26 : 24, UI_TEXT, 'left', tw); ui.label(ctx, [s.what, s.hof ? s.hof + ' in the Hall of Fame' : '', agoText(s.at)].filter(Boolean).join(' · '), tx, r.y + (P ? 98 : 100), P ? 17 : 15, UI_DIM, 'left', tw); } });
+    } };
+}
+
+// --- credits ---
+const CREDITS = [['HOOP HEADS', 'A one-on-one basketball career, from a high school gym to the Hall of Fame.'], ['MADE BY', 'yayayoupok-tech'], ['ART, SOUND AND TYPE', 'Every pixel player, arena, crowd, sound and the Retro Ball Font are drawn or played by the game\'s own code: no outside art, fonts or music.'], ['YOUR DATA', 'No accounts, no ads, no tracking, no network. Your saves stay in this browser.'], ['THANKS', 'To everyone who ever called "next" at a park court. Thanks for playing.']];
+function creditsScreen(game) {
+  const P = game.ui.phone; let t = 0; const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop(), { primary: true }); Object.assign(back, P ? { x: 40, y: UI_H - tapH(game.ui, 44) - 12, w: 1200, h: tapH(game.ui, 44) } : { x: 770, y: 590, w: 400, h: 46 });
+  return { widgets: [back], name: 'credits', update(dt) { t += dt; },
+    draw(ctx, ui) { ui.panel(ctx, P ? 20 : 80, P ? 10 : 30, P ? 1240 : 1120, P ? 700 : 620); kitLogo(ctx, P ? 640 : 640, P ? 70 : 96, P ? 44 : 50);
+      let y = P ? 136 : 172; for (const [h, l] of CREDITS.slice(1)) { ui.heading(ctx, h, P ? 60 : 140, y, P ? 20 : 17, UI_CYAN, 'left'); y += P ? 30 : 26; y += ui.para(ctx, l, P ? 60 : 140, y, P ? 1160 : 1000, P ? 20 : 16, UI_TEXT, 'left', 3) + (P ? 12 : 14); }
+      ui.label(ctx, CREDITS[0][1], P ? 60 : 140, P ? UI_H - tapH(game.ui, 44) - 36 : 612, P ? 16 : 14, UI_DIM, 'left', P ? 1160 : 600); } };
+}
+
+// --- the boot splash: a pixel ball bounces in and the name lands; any key or tap skips it (frame-timed) ---
+function splashScreen(game) {
+  let t = 0, gone = false; const S = game.save.data.settings, dur = S.reduceMotion ? PL.splashReduceS : PL.splashS; const go = () => { if (gone) return; gone = true; game.ui.replace(titleScreen(game)); };
+  return { widgets: [], name: 'splash', update(dt, ev) { t += dt; if (t >= dur || (ev && (ev.confirm || ev.back))) go(); }, onTap() { go(); }, onBack() { go(); },
+    draw(ctx, ui) {
+      ctx.fillStyle = '#05060F'; ctx.fillRect(0, 0, UI_W, UI_H); const k = S.reduceMotion ? 1 : clamp01(t / (dur * 0.55)), fall = S.reduceMotion ? 0 : Math.abs(Math.cos(k * Math.PI * 2.5)) * (1 - k) * 260;
+      const s = 14, bx = UI_W / 2 - 4 * s, by = 250 - fall; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(UI_W / 2 - 40 + fall * 0.05, 372, 80 - fall * 0.1, 10);
+      const pal = { K: '#1B1B22', L: '#FFB266', O: '#F57C1F', S: '#1B1B22', D: '#B8520F' }; RB_BALL.forEach((row, ry) => { for (let rx = 0; rx < row.length; rx++) { const ch = row[rx]; if (ch === '.') continue; ctx.fillStyle = pal[ch] || '#F57C1F'; ctx.fillRect(bx + rx * s, by + ry * s, s, s); } });
+      const a = clamp01((t - dur * 0.45) / (dur * 0.25)); if (a > 0) { ctx.globalAlpha = a; kitLogo(ctx, UI_W / 2, 470, 56); ctx.globalAlpha = 1; }
+      if (t > dur * 0.7) ui.label(ctx, 'A 1V1 BASKETBALL CAREER', UI_W / 2, 560, 16, UI_DIM, 'center');
+    } };
+}
+
+// --- first-time tips: one short card the first time you reach each part of the career (Settings → Gameplay turns them
+// off; turning them back on shows the ones not seen yet) ---
+const TIPS = {
+  'hs-week': ['YOUR WEEK', ['Every week has one game. Before it, pick the week: Practice (XP in your focus rating), Rest (fatigue down), Film (learn the next opponent) or Study (your GPA).', 'Then PLAY the game yourself or SIM it. Above 50 fatigue you play worse.', 'Your GPA must stay at 2.0 or better, or you sit.']],
+  'ladder': ['THE DEPTH CHART', ['Only the teammate on the top rung plays the week\'s game.', 'Beat the one a rung above you in a practice challenge (first to 7) and you take their spot. The one below you can challenge you too.', 'Coach trust grows with wins and good weeks: it adds practice XP and puts in a good word with recruiters and scouts.']],
+  'recruiting': ['RECRUITING', ['Colleges watch your OVR, titles, hype, points per game and what your coach says about you.', 'The best offers come after your sophomore season, more after your junior season and during your senior year.', 'Official visits show you a program: its facilities, its coach and where you would start on its depth chart.']],
+  'summer': ['YOUR SUMMER', ['Each summer is one choice: the AAU circuit (recruiters see you, but you start the season tired), a skills camp (XP), rest, or a summer job (money).']],
+  'college': ['COLLEGE', ['Conference games, then the conference tournament, then the national tournament.', 'Scouts grade every game you play: that is your draft stock. You can declare for the draft after any season.', 'NIL deals pay you for appearances; each one costs some fatigue.']],
+  'draftstock': ['DRAFT STOCK', ['Every game moves your mock draft spot: the result and your points. Marquee and tournament games count twice.', 'Half of this season\'s grade carries into the next one.']],
+  'portal': ['THE TRANSFER PORTAL', ['Programs that would start you. Moving means a new coach and a new depth chart; staying means earning your spot where you are.']],
+  'nil': ['NIL', ['Name, image and likeness: money that is yours to keep (it comes with you to the pros).', 'Each deal asks for appearances, which cost fatigue. Turn one down and nothing happens.']],
+  'pro': ['THE PROS', ['A season of games against the league, then the playoffs. Your franchise\'s depth chart still decides who plays.', 'Your contract pays every week; sponsors come with hype and fame.', 'Business: hire training staff, build a home gym and spend (or keep) your money.']],
+  'business': ['BUSINESS', ['Staff is paid week by week from your money: a trainer (practice XP), a skills coach (your focus rating), a nutritionist (fewer injuries, fresher legs).', 'Sponsors pay more with hype. A shoe line opens at 60 hype.']],
+  'contracts': ['CONTRACTS', ['Pick the length and your role: both change the salary. A promised starting spot costs 10% of it.']],
+  'press': ['THE PRESS ROOM', ['Four answers and none of them is best: each button says what it does to your hype, your confidence and your coach\'s trust.', 'Trash talk fires up the player you talk about.']],
+  'hype': ['HYPE', ['Hype (0 to 100) is how loud the world is about you: it lifts sponsor offers, your draft spot and the crowd at home.', 'From 60 defenses key on you; from 70 the media eats into your practice time.']],
+  'choices': ['STORY CHOICES', ['Some story cards end with a choice. Both answers cost something, and each one says what.', 'Leave a card without answering and it takes the careful one.']],
+};
+// Which tip a screen gets (the first time it is on top): by its name and where the career is.
+function tipFor(game, s) {
+  const n = s && s.name; if (!n) return null;
+  if (n === 'amhub') { const a = amateurOf(game); return a && a.stage === 'college' ? 'college' : a && a.stage === 'hs' ? 'hs-week' : null; }
+  if (n === 'career') return 'pro'; if (n === 'recruit' || n === 'recruiting') return 'recruiting';
+  if (n === 'amdecision') { const a = amateurOf(game); return a && a.decision && a.decision.kind === 'portal' ? 'portal' : null; }
+  if (n === 'dialog') return s.asks ? 'choices' : null;
+  return { ladder: 'ladder', summer: 'summer', draftstock: 'draftstock', colchoice: 'nil', management: 'business', negotiate: 'contracts', press: 'press', news: 'hype' }[n] || null;
+}
+function tipOnce(game, id) {
+  const S = game.save.data.settings; if (window.HH_NO_TIPS || S.tips === false || !TIPS[id]) return false; const seen = S.tipsSeen && typeof S.tipsSeen === 'object' ? S.tipsSeen : (S.tipsSeen = {}); if (seen[id]) return false;
+  seen[id] = 1; game.save.save(); game.ui.push(tipScreen(game, id)); return true;
+}
+function tipScreen(game, id) {
+  const P = game.ui.phone, [title, lines] = TIPS[id], S = game.save.data.settings, bh = P ? tapH(game.ui, 44) : 46, box = P ? { x: 60, y: 40, w: 1160, h: 640 } : { x: 240, y: 150, w: 800, h: 420 };
+  const ok = btn('GOT IT', 0, 0, 0, 0, () => game.ui.pop(), { primary: true }), off = btn('Turn tips off', 0, 0, 0, 0, () => { S.tips = false; game.save.save(); game.ui.pop(); game.ui.toastMsg('Tips off (Settings → Gameplay turns them back on).'); });
+  Object.assign(off, { x: box.x + 30, y: box.y + box.h - bh - 24, w: P ? 460 : 300, h: bh }); Object.assign(ok, { x: box.x + box.w - 30 - (P ? 460 : 300), y: box.y + box.h - bh - 24, w: P ? 460 : 300, h: bh });
+  return { widgets: [ok, off], name: 'tip', overlay: true, focus: 0, onBack() { game.ui.pop(); },
+    draw(ctx, ui) { kitPanel(ctx, box.x, box.y, box.w, box.h, 'rgba(10,14,40,0.97)'); kitChip(ctx, 'TIP', box.x + 30, box.y + (P ? 44 : 36), { size: P ? 20 : 15, color: UI_INK, fill: UI_GOLD, align: 'left' }); ui.heading(ctx, title, box.x + (P ? 120 : 96), box.y + (P ? 44 : 36), P ? 28 : 22, UI_GOLD, 'left', box.w - 160);
+      let y = box.y + (P ? 104 : 84); for (const l of lines) y += ui.para(ctx, l, box.x + 30, y, box.w - 60, P ? 24 : 16, UI_TEXT, 'left', 4) + (P ? 12 : 10); } };
 }
 
 // ============================================================================
@@ -8321,6 +8509,7 @@ class UI {
     this.t += dt; if (this.toastT > 0) this.toastT -= dt; if (this.trans && this.t - this.trans.t0 > this.trans.dur) this.trans = null; const s = this.screen; if (!s) return; const ev = input.takeUI(); const rep = input.uiRepeatDir(dt);
     if (s.update) s.update(dt, ev, input);
     if (s !== this.screen) return; // the screen changed itself
+    if (!s._tipChecked) { s._tipChecked = true; if (tipOnce(this.game, tipFor(this.game, s))) return; } // R10: a first-time tip
     { const fw = (s.widgets || [])[s.focus]; if (fw && (fw.hidden || fw.enabled === false)) this.ensureFocus(s, 1); } // a page turn or a reveal can hide the focused widget
     if (s.custom) { if (s.handle) s.handle(ev, rep, input); return; }
     const wds = s.widgets || [];
@@ -8331,10 +8520,10 @@ class UI {
     if (ev.back) { this.game.audio.ui('back'); if (s.onBack) s.onBack(); else if (this.stack.length > 1) this.pop(); }
     const mouse = input.mouse; const tap = input.touch.consumeTap(); let px = -1, py = -1;
     if (tap) { px = input.touch.lastTapX; py = input.touch.lastTapY; } else if (mouse.clicked) { px = mouse.x; py = mouse.y; }
-    if (mouse.moved) { mouse.moved = false; const [lx, ly] = this.toLocal(mouse.x, mouse.y); const hit = this.hitTest(s, lx, ly); if (hit >= 0 && hit !== s.focus) s.focus = hit; }
+    if (mouse.moved) { mouse.moved = false; const [lx, ly] = this.toLocal(mouse.x, mouse.y); const hit = this.hitTest(s, lx, ly); if (hit >= 0 && hit !== s.focus) { s.focus = hit; this.game.audio.ui('move'); } } // R10 §4: a hover sound
     if (px >= 0 && this.screen === s) { mouse.clicked = false; const [lx, ly] = this.toLocal(px, py); const hit = this.hitTest(s, lx, ly, !!tap); if (hit >= 0) { s.focus = hit; const wd = wds[hit]; if (wd.kind === 'select') { const n = wd.options.length; const pick = wd.swatch ? swatchPick(wd, lx, ly) : -1; if (pick >= 0) wd.set(pick); else { const right = lx > wd.x + wd.w * (tallRow(this, wd) ? 0.5 : 0.62); wd.set((wd.get() + (right ? 1 : -1) + n) % n); } this.game.audio.ui('move'); } else if (wd.kind === 'slider') { const sb = tallRow(this, wd) ? tallSliderBar(wd) : null; const t = sb ? clamp01((lx - sb.x) / sb.w) : clamp01((lx - (wd.x + wd.w * 0.5)) / (wd.w * 0.45)); wd.set(clamp(Math.round((wd.min + t * (wd.max - wd.min)) / wd.step) * wd.step, wd.min, wd.max)); } else if (wd.kind === 'toggle') { wd.set(!wd.get()); this.game.audio.ui('move'); } else this.activate(wd, s, input); } else if (s.onTap) s.onTap(lx, ly); }
   }
-  activate(w, s, input) { w._pressT = this.t; if (w.kind === 'button' && w.onPress) { this.game.audio.ui('confirm'); w.onPress(); } else if (w.kind === 'toggle') { w.set(!w.get()); this.game.audio.ui('move'); } else if (w.kind === 'select') { const n = w.options.length; w.set((w.get() + 1) % n); this.game.audio.ui('move'); } else if (w.onPress) { this.game.audio.ui('confirm'); w.onPress(); } }
+  activate(w, s, input) { w._pressT = this.t; if (w.kind === 'button' && w.onPress) { this.game.audio.ui(/^(Back|No)$/.test(w.label || '') ? 'back' : 'confirm'); w.onPress(); } /* R10: Back sounds like back */ else if (w.kind === 'toggle') { w.set(!w.get()); this.game.audio.ui('move'); } else if (w.kind === 'select') { const n = w.options.length; w.set((w.get() + 1) % n); this.game.audio.ui('move'); } else if (w.onPress) { this.game.audio.ui('confirm'); w.onPress(); } }
   // Taps on a touch screen also count just outside a widget, so every target is at least ART's 64 CSS px where the layout
   // leaves room; between two close widgets the nearer one wins.
   hitTest(s, lx, ly, touch) {
@@ -8473,12 +8662,12 @@ function mainMenu(game) {
   if (any) items.push(btn('CONTINUE CAREER', 0, 0, 0, 0, () => game.ui.replace(c ? careerHub(game) : amHub(game)), { primary: true, sub: c ? 'pro · season ' + c.season : am.stage === 'combine' ? 'draft combine' : amStageLabel(am) }));
   else if (s.career && s.career.phase === 'retired' && !s.career.epilogue) items.push(btn('YOUR RETIREMENT', 0, 0, 0, 0, () => game.ui.replace(epilogueScreen(game)), { primary: true, sub: 'what your money builds' })); /* R7: a retirement left before its epilogue */
   items.push(btn(any ? 'New career' : 'START YOUR CAREER', 0, 0, 0, 0, () => { if (any) game.ui.push(confirmScreen(game, 'Start over? Your current career ends.', () => { s.career = null; s.c1 = null; game.save.save(); game.ui.replace(createPlayerScreen(game)); })); else game.ui.replace(createPlayerScreen(game)); }, any ? {} : { primary: true }));
-  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Extras', 0, 0, 0, 0, () => game.ui.push(extrasScreen(game)), { sub: 'league · modes · lab' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))));
+  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Extras', 0, 0, 0, 0, () => game.ui.push(extrasScreen(game)), { sub: 'league · modes · lab' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('Save slots', 0, 0, 0, 0, () => game.ui.push(slotsScreen(game)), { sub: 'slot ' + game.save.slot + ' of ' + CONFIG.save.slots })); // R10: three save slots (the credits are in Extras)
   column(items, 70, 120, 380, 44, 8); items[0].h = 54; for (let i = 1; i < items.length; i++) items[i].y += 10;
-  phoneGrid(game.ui, items, 40, 104, 440, 2, 1, 8); // a phone: big buttons in two columns
+  phoneGrid(game.ui, items, 40, 90, 440, 2, 1, 6); // a phone: big buttons in two columns (R10: five rows fit with a save-slots button)
   return { widgets: items, name: 'menu', update(dt) { t += dt; }, onBack() { game.ui.replace(titleScreen(game)); },
     draw(ctx, ui) {
-      kitLogo(ctx, 260, 62, 54); if (s.badges && s.badges.owner) kitChip(ctx, 'OWNER', ui.phone ? 476 : 260, ui.phone ? 62 : 104, { size: 14, color: UI_GOLD, align: ui.phone ? 'left' : 'center' }); /* R7: a franchise stake's badge (a phone: beside the logo, clear of the buttons) */
+      kitLogo(ctx, 260, ui.phone ? 48 : 62, ui.phone ? 48 : 54); if (s.badges && s.badges.owner) kitChip(ctx, 'OWNER', ui.phone ? 476 : 260, ui.phone ? 48 : 104, { size: 14, color: UI_GOLD, align: ui.phone ? 'left' : 'center' }); /* R7: a franchise stake's badge (a phone: beside the logo, clear of the buttons) */
       ui.panel(ctx, 500, 40, 740, 640);
       if (c) { const me = meOf(c); const club = clubOf(me.club); const st = c.standings[c.meId];
         kitHeader(ctx, 'Your career', 530, 78, 680); drawPlatform(ctx, 690, 620, 160, club.colors); drawMannequin(ctx, drawDefOf(me), club, 690, 620, 400, 'focused', 1, t);
@@ -8498,40 +8687,17 @@ function mainMenu(game) {
 // Extras: the classic team league, the other modes and the Art Lab.
 function extrasScreen(game) {
   const s = game.save.data;
-  const items = [btn('Team league (classic)', 0, 0, 0, 0, () => game.ui.push(s.teamCareer ? tcHub(game) : tcCreateScreen(game)), { sub: s.teamCareer ? 'season ' + (s.teamCareer.season || 1) : '5v5 / 3v3' }), btn('Street tournament', 0, 0, 0, 0, () => game.ui.push(tournamentScreen(game))), btn('3-Point Contest', 0, 0, 0, 0, () => game.ui.push(threePointScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(freePracticeScreen(game))), btn('Tutorial', 0, 0, 0, 0, () => game.startTutorial()), btn('Art Lab', 0, 0, 0, 0, () => game.ui.push(artLabScreen(game)), { sub: 'character sheet' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  const items = [btn('Team league (classic)', 0, 0, 0, 0, () => game.ui.push(s.teamCareer ? tcHub(game) : tcCreateScreen(game)), { sub: s.teamCareer ? 'season ' + (s.teamCareer.season || 1) : '5v5 / 3v3' }), btn('Street tournament', 0, 0, 0, 0, () => game.ui.push(tournamentScreen(game))), btn('3-Point Contest', 0, 0, 0, 0, () => game.ui.push(threePointScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(freePracticeScreen(game))), btn('Tutorial', 0, 0, 0, 0, () => game.startTutorial()), btn('Art Lab', 0, 0, 0, 0, () => game.ui.push(artLabScreen(game)), { sub: 'character sheet' }), btn('Credits', 0, 0, 0, 0, () => game.ui.push(creditsScreen(game))), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; // R10: the credits
   column(items, UI_W / 2 - 220, 150, 440, 52, 12); const pb = phoneGrid(game.ui, items, UI_W / 2 - 420, 92, 840, 2, 0, 10);
   return { widgets: items, name: 'extras', draw(ctx, ui) { if (pb) { ui.panel(ctx, UI_W / 2 - 450, 12, 900, pb + 8); ui.title(ctx, 'EXTRAS', UI_W / 2 - 420, 50, 36); return; } ui.panel(ctx, UI_W / 2 - 300, 70, 600, 600); ui.title(ctx, 'EXTRAS', UI_W / 2 - 250, 112, 40); } };
 }
 function confirmScreen(game, text, onYes) { const items = [btn('Yes', 0, 0, 0, 0, () => { game.ui.pop(); onYes(); }), btn('No', 0, 0, 0, 0, () => game.ui.pop())]; column(items, UI_W / 2 - 150, 340, 300, 46, 10); const pb = phoneGrid(game.ui, items, UI_W / 2 - 260, 340, 520, 2, 0, 12); return { widgets: items, overlay: true, name: 'confirm', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 280, 230, 560, pb ? pb - 200 : 240, UI_PANEL2); ctx.font = fontStr(20, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, text, UI_W / 2, 262, 500, 26); } }; }
-function settingsScreen(game) {
-  const S = game.save.data.settings; const apply = () => game.applySettings(); const diffs = ['rookie', 'pro', 'allstar', 'legend'], diffL = ['Rookie', 'Pro', 'All-Star', 'Legend'];
-  const play = [
-    sel('Opponent difficulty', 0, 0, 0, 0, diffL, () => diffs.indexOf(S.difficulty), i => { S.difficulty = diffs[i]; }), tgl('Adaptive difficulty (quick games)', 0, 0, 0, 0, () => S.adaptive, v => { S.adaptive = v; }),
-    tgl('Charges (offensive fouls)', 0, 0, 0, 0, () => S.charges !== false, v => { S.charges = v; }), sel('Career games', 0, 0, 0, 0, ['Full court', 'Street half court'], () => S.careerCourt === 'half' ? 1 : 0, i => { S.careerCourt = i ? 'half' : 'full'; }), tgl('Career injuries', 0, 0, 0, 0, () => S.injuries !== false, v => { S.injuries = v; }),
-    sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }),
-    sel('Key preset', 0, 0, 0, 0, ['A: WASD + J K L', 'B: Arrows + Z X C'], () => S.keyPreset === 'B' ? 1 : 0, i => { S.keyPreset = i ? 'B' : 'A'; apply(); }), tgl('Show FPS', 0, 0, 0, 0, () => S.showFps, v => { S.showFps = v; }),
-    tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }),
-    sel('Arcade extras', 0, 0, 0, 0, ['Quick games', 'All exhibitions', 'Off'], () => Math.max(0, ['quick', 'exhibitions', 'off'].indexOf(S.arcadeExtras || 'quick')), i => { S.arcadeExtras = ['quick', 'exhibitions', 'off'][i]; }), // L9: super meter and power-ups (Legends View arcade 1v1); R4: never in the career, so no career option
-  ];
-  const feel = [
-    sel('Camera (1v1)', 0, 0, 0, 0, ['Legends View', 'Classic'], () => S.camera === 'classic' ? 1 : 0, i => { S.camera = i ? 'classic' : 'legends'; }), sel('Graphics', 0, 0, 0, 0, ['Retro', 'Retro sharp', 'Smooth'], () => S.graphics === 'smooth' ? 2 : S.graphics === 'sharp' ? 1 : 0, i => { S.graphics = ['retro', 'sharp', 'smooth'][i]; }), // R1 §1.4: the pixel world (default), finer pixels, or the smooth art or the smooth painted renderer // §2: the whole short court on one screen, or the classic follow camera (2v2 and up are always Classic)
-    sld('Screen shake', 0, 0, 0, 0, 0, 1, 0.1, () => S.shake, v => { S.shake = v; apply(); }), tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }),
-    sld('Master volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.master, v => { S.master = v; apply(); }), sld('SFX volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.sfx, v => { S.sfx = v; apply(); }), sld('Music volume', 0, 0, 0, 0, 0, 1, 0.1, () => S.music, v => { S.music = v; apply(); }),
-    sld('Touch size', 0, 0, 0, 0, 0.7, 1.5, 0.1, () => S.touchSize, v => { S.touchSize = v; apply(); }, v => v.toFixed(1) + 'x'), sld('Touch opacity', 0, 0, 0, 0, 0.2, 1, 0.1, () => S.touchOpacity, v => { S.touchOpacity = v; apply(); }), tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }),
-  ];
-  const tail = [btn('Reset all save data', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase everything, including your career and Hall of Fame?', () => { game.save.reset(); game.applySettings(); game.ui.toastMsg('Save data reset.'); game.ui.clearTo(titleScreen(game)); }))), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(play, 110, 130, 520, play.length > 9 ? 36 : 40, play.length > 9 ? 5 : 6); column(feel, 650, 130, 520, feel.length > 9 ? 36 : 40, feel.length > 9 ? 5 : 6); /* 11 rows fit above the buttons at 36 px */ tail[0].x = 110; tail[0].y = 560; tail[0].w = 520; tail[0].h = 46; tail[1].x = 650; tail[1].y = 560; tail[1].w = 520; tail[1].h = 46;
-  const items = play.concat(feel, tail);
-  // phones: two pages of 64 px rows (gameplay; feel, sound & touch); the key preset is for keyboards, so it drops out
-  play.forEach(w => { w.sect = 'Gameplay'; }); feel.forEach(w => { w.sect = 'Feel, sound & touch'; }); play[6].off = true;
-  const PG = phonePager(game.ui, play.concat(feel), tail, { x: 40, y: 84, w: 1200, h: 498 }, 2); if (PG) items.push(PG.prev, PG.next);
-  return { widgets: items, name: 'settings', onExit() { game.save.save(); game.applySettings(); }, draw(ctx, ui) { if (PG) { ui.panel(ctx, 20, 10, 1240, 700); ui.title(ctx, 'SETTINGS', 44, 48, 34); drawPagerLabel(ctx, PG, 1236, 48); return; } ui.panel(ctx, 80, 30, 1120, 620); ui.title(ctx, 'SETTINGS', 110, 72, 36); ui.label(ctx, 'GAMEPLAY', 110, 112, 14, UI_CYAN); ui.label(ctx, 'FEEL, SOUND & TOUCH', 650, 112, 14, UI_CYAN); } };
-}
+// (R10: the settings screen lives in 148_ui_polish.js: five tabs)
 function howToScreen(game) {
   const items = [btn('Play the tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; items[0].x = 120; items[1].x = 460; for (const w of items) { w.y = 640; w.w = 320; w.h = 46; } // side by side under the tips
   const P = game.ui.phone; let tip = 0;
   const rows = [['Action', 'Keys A', 'Keys B', 'Gamepad', 'Touch'], ['Move', 'A / D', '← / →', 'Stick', 'Stick'], ['Jump · block · rebound', 'W, Space', '↑, Space', 'A', 'JUMP'], ['Stance · post up (hold)', 'S', '↓', 'LT', 'Stick down'], ['Shoot · tap: pump fake', 'J', 'Z', 'X', 'SHOOT'], ['Fadeaway jumper', 'K', 'X', 'B', 'FADE'], ['Dribble move · steal', 'L', 'C', 'Y', 'MOVE'], ['Sprint · tap: hesitation', 'Shift', 'Shift', 'RT', 'Stick past 85%'], ['Pause', 'Esc, P', 'Esc, P', 'Start', 'Pause']];
-  const tips = ['Shots: hold Shoot and release at the top of the jump; the meter shows the window. A tap is a pump fake: it picks up your dribble. Fadeaway: the same with Fade.', 'Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.'];
+  const tips = ['Shots: hold Shoot and release at the top of the jump; the meter shows the window. A tap is a pump fake: it picks up your dribble. Fadeaway: the same with Fade.', 'Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.', 'Violations: once a pump fake picks up your dribble you can pivot, shoot or fade, but a dribble move is a double dribble and walking with the ball is a travel. Jump with it and land with it: a travel. Hold it 5 seconds while guarded: a held ball. Each one gives the ball away.'];
   if (P) { // phones: the touch column of the table, then one tip at a time in bigger type
     const h = tapH(game.ui, 44), y = UI_H - h - 12; const nav = [btn('◀', 40, y, 130, h, () => { tip = (tip + tips.length - 1) % tips.length; }), btn('▶', 178, y, 130, h, () => { tip = (tip + 1) % tips.length; })];
     Object.assign(items[0], { x: 316, y, w: 560, h }); Object.assign(items[1], { x: 884, y, w: 356, h }); items.push(...nav); }
@@ -8666,7 +8832,7 @@ function careerResultScreen(game, rec, m) {
   items.push(btn('CONTINUE', 0, 0, 0, 0, () => { game.save.save(); if (m) game.quitToMenu(); else game.ui.replace(careerHub(game)); }, { primary: true }));
   column(items, 900, 610 - (items.length - 1) * 50, 330, 44, 6); if (game.ui.phone) phoneGrid(game.ui, items, 780, UI_H - (tapH(game.ui, 44) + 10) * items.length - 6, 460, 1, 0, 10);
   const opp = c.players[rec.opp]; const last = c.me.log[0];
-  return { widgets: items, overlay: !!m, name: 'result', update(dt) { t += dt; }, onBack() {},
+  return { widgets: items, overlay: !!m, name: 'result', update(dt) { if (!t && !m) game.audio.stinger(rec.win ? 'win' : 'loss'); /* R10: a simmed game's result gets its stinger */ t += dt; }, onBack() {},
     draw(ctx, ui) {
       ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2);
       const head = rec.win ? 'WIN' : 'LOSS', score = rec.us + ' – ' + rec.them + (rec.ot ? ' (OT)' : ''); ui.title(ctx, head, 60, 70, 60); ctx.font = fontStr(60, true); const hx = 60 + ctx.measureText(head).width + 30;
@@ -8705,7 +8871,7 @@ function allStarScreen(game) {
 }
 function allStarResultScreen(game) {
   const c = careerOf(game); const A = c.allStar; const items = [btn('BACK TO THE HUB', 0, 0, 0, 0, () => game.ui.clearTo(careerHub(game)), { primary: true })]; column(items, UI_W / 2 - 180, 610, 360, 50, 0); const P = phoneBar(game.ui, items, null, UI_W / 2 - 240, 480);
-  return { widgets: items, name: 'allstarres', onBack() { game.ui.clearTo(careerHub(game)); }, draw(ctx, ui) { ui.panel(ctx, 240, P ? 12 : 60, 800, P ? 700 : 610, UI_PANEL2); ui.title(ctx, '3-POINT CONTEST', 280, P ? 62 : 110, 40); const order = A.field.slice().sort((a, b) => A.scores[b] - A.scores[a]); order.forEach((id, i) => { const p = c.players[id]; const y = (P ? 100 : 170) + i * (P ? 82 : 90); recPortrait(ctx, p, 280, y, P ? 70 : 74); ui.heading(ctx, (i + 1) + '. ' + p.name, 370, y + 26, 22, id === c.meId ? UI_GOLD : UI_TEXT); ui.heading(ctx, String(A.scores[id]), 980, y + 26, 30, i === 0 ? UI_GOLD : UI_TEXT, 'right'); }); if (A.winner === c.meId) ui.heading(ctx, 'CHAMPION · +' + fmtMoney(LG.allStarPrize) + ' · fame up', 280, P ? 530 : 560, 20, UI_GOLD); } };
+  return { widgets: items, name: 'allstarres', onBack() { game.ui.clearTo(careerHub(game)); }, draw(ctx, ui) { ui.panel(ctx, 240, P ? 12 : 60, 800, P ? 700 : 610, UI_PANEL2); ui.title(ctx, '3-POINT CONTEST', 280, P ? 62 : 110, 40); const SC = A.scores || {}, order = A.field.slice().sort((a, b) => (SC[b] || 0) - (SC[a] || 0)); /* R10: before the contest, every score is 0 */ order.forEach((id, i) => { const p = c.players[id]; const y = (P ? 100 : 170) + i * (P ? 82 : 90); recPortrait(ctx, p, 280, y, P ? 70 : 74); ui.heading(ctx, (i + 1) + '. ' + p.name, 370, y + 26, 22, id === c.meId ? UI_GOLD : UI_TEXT); ui.heading(ctx, String(SC[id] != null ? SC[id] : '—'), 980, y + 26, 30, i === 0 ? UI_GOLD : UI_TEXT, 'right'); }); if (A.winner === c.meId) ui.heading(ctx, 'CHAMPION · +' + fmtMoney(LG.allStarPrize) + ' · fame up', 280, P ? 530 : 560, 20, UI_GOLD); } };
 }
 
 // ---------------- the player page ----------------
@@ -9066,7 +9232,7 @@ function amHistoryScreen(game) {
 function amResultScreen(game, rec, m) {
   const c = game.save.data.c1; let t = 0; const items = [];
   items.push(btn('CONTINUE', 860, game.ui.phone ? UI_H - tapH(game.ui, 54) - 16 : 612, 360, tapH(game.ui, 54), () => { game.save.save(); if (m) game.quitToMenu(); else game.ui.replace(amHub(game)); }, { primary: true }));
-  return { widgets: items, overlay: !!m, name: 'amresult', update(dt) { t += dt; }, onBack() {},
+  return { widgets: items, overlay: !!m, name: 'amresult', update(dt) { if (!t && !m) game.audio.stinger(rec.won ? 'win' : 'loss'); /* R10: a simmed game's result gets its stinger */ t += dt; }, onBack() {},
     draw(ctx, ui) {
       ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2); const head = rec.won ? 'WIN' : 'LOSS', score = rec.my + ' – ' + rec.their; ui.title(ctx, head, 60, 70, 60); ctx.font = fontStr(60, true); const hx = 60 + ctx.measureText(head).width + 30;
       ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? amRoundTag(rec.playoff) : rec.tag === 'rivalry' ? 'Rivalry game · ' : rec.tag === 'senior' ? 'Senior night · ' : rec.tag === 'marquee' ? 'Marquee game · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
@@ -9759,7 +9925,7 @@ function createPlayerScreen(game) {
     sel('Pro games', 0, 0, 0, 0, CR.gameLengths.map(n => fmtClock(n) + ' halves'), () => st.gameLen, i => { st.gameLen = i; }),
     btn('Face shape & extras', 0, 0, 0, 0, () => game.ui.push(customizeLookScreen(game, st))),
   ];
-  const start = btn('START HIGH SCHOOL', 0, 0, 0, 0, () => { const a = amCreate(s, { name: st.name, look: st.look, number: st.number, style: styleKeys[st.style] || 'slasher', seasonLength: CR.seasonLengths[st.seasonLen], gameLength: CR.gameLengths[st.gameLen] }); game.newCareer = null; s._legacyCareer = undefined; game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: true });
+  const start = btn('START HIGH SCHOOL', 0, 0, 0, 0, () => { const a = amCreate(s, { name: st.name, look: st.look, number: st.number, style: styleKeys[st.style] || 'slasher', seasonLength: CR.seasonLengths[st.seasonLen], gameLength: CR.gameLengths[st.gameLen], seed: st.seed /* a test can fix the career's dice (R10: tests/fullcareer.js); a player never sets it */ }); game.newCareer = null; s._legacyCareer = undefined; game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: true });
   const items = [];
   if (!P) {
     PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 44 + (i % 4) * 74, y: 122 + Math.floor(i / 4) * 71, w: 66, h: 66, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused, ui) { drawSelectHead(ctx, this, { name: 'p' + i, look: lk }, NEUTRAL_KIT.colors, focused, st.preset === i, ui ? ui.t : 0); } }); });
@@ -10252,8 +10418,8 @@ function filmRoomScreen(game) {
       [['Post-ups', plan.post], ['Drives', plan.drive], ['Threes', plan.three], ['Mid-range', plan.mid]].forEach(([n, v], i) => { const y = 176 + i * 34; ui.label(ctx, n, x1, y, 14, UI_TEXT); meterBar(ctx, x1 + 110, y - 6, 240, 12, v / 0.6, UI_ORANGE); ui.label(ctx, Math.round(100 * v) + '%', x1 + 360, y, 14, UI_TEXT); });
       ui.heading(ctx, 'THEIR BEST', x1, 330, 16, UI_CYAN); ui.label(ctx, sorted.slice(0, 2).map(k => RATING_LONG[k] + ' ' + Math.floor(theirs[k])).join(' · '), x1, 356, 15, UI_TEXT);
       ui.heading(ctx, 'THEIR WEAKNESS', x1, 392, 16, UI_CYAN); ui.label(ctx, RATING_LONG[sorted[sorted.length - 1]] + ' ' + Math.floor(theirs[sorted[sorted.length - 1]]), x1, 418, 15, UI_TEXT);
-      ui.heading(ctx, 'MOVES', x1, 454, 16, UI_CYAN); ui.label(ctx, moves.length ? moves.join(', ') : 'Crossover only', x1, 480, 15, UI_TEXT);
-      ui.heading(ctx, 'SIZE', x1, 516, 16, UI_CYAN); ui.label(ctx, fmtHeight(K.h) + ' vs ' + fmtHeight(o.h) + (dh === 0 ? ' · same height' : dh > 0 ? ' · they have ' + dh + '″' : ' · you have ' + (-dh) + '″'), x1, 542, 15, UI_TEXT);
+      ui.heading(ctx, 'MOVES', x1, 454, 16, UI_CYAN); ui.para(ctx, moves.length ? moves.join(', ') : 'Crossover only', x1, 480, 470, 15, UI_TEXT, 'left', 2); /* R10: wraps inside its column (it ran into THE PLAN) */
+      ui.heading(ctx, 'SIZE', x1, 530, 16, UI_CYAN); ui.label(ctx, fmtHeight(K.h) + ' vs ' + fmtHeight(o.h) + (dh === 0 ? ' · same height' : dh > 0 ? ' · they have ' + dh + '″' : ' · you have ' + (-dh) + '″'), x1, 556, 15, UI_TEXT);
       ui.heading(ctx, 'THE PLAN', 800, 146, 16, UI_GOLD); ctx.font = fontStr(15, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 170; for (const tip of tips.slice(0, 4)) { y += wrapTextH(ctx, '• ' + tip, 800, y, 420, 20) + 8; }
       const ys = Math.max(y + 16, 450), hs = ui.para(ctx, 'Studying it: +' + trFilmBonus(K.B) + ' Defense and +' + trFilmBonus(K.B) + ' Shooting in this game.' + (trMul(K.B, 'film') > 1 ? ' (Film Junkie: double.)' : ''), 800, ys, 420, 14, UI_GOLD); ui.para(ctx, 'It is this week\'s plan (no practice XP, no rest).', 800, ys + hs + 4, 420, 13, UI_DIM);
     } };
@@ -10327,7 +10493,7 @@ function drawPressAnswer(ctx, b, focused, ui, quote) {
   kitButton(ctx, b, focused, ui.t, {}); const col = b.ans === 'trash' ? UI_RED : b.ans === 'confident' ? UI_GOLD : b.ans === 'nocomment' ? UI_DIM : UI_CYAN, P = ui.phone;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, b.y + 16); // R8: the answer, what it does, then the quote
   ui.para(ctx, PRESS_EFFECT[b.ans], b.x + 18, b.y + 36, b.w - 36, 12, UI_DIM, 'left', 1);
-  ui.para(ctx, '“' + quote + '”', b.x + 18, b.y + (P ? 60 : 60), b.w - 36, 16, UI_TEXT, 'left', P ? 1 : 2);
+  ui.para(ctx, '“' + quote + '”', b.x + 18, b.y + 60, b.w - 36, 16, UI_TEXT, 'left', P || RBF.textScale > 1 ? 1 : 2); /* R10: at 1.25× text a second line would spill out of the button */
 }
 // A press backdrop: step-and-repeat logos, you behind a table of microphones, camera flashes.
 function drawPressRoom(ctx, c, me, t, org) {
@@ -10556,7 +10722,7 @@ function commitDayScreen(game, c, ev, done) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { graphics: 'retro', arcadeExtras: 'quick', difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends' },
+    settings: { graphics: 'retro', arcadeExtras: 'quick', difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {} },
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -10567,16 +10733,23 @@ function defaultSave() {
     stats: { games: 0, wins: 0, dunks: 0, ankles: 0 },
   };
 }
+// R10 §4: three save slots. Slot 1 keeps the original key (a save from before R10 is slot 1, untouched); the device
+// remembers the slot last played, and the settings follow the device from slot to slot.
+function slotKey(n) { return n > 1 ? CONFIG.save.key + '.slot' + n : CONFIG.save.key; }
+function activeSlot() { try { const v = +localStorage.getItem(CONFIG.save.slotKey); return v >= 1 && v <= CONFIG.save.slots ? v : 1; } catch (e) { return 1; } }
 class SaveSystem {
-  constructor() { this.data = defaultSave(); this.available = false; this.loaded = false; this.load(); }
+  constructor(slot) { this.slot = slot >= 1 && slot <= CONFIG.save.slots ? slot | 0 : activeSlot(); this.data = defaultSave(); this.available = false; this.loaded = false; this.load(); }
   load() {
-    let raw = null; try { raw = window.localStorage ? localStorage.getItem(CONFIG.save.key) : null; this.available = !!window.localStorage; } catch (e) { this.available = false; }
+    let raw = null; try { raw = window.localStorage ? localStorage.getItem(slotKey(this.slot)) : null; this.available = !!window.localStorage; } catch (e) { this.available = false; }
     if (!raw) { this.loaded = true; return; }
-    try { const obj = JSON.parse(raw); if (!obj || typeof obj !== 'object') throw new Error('bad save'); this.data = migrateSave(obj); } catch (e) { console.warn('Corrupted save; starting fresh.', e); this.data = defaultSave(); this.corrupted = true; try { localStorage.removeItem(CONFIG.save.key); } catch (e2) {} }
+    try { const obj = JSON.parse(raw); if (!obj || typeof obj !== 'object') throw new Error('bad save'); this.data = migrateSave(obj); } catch (e) { console.warn('Corrupted save; starting fresh (a copy is kept).', e); this.data = defaultSave(); this.corrupted = true; try { localStorage.setItem(slotKey(this.slot) + '.corrupt', raw); localStorage.removeItem(slotKey(this.slot)); } catch (e2) {} } // R10: never thrown away: the unreadable save stays under .corrupt
     this.loaded = true;
   }
-  save() { if (!this.available) return false; try { localStorage.setItem(CONFIG.save.key, JSON.stringify(this.data)); return true; } catch (e) { return false; } }
-  reset() { this.data = defaultSave(); try { localStorage.removeItem(CONFIG.save.key); } catch (e) {} }
+  save() { if (!this.available) return false; try { this.data.savedAt = Date.now(); localStorage.setItem(slotKey(this.slot), JSON.stringify(this.data)); return true; } catch (e) { return false; } }
+  reset() { this.data = defaultSave(); try { localStorage.removeItem(slotKey(this.slot)); } catch (e) {} }
+  eraseKeepSettings() { const S = this.data.settings; this.reset(); this.data.settings = S; this.save(); } // R10: erase a slot, keep the device's settings
+  // Another slot: this one is saved first and the settings go along. Returns the new slot's SaveSystem.
+  switchTo(n) { this.save(); const next = new SaveSystem(n); next.data.settings = Object.assign({}, next.data.settings, this.data.settings); try { localStorage.setItem(CONFIG.save.slotKey, String(next.slot)); } catch (e) { /* private mode */ } next.save(); return next; }
   addPoster(dataUrl, label) {
     const P_ = this.data.posters; P_.unshift({ url: dataUrl, label, t: Date.now() }); while (P_.length > CONFIG.save.maxPosters) P_.pop();
     let bytes = P_.reduce((a, p) => a + p.url.length, 0); while (bytes > CONFIG.save.posterBytesCap && P_.length) { const last = P_.pop(); bytes -= last.url.length; }
@@ -13469,7 +13642,7 @@ function dialogScreen(game, c, ev, done, opts) {
   const choices = (opts.options || (ev.choice || []).map((ch, i) => ({ label: ch.label, note: ch.note, pick: () => { stChoose(c, ev, i); game.save.save(); } }))).map(o => Object.assign(btn(o.label, 0, 0, 0, 0, () => { finish(); o.pick(); if (opts.options) { game.save.save(); done(); return; } relayout(); }), { note: o.note, kind: 'custom', draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); ui.label(ctx, this.label, this.x + 22, this.y + (this.note ? (P ? 30 : 22) : this.h / 2), P ? 24 : 16, UI_TEXT, 'left', this.w - 44); if (this.note) ui.para(ctx, this.note, this.x + 22, this.y + (P ? 56 : 42), this.w - 44, P ? 19 : 12, UI_GOLD, 'left', P ? 2 : 3); } }));
   const answered = () => !opts.options && ev.answered != null;
   function relayout() {
-    const lastP = last(), ask = lastP && choices.length && !answered(); laidTyping = typing(); next.hidden = lastP; cont.hidden = !lastP || ask; for (const b of choices) b.hidden = !ask || laidTyping;
+    const lastP = last(), ask = lastP && choices.length && !answered(); scr.asks = !!ask && !opts.options; laidTyping = typing(); next.hidden = lastP; cont.hidden = !lastP || ask; for (const b of choices) b.hidden = !ask || laidTyping;
     const bh = P ? tapH(ui0, 44) : 60, by = box.y + box.h - bh - 16;
     if (ask && P) { const w = box.x + box.w - 24 - tx; choices.forEach((b, i) => Object.assign(b, { x: tx, y: box.y + box.h - 16 - (choices.length - i) * (bh + 10) + 10, w, h: bh })); } // a phone stacks them full width (the note on one line)
     else if (ask) { const w = (box.x + box.w - 24 - tx - 12) / 2, ch = 100; choices.forEach((b, i) => Object.assign(b, { x: tx + i * (w + 12), y: box.y + box.h - ch - 16, w, h: ch })); }
@@ -13509,6 +13682,7 @@ const TUTORIAL_STEPS = [
   { text: 'Jump with {jump}.', check: (g, f) => f.jumps > 0 },
   { text: 'Hold {shoot} to shoot. Let go at the top of the jump: watch the meter.', check: (g, f) => f.goodShots > 0 || f.shots > 3 },
   { text: 'Tap {shoot} quickly to pump fake. A defender who bites leaves their feet.', check: (g, f) => f.fakes > 0 },
+  { text: 'A fake picks up your dribble: pivot with {move}, then shoot or fade. In a game, dribbling again is a double dribble and walking with it is a travel.', check: (g, f) => f.afterFake > 0 }, // R10: the L12 violations
   { text: 'Press {action} to crossover. Burst past the defender while they lean the wrong way.', check: (g, f) => f.crossovers > 0 },
   { text: 'Hold {pass} for a fadeaway: you jump back, away from the hands. Let go at the top.', check: (g, f) => f.fades > 0 },
   { text: 'Post up: near the hoop, hold {down} with the ball and push into the defender, then press {shoot} for a hook.', check: (g, f) => f.hooks > 0 },
@@ -13559,12 +13733,12 @@ class Game {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.autoPause(); });
     window.addEventListener('blur', () => this.autoPause());
     const unlock = () => { this.audio.unlock(); if (this.audio.ok && !this.audio.crowd && this.mode === 'match') this.audio.startCrowd(); }; window.addEventListener('pointerdown', unlock, { passive: true }); window.addEventListener('keydown', unlock); window.addEventListener('touchend', unlock, { passive: true });
-    this.ui.push(titleScreen(this)); if (/[?&]artlab\b/.test(location.search)) this.ui.push(artLabScreen(this)); this.input.grabFocus(); window.addEventListener('load', () => this.input.grabFocus());
+    const lab = /[?&]artlab\b/.test(location.search); this.ui.push(lab ? titleScreen(this) : splashScreen(this)); if (lab) this.ui.push(artLabScreen(this)); /* R10: the boot splash (never in front of the Art Lab) */ this.input.grabFocus(); window.addEventListener('load', () => this.input.grabFocus());
     if (this.save.corrupted) this.ui.toastMsg('Save data was corrupted and has been reset.');
     window.HH = { game: this, artLabScreen, LAB_CAST, drawMatchScene, runBalanceHarness, formatHarnessTable, harnessGame, HARNESS_STRATEGIES, CONFIG, simulateMatch, runSims, shotLab, tunnelTest, formatSimTable, aggregateSims, Match, TEAMS, ROSTER, createCareerFromAmateur, amCreate, amSimGame, testProLeague, simUserGame, careerAfterGame, proPractice, proRest, proFilm, proStartGame, amPractice, amRest, amFilm, amStartGame, wkEff, careerKit, strengthOf, simBox, legacyOf };
   }
   applySettings() {
-    const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; this.input.setPreset(S.keyPreset); const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.computeLayout(this.W, this.H);
+    const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; applyKeyMap(S); this.input.setPreset(KEY_PRESETS[S.keyPreset] ? S.keyPreset : 'A'); RBF.textScale = S.textSize === 1.25 ? 1.25 : 1; /* R10: the Custom keys; text size 1× or 1.25× */ const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.computeLayout(this.W, this.H);
   }
   resize() {
     const W = window.innerWidth, H = window.innerHeight; this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.ui.dprCap, this.lowRes ? CONFIG.perf.lowDpr : 99); this.W = W; this.H = H; this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(H * this.dpr); this.canvas.style.width = W + 'px'; this.canvas.style.height = H + 'px'; this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); RBF.minMain = uiK(this.canvas); RBF.textScale = this.save && this.save.data.settings.textSize === 1.25 ? 1.25 : 1;
@@ -13573,11 +13747,13 @@ class Game {
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
-    const S = this.save.data.settings; opts.dev = true; const k = (after && after.kind) || 'quick'; if (CAREER_KINDS.includes(k)) opts.extras = false; else if (opts.extras == null) { const X = S.arcadeExtras || 'quick'; opts.extras = X === 'exhibitions' || (X === 'quick' && (k === 'quick' || k === 'tournament')); } /* L9: quick games and the tournament by default; R4: never in a career game (the user's rule), whatever the setting */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
+    const S = this.save.data.settings; opts.dev = true; const k = (after && after.kind) || 'quick';
+    if (S.colorblind && opts.teams && opts.teams.length === 2 && !opts.contest3 && k !== 'practice' && k !== 'tutorial') opts.teams = colorblindTeams(opts.teams[0], opts.teams[1]); /* R10: every two-sided game (pro games, the All-Star 1v1 and practice challenges missed it) */
+    if (CAREER_KINDS.includes(k)) opts.extras = false; else if (opts.extras == null) { const X = S.arcadeExtras || 'quick'; opts.extras = X === 'exhibitions' || (X === 'quick' && (k === 'quick' || k === 'tournament')); } /* L9: quick games and the tournament by default; R4: never in a career game (the user's rule), whatever the setting */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
-    this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
-    if (this.tutorial) { const f = this.tutorial.f; m.bus.on('JUMP', e => { if (e.player.controlled) f.jumps++; }); m.bus.on('SHOT_RELEASED', s => { if (s.shooter.controlled) { f.shots++; if (s.grade <= 1 && s.grade >= 0) f.goodShots++; if (s.fade) f.fades++; if (s.type === 'hook') f.hooks++; } }); m.bus.on('PUMP_FAKE', e => { if (e.player.controlled) f.fakes++; }); m.bus.on('MOVE', e => { if (e.player.controlled && e.move === 'crossover') f.crossovers++; }); m.bus.on('STEAL', e => { if (e.player.controlled) f.steals++; }); m.bus.on('BLOCK', e => { if (e.player.controlled) f.blocks++; }); }
+    this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, afterFake: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
+    if (this.tutorial) { const f = this.tutorial.f; m.bus.on('JUMP', e => { if (e.player.controlled) f.jumps++; }); m.bus.on('SHOT_RELEASED', s => { if (s.shooter.controlled) { f.shots++; if (f.fakes > 0) f.afterFake++; if (s.grade <= 1 && s.grade >= 0) f.goodShots++; if (s.fade) f.fades++; if (s.type === 'hook') f.hooks++; } }); m.bus.on('PUMP_FAKE', e => { if (e.player.controlled) f.fakes++; }); m.bus.on('MOVE', e => { if (e.player.controlled && e.move === 'crossover') f.crossovers++; }); m.bus.on('STEAL', e => { if (e.player.controlled) f.steals++; }); m.bus.on('BLOCK', e => { if (e.player.controlled) f.blocks++; }); }
     if (m.practice && opts.tutorial) m.practice.ballTo = 'human';
     { const tm = m.teams[Math.max(0, m.humanTeam)] || m.teams[0], col = (tm && tm.colors) || ['#3A6FE0', '#FFD23F']; this.wipe = this.save.data.settings.reduceMotion ? null : { t: 0, c0: col[0], c1: col[1] || '#FFFFFF' }; }
   }

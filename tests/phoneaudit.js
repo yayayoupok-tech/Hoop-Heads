@@ -1,14 +1,15 @@
 // Phone audit (M9): opens about 70 screens at 844×390 with touch and lists every tap target under 64 CSS px (width or height),
 // widgets off the screen, overlapping widgets, and the smallest text each screen draws. It plays a scripted career to
-// reach the later screens. Usage: node tests/phoneaudit.js [shotsDir] [--desktop]
+// reach the later screens. Usage: node tests/phoneaudit.js [shotsDir] [--desktop] [--text125]
 const path = require('path'), fs = require('fs');
 const { launch, openPage } = require('./lib');
 (async () => {
-  const desk = process.argv.includes('--desktop'); const dir = process.argv.slice(2).find(a => !a.startsWith('--')); if (dir) fs.mkdirSync(dir, { recursive: true });
+  const desk = process.argv.includes('--desktop'), big = process.argv.includes('--text125'); /* R10: --text125 runs every screen at the 1.25× text size */ const dir = process.argv.slice(2).find(a => !a.startsWith('--')); if (dir) fs.mkdirSync(dir, { recursive: true });
   const browser = await launch(); const P = await openPage(browser, { phone: !desk }); /* --desktop: the same screens at 1280×720 (overflow, overlap and off-screen only) */ const { page, ev } = P; const wait = ms => page.waitForTimeout(ms);
   await ev(() => { const F = CanvasRenderingContext2D.prototype.fillText; window.__txt = []; CanvasRenderingContext2D.prototype.fillText = function (t, x, y, mw) { try { const m = /(\d+(?:\.\d+)?)px/.exec(this.font); if (m && window.__txtOn && String(t).trim()) { const a = this.getTransform().a / (window.devicePixelRatio || 1); window.__txt.push({ px: +m[1] * a, t: String(t).slice(0, 40) }); } } catch (e) {} return F.call(this, t, x, y, mw); }; });
   // text wider than the widget it is drawn in (a label running off its button)
   await ev(() => { const U = UI.prototype, D = U.drawWidget; window.__ovf = new Set(); U.drawWidget = function (ctx, w, f) { const F = ctx.fillText; ctx.fillText = function (t, x, y, mw) { try { if (window.__txtOn && w.kind !== 'text') { const m = Math.min(ctx.measureText(String(t)).width, mw > 0 ? mw : 1e9), al = ctx.textAlign; /* a maxWidth draws the text truncated to fit (the bitmap font adds …) */ const x0 = al === 'center' ? x - m / 2 : al === 'right' || al === 'end' ? x - m : x; if (x0 < w.x - 3 || x0 + m > w.x + w.w + 3) window.__ovf.add((w.label || w.kind) + ': "' + String(t).slice(0, 34) + '"'); } } catch (e) {} return F.call(this, t, x, y, mw); }; try { return D.call(this, ctx, w, f); } finally { delete ctx.fillText; } }; });
+  if (big) await ev(() => { const D0 = defaultSave; window.defaultSave = () => { const d = D0(); d.settings.textSize = 1.25; return d; }; RBF.textScale = 1.25; });
   await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Phone Audit', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 31 }); a.events.length = 0; g.save.save(); });
   const audit = async (name, open, arg) => {
     await ev(open, arg); await wait(450); await ev(() => { const s = HH.game.ui.screen; if (s && s.finish) s.finish(); }); /* R9: a dialogue box's text typed out */ await wait(80); await ev(() => { window.__txt = []; window.__ovf.clear(); window.__txtOn = true; }); await wait(120); const ovf = await ev(() => [...window.__ovf]); const tx = await ev(() => { window.__txtOn = false; const L = window.__txt.filter(o => o.px > 0.5).sort((a, b) => a.px - b.px); const seen = new Set(), out = []; for (const o of L) { if (seen.has(o.t)) continue; seen.add(o.t); out.push(o); if (out.length >= 3) break; } return out; });
@@ -22,8 +23,15 @@ const { launch, openPage } = require('./lib');
     console.log((r.bad.length ? 'FLAG  ' : 'ok    ') + name + ' (' + r.name + ', ' + r.n + ' widgets, min text ' + minTxt.toFixed(1) + ' px)' + (r.bad.length ? ': ' + r.bad.slice(0, 12).join(' | ') + (r.bad.length > 12 ? ' …+' + (r.bad.length - 12) : '') : ''));
   };
   const texts = [];
+  await audit('title', () => HH.game.ui.clearTo(titleScreen(HH.game))); // R10: every screen
   await audit('menu', () => HH.game.ui.clearTo(mainMenu(HH.game)));
-  await audit('settings', () => HH.game.ui.push(settingsScreen(HH.game)));
+  for (let t = 0; t < 5; t++) await audit('settings-' + t, t => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(settingsScreen(g, t)); }, t); // R10: the five tabs
+  if (desk) await audit('dev', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(devScreen(g)); }); // R10: the dev menu (a keyboard's ` key)
+  if (desk) await audit('remap', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(remapScreen(g)); }); // R10: key remapping (keyboards only: a phone doesn't show it)
+  await audit('slots', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.save.save(); g.ui.push(slotsScreen(g)); }); // R10: three save slots
+  await audit('credits', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(creditsScreen(g)); });
+  await audit('splash', () => { const g = HH.game; g.ui.clearTo(splashScreen(g)); }); await P.ev(() => HH.game.ui.clearTo(mainMenu(HH.game)));
+  await audit('tip', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(tipScreen(g, 'ladder')); }); // R10: a first-time tip
   await audit('howto', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(howToScreen(HH.game)); });
   await audit('extras', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(extrasScreen(HH.game)); });
   await audit('quickplay', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(quickPlayScreen(HH.game)); });
@@ -39,6 +47,7 @@ const { launch, openPage } = require('./lib');
   await audit('am-hub', () => { const g = HH.game; g.ui.clearTo(amHub(g)); });
   await audit('am-tryout', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: tryouts, the shootout first
   await audit('am-tryout-1v1', () => { const g = HH.game, a = g.save.data.c1; if (a.tryout && a.tryout.step === 'drill') hsTryoutDrill(a, 12); g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: then the 1v1 against a senior
+  await audit('am-tryout-post', () => { const g = HH.game; g.ui.push(tryoutPostScreen(g, { contest3: { score: 12 }, winner: 0, teams: [{ score: 7 }, { score: 5 }] }, { part: 'none' })); }); // R10: the tryout's result card
   await audit('am-team', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(teamScreen(g)); }); // R3
   await audit('am-genes-2', () => { const g = HH.game, a = g.save.data.c1; a.events.unshift({ kind: 'genes', title: 'YOUR GENES', lines: [] }); g.ui.clearTo(amHub(g)); g.ui.push(amEventScreen(g)); const s = g.ui.screen; s.widgets[0].onPress(); }); // R3: page 2
   await audit('am-trait-reveal', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; a.events.push({ kind: 'trait', title: 'HIDDEN TRAIT: ' + traitName(a.tr.hidden).toUpperCase(), trait: a.tr.hidden, lines: ['A story line about the trait.', traitDef(a.tr.hidden).up + '.', 'The catch: ' + traitDef(a.tr.hidden).down + '.'] }); g.ui.clearTo(amHub(g)); g.ui.push(amEventScreen(g)); }); // R3
@@ -89,6 +98,7 @@ const { launch, openPage } = require('./lib');
   await audit('pro-team', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(teamScreen(g)); }); // R3
   await audit('pregame', () => { const g = HH.game, c = g.save.data.career; g.ui.push(pregameScreen(g, userGame(c))); });
   await audit('pro-practice', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(practiceScreen(HH.game)); });
+  await audit('pro-film', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(filmRoomScreen(HH.game)); }); // R10: every screen
   await audit('league', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(leagueScreen(HH.game)); });
   await audit('player', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(playerScreen(HH.game)); });
   for (let t = 0; t < 5; t++) await audit('management-tab' + t, t => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.mgmtTab = { tab: t }; const s = managementScreen(HH.game); HH.game.ui.push(s); }, t);
@@ -98,6 +108,8 @@ const { launch, openPage } = require('./lib');
   await audit('pro-negotiate', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; c.offseason = { step: 3, fa: { offers: proFreeAgency(c, careerRng(c), 6e6), value: 6e6 }, contractDone: true }; g.ui.clearTo(offseasonScreen(g)); g.ui.push(negotiateScreen(g, 1)); }); // R7: the negotiation
   await audit('pro-result', () => { const g = HH.game, c = g.save.data.career; const rec = simUserGame(g.save.data); c.events.length = 0; g.ui.clearTo(careerResultScreen(g, rec, null)); });
   await audit('allstar', () => { const g = HH.game, c = g.save.data.career; for (const k of RATING_KEYS) meOf(c).r[k] = 99; let n = 0; while (!c.allStar && n++ < 30) { c.events.length = 0; simUserGame(g.save.data); } c.events = c.events.filter(e => e.kind === 'allstar'); g.ui.clearTo(careerHub(g)); });
+  await audit('allstar-1v1-result', () => { const g = HH.game, c = g.save.data.career; if (c.allStar) g.ui.push(allStar1v1ResultScreen(g, { winner: 0, teams: [{ score: 21 }, { score: 17 }] }, { applied: true, opp: Object.keys(c.players).find(id => String(id) !== String(c.meId)) })); }); // R10: the All-Star 1v1's result
+  await audit('allstar-result', () => { const g = HH.game, c = g.save.data.career; if (c.allStar) { if (!c.allStar.done) finishAllStar(c, 14); g.ui.clearTo(careerHub(g)); g.ui.push(allStarResultScreen(g)); } }); // R10: the contest's results
   await audit('offseason', () => { const g = HH.game, c = g.save.data.career; let n = 0; while (c.phase !== 'offseason' && n++ < 60) { c.events.length = 0; simUserGame(g.save.data); } c.events.length = 0; g.ui.clearTo(offseasonScreen(g)); });
   await audit('offseason-contract', () => { const g = HH.game, c = g.save.data.career; c.me.contract.years = 1; c.offseason.step = 3; c.offseason.fa = null; c.offseason.contractDone = false; g.ui.clearTo(offseasonScreen(g)); });
   await audit('rival-moment', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; c.events.push({ kind: 'rival', title: 'THE RIVAL', lines: ['They beat you last time.'], opp: c.rivalId || c.active.find(id => id !== c.meId) }); g.ui.clearTo(careerHub(g)); });

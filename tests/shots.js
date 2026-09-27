@@ -7,7 +7,7 @@ fs.mkdirSync(OUT, { recursive: true });
 (async () => {
   const browser = await chromium.launch();
   const errors = [];
-  const mk = async (opts) => { const ctx = await browser.newContext(opts); const page = await ctx.newPage(); page.on('pageerror', e => errors.push('[pageerror] ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)/.test((m.location() || {}).url || '')) errors.push('[console] ' + m.text()); }); await page.goto('file://' + path.join(ROOT, 'index.html')); await page.waitForTimeout(600); return page; };
+  const mk = async (opts) => { const ctx = await browser.newContext(opts); const page = await ctx.newPage(); await page.addInitScript(() => { window.HH_NO_TIPS = true; }); /* R10: no first-time tips in the tour */ page.on('pageerror', e => errors.push('[pageerror] ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)/.test((m.location() || {}).url || '')) errors.push('[console] ' + m.text()); }); await page.goto('file://' + path.join(ROOT, 'index.html')); await page.waitForTimeout(600); return page; };
   const page = await mk({ viewport: { width: 1280, height: 720 } });
   const ev = (f, a) => page.evaluate(f, a);
   const shot = async (n) => { await page.waitForTimeout(250); await page.screenshot({ path: path.join(OUT, n + '.jpg'), type: 'jpeg', quality: 88 }); console.log('shot', n); };

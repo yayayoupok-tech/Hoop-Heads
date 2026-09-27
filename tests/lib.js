@@ -21,6 +21,7 @@ async function openPage(browser, opts = {}) {
     else if (m.type() === 'warning' && /^\[(frame|art lab|invariant|ui)\]/.test(t)) errors.push('[warning] ' + t);
   });
   page.on('request', r => { const u = r.url(); if (!u.startsWith('file:') && !u.startsWith('data:') && !u.startsWith('blob:') && !isFont(u)) errors.push('[network] unexpected request ' + u); });
+  await page.addInitScript(tips => { window.HH_NO_TIPS = !tips; }, !!opts.tips); /* R10: first-time tips stay out of the scripted tests unless a test asks for them */
   await page.goto(FILE + (opts.query || '')); await page.waitForTimeout(opts.wait || 600);
   const ev = (f, a) => page.evaluate(f, a);
   const api = {

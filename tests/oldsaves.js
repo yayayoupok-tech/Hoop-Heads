@@ -19,7 +19,8 @@ const FIX = path.join(__dirname, 'fixtures');
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
     const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
     switch (s.name) {
-      case 'title': g.ui.clearTo(mainMenu(g)); break;
+      case 'title': case 'splash': g.ui.clearTo(mainMenu(g)); break; // R10: the boot splash after a reload
+      case 'tip': pr(by(/^GOT IT$/)); break; // R10: a first-time tip
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
       case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|TRANSFER PORTAL|DRAFT COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
       case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM( THE GAME)?$/)); break;

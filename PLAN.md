@@ -189,21 +189,23 @@ XP bonus and stronger recruiting and draft recommendations; no chemistry.
 
 **R1 — Retro look** *(done: one 360-row pixel world, pixelize() for every sprite, stepped backgrounds, the Retro Ball
 Font, pixel characters in menus, the Retro check page, three visual rounds.)*
-**R2 — Size and framing** — the 15 m compact court (1v1 only), a 2 m player about 1/7 of the court and 23–25% of the
+**R2 — Size and framing** *(done)* — the 15 m compact court (1v1 only), a 2 m player about 1/7 of the court and 23–25% of the
 screen, the Legends venue re-laid out for the bigger players, the gate retuned.
-**R3 — Career foundation** — save migration; teams as organizations (school, program, franchise: identity, coach,
+**R3 — Career foundation** *(done)* — save migration; teams as organizations (school, program, franchise: identity, coach,
 teammates); growth not locked to position (§3.2); two traits with rarities, adapted to 1v1, and the trait balance test.
-**R4 — Ladder and coach trust** — the depth-chart ladder, coach trust, teammates in practice; arcade extras out of the career.
-**R5 — High school** — tryouts, the season, district and state playoffs, rivalry game and senior night, stars and
+**R4 — Ladder and coach trust** *(done)* — the depth-chart ladder, coach trust, teammates in practice; arcade extras out of the career.
+**R5 — High school** *(done)* — tryouts, the season, district and state playoffs, rivalry game and senior night, stars and
 rankings, visits and commitment day, summers, academics.
-**R6 — College** — program choice, conference season and tournament, the 64-team bracket, NIL, draft stock, the
+**R6 — College** *(done)* — program choice, conference season and tournament, the 64-team bracket, NIL, draft stock, the
 transfer portal, declare or return.
-**R7 — Pro, money, epilogue** — contracts, free agency and trade requests with franchise rosters; the money sinks; the
+**R7 — Pro, money, epilogue** *(done)* — contracts, free agency and trade requests with franchise rosters; the money sinks; the
 retirement epilogue and the net-worth board.
-**R8 — Hype and press** — the §3.8 and §3.9 rules adapted to 1v1, and both balance tests.
-**R9 — Story** — arcs from beats, RPG event cards with pixel portraits, the news and social feeds.
-**R10 — Polish and QA** — one Retro UI kit, settings, save slots, onboarding, every screen checked, full-length games
-restored, the gallery, the report, the artifact republished.
+**R8 — Hype and press** *(done)* — the §3.8 and §3.9 rules adapted to 1v1, and both balance tests.
+**R9 — Story** *(done)* — arcs from beats, RPG event cards with pixel portraits, the news and social feeds.
+**R10 — Polish and QA** *(done)* — one Retro UI kit, settings in five tabs with key remapping and 1.25× text, three save
+slots, a boot splash, credits, win/loss stingers, onboarding (the tutorial's violations step, first-time tips), every
+screen checked at both sizes and at 1.25× text, a whole career through the UI, full-length games restored, the gallery
+(`shots/before-after-r/`), the report (the top of `CHANGES.md`), the artifact republished.
 
 ## Testing every milestone
 
