@@ -71,15 +71,13 @@ fs.mkdirSync(OUT, { recursive: true });
   await ev(() => { const s = HH.game.ui.screen; const w = s.widgets.find(w => w.primary); w.onPress(); }); await page.waitForTimeout(2600); await shot('d33_quick_match');
   await moment("m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.12)", 120 * 90, 'd34_quick_match_shot');
   await toMenu(); await page.waitForTimeout(300);
-  await press(/Extras/); await page.waitForTimeout(250); await press(/Street tournament/); await page.waitForTimeout(300); await shot('d35_tournament'); await ev(() => HH.game.ui.pop());
-  await toMenu(); await page.waitForTimeout(250); await press(/Extras/); await page.waitForTimeout(250); await press(/3-Point Contest/); await page.waitForTimeout(300); await shot('d36_threept_setup'); await ev(() => { const s = HH.game.ui.screen; s.widgets.find(w => w.primary).onPress(); }); await page.waitForTimeout(2500); await shot('d37_threept_contest'); await toMenu(); await page.waitForTimeout(300);
-  await press(/Extras/); await page.waitForTimeout(250); await press(/^Practice$/); await page.waitForTimeout(300); await shot('d38_practice_setup'); await ev(() => HH.game.ui.pop());
-  await toMenu(); await page.waitForTimeout(250); await press(/Extras/); await page.waitForTimeout(250); await press(/Team league/); await page.waitForTimeout(400); await shot('d39_team_league'); await toMenu(); await page.waitForTimeout(300);
+  await press(/^Practice$/); await page.waitForTimeout(250); await shot('d35_practice_menu'); await ev(() => HH.game.ui.pop()); /* F1: Practice replaces Extras */
+  await toMenu(); await page.waitForTimeout(250); await press(/^Practice$/); await page.waitForTimeout(250); await press(/3-Point Contest/); await page.waitForTimeout(300); await shot('d36_threept_setup'); await ev(() => { const s = HH.game.ui.screen; s.widgets.find(w => w.primary).onPress(); }); await page.waitForTimeout(2500); await shot('d37_threept_contest'); await toMenu(); await page.waitForTimeout(300);
+  await press(/^Practice$/); await page.waitForTimeout(250); await press(/^Shooting practice$/); await page.waitForTimeout(300); await shot('d38_practice_setup'); await ev(() => HH.game.ui.pop());
+  await toMenu(); await page.waitForTimeout(300);
   await press(/Hall of Fame/); await page.waitForTimeout(300); await shot('d40_hall_of_fame'); await ev(() => HH.game.ui.pop());
   await press(/How to play/); await page.waitForTimeout(300); await shot('d41_how_to_play'); await ev(() => HH.game.ui.pop());
   await press(/Settings/); await page.waitForTimeout(300); await shot('d42_settings'); await ev(() => HH.game.ui.pop());
-  // team league 5v5 match (classic)
-  try { await toMenu(); await page.waitForTimeout(250); await press(/Extras/); await page.waitForTimeout(250); await press(/Team league/); await page.waitForTimeout(300); const nm = await name(); console.log('team league screen', nm); if (nm === 'create') { await ev(() => { const s = HH.game.ui.screen; const w = s.widgets.find(w => w.primary); w.onPress(); }); await page.waitForTimeout(400); const n2 = await name(); console.log('then', n2); if (n2 !== 'teamhub') { await ev(() => { const s = HH.game.ui.screen; const w = s.widgets.find(w => w.kind === 'custom' && w.onPress); if (w) w.onPress(); }); await page.waitForTimeout(400); } } await shot('d43_team_hub'); await press(/^PLAY( GAME)?$/); await page.waitForTimeout(2600); await moment("m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.1)", 120 * 60, 'd44_team_5v5_match'); } catch (e) { console.log('team league', e.message.slice(0, 200)); }
   // phone, touch
   const ph = await mk({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const pev = (f, a) => ph.evaluate(f, a); const pshot = async n => { await ph.waitForTimeout(300); await ph.screenshot({ path: path.join(OUT, n + '.jpg'), type: 'jpeg', quality: 85 }); console.log('shot', n); };

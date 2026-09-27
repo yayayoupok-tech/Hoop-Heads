@@ -65,10 +65,10 @@ const FIX = path.join(__dirname, 'fixtures');
       await wait(200); const after = await summary();
       // the hub's pages draw on the migrated save
       const pages = await ev(() => { const g = HH.game, d = g.save.data, out = []; const pro = d.career && !d.career.retired && !d.career.done, am = d.c1 && !d.c1.handedOff; if (!pro && !am) return out; g.ui.clearTo(pro ? careerHub(g) : amHub(g)); const list = pro ? [leagueScreen, playerScreen, managementScreen, headlinesScreen, trophyCaseScreen, timelineScreen, practiceScreen, filmRoomScreen] : [amStandingsScreen, amHistoryScreen, headlinesScreen, trophyCaseScreen, timelineScreen, practiceScreen, filmRoomScreen]; for (const f of list) { const sc = f(g); out.push(sc.name); g.ui.push(sc); g.ui.update(1 / 60, g.input); g.ui.draw(g.ctx || g.canvas.getContext('2d'), g.canvas.width, g.canvas.height); g.ui.pop(); } return out; });
-      // the classic team league, if the save has one: two games from its hub
-      const tc = await ev(() => { const g = HH.game, d = g.save.data; if (!d.teamCareer) return null; g.ui.clearTo(tcHub(g)); const r0 = d.teamCareer.results.length; for (let k = 0; k < 2; k++) { const sc = g.ui.screen; const w = sc.widgets.find(x => !x.hidden && /^(SIM|SIM THE PLAYOFFS|START PLAYOFFS)$/.test(x.label || '')); if (!w) break; w.onPress(); } return d.teamCareer.results.length - r0; });
+      // F1: the classic team league is gone from the game; a save that had one keeps its data untouched
+      const tc = await ev(() => { const d = HH.game.save.data; return d.teamCareer ? (Array.isArray(d.teamCareer.results) ? d.teamCareer.results.length : -1) : null; });
       await wait(300); const nan = await nanScan(); const fx = await P.frameErrors();
-      const msg = before + ' → ' + after + ' · ' + n + ' actions · last screen ' + last + ' · pages ' + pages.length + (tc != null ? ' · team league +' + tc + ' games' : '');
+      const msg = before + ' → ' + after + ' · ' + n + ' actions · last screen ' + last + ' · pages ' + pages.length + (tc != null ? ' · team league data kept (' + tc + ' results)' : '');
       if (P.errors.length) throw new Error(msg + ' · ' + P.errors.slice(0, 3).join(' | '));
       if (fx.length) throw new Error(msg + ' · frame exceptions: ' + fx.slice(0, 3).join(' | '));
       if (nan.length) throw new Error(msg + ' · NaN: ' + nan.join(', '));

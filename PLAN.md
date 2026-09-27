@@ -207,6 +207,31 @@ slots, a boot splash, credits, win/loss stingers, onboarding (the tutorial's vio
 screen checked at both sizes and at 1.25× text, a whole career through the UI, full-length games restored, the gallery
 (`shots/before-after-r/`), the report (the top of `CHANGES.md`), the artifact republished.
 
+## Player feedback (F1–F10)
+
+The user's notes after playing the R10 build, from a screenshot of the Extras menu: remove extras; the game lags a lot,
+especially on dunks; text overlaps and hides other text; add items to buy that help a little, nothing broken; the pro team
+concept should be better and the team and business side organized like Retro Bowl; a way to see what hype, fame and
+the other stats do; XP should be harder to earn; the 3-point contest and practice let you score layups, and rebounds
+should come back by themselves; the goal should be getting onto a really good pro team, with teams reworked instead of
+the draft; games about a minute long. The earlier rules stand (a 1v1-only career, no extras in it, saves migrate, a
+commit per milestone after the suite).
+
+**F1–F2 — Extras and practice** *(done)* — Practice replaces the Extras menu (shooting practice, the 3-Point Contest, the
+tutorial); the classic team league and the street tournament are gone (their save data kept); credits in Settings, the
+Art Lab in the dev menu; power-ups off by default. The contest and the career's shootouts count only rack threes, walk
+you rack to rack and hand you every ball; practice passes every rebound back.
+**F3 — Performance** — find what costs a frame (the character pixelize) and what spikes on dunks; fix both; measure.
+**F4 — Text** — an automated check for overlapping text on every screen and in the match HUD at several window sizes
+(square and tall windows included); fix what it finds.
+**F5–F6 — One-minute games and harder XP** — timed one-minute career games with sudden death; slower progression; the
+career simulator retuned.
+**F7 — Teams** — star-rated pro franchises with rosters; no draft: teams sign you by level; moving up through free agency
+and trade requests; the goal is starring for a top team; the hub organized like Retro Bowl's front office.
+**F8 — Shop** — gear bought with money: small capped bonuses, visible on the player, balance-tested.
+**F9 — Stats guide** — what every meter does, in numbers, with its current value and how to raise it.
+**F10 — QA and release** — the suite, every screen at every size, the report, the artifact republished.
+
 ## Testing every milestone
 
 ```

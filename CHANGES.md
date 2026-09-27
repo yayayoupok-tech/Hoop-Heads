@@ -3,6 +3,75 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F1–F2 — Extras removed; practice and the 3-point contest fixed (the F pass, milestones 1 and 2)
+
+The F pass answers the user's playtest notes on the R10 build (the full list and plan are in `PLAN.md`). These two
+milestones cover "remove extras" and "the 3-point contest and even practice let you score a layup or any other
+non-three; the rebound should come back to you without going to get it".
+
+**F1: the Extras menu is gone.**
+- The main menu's **Practice** replaces Extras. Practice holds shooting practice, the 3-Point Contest and the tutorial;
+  nothing in it counts for a career.
+- The classic team league (5v5/3v3) and the street tournament are gone from the game, with their code (the two team-league
+  parts and `CONFIG.teamCareer`).
+  - A save that has a team league keeps its data exactly as it was: nothing is wiped, it just isn't playable.
+  - An old v2 career still becomes that save's team-league data, and its player still prefills a new career's name.
+- The credits are a **Credits** button in Settings.
+- The Art Lab is in the dev menu (the \` key) and at `index.html?artlab`.
+- Power-ups (the L9 arcade extras) are now a single Gameplay toggle, **Power-ups in Quick 1v1**, off by default.
+  - Every older save starts with them off once (`settings.extrasF1`); turning them back on sticks.
+  - They were never in the career (R4) and never in practice.
+- The create screen's "Face shape & extras" is now "Face shape & accessories".
+
+**F2: the contest and practice.**
+- The 3-Point Contest, the career's 60-second SHOOTOUT drill, the high-school tryout shootout and the All-Star contest
+  share one piece of code. Before, you could walk off the rack, grab the loose ball and lay it up for points.
+- Now the shooter walks rack to rack on their own and Shoot is the only button (no drives, dribble moves, fades or jumps).
+- Only a jumper from beyond the arc at the rack counts.
+- The loose ball can't be caught; the next ball is in your hands 0.35 s after the last one lands, in or out.
+- A computer playing the contest (the tests' fast-forward) takes rack jumpers too; its brain had kept trying to drive.
+- The contest's HUD lines sit on a dark strip clear of the arena's banners. Its key hints and phone buttons show Shoot only,
+  and its start screen has the rules under the title.
+- Practice passes every rebound back.
+  - The ball loops from where it is to your hands (a kinematic pass nothing can touch) 0.45 s after a make, 0.5 s after
+    a miss lands, or 0.3 s after a loose ball settles.
+  - The defender dummy passes its rebounds back too.
+  - In a probe, the ball came back 16 times in 40 s without the shooter moving.
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `contest3.showResultS` | 0.35 s | the next ball waits this long after the last one lands |
+| `contest3.threesOnly` | true | rack jumpers only; no catches; auto-walk between racks |
+| `contest3.walkSpeed` | 0.5 m | the gap at which the shooter walks to the next rack at full stick |
+| `contest3.botSigma` | 0.06 s | a computer shooter's release spread |
+| `rebounder.afterMakeS` / `afterMissS` / `looseS` | 0.45 / 0.5 / 0.3 s | the waits before the pass back |
+| `rebounder.flightS` / `arcM` | 0.55 s / 1.1 m | the pass back's time and loop |
+| `rebounder.dummyHoldS` | 0.3 s | the dummy holds a rebound this long |
+
+**Tests** (the F1 build):
+
+| Test | Result |
+| --- | --- |
+| Smoke, desktop and phone | 127/127 |
+| Modes | 12/12: the street tournament and the two team-league games are gone; the career's tryout shootout and All-Star contest run under the new contest rules |
+| Old saves | 31/31: a team-league save keeps its data |
+| Dev tools | all OK |
+| Phone audit | 109 screens, nothing flagged |
+| Art Lab | 54 screenshots, no errors; the Retro check passes |
+| Gate | Pro mirror 1.18 PPP, Legend beats Pro 83%, brute 1.00 |
+| Balance harness | brute 1.24, Legend beats Pro 78% |
+| Career simulator (40) | the R10 numbers: nothing it simulates changed |
+| Trait balance | every trait in range |
+
+The new smoke steps:
+- **F1:** no Extras. The Practice menu has shooting practice, the contest and the tutorial, and no team league,
+  tournament or Art Lab. Settings → Credits works. The dev menu → Art Lab works. The removed screens aren't in the build.
+- **F2:** a shooter who pushes toward the hoop every frame never gets inside the arc. All 25 balls are rack jumpers, and a
+  layup never scores. In practice, the ball comes back at least 8 times in 30 s without the shooter moving.
+- **Power-ups:** off by default; on, Quick 1v1 gets them; the one-time migration of old saves is checked.
+
+An intermittent failure of the phone touch-layout step during development led to a real bug, fixed in F3–F4.
+
 ## The R pass (R1–R10): the report
 
 The spec "Hoop Heads: retro look + real career", in ten milestones with a commit each. During R2 the user changed

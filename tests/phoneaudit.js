@@ -33,13 +33,11 @@ const { launch, openPage } = require('./lib');
   await audit('splash', () => { const g = HH.game; g.ui.clearTo(splashScreen(g)); }); await P.ev(() => HH.game.ui.clearTo(mainMenu(HH.game)));
   await audit('tip', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(tipScreen(g, 'ladder')); }); // R10: a first-time tip
   await audit('howto', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(howToScreen(HH.game)); });
-  await audit('extras', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(extrasScreen(HH.game)); });
+  await audit('practice-hub', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(practiceHubScreen(HH.game)); }); // F1: Practice replaces Extras
   await audit('quickplay', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(quickPlayScreen(HH.game)); });
-  await audit('tournament', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(tournamentScreen(HH.game)); });
   await audit('threept', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(threePointScreen(HH.game)); });
-  await audit('free-practice', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(extrasScreen(HH.game)); HH.game.ui.screen.widgets.find(w => w.label === 'Practice').onPress(); });
-  await audit('tour-bracket', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(tournamentScreen(g)); g.ui.screen.widgets.find(w => /START TOURNAMENT/.test(w.label || '')).onPress(); });
-  await audit('confirm', () => { const g = HH.game; g.tournament = null; g.ui.clearTo(mainMenu(g)); g.ui.push(settingsScreen(g)); g.ui.push(confirmScreen(g, 'Erase everything, including your career and Hall of Fame?', () => {})); });
+  await audit('free-practice', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(practiceHubScreen(HH.game)); HH.game.ui.screen.widgets.find(w => w.label === 'Shooting practice').onPress(); });
+  await audit('confirm', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(settingsScreen(g)); g.ui.push(confirmScreen(g, 'Erase everything, including your career and Hall of Fame?', () => {})); });
   await audit('keyboard', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(keyboardScreen(g, 'Rookie', () => {})); });
   await audit('halloffame', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(hallOfFameScreen(HH.game)); });
   await audit('create', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(createPlayerScreen(HH.game)); });
@@ -123,19 +121,6 @@ const { launch, openPage } = require('./lib');
   await audit('legacy', () => { const g = HH.game, sv = g.save.data; proEpilogue(sv, { academy: true, foundation: 10, ending: 'booth' }); g.save.save(); g.ui.clearTo(legacyScreen(g)); }); // (R7: after the epilogue)
   await audit('money-built', () => { const g = HH.game; g.ui.push(moneyBuiltScreen(g)); }); // R7
   await audit('networth', () => { const g = HH.game, H = g.save.data.hallOfFame; H.forEach((e, i) => { if (e.netWorth == null) e.netWorth = 5e7 * (i + 1); }); g.ui.clearTo(mainMenu(g)); g.ui.push(netWorthScreen(g)); }); // R7: the leaderboard
-  await audit('team-league', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(extrasScreen(HH.game)); const s = HH.game.ui.screen; const w = s.widgets.find(x => /Team league/.test(x.label || '')); if (w) w.onPress(); });
-  await audit('tc-create-p3', () => { const s = HH.game.ui.screen; if (s.widgets.some(w => w.label === '▶')) { const nx = s.widgets.find(w => w.label === '▶'); nx.onPress(); nx.onPress(); } });
-  await audit('tc-customize', () => { const s = HH.game.ui.screen; const w = s.widgets.find(x => x.label === 'Customize look'); if (w) w.onPress(); });
-  await audit('tc-choose-team', () => { const g = HH.game; g.ui.pop(); const w = g.ui.screen.widgets.find(x => x.label === 'READY!'); if (w) w.onPress(); });
-  await audit('tc-hub', () => { const g = HH.game; const w = g.ui.screen.widgets.find(x => x.kind === 'custom'); if (w) w.onPress(); });
-  await audit('tc-standings', () => { const g = HH.game; g.ui.clearTo(tcHub(g)); g.ui.push(tcStandingsScreen(g)); });
-  await audit('tc-shop-attrs', () => { const g = HH.game; g.ui.clearTo(tcHub(g)); g.ui.push(tcShopScreen(g, 'attrs')); });
-  await audit('tc-shop-moves', () => { const g = HH.game; g.ui.clearTo(tcHub(g)); g.ui.push(tcShopScreen(g, 'moves')); });
-  await audit('tc-manager', () => { const g = HH.game; g.save.data.teamCareer.managerUnlocked = true; g.ui.clearTo(tcHub(g)); g.ui.push(tcManagerScreen(g)); });
-  await audit('tc-lineup', () => { const g = HH.game; g.ui.push(tcLineupScreen(g)); });
-  await audit('tc-trade', () => { const g = HH.game; g.ui.clearTo(tcManagerScreen(g)); g.ui.push(tcTradeScreen(g)); });
-  await audit('tc-freeagents', () => { const g = HH.game; g.ui.clearTo(tcManagerScreen(g)); g.ui.push(tcFreeAgentScreen(g)); });
-  await audit('tc-strategy', () => { const g = HH.game; g.ui.clearTo(tcManagerScreen(g)); g.ui.push(tcStrategyScreen(g)); });
   await audit('pause', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); const a = soloTeam(extrasPool(g)[0], false), b = soloTeam(extrasPool(g)[1], true); g.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'blacktop', seed: 3, controlMode: 'lock' }, { kind: 'quick' }); g.pause(); });
   await audit('postgame-quick', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); const a = soloTeam(extrasPool(g)[0], false), b = soloTeam(extrasPool(g)[1], true); g.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 3 }, court: 'blacktop', seed: 5, controlMode: 'lock' }, { kind: 'quick' }); for (const p of g.match.players) p.controlled = false; for (let i = 0; i < 120 * 240 && !g.match.ended; i++) simStep(g.match, STEP); });
   await wait(4000); await audit('postgame-quick-later', () => {});

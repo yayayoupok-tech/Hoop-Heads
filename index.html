@@ -815,27 +815,6 @@ const CONFIG = {
     firstBallotMul: 1.5,       // a legacy this many times the line is a first-ballot induction
     newsMax: 40,               // news items kept
   },
-  teamCareer: {                // the classic team league (5v5/3v3), kept under Extras
-    startPoints: 32,           // starting total attribute points
-    capTotal: 52,              // maximum total attribute points
-    capRating: 10,             // maximum per rating
-    upgradeCostPerLevel: 100,  // cost = this × next level
-    seasonGames: 10,           // regular season games
-    playoffTeams: 4,           // teams in the playoffs
-    coinWin: 60,               // coins for a win
-    coinLoss: 20,              // coins for a loss
-    coinPerPoint: 2,           // coins per point
-    coinPerAssist: 4,          // coins per assist
-    coinPerStop: 5,            // coins per steal or block
-    coinPerHighlight: 10,      // coins per highlight
-    moveCosts: { spin: 300, stepback: 250, hesitation: 250, euro: 300, dunk360: 500, windmill: 500 }, // shop move prices
-    cosmeticCosts: { headband: 120, sleeves: 120, shoes: 80, ballskin: 200 }, // shop cosmetic prices
-    rivalGames: [3, 6, 10],    // season games where the rival shows up (1-based)
-    playoffWinsNeeded: 5,      // wins needed to make the playoffs (top 4 by record qualify)
-    capPerSeason: 4,           // attribute cap grows by this every season
-    coinSeasonBonus: 150,      // coins for finishing a season
-    rosterMax: 7,              // roster size limit in Manager mode
-  },
   week: {                      // the career week (both careers, §8): before each game you choose Practice, Rest or Film
     practiceFocusMul: 1.4,     // Practice: this week's game pays its focus XP × this (+40%)
     simSessionXp: 10,          // a simmed practice session pays this much focus XP (× intensity, × the age multiplier capped at 1; pro: × staff and facilities)
@@ -972,6 +951,18 @@ const CONFIG = {
     rackDistances: [6.9, 7.2, 7.5, 7.2, 6.9], // rack distances from the hoop (m)
     rackLanes: [0.15, 0.35, 0.5, 0.65, 0.85], // rack lanes (z)
     ballRespawnS: 0.6,         // next ball appears this long after a release (s)
+    showResultS: 0.35,         // F2: the next ball waits this long after the last shot lands (made or missed) (s)
+    threesOnly: true,          // F2: only jumpers from the rack count; you can't catch a loose ball or walk off the racks
+    walkSpeed: 0.5,            // F2: the shooter walks to the next rack on their own (the stick's full tilt at this gap, m)
+    botSigma: 0.06,            // F2: a computer shooter's release timing spread in the contest (s)
+  },
+  rebounder: {                 // F2: practice returns every rebound to you
+    afterMakeS: 0.45,          // wait after a make before the pass back (s)
+    afterMissS: 0.5,           // wait after a miss lands or leaves the rim (s)
+    looseS: 0.3,               // wait after a loose ball settles (s)
+    flightS: 0.55,             // the pass back takes this long (s)
+    arcM: 1.1,                 // how high the pass back loops over a straight line (m)
+    dummyHoldS: 0.3,           // the defender dummy holds a rebound this long before passing it back (s)
   },
   tutorial: {
     stepTimeoutS: 45,          // a tutorial step auto-advances after this (s)
@@ -4706,8 +4697,16 @@ function launchPass(p, target, kind) {
 
 // --- catching and interceptions (passes) and loose-ball pickups (rebounds, steals, blocks) ---
 const _contenders = [], FINISH_SHOTS = { layup: true, dunk: true, tip: true };
+// F2: the practice rebounder passes the ball back: a looping pass from where the ball is to the shooter's hands. It
+// isn't physics (nothing can touch it on the way) and it ends with the ball in their hands, dribble live.
+function startReturn(m, to) { const b = m.ball, R = CONFIG.rebounder; if (!to || b.owner) return; b.shot = null; b.pass = null; b.mode = 'return'; b.ret = { to, t: 0, T: R.flightS, x0: b.x, y0: Math.max(b.y, BALL.radius), z0: b.z }; }
+function returnStep(m, b, dt) {
+  const R = b.ret, to = R && R.to; if (!to) { b.mode = 'loose'; b.ret = null; return; } R.t += dt; const k = clamp01(R.t / R.T);
+  const tx = to.x + to.facing * 0.3, ty = 1.0, tz = to.z; b.x = lerp(R.x0, tx, k); b.z = lerp(R.z0, tz, k); b.y = lerp(R.y0, ty, k) + CONFIG.rebounder.arcM * 4 * k * (1 - k); b.vx = (tx - R.x0) / R.T; b.vy = 0; b.flightT += dt;
+  if (k >= 1) { b.ret = null; b.mode = 'loose'; m.giveBall(to, true); to.pickedUp = false; }
+}
 function catchable(m) {
-  const b = m.ball; if (b.owner) return false; if (b.mode === 'loose') return true;
+  const b = m.ball; if (b.owner || b.mode === 'return') return false; if (b.mode === 'loose') return true;
   if (b.pass) return true;
   if (b.shot) return b.rimTouched || b.boardTouched || b.touchedAfterShot || b.y < RIM_Y - 0.05 || (b.vy < 0 && Math.abs(b.x - b.shot.shooter.hoop.x) > CONFIG.goaltend.range);
   return true;
@@ -4719,7 +4718,7 @@ function playerTouchesBall(p, b) {
   const tx = b.x - p.x, ty = b.y - (p.y + p.height * 0.6); return tx * tx + ty * ty < (PS.catchRadius * 0.8) ** 2;
 }
 function resolveCatches(m, dt) {
-  const b = m.ball; if (m.phase !== 'live' && m.phase !== 'freethrow' && !m.practice && !m.contest3) return; if (!catchable(m)) return;
+  const b = m.ball; if (m.phase !== 'live' && m.phase !== 'freethrow' && !m.practice && !m.contest3) return; if (m.contest3 && CONFIG.contest3.threesOnly) return; /* F2: the contest's balls come from the racks */ if (!catchable(m)) return;
   let n = 0;
   for (let i = 0; i < m.players.length; i++) {
     const p = m.players[i]; if (p.hidden) continue; if (p.inState('stumble', 'knocked', 'rimhang', 'swipe', 'shove', 'pass', 'lob') && !(p.state === 'swipe' && p.sd.phase === 'startup')) continue;
@@ -4915,6 +4914,7 @@ const _heads = []; for (let i = 0; i < 10; i++) _heads.push({ x: 0, y: 0, r: 0.3
 function updateBall(m, dt) {
   const b = m.ball; b.px = b.x; b.py = b.y; b.pz = b.z;
   if (b.owner) { b.flightT = 0; return; }
+  if (b.mode === 'return') { returnStep(m, b, dt); return; } // F2: the rebounder's pass back
   if (b.mode === 'held') b.mode = 'loose';
   let n = 0;
   for (let i = 0; i < m.players.length && i < 10 && !b.pass; i++) { const p = m.players[i]; if (p.hidden || Math.abs(p.z - b.z) > W.laneShare) continue; if (b.shot && b.shot.shooter === p && b.flightT < 0.3) continue; if (b.pass && b.pass.from === p && b.flightT < 0.25) continue; if (p.inState('rimhang', 'catch')) continue; if (catchable(m) && b.vy < 1.0 && Math.abs(p.x - b.x) < 0.6 && !p.inState('stumble', 'knocked', 'swipe', 'shove')) continue; const hd = _heads[n++]; hd.x = p.x + p.facing * 0.02; hd.y = p.headY; hd.r = BALL.headRadius * (p.look.headScale || 1) * (p.height / 2); hd.vx = p.vx; hd.vy = p.vy; hd.id = i; hd.skip = false; }
@@ -4955,6 +4955,7 @@ function simStep(m, dt) {
   // brains write inputs exactly like a human would
   if (m.opts.reverseBrains) { for (let t = 1; t >= 0; t--) m.teams[t].brain.update(dt); for (let i = m.players.length - 1; i >= 0; i--) { const p = m.players[i]; if (p.brain && !p.controlled && !p.hidden) p.brain.update(dt); } }
   else { for (let t = 0; t < 2; t++) m.teams[t].brain.update(dt); for (let i = 0; i < m.players.length; i++) { const p = m.players[i]; if (p.brain && !p.controlled && !p.hidden) p.brain.update(dt); } }
+  if (m.contest3) contest3Steer(m); // F2: the contest's shooter walks from rack to rack; Shoot is the only button
   updateLanes(m);
   if (m.opts.reverseUpdates) { for (let i = m.players.length - 1; i >= 0; i--) if (!m.players[i].hidden) updatePlayer(m.players[i], dt); } else for (let i = 0; i < m.players.length; i++) if (!m.players[i].hidden) updatePlayer(m.players[i], dt);
   resolveBodies(m, dt);
@@ -5754,45 +5755,59 @@ function setupPractice(m) {
   const dummy = m.players.find(p => p.team !== m.humanTeam); if (dummy) { if (pr.noDefender) { dummy.x = -50; dummy.zTarget = 0.5; dummy.hidden = true; } else { dummy.x = m.hoopFor(hp.team).x - LX(2.5); } }
   m.possession = m.humanTeam; m.shotClock = 99;
   m.bus.on('SHOT_RELEASED', s => { if (s.shooter.team !== m.humanTeam) return; pr.shots++; pr.chart.push({ x: s.x0, d: s.d, zone: s.zone, make: s.make, type: s.type, grade: s.grade, id: s.id }); const k = s.type === 'layup' || s.type === 'tip' ? 'lay' : s.type === 'dunk' ? 'dunk' : s.zone; pr.byZone[k][1]++; });
-  m.bus.on('MISS', e => { if (e.shooter.team === m.humanTeam) pr.respawnT = 1.1; });
+  m.bus.on('MISS', e => { if (e.shooter.team === m.humanTeam) pr.respawnT = CONFIG.rebounder.afterMissS; });
 }
 function practiceScore(m, hoop, shot) {
   const pr = m.practice || m.contest3; const b = m.ball; if (!shot) { b.shot = null; return; }
   if (!shot.resolved) { resolveShotOutcome(m, true, 'shot'); }
-  if (m.practice) { if (shot.shooter.team === m.humanTeam) { m.practice.makes++; const k = shot.type === 'layup' || shot.type === 'tip' ? 'lay' : shot.type === 'dunk' ? 'dunk' : shot.zone; m.practice.byZone[k][0]++; const c = m.practice.chart.find(q => q.id === shot.id); if (c) c.make = true; } m.practice.respawnT = 0.9; }
+  if (m.practice) { if (shot.shooter.team === m.humanTeam) { m.practice.makes++; const k = shot.type === 'layup' || shot.type === 'tip' ? 'lay' : shot.type === 'dunk' ? 'dunk' : shot.zone; m.practice.byZone[k][0]++; const c = m.practice.chart.find(q => q.id === shot.id); if (c) c.make = true; } m.practice.respawnT = CONFIG.rebounder.afterMakeS; }
   m.bus.emit('SCORE', { team: shot.shooter.team, player: shot.shooter, points: shot.points, shot, buzzer: false, clutch: false, hoop, reason: 'shot', dunk: shot.type === 'dunk', three: shot.points === 3, practice: true });
   if (m.contest3) contest3Score(m, shot);
   b.shot = null;
 }
 function updatePracticeRules(m, dt) {
-  const pr = m.practice, hp = m.human, b = m.ball; m.shotClock = 99; m.inboundHoldT = 0;
-  if (pr.respawnT > 0) { pr.respawnT -= dt; if (pr.respawnT <= 0 && !b.owner) { m.giveBall(hp, true); hp.pickedUp = false; } }
-  if (!b.owner && b.mode === 'loose' && b.y <= BALL.radius + 0.01 && Math.abs(b.vx) < 0.3 && pr.respawnT <= 0) pr.respawnT = 0.5;
-  if (b.owner && b.owner.team !== m.humanTeam && b.owner.grounded && b.owner.stateT > 0.3) { const d = b.owner; m.giveBall(hp, true); d.setState('move'); }
+  const pr = m.practice, hp = m.human, b = m.ball, RB_ = CONFIG.rebounder; m.shotClock = 99; m.inboundHoldT = 0;
+  // F2: every rebound comes back to you. A make waits for the net, a miss for the rim or the floor, then a pass back.
+  if (pr.respawnT > 0) { pr.respawnT -= dt; if (pr.respawnT <= 0 && !b.owner && b.mode !== 'return') { startReturn(m, hp); hp.pickedUp = false; } }
+  if (!b.owner && b.mode === 'loose' && b.y <= BALL.radius + 0.01 && Math.abs(b.vx) < 0.3 && pr.respawnT <= 0) pr.respawnT = RB_.looseS;
+  if (b.owner && b.owner.team !== m.humanTeam && b.owner.grounded && b.owner.stateT > RB_.dummyHoldS) { const d = b.owner; b.setOwner(null); b.mode = 'loose'; d.setState('move'); startReturn(m, hp); }
   m.possession = m.humanTeam;
-  if (b.shot && b.shot.resolved && !b.shot.made && pr.respawnT <= 0) pr.respawnT = 0.8;
+  if (b.shot && b.shot.resolved && !b.shot.made && pr.respawnT <= 0 && b.mode !== 'return') pr.respawnT = RB_.afterMissS;
   if (m.ball.owner === hp) m.possession = hp.team;
 }
 function setupContest3(m) {
-  const c = m.contest3; c.rack = 0; c.ball = 0; c.score = 0; c.timeLeft = CONFIG.contest3.seconds; c.done = false; c.respawnT = 0; c.started = false; c.results = [];
+  const c = m.contest3; c.rack = 0; c.ball = 0; c.score = 0; c.timeLeft = CONFIG.contest3.seconds; c.done = false; c.respawnT = 0; c.settleT = 0; c.started = false; c.results = [];
   const hp = m.human, hoop = m.hoopFor(hp.team), dir = sgn(COURT_L / 2 - hoop.x); c.racks = CONFIG.contest3.rackDistances.map((d, i) => ({ x: hoop.x + dir * d, z: CONFIG.contest3.rackLanes[i], balls: CONFIG.contest3.ballsPerRack }));
   hp.x = c.racks[0].x; hp.z = c.racks[0].z; hp.zTarget = hp.z; for (const p of m.players) if (p !== hp) { p.x = -50; p.hidden = true; }
   m.possession = hp.team; m.shotClock = 99;
-  m.bus.on('SHOT_RELEASED', s => { if (s.shooter === hp) { c.started = true; c.lastShot = s; c.respawnT = CONFIG.contest3.ballRespawnS; c.pendingMoney = c.ball === CONFIG.contest3.ballsPerRack - 1; c.ball++; } });
+  m.bus.on('SHOT_RELEASED', s => { if (s.shooter === hp) { c.started = true; c.lastShot = s; c.respawnT = CONFIG.contest3.ballRespawnS; c.settleT = 0; c.pendingMoney = c.ball === CONFIG.contest3.ballsPerRack - 1; c.fromRack = contest3AtRack(m, CONFIG.contest3.walkSpeed * 2); c.ball++; } });
   m.bus.on('MISS', e => { if (e.shooter === hp && c.lastShot && e.shot === c.lastShot) { c.results.push(0); } });
 }
-function contest3Score(m, shot) { const c = m.contest3; if (!c || shot.shooter !== m.human) return; const pts = c.pendingMoney ? CONFIG.contest3.moneyBallPts : 1; c.score += pts; c.results.push(pts); m.bus.emit('CONTEST_POINTS', { pts }); }
+// F2: a shot counts only as a jumper from beyond the arc released at the rack (the contest has no layups).
+function contest3Counts(shot) { return !CONFIG.contest3.threesOnly || (shot && shot.points === 3 && !FINISH_SHOTS[shot.type] && shot.type !== 'tip'); }
+function contest3Score(m, shot) { const c = m.contest3; if (!c || shot.shooter !== m.human) return; if (!contest3Counts(shot) || c.fromRack === false) { c.results.push(0); return; } const pts = c.pendingMoney ? CONFIG.contest3.moneyBallPts : 1; c.score += pts; c.results.push(pts); m.bus.emit('CONTEST_POINTS', { pts }); }
+function contest3AtRack(m, tol) { const c = m.contest3, r = c && c.racks && c.racks[Math.min(c.rack, c.racks.length - 1)]; return !!r && Math.abs(m.human.x - r.x) < tol; }
+// F2: the shooter walks to the current rack on their own; every button but Shoot is off (no drives, no moves, no fades).
+function contest3Steer(m) {
+  const c = m.contest3, hp = m.human; if (!hp || !c || !c.racks || !CONFIG.contest3.threesOnly) return; const I = hp.input, r = c.racks[Math.min(c.rack, c.racks.length - 1)], dx = r.x - hp.x;
+  I.moveX = c.done || Math.abs(dx) < 0.08 || hp.hasBall && Math.abs(dx) < 0.4 ? 0 : clamp(dx / CONFIG.contest3.walkSpeed, -1, 1);
+  for (const k of ['jump', 'pass', 'action', 'sprint', 'down']) { I[k] = false; I[k + 'P'] = false; I[k + 'R'] = false; } I.holdPass = 0; I.holdSprint = 0;
+  if (!hp.controlled) { // a computer shooter (a sim or a test's fast-forward): jumpers at the rack, let go near the top (a brain would try to drive)
+    const b = c.bot || (c.bot = { rel: -1 }); if (hp.hasBall && Math.abs(dx) < 0.4 && (hp.state === 'move' || hp.state === 'idle' || hp.state === 'protect')) I.set('shoot', true);
+    else if (hp.state === 'gather') I.set('shoot', true); else if (hp.state === 'jumpshot') { if (b.rel < 0) b.rel = Math.max(0.02, (hp.sd.tApex || 0.3) - AI.releaseLatencyS + m.rng.gauss() * CONFIG.contest3.botSigma); I.set('shoot', hp.stateT < b.rel); } else { b.rel = -1; I.set('shoot', false); } }
+}
 function updateContest3Rules(m, dt) {
-  const c = m.contest3, hp = m.human, b = m.ball; m.shotClock = 99; m.inboundHoldT = 0; m.possession = hp.team;
+  const c = m.contest3, hp = m.human, b = m.ball, C3 = CONFIG.contest3; m.shotClock = 99; m.inboundHoldT = 0; m.possession = hp.team;
   if (c.done) return;
   if (c.started) { c.timeLeft -= dt; if (c.timeLeft <= 0) { c.timeLeft = 0; if (!b.shot) { c.done = true; m.bus.emit('CONTEST_END', { score: c.score }); } } }
   m.gameClock = c.timeLeft;
   if (c.respawnT > 0) { c.respawnT -= dt; }
-  const rack = c.racks[c.rack];
-  if (c.ball >= CONFIG.contest3.ballsPerRack) { if (c.rack < c.racks.length - 1) { c.rack++; c.ball = 0; } else { if (!b.shot && c.respawnT <= 0) { c.done = true; m.bus.emit('CONTEST_END', { score: c.score }); } return; } }
+  const flying = !b.owner && b.shot && !b.shot.resolved; if (!b.owner && !flying) c.settleT += dt; else c.settleT = 0; // the last ball has landed (in or out) this long ago
+  if (c.ball >= C3.ballsPerRack) { if (c.rack < c.racks.length - 1) { if (!flying) { c.rack++; c.ball = 0; } } else { if (!b.shot && c.respawnT <= 0) { c.done = true; m.bus.emit('CONTEST_END', { score: c.score }); } else if (b.shot && b.shot.resolved && c.settleT >= C3.showResultS) b.shot = null; return; } }
   const r = c.racks[c.rack]; hp.zTarget = r.z;
-  if (!b.owner && c.respawnT <= 0 && c.timeLeft > 0 && Math.abs(hp.x - r.x) < 0.8 && hp.grounded && !hp.busy) { m.giveBall(hp, true); hp.pickedUp = true; hp.pickedUpT = 0; if (b.shot) b.shot = null; }
-  if (!b.owner && b.shot && b.shot.resolved) { b.shot = null; }
+  const settled = !C3.threesOnly || c.settleT >= C3.showResultS; // F2: the next ball waits for the last one to land, then it's in your hands: no rebounds to chase
+  if (!b.owner && !flying && settled && c.respawnT <= 0 && c.timeLeft > 0 && Math.abs(hp.x - r.x) < 0.8 && hp.grounded && !hp.busy) { b.shot = null; m.giveBall(hp, true); hp.pickedUp = true; hp.pickedUpT = 0; }
+  if (!b.owner && b.shot && b.shot.resolved && settled) { b.shot = null; }
 }
 
 // --- career drills (§8): 60 seconds on the game clock of half-court possessions that all start with the same side ---
@@ -6333,7 +6348,8 @@ function drawCallouts(ctx, m, W_, H_, dt) { // stamped text with an ink outline 
 function drawHints(ctx, m, input, W_, H_, offense) {
   const L = input.hintLabels(); const counts = m.hintCounts; const N = CONFIG.ui.hintUses; const items = [];
   const add = (key, label, count) => { const a = clamp01(1 - (counts[count] || 0) / N); if (a > 0.02) items.push({ text: L[key] + ' ' + label, a }); };
-  if (offense) { add('move', 'Move', 'move'); add('shoot', 'Hold to shoot · tap to fake', 'shoot'); if (m.perSide > 1) add('pass', 'Pass · hold for lob', 'pass'); else add('pass', 'Fadeaway (hold)', 'pass'); add('action', 'Dribble move', 'action'); add('down', m.perSide === 1 ? 'Post up · shoot = hook' : 'Protect', 'down'); add('sprint', 'Sprint', 'sprint'); }
+  if (m.contest3 && CONFIG.contest3.threesOnly) add('shoot', 'Hold to shoot · let go at the top', 'shoot'); /* F2: the contest has one button */
+  else if (offense) { add('move', 'Move', 'move'); add('shoot', 'Hold to shoot · tap to fake', 'shoot'); if (m.perSide > 1) add('pass', 'Pass · hold for lob', 'pass'); else add('pass', 'Fadeaway (hold)', 'pass'); add('action', 'Dribble move', 'action'); add('down', m.perSide === 1 ? 'Post up · shoot = hook' : 'Protect', 'down'); add('sprint', 'Sprint', 'sprint'); }
   else { add('move', 'Move', 'move'); add('down', 'Stance (hold)', 'down'); add('jump', 'Block', 'jump'); add('action', 'Steal', 'action'); if (m.perSide > 1) add('pass', 'Switch', 'pass'); }
   { const me = m.controlledPlayer; if (me && me.hasBall && me.pickedUp && !m.practice && !m.contest3) items.unshift({ text: 'Dribble picked up: ' + L.shoot + ' shoot · ' + L.pass + ' fade · ' + L.move + ' pivot only', a: 1 }); } // L12
   if (m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax) items.unshift({ text: L.action + ' + ' + L.shoot + '  SUPER!', a: 1 }); // L9: the full meter's combo
@@ -6344,10 +6360,10 @@ function drawHints(ctx, m, input, W_, H_, offense) {
 function touchAlpha(tc, on) { const base = clamp(tc.opacity / ART.touchOpacityRef, 0.35, 1.8); return on ? clamp(base, 0.4, 1) : clamp(ART.touchIdleA * base, 0.15, 1); }
 function drawTouchControls(ctx, tc, offense) { // glassy thumb controls: dark translucent fills so the play shows through, gold when pressed
   const L = tc.layout; if (!L || !tc.visible) return; ctx.save(); const idleA = touchAlpha(tc, false), onA = touchAlpha(tc, true);
-  const st = L.stick; ctx.globalAlpha = tc.stickId >= 0 ? onA : idleA; ctx.fillStyle = 'rgba(10,14,40,0.35)'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+  const st = L.stick; if (!tc.shootOnly) { ctx.globalAlpha = tc.stickId >= 0 ? onA : idleA; ctx.fillStyle = 'rgba(10,14,40,0.35)'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   const kx = st.x + clamp(tc.stickDX, -st.r * 0.8, st.r * 0.8), ky = st.y + clamp(tc.stickDY, -st.r * 0.8, st.r * 0.8); ctx.fillStyle = tc.stickId >= 0 ? 'rgba(255,210,63,0.9)' : 'rgba(243,240,255,0.7)'; ctx.beginPath(); ctx.arc(kx, ky, st.r * 0.42, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(11,16,48,0.8)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(13, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const lab = '▼ ' + (offense ? (tc.solo ? 'POST UP' : 'PROTECT') : 'STANCE'); if (st.labelSide) { ctx.textAlign = st.labelSide > 0 ? 'left' : 'right'; ctx.fillText(lab, st.x + st.labelSide * (st.r + 8), st.y); } else if (st.labelSide !== 0) ctx.fillText(lab, st.x, st.y + st.r + 14);
-  for (const b of L.buttons) { if (b.key === 'super' && !tc.superOn) continue; const pressed = b.key === 'super' ? tc.action && tc.shoot : tc[b.key]; ctx.globalAlpha = pressed ? onA : idleA; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : b.key === 'super' ? 'rgba(255,138,42,0.85)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(13, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const lab = '▼ ' + (offense ? (tc.solo ? 'POST UP' : 'PROTECT') : 'STANCE'); if (st.labelSide) { ctx.textAlign = st.labelSide > 0 ? 'left' : 'right'; ctx.fillText(lab, st.x + st.labelSide * (st.r + 8), st.y); } else if (st.labelSide !== 0) ctx.fillText(lab, st.x, st.y + st.r + 14); } /* F2: the contest draws no stick */
+  for (const b of L.buttons) { if (b.key === 'super' && !tc.superOn) continue; if (tc.shootOnly && b.key !== 'shoot') continue; const pressed = b.key === 'super' ? tc.action && tc.shoot : tc[b.key]; ctx.globalAlpha = pressed ? onA : idleA; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : b.key === 'super' ? 'rgba(255,138,42,0.85)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
     const lbl = tc.solo && b.key === 'pass' ? (offense ? 'FADE' : '—') : (offense ? b.labelO : b.labelD); ctx.font = fontStr(Math.max(12, b.r * 0.4), true); if (!pressed) { ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(5,8,24,0.75)'; ctx.strokeText(lbl, b.x, b.y + 1); } ctx.fillStyle = pressed ? '#0B1030' : '#FFFFFF'; ctx.fillText(lbl, b.x, b.y + 1); }
   const pz = L.pause; ctx.globalAlpha = onA; ctx.fillStyle = 'rgba(10,14,40,0.55)'; ctx.beginPath(); ctx.arc(pz.x, pz.y, pz.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(pz.x - pz.r * 0.35, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8); ctx.fillRect(pz.x + pz.r * 0.12, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8);
   ctx.restore();
@@ -7947,7 +7963,7 @@ class ReplayPlayer {
 // ============================================================================
 const PL = CONFIG.polish;
 const SET_TABS = ['Graphics', 'Audio', 'Controls', 'Gameplay', 'Accessibility'];
-const SET_TAB_HELP = ['How the game looks: the pixel world or the painted one, the camera, the shake.', 'Three volumes. Sound starts after your first tap or key press.', 'Your keys (or your own), and the touch controls on a phone or tablet.', 'How the games play: the computer\'s smarts, the rules, the career\'s court and injuries, the shot meter, the arcade extras and the tips.', 'Bigger text, less motion, clearer jerseys.'];
+const SET_TAB_HELP = ['How the game looks: the pixel world or the painted one, the camera, the shake.', 'Three volumes. Sound starts after your first tap or key press.', 'Your keys (or your own), and the touch controls on a phone or tablet.', 'How the games play: the computer\'s smarts, the rules, the career\'s court and injuries, the shot meter, power-ups in quick games and the tips.', 'Bigger text, less motion, clearer jerseys.'];
 function settingsScreen(game, tab0) {
   const S = game.save.data.settings, ui0 = game.ui, P = ui0.phone, apply = () => game.applySettings(); let tab = clamp(tab0 | 0, 0, SET_TABS.length - 1);
   const diffs = ['rookie', 'pro', 'allstar', 'legend'], diffL = ['Rookie', 'Pro', 'All-Star', 'Legend'], H = (w, help) => Object.assign(w, { help });
@@ -7970,7 +7986,7 @@ function settingsScreen(game, tab0) {
       H(sel('Career games', 0, 0, 0, 0, ['Full court', 'Street half court'], () => S.careerCourt === 'half' ? 1 : 0, i => { S.careerCourt = i ? 'half' : 'full'; }), 'The career on the full short court, or street rules: one hoop, every possession starts with a check ball at the top.'),
       H(tgl('Career injuries', 0, 0, 0, 0, () => S.injuries !== false, v => { S.injuries = v; }), 'Injuries in the career (off: never injured, in played or simulated games).'),
       H(sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }), 'On: the full meter over your head. Minimal: only its sweet spot. Off: shoot by feel.'),
-      H(sel('Arcade extras', 0, 0, 0, 0, ['Quick games', 'All exhibitions', 'Off'], () => Math.max(0, ['quick', 'exhibitions', 'off'].indexOf(S.arcadeExtras || 'quick')), i => { S.arcadeExtras = ['quick', 'exhibitions', 'off'][i]; }), 'The super meter and power-ups, in quick games or in every exhibition. Never in the career.'),
+      H(tgl('Power-ups in Quick 1v1', 0, 0, 0, 0, () => S.arcadeExtras === 'quick', v => { S.arcadeExtras = v ? 'quick' : 'off'; }), 'The super meter, the specials and the power-ups, in Quick 1v1 games only (off by default). Never in the career or in practice.'),
       H(tgl('First-time tips', 0, 0, 0, 0, () => S.tips !== false, v => { S.tips = v; }), 'A short tip the first time you reach each part of the career. Turning it back on shows the ones you haven\'t seen.')],
     [H(sel('Text size', 0, 0, 0, 0, ['1×', '1.25×'], () => S.textSize === 1.25 ? 1 : 0, i => { S.textSize = i ? 1.25 : 1; apply(); }), 'Bigger text in the menus, the career and the match HUD. Long lines wrap or shrink to fit.'),
       H(tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }), 'No screen transitions, camera punches or bobbing heads; story text shows at once.'),
@@ -7978,7 +7994,8 @@ function settingsScreen(game, tab0) {
   ];
   const tabs = SET_TABS.map((t, i) => btn(t.toUpperCase(), 0, 0, 0, 0, () => { tab = i; sync(); scr.focus = items.indexOf(tabs[i]); }));
   const erase = btn('Erase this save slot', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase save slot ' + game.save.slot + '? Its career, Hall of Fame and records go; your settings stay.', () => { game.save.eraseKeepSettings(); game.applySettings(); game.ui.toastMsg('Save slot ' + game.save.slot + ' erased.'); game.ui.clearTo(titleScreen(game)); })));
-  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()), tail = [erase, back];
+  const credits = btn('Credits', 0, 0, 0, 0, () => game.ui.push(creditsScreen(game))); /* F1: the credits moved here from the Extras menu */
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()), tail = [erase, credits, back];
   if (P) { groups[2][0].off = true; groups[2][1].off = true; } // phones: the keys are for keyboards
   const rows = [].concat(...groups), th = P ? tapH(ui0, 44) : 44, box = P ? { x: 40, y: 20 + th + 12, w: 1200, h: UI_H - th - 24 - (20 + th + 12) } : null;
   const pagers = P ? groups.map(g => phonePager(ui0, g, tail, box, 1)) : [];
@@ -7987,7 +8004,7 @@ function settingsScreen(game, tab0) {
     tabs.forEach((b, i) => { b.primary = i === tab; });
     for (const r of rows) r.hidden = true; for (const p of pagers) p.prev.hidden = p.next.hidden = true;
     if (P) { const tw = (1200 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 40 + i * (tw + 8), y: 20, w: tw, h: th })); pagers[tab].sync(); }
-    else { const tw = (1060 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 110 + i * (tw + 8), y: 96, w: tw, h: 44 })); const g = groups[tab]; column(g, 110, 164, 640, 44, 8); for (const r of g) r.hidden = !!r.off; Object.assign(erase, { x: 110, y: 590, w: 400, h: 46 }); Object.assign(back, { x: 770, y: 590, w: 400, h: 46 }); }
+    else { const tw = (1060 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 110 + i * (tw + 8), y: 96, w: tw, h: 44 })); const g = groups[tab]; column(g, 110, 164, 640, 44, 8); for (const r of g) r.hidden = !!r.off; Object.assign(erase, { x: 110, y: 590, w: 330, h: 46 }); Object.assign(credits, { x: 450, y: 590, w: 310, h: 46 }); Object.assign(back, { x: 770, y: 590, w: 400, h: 46 }); }
   }
   const scr = { widgets: items, name: 'settings', onExit() { game.save.save(); game.applySettings(); },
     draw(ctx, ui) {
@@ -8037,7 +8054,7 @@ function slotSummary(n) {
 }
 function agoText(t) { if (!t) return ''; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'played today' : d === 1 ? 'played yesterday' : 'played ' + d + ' days ago'; }
 function useSlot(game, n) {
-  if (n !== game.save.slot) { game.save = game.save.switchTo(n); game.tournament = null; game.quickOpts = null; game.tourOpts = null; game.practiceOpts = null; game.tradeSt = null; game.newCareer = null; game.applySettings(); }
+  if (n !== game.save.slot) { game.save = game.save.switchTo(n); game.quickOpts = null; game.practiceOpts = null; game.tradeSt = null; game.newCareer = null; game.applySettings(); }
   game.ui.clearTo(mainMenu(game)); game.ui.toastMsg('Save slot ' + n);
 }
 function slotsScreen(game) {
@@ -8662,7 +8679,7 @@ function mainMenu(game) {
   if (any) items.push(btn('CONTINUE CAREER', 0, 0, 0, 0, () => game.ui.replace(c ? careerHub(game) : amHub(game)), { primary: true, sub: c ? 'pro · season ' + c.season : am.stage === 'combine' ? 'draft combine' : amStageLabel(am) }));
   else if (s.career && s.career.phase === 'retired' && !s.career.epilogue) items.push(btn('YOUR RETIREMENT', 0, 0, 0, 0, () => game.ui.replace(epilogueScreen(game)), { primary: true, sub: 'what your money builds' })); /* R7: a retirement left before its epilogue */
   items.push(btn(any ? 'New career' : 'START YOUR CAREER', 0, 0, 0, 0, () => { if (any) game.ui.push(confirmScreen(game, 'Start over? Your current career ends.', () => { s.career = null; s.c1 = null; game.save.save(); game.ui.replace(createPlayerScreen(game)); })); else game.ui.replace(createPlayerScreen(game)); }, any ? {} : { primary: true }));
-  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Extras', 0, 0, 0, 0, () => game.ui.push(extrasScreen(game)), { sub: 'league · modes · lab' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('Save slots', 0, 0, 0, 0, () => game.ui.push(slotsScreen(game)), { sub: 'slot ' + game.save.slot + ' of ' + CONFIG.save.slots })); // R10: three save slots (the credits are in Extras)
+  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(practiceHubScreen(game)), { sub: 'shooting · 3-pt contest' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('Save slots', 0, 0, 0, 0, () => game.ui.push(slotsScreen(game)), { sub: 'slot ' + game.save.slot + ' of ' + CONFIG.save.slots })); // R10: three save slots; F1: Practice replaces the Extras menu (the credits are in Settings)
   column(items, 70, 120, 380, 44, 8); items[0].h = 54; for (let i = 1; i < items.length; i++) items[i].y += 10;
   phoneGrid(game.ui, items, 40, 90, 440, 2, 1, 6); // a phone: big buttons in two columns (R10: five rows fit with a save-slots button)
   return { widgets: items, name: 'menu', update(dt) { t += dt; }, onBack() { game.ui.replace(titleScreen(game)); },
@@ -8684,12 +8701,14 @@ function mainMenu(game) {
         const a = ROSTER.ballers[0], b = ROSTER.vandals[0]; drawMannequin(ctx, a, TEAMS[1], 760, 640, 300, 'focused', 1, t); drawMannequin(ctx, b, TEAMS[4], 1010, 640, 300, 'hyped', -1, t); }
     } };
 }
-// Extras: the classic team league, the other modes and the Art Lab.
-function extrasScreen(game) {
-  const s = game.save.data;
-  const items = [btn('Team league (classic)', 0, 0, 0, 0, () => game.ui.push(s.teamCareer ? tcHub(game) : tcCreateScreen(game)), { sub: s.teamCareer ? 'season ' + (s.teamCareer.season || 1) : '5v5 / 3v3' }), btn('Street tournament', 0, 0, 0, 0, () => game.ui.push(tournamentScreen(game))), btn('3-Point Contest', 0, 0, 0, 0, () => game.ui.push(threePointScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(freePracticeScreen(game))), btn('Tutorial', 0, 0, 0, 0, () => game.startTutorial()), btn('Art Lab', 0, 0, 0, 0, () => game.ui.push(artLabScreen(game)), { sub: 'character sheet' }), btn('Credits', 0, 0, 0, 0, () => game.ui.push(creditsScreen(game))), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; // R10: the credits
-  column(items, UI_W / 2 - 220, 150, 440, 52, 12); const pb = phoneGrid(game.ui, items, UI_W / 2 - 420, 92, 840, 2, 0, 10);
-  return { widgets: items, name: 'extras', draw(ctx, ui) { if (pb) { ui.panel(ctx, UI_W / 2 - 450, 12, 900, pb + 8); ui.title(ctx, 'EXTRAS', UI_W / 2 - 420, 50, 36); return; } ui.panel(ctx, UI_W / 2 - 300, 70, 600, 600); ui.title(ctx, 'EXTRAS', UI_W / 2 - 250, 112, 40); } };
+// F1 (the user: "remove extras"): the Extras menu is gone. Practice holds what was worth keeping from it: free shooting,
+// the 3-Point Contest and the tutorial. (The classic team league and the street tournament are gone; the credits are in
+// Settings; the Art Lab is in the dev menu and at index.html?artlab.)
+function practiceHubScreen(game) {
+  const best = game.save.data.records.threePoint || 0;
+  const items = [btn('Shooting practice', 0, 0, 0, 0, () => game.ui.push(freePracticeScreen(game)), { sub: 'the ball comes back' }), btn('3-Point Contest', 0, 0, 0, 0, () => game.ui.push(threePointScreen(game)), { sub: best ? 'best ' + best : '60 seconds' }), btn('Tutorial', 0, 0, 0, 0, () => game.startTutorial(), { sub: 'about 90 s' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  column(items, UI_W / 2 - 240, 190, 480, 56, 14); const pb = phoneGrid(game.ui, items, UI_W / 2 - 420, 100, 840, 1, 0, 12);
+  return { widgets: items, name: 'practicehub', draw(ctx, ui) { if (pb) { ui.panel(ctx, UI_W / 2 - 450, 12, 900, pb + 8); ui.title(ctx, 'PRACTICE', UI_W / 2 - 420, 50, 36); return; } ui.panel(ctx, UI_W / 2 - 300, 90, 600, 520); ui.title(ctx, 'PRACTICE', UI_W / 2 - 250, 140, 40); ui.para(ctx, 'Nothing here counts for a career.', UI_W / 2 - 240, 560, 480, 14, UI_DIM, 'left', 2); } };
 }
 function confirmScreen(game, text, onYes) { const items = [btn('Yes', 0, 0, 0, 0, () => { game.ui.pop(); onYes(); }), btn('No', 0, 0, 0, 0, () => game.ui.pop())]; column(items, UI_W / 2 - 150, 340, 300, 46, 10); const pb = phoneGrid(game.ui, items, UI_W / 2 - 260, 340, 520, 2, 0, 12); return { widgets: items, overlay: true, name: 'confirm', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 280, 230, 560, pb ? pb - 200 : 240, UI_PANEL2); ctx.font = fontStr(20, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, text, UI_W / 2, 262, 500, 26); } }; }
 // (R10: the settings screen lives in 148_ui_polish.js: five tabs)
@@ -8898,7 +8917,7 @@ function playerScreen(game) {
 
 // ============================================================================
 // SECTION: UI (part 3) — league pages, management (the business side of a career), the offseason,
-// retirement and the Hall of Fame, extras (quick 1v1, street tournament, practice, 3-point contest),
+// retirement and the Hall of Fame, quick 1v1, practice and the 3-point contest (F1: the Extras menu is gone),
 // the postgame router and the dev menu
 // ============================================================================
 function courtOptions() { return COURT_ORDER.slice(); }
@@ -9029,7 +9048,7 @@ function hallOfFameScreen(game) {
       ui.label(ctx, e.ppg + ' PPG · ' + e.mvps + ' MVPs', x + cw / 2, y + chh + 14, P ? 20 : 12, UI_DIM, 'center'); }); } };
 }
 
-// ---------------- extras ----------------
+// ---------------- quick games and practice ----------------
 // Every league player you can pick in exhibitions: the original roster pool, plus your career player.
 function extrasPool(game) { const out = []; for (const k in ROSTER) for (const d of ROSTER[k]) out.push({ def: d, club: TEAMS.find(t => k.startsWith(t.id)) || (k.startsWith('rival') ? TEAMS[1] : TEAMS[(out.length) % 8]) }); const c = careerOf(game); if (c) out.unshift({ def: engineDef(c, c.meId), club: clubOf(meOf(c).club), me: true }); return out; }
 function soloTeam(entry, away) { const t = entry.club; const kit = Object.assign({}, t); if (away) kit.colors = [t.colors[1], t.colors[0]]; return Object.assign(kit, { name: entry.def.name, abbr: (entry.def.nick || entry.def.name).toUpperCase().slice(0, 4), personality: archPersonality(entry.def.arch), players: [entry.def] }); }
@@ -9047,33 +9066,7 @@ function quickPlayScreen(game) {
   const PG = phonePager(game.ui, items.slice(0, 8), items.slice(8), { x: 40, y: 84, w: 640, h: 498 }, 1); if (PG) items.push(PG.prev, PG.next);
   return { widgets: items, name: 'quick', update(dt) { t += dt; if (PG && items[6].off !== halfOff()) { items[6].off = items[7].off = halfOff(); PG.sync(); } }, draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 660, PG ? 700 : 680); ui.title(ctx, 'QUICK 1V1', 60, PG ? 48 : 60, 36); drawPagerLabel(ctx, PG, 676, 48); ui.panel(ctx, 710, 20, 540, 680); const a = pool[st.me], b = pool[st.opp]; heightScale(ctx, 750, 600, 330, 754, 1236, 'stance'); drawMannequin(ctx, a.def, a.club, 880, 600, 330, 'focused', 1, t, 'stance'); drawMannequin(ctx, b.def, b.club, 1110, 600, 330, 'focused', -1, t + 1, 'stance'); const nf = PG ? 26 : 20, af = PG ? 19 : 13; ui.heading(ctx, a.def.name, 880, 70, nf, UI_GOLD, 'center'); ui.heading(ctx, b.def.name, 1110, 70, nf, UI_TEXT, 'center'); ui.label(ctx, ARCHETYPES[a.def.arch] ? ARCHETYPES[a.def.arch].label : '', 880, 98, af, UI_DIM, 'center'); ui.label(ctx, ARCHETYPES[b.def.arch] ? ARCHETYPES[b.def.arch].label : '', 1110, 98, af, UI_DIM, 'center'); ovrBadge(ctx, 880, 142, 24, defOvr(a.def)); ovrBadge(ctx, 1110, 142, 24, defOvr(b.def)); ui.heading(ctx, fmtHeight(a.def.height), 880, 640, PG ? 24 : 18, UI_TEXT, 'center'); ui.heading(ctx, fmtHeight(b.def.height), 1110, 640, PG ? 24 : 18, UI_TEXT, 'center'); } };
 }
-function tournamentScreen(game) {
-  const S = game.save.data.settings; const T = game.tournament; const pool = extrasPool(game);
-  if (!T) { const st = game.tourOpts || (game.tourOpts = { me: 0, diff: DIFF_IDS.indexOf(S.difficulty) });
-    const items = [sel('You play', 0, 0, 0, 0, pool.map(e => e.def.name + (e.me ? ' (you)' : '') + ' · OVR ' + defOvr(e.def)), () => Math.min(st.me, pool.length - 1), i => { st.me = i; }), sel('Difficulty', 0, 0, 0, 0, DIFF_LABELS, () => st.diff, i => { st.diff = i; }),
-      btn('START TOURNAMENT', 0, 0, 0, 0, () => { const rng = new RNG((Date.now() & 0xffffff) >>> 0); const others = rng.shuffle(pool.map((e, i) => i).filter(i => i !== st.me)).slice(0, 7); const field = rng.shuffle([st.me].concat(others)); game.tournament = { entries: field.map(i => pool[i]), bracket: [field.map((x, i) => i), [null, null, null, null], [null, null], [null]], round: 0, human: field.indexOf(st.me), difficulty: DIFF_IDS[st.diff], alive: true, done: false, champion: null }; game.ui.replace(tournamentScreen(game)); }, { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-    column(items, 340, 150, 600, 46, 10); const PG = phonePager(game.ui, items.slice(0, 2), items.slice(2), { x: 300, y: 100, w: 680, h: 250 }, 1, { x: 300, y: UI_H - tapH(game.ui, 44) - 12, w: 680 });
-    return { widgets: items, name: 'tour-setup', draw(ctx, ui) { if (PG) { ui.panel(ctx, 270, 10, 740, 700); ui.title(ctx, 'STREET TOURNAMENT', 300, 50, 34); ctx.font = fontStr(21, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, '8 players · single elimination · first to 11 on the blacktop. Later rounds bring smarter opponents.', 300, 376, 680, 28); return; } ui.panel(ctx, 280, 60, 720, 520); ui.title(ctx, 'STREET TOURNAMENT', 340, 100, 36); ui.para(ctx, '8 players · single elimination · first to 11 on the blacktop. Later rounds bring smarter opponents.', 340, 470, 640, 14, UI_DIM); } };
-  }
-  const items = []; const myMatch = tournamentNextMatch(T);
-  if (T.done) items.push(btn(T.champion === T.human ? 'CHAMPION! Back' : 'Back', 0, 0, 0, 0, () => { game.tournament = null; game.ui.pop(); }));
-  else if (!T.alive) items.push(btn('Eliminated · back', 0, 0, 0, 0, () => { game.tournament = null; game.ui.pop(); }));
-  else items.push(btn('PLAY: ' + (T.entries[myMatch[0]].def.nick || '') + ' vs ' + (T.entries[myMatch[1]].def.nick || ''), 0, 0, 0, 0, () => { const humanFirst = myMatch[0] === T.human; const a = T.entries[humanFirst ? myMatch[0] : myMatch[1]], b = T.entries[humanFirst ? myMatch[1] : myMatch[0]]; let ta = soloTeam(a, false), tb = soloTeam(b, a.club === b.club); if (S.colorblind) [ta, tb] = colorblindTeams(ta, tb); game.startMatch({ mode: '1v1', teams: [ta, tb], humanTeam: 0, difficulty: T.difficulty, opponentTierShift: T.round * 0.5, ruleset: 'arcade', format: { type: 'first', target: 11, winBy2: false }, court: T.round === 2 ? 'arena' : 'blacktop', seed: (Date.now() % 1000000) >>> 0, controlMode: 'lock', adaptive: S.adaptive }, { kind: 'tournament' }); }, { primary: true }));
-  items.push(btn('Abandon tournament', 0, 0, 0, 0, () => { game.tournament = null; game.ui.replace(tournamentScreen(game)); })); items.push(btn('Back', 0, 0, 0, 0, () => game.ui.pop())); column(items, 60, 560, 420, 42, 8);
-  const P = game.ui.phone; if (P) { const h = tapH(game.ui, 44), y = UI_H - h - 12, n = items.length; items.forEach((b, i) => Object.assign(b, i === 0 && n === 3 ? { x: 40, y, w: 640, h } : { x: n === 3 ? 688 + (i - 1) * 280 : 40 + i * 610, y, w: n === 3 ? 272 : 600, h })); } // phones: one bar of 64 px buttons under the bracket
-  return { widgets: items, name: 'tour', draw(ctx, ui) { ui.panel(ctx, 30, P ? 10 : 20, 1220, P ? 704 : 680); ui.title(ctx, 'BRACKET', 60, 60, 36); ui.label(ctx, ['Quarterfinals', 'Semifinals', 'Final', 'Done'][T.round] + ' · ' + DIFF_LABELS[DIFF_IDS.indexOf(T.difficulty)], 300, 60, P ? 18 : 14);
-      const B = T.bracket; const colX = [520, 760, 1000, 1144]; const slotH = 52;
-      for (let r = 0; r < 4; r++) { const n = B[r].length; for (let i = 0; i < n; i++) { const idx = B[r][i]; const y = 110 + i * (slotH * Math.pow(2, r)) + (Math.pow(2, r) - 1) * slotH / 2; const x = colX[r] - 100; if (idx != null) { const e = T.entries[idx]; drawPortrait(ctx, e.def, e.club.colors, x, y, 40); ui.heading(ctx, e.def.nick || e.def.name, x + 48, y + 20, 15, idx === T.human ? UI_GOLD : UI_TEXT); } else { ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.strokeRect(x, y, 200, 40); } } }
-      if (T.done) ui.title(ctx, (T.entries[T.champion].def.nick || '').toUpperCase() + ' WINS IT', 400, P ? 556 : 640, 36); } };
-}
-function tournamentNextMatch(T) { const B = T.bracket, r = T.round; if (r >= 3) return null; const list = B[r]; const i = list.indexOf(T.human); if (i < 0) return null; const j = i % 2 === 0 ? i + 1 : i - 1; return [list[i], list[j]]; }
-function tournamentAdvance(game, humanWon) {
-  const T = game.tournament; if (!T) return; const B = T.bracket, r = T.round; const rng = new RNG((Date.now() ^ 0x5bd1) >>> 0);
-  const winners = []; for (let i = 0; i < B[r].length; i += 2) { const a = B[r][i], b = B[r][i + 1]; let w; if (a === T.human || b === T.human) w = humanWon ? T.human : (a === T.human ? b : a); else { const da = T.entries[a].def, db = T.entries[b].def; const pa = 1 / (1 + Math.exp(-(defOvr(da) - defOvr(db)) / 6)); w = rng.next() < pa ? a : b; } winners.push(w); }
-  B[r + 1] = winners; T.round++; if (!humanWon) T.alive = false; if (T.round >= 3) { T.done = true; T.champion = B[3][0]; if (T.champion === T.human) game.save.data.unlocks.trophies.push('Street tournament'); game.save.save(); }
-  if (!T.alive && !T.done) { while (T.round < 3) { const rr = T.round, w2 = []; for (let i = 0; i < B[rr].length; i += 2) { const a = B[rr][i], b = B[rr][i + 1]; const pa = 1 / (1 + Math.exp(-(defOvr(T.entries[a].def) - defOvr(T.entries[b].def)) / 6)); w2.push(rng.next() < pa ? a : b); } B[rr + 1] = w2; T.round++; } T.done = true; T.champion = B[3][0]; }
-}
-// Extras practice: free shooting against an optional dummy (the career practice week is practiceScreen in 157).
+// Shooting practice: free shooting against an optional dummy (the career practice week is practiceScreen in 157).
 function freePracticeScreen(game) {
   const st = game.practiceOpts || (game.practiceOpts = { def: 0, court: game.save.data.settings.camera === 'classic' ? 1 : Math.max(0, courtOptions().indexOf('legends')), stamina: true, slow: false, breakdown: true, chart: true }); const courts = courtOptions(); const pool = extrasPool(game);
   const items = [sel('Defender dummy', 0, 0, 0, 0, ['None', 'Rookie', 'Pro', 'All-Star', 'Legend'], () => st.def, i => { st.def = i; }), sel('Court', 0, 0, 0, 0, courts.map(cc => COURTS[cc].short), () => Math.min(st.court, courts.length - 1), i => { st.court = i; }), tgl('Infinite stamina', 0, 0, 0, 0, () => st.stamina, v => { st.stamina = v; }), tgl('Slow motion', 0, 0, 0, 0, () => st.slow, v => { st.slow = v; }), tgl('Shot % breakdown', 0, 0, 0, 0, () => st.breakdown, v => { st.breakdown = v; }), tgl('Shot chart', 0, 0, 0, 0, () => st.chart, v => { st.chart = v; }),
@@ -9084,9 +9077,9 @@ function freePracticeScreen(game) {
 function threePointScreen(game) {
   const pool = extrasPool(game);
   const items = [btn('START', 0, 0, 0, 0, () => { const a = soloTeam(pool[0], false); game.startMatch({ mode: '1v1', teams: [a, Object.assign({}, a)], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'arena', seed: (Date.now() % 100000) >>> 0, controlMode: 'ball', contest3: {} }, { kind: 'contest3' }); }, { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(items, 340, 300, 600, 48, 10); const P = game.ui.phone; if (P) phoneGrid(game.ui, items, 300, UI_H - tapH(game.ui, 44) - 12, 680, 2, 0, 10);
-  const lines = ['60 seconds · 5 racks of 5 balls along the arc.', 'Walk to a rack to pick up the next ball. The last ball of each rack is worth 2.', 'Shooting as ' + pool[0].def.name + '. Best score: ' + (game.save.data.records.threePoint || 0) + (game.save.data.records.threePointName ? ' (' + game.save.data.records.threePointName + ')' : '')];
-  return { widgets: items, name: 'threept', draw(ctx, ui) { if (P) { ui.panel(ctx, 270, 10, 740, 700); ui.title(ctx, '3-POINT CONTEST', 300, 50, 34); ctx.font = fontStr(22, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 110; for (const l of lines) y += wrapTextH(ctx, l, 300, y, 680, 30) + 14; return; } ui.panel(ctx, 280, 60, 720, 520); ui.title(ctx, '3-POINT CONTEST', 340, 100, 36); let y = 430; for (const l of lines) y += ui.para(ctx, l, 340, y, 640, 15, UI_TEXT) + 4; } };
+  column(items, 340, 470, 600, 48, 10); const P = game.ui.phone; if (P) phoneGrid(game.ui, items, 300, UI_H - tapH(game.ui, 44) - 12, 680, 2, 0, 10); /* F2: the rules under the title, the buttons at the bottom */
+  const lines = ['60 seconds · 5 racks of 5 balls along the arc.', 'You shoot from each rack in turn and move along the arc on your own. The next ball is in your hands as soon as the last one lands. Only threes from the rack count; the last ball of each rack is worth 2.', 'Shooting as ' + pool[0].def.name + '. Best score: ' + (game.save.data.records.threePoint || 0) + (game.save.data.records.threePointName ? ' (' + game.save.data.records.threePointName + ')' : '')];
+  return { widgets: items, name: 'threept', draw(ctx, ui) { if (P) { ui.panel(ctx, 270, 10, 740, 700); ui.title(ctx, '3-POINT CONTEST', 300, 50, 34); ctx.font = fontStr(22, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 110; for (const l of lines) y += wrapTextH(ctx, l, 300, y, 680, 30) + 14; return; } ui.panel(ctx, 280, 60, 720, 540); ui.title(ctx, '3-POINT CONTEST', 340, 100, 36); let y = 150; for (const l of lines) y += ui.para(ctx, l, 340, y, 600, 16, UI_TEXT) + 10; } };
 }
 function botContestScores(seed) { const rng = new RNG(seed); const out = []; const bots = [ROSTER.prophets[0], ROSTER.vandals[0], ROSTER.sharks[1]]; for (const b of bots) { let score = 0; const w = 0.032 * (0.7 + 0.066 * (b.attrs.sho - 1)); const sig = 0.06; for (let i = 0; i < 25; i++) { const e = Math.abs(rng.gauss() * sig); const g = e <= w ? 0 : e <= 2 * w ? 1 : e <= 3.5 * w ? 2 : 3; const P_ = clamp(CONFIG.shot.base.three[g] * (CONFIG.shot.jumperRatingBase + CONFIG.shot.jumperRatingSlope * b.attrs.sho), 0.02, 0.97); if (rng.next() < P_) score += (i % 5 === 4) ? 2 : 1; } out.push({ name: b.name, score }); } return out.sort((a, b) => b.score - a.score); }
 
@@ -9101,17 +9094,13 @@ function postgameScreen(game, m, after) {
   if (after.kind === 'allstar1v1') { if (!after.screen) after.screen = allStar1v1ResultScreen(game, m, after); return after.screen; }
   if (after.kind === 'allstar') { const c = careerOf(game); if (c && c.allStar && !c.allStar.done) { finishAllStar(c, m.contest3 ? m.contest3.score : 0); game.save.save(); } const sc = allStarResultScreen(game); sc.overlay = true; sc.widgets[0].onPress = () => game.quitToMenu(); return sc; }
   const items = []; const human = m.humanTeam; const won = m.winner === human; const rec = m.replay; let reward = null;
-  if (after.kind === 'teamcareer' && !after.applied) { after.applied = true; const r = tcAfterGame(s, boxScore(m, 0), 0); s.stats.games--; if (won) s.stats.wins--; after.rec = r; if (r) reward = (r.win ? 'WIN' : 'LOSS') + ' · grade ' + r.grade + ' · +' + r.coins + ' coins'; game.save.save(); }
-  if (after.kind === 'tournament' && !after.applied) { after.applied = true; tournamentAdvance(game, won); reward = won ? (game.tournament && game.tournament.done ? 'CHAMPION!' : 'Advanced to the next round.') : 'Eliminated.'; }
   if (after.kind === 'contest3') { const sc = m.contest3.score; const bots = botContestScores(m.seed); if (sc > (s.records.threePoint || 0)) { s.records.threePoint = sc; s.records.threePointName = m.human.name; game.save.save(); reward = 'NEW BEST: ' + sc; } after.bots = bots; }
   if (!after.statsApplied && after.kind !== 'practice' && after.kind !== 'contest3' && after.kind !== 'tutorial') { after.statsApplied = true; s.stats.games++; if (won) s.stats.wins++; game.save.save(); }
   const plays = rec ? rec.topPlays() : [];
   if (plays.length) items.push(btn('Replays (' + plays.length + ')', 0, 0, 0, 0, () => game.playReel(plays)));
   if (after.kind === 'quick' || after.kind === 'practice') items.push(btn('Rematch', 0, 0, 0, 0, () => game.restartMatch(true)));
-  if (after.kind === 'tournament') items.push(btn('Continue', 0, 0, 0, 0, () => { game.quitToMenu(); game.ui.push(tournamentScreen(game)); }, { primary: true }));
   if (after.kind === 'contest3') items.push(btn('Try again', 0, 0, 0, 0, () => game.restartMatch(true)));
-  if (after.kind === 'teamcareer') items.push(btn('Continue', 0, 0, 0, 0, () => { game.quitToMenu(); }, { primary: true }));
-  items.push(btn(after.kind === 'teamcareer' ? 'Back to hub' : 'Menu', 0, 0, 0, 0, () => game.quitToMenu()));
+  items.push(btn('Menu', 0, 0, 0, 0, () => game.quitToMenu()));
   column(items, 900, 520, 320, 40, 8); { const rows = Math.ceil(items.filter(b => !b.hidden).length / 2); phoneGrid(game.ui, items, 760, UI_H - rows * (tapH(game.ui, 44) + 8) - 8, 480, 2, 0, 8); }
   return { widgets: items, overlay: true, name: 'postgame', onBack() {}, draw(ctx, ui) {
       ui.panel(ctx, 40, ui.phone ? 10 : 30, 1200, ui.phone ? 704 : 660, UI_PANEL2);
@@ -9146,9 +9135,10 @@ function devScreen(game) {
     btn('Tunneling test (1000 balls)', 0, 0, 0, 0, () => { const r = tunnelTest(1000); log(['TUNNELING · ' + r.n + ' balls at 15–30 m/s', 'tunneled: ' + r.tunnels + '   rim hits ' + r.rimHits + '   board hits ' + r.boardHits]); }),
     btn('Career: +$1M and +20 fame', 0, 0, 0, 0, () => { const c = careerOf(game); if (c) { c.me.money += 1e6; c.me.fame = Math.min(100, c.me.fame + 20); game.save.save(); log(['Done.']); } else log(['No career.']); }),
     tgl('F1 AI overlay', 0, 0, 0, 0, () => game.overlays.f1, v => { game.overlays.f1 = v; }), tgl('F2 hitboxes & lanes', 0, 0, 0, 0, () => game.overlays.f2, v => { game.overlays.f2 = v; }), tgl('F3 last shot', 0, 0, 0, 0, () => game.overlays.f3, v => { game.overlays.f3 = v; }), tgl('FPS graph', 0, 0, 0, 0, () => game.save.data.settings.showFps, v => { game.save.data.settings.showFps = v; }),
+    btn('Art Lab', 0, 0, 0, 0, () => game.ui.push(artLabScreen(game))), /* F1: from the old Extras menu */
     btn('Back', 0, 0, 0, 0, () => game.ui.pop()),
   ];
-  column(items, 60, 50, 460, 29, 4);
+  column(items, 60, 50, 460, 28, 4);
   return { widgets: items, name: 'dev', update(dt) { if (st.job) { const t0 = performance.now(); while (st.job && performance.now() - t0 < 30) st.job.step(); } },
     draw(ctx, ui) { ui.panel(ctx, 30, 30, 520, 670); ui.panel(ctx, 570, 30, 690, 670, 'rgba(0,0,0,0.75)'); ctx.fillStyle = UI_GREEN; ctx.font = fontStr(13, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; const lines = st.job ? [st.job.label, 'running ' + st.job.i + ' / ' + st.job.n + ' …'] : st.lines; lines.forEach((l, i) => ctx.fillText(l, 590, 50 + i * 17)); } };
 }
@@ -9250,175 +9240,8 @@ function amResultScreen(game, rec, m) {
 }
 
 // ============================================================================
-// SECTION: UI (part 5) — the classic team league (the 5v5/3v3 career from an earlier build), kept under Extras:
-// create a baller, join a team, seasons of team basketball, the shop and manager mode (lineups, trades, free agents)
-// ============================================================================
-function tcStatBars(ctx, attrs, x, y, w, rowH) {
-  const labels = { sho: 'SHOOTING', fin: 'FINISHING', han: 'HANDLES', spd: 'SPEED', jmp: 'HOPS', def: 'DEFENSE', str: 'STRENGTH' }; let k = 0;
-  for (const key of RATING_KEYS) { const yy = y + k * rowH; const v = attrs[key]; ctx.fillStyle = UI_TEXT; ctx.font = fontStr(rowH * 0.62, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(labels[key], x, yy + rowH / 2); const bx = x + w * 0.4, bw = w * 0.6, segW = bw / 10; for (let i = 0; i < 10; i++) { ctx.fillStyle = i < v ? (v <= 3 ? UI_RED : v >= 7 ? UI_CYAN : '#3D7BD6') : 'rgba(0,0,0,0.35)'; ctx.beginPath(); roundRectPath(ctx, bx + i * segW, yy + rowH * 0.25, segW - 3, rowH * 0.5, 2); ctx.fill(); } k++; }
-}
-function tcRatingBars(ctx, attrs, x, y, w, rowH) { tcStatBars(ctx, attrs, x, y, w, rowH); }
-const TC_MATES = [P('Momo Ikeda', 'Momo', 'playmaker', 1.82, 1, 4, 0, 1.0, 6, { sho: 1 }), P('Chuck Bramble', 'Chuck', 'rimprotector', 2.1, 0, 0, 3, 1.08, 42, {})];
-function tcScaledAttrs(arch, total) { const base = ARCHETYPES[arch].base; const sum = RATING_KEYS.reduce((a, k) => a + base[k], 0); const out = {}; let t = 0; for (const k of RATING_KEYS) { out[k] = Math.max(1, Math.round(base[k] * total / sum)); t += out[k]; } const keys = RATING_KEYS.slice().sort((a, b) => base[b] - base[a]); let i = 0; while (t > total) { const k = keys[keys.length - 1 - (i % keys.length)]; if (out[k] > 1) { out[k]--; t--; } i++; } i = 0; while (t < total) { const k = keys[i % keys.length]; if (out[k] < 10) { out[k]++; t++; } i++; } return out; }
-function tcCreateScreen(game) {
-  const legacy = game.save.data._legacyCareer; const st = { name: legacy && legacy.player ? legacy.player.name : 'Ace', arch: 1, height: 1.92, look: cloneLook(PRESET_LOOKS[3]), number: 7, preset: 3 };
-  let t = 0; const items = [];
-  // preset portrait grid (custom widgets)
-  PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 420 + (i % 8) * 76, y: 96 + Math.floor(i / 8) * 76, w: 68, h: 68, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused, ui) { const S = Math.min(this.w, this.h), w = { x: this.x + (this.w - S) / 2, y: this.y, w: S, h: S }; drawSelectHead(ctx, w, { name: 'p' + i, look: lk, attrs: {} }, TEAMS[2].colors, focused, st.preset === i, ui ? ui.t : 0); } }); });
-  const controls = [
-    btn('Name: ' + st.name, 0, 0, 0, 0, () => game.ui.push(keyboardScreen(game, st.name, v => { st.name = v || 'Ace'; controls[0].label = 'Name: ' + st.name; })), { align: 'left' }),
-    sel('Archetype', 0, 0, 0, 0, Object.keys(ARCHETYPES).map(k => ARCHETYPES[k].label), () => st.arch, i => { st.arch = i; }),
-    sld('Height', 0, 0, 0, 0, 1.8, 2.2, 0.02, () => st.height, v => { st.height = v; }, v => v.toFixed(2) + ' m'),
-    sld('Number', 0, 0, 0, 0, 0, 99, 1, () => st.number, v => { st.number = v; }, v => '#' + v),
-    btn('Customize look', 0, 0, 0, 0, () => game.ui.push(tcCustomizeLookScreen(game, st))),
-    btn('READY!', 0, 0, 0, 0, () => { const arch = Object.keys(ARCHETYPES)[st.arch]; const attrs = tcScaledAttrs(arch, CONFIG.teamCareer.startPoints); const player = { name: st.name, nick: st.name.split(' ')[0], arch, height: st.height, attrs, look: Object.assign({}, st.look, { number: st.number, sleeves: false, shoes: null }), moves: { crossover: true, spin: false, stepback: false, hesitation: false, euro: false, dunk360: false, windmill: false } }; game.ui.replace(tcChooseTeamScreen(game, player)); }, { primary: true }),
-  ];
-  column(controls, 900, 260, 320, 40, 8); controls[5].y += 14; controls[5].h = 54;
-  items.push(...controls);
-  // phones: two pages of faces (64 px each), then a page of details; READY! stays in the bar
-  const faces = items.slice(0, PRESET_LOOKS.length); faces.forEach(w => { w.sect = 'Face'; }); controls.forEach(w => { w.sect = 'Details'; });
-  const PG = phonePager(game.ui, null, [controls[5]], { x: 420, y: 84, w: 820, h: 498 }, 2, null, [{ rows: faces.slice(0, 8), cols: 4 }, { rows: faces.slice(8), cols: 4 }, { rows: controls.slice(0, 5), cols: 2 }]); if (PG) items.push(PG.prev, PG.next);
-  return { widgets: items, name: 'create', update(dt) { t += dt; },
-    onBack() { game.ui.replace(mainMenu(game)); },
-    draw(ctx, ui) {
-      ui.panel(ctx, 30, PG ? 10 : 20, 1220, PG ? 700 : 680); ui.title(ctx, 'CHOOSE YOUR BALLER', 60, PG ? 50 : 60, 40);
-      if (PG) drawPagerLabel(ctx, PG, 1236, 50); else ui.label(ctx, 'Ratings come from your archetype.', 1220, 60, 14, UI_DIM, 'right');
-      const arch = Object.keys(ARCHETYPES)[st.arch]; const attrs = tcScaledAttrs(arch, CONFIG.teamCareer.startPoints); const def = { name: st.name, arch, height: st.height, attrs, look: Object.assign({}, st.look, { number: st.number }) };
-      drawMannequin(ctx, def, TEAMS[2], 210, PG ? 600 : 640, PG ? 310 : 330, 'hyped', 1, t);
-      if (PG) { ui.heading(ctx, st.name.toUpperCase() + '  #' + st.number, 210, 120, 30, UI_GOLD, 'center'); ui.label(ctx, ARCHETYPES[arch].label + ' · ' + st.height.toFixed(2) + ' m · OVR ' + overallOf(attrs), 210, 152, 19, UI_TEXT, 'center'); if (PG.page < 2) tcStatBars(ctx, attrs, 430, 346, 420, 32); return; }
-      ui.heading(ctx, st.name.toUpperCase() + '  #' + st.number, 210, 130, 30, UI_GOLD, 'center'); ui.label(ctx, ARCHETYPES[arch].label + ' · ' + st.height.toFixed(2) + ' m · OVR ' + overallOf(attrs), 210, 160, 16, UI_TEXT, 'center');
-      tcStatBars(ctx, attrs, 430, 270, 420, 30);
-      const sw = strengthsText(Object.fromEntries(RATING_KEYS.map(k => [k, attrs[k] * 10]))); ui.heading(ctx, 'STRENGTHS', 430, 505, 15, UI_CYAN); ui.label(ctx, sw.strengths, 430, 528, 15, UI_TEXT); ui.heading(ctx, 'WEAKNESSES', 430, 560, 15, UI_RED); ui.label(ctx, sw.weaknesses, 430, 583, 15, UI_TEXT);
-      ui.label(ctx, 'Attribute points: ' + CONFIG.teamCareer.startPoints + ' now, cap ' + CONFIG.teamCareer.capTotal + ' (grows each season).', 430, 630, 13);
-    } };
-}
-function tcCustomizeLookScreen(game, st) {
-  const items = lookEditorWidgets(st); items.push(btn('Done', 1040, 640, 200, 48, () => game.ui.pop(), { primary: true })); let t = 0; const PG = lookEditorPager(game.ui, items); if (PG) items.push(PG.prev, PG.next);
-  return { widgets: items, name: 'customize', update(dt) { t += dt; }, draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 1220, PG ? 700 : 680); ui.title(ctx, 'CUSTOMIZE', 60, PG ? 50 : 60, 40); drawPagerLabel(ctx, PG, 1236, 50); drawMannequin(ctx, { name: st.name, look: Object.assign({}, st.look, { number: st.number }), height: st.height, attrs: {} }, TEAMS[2], 260, PG ? 600 : 640, PG ? 340 : 380, 'focused', 1, t); } };
-}
-function tcChooseTeamScreen(game, player) {
-  const S = game.save.data.settings; let sel_ = 0; const items = [];
-  TEAMS.forEach((t, i) => { items.push({ kind: 'custom', x: 60 + (i % 4) * 295, y: 128 + Math.floor(i / 4) * 272, w: 275, h: 256, enabled: true, onPress() { sel_ = i; const c = tcCreateCareer(game.save.data, player, t.id, S.careerMode || '5v5'); game.save.save(); game.ui.clearTo(tcHub(game)); game.ui.toastMsg('Welcome to the ' + t.name + '!'); }, draw(ctx, focused, ui) { const w = this; const roster = fullRoster(t.id); drawTeamCard(ctx, t, w.x, w.y, w.w, 128, focused, roster); ctx.fillStyle = focused ? 'rgba(255,214,63,0.12)' : 'rgba(0,0,0,0.25)'; ctx.beginPath(); roundRectPath(ctx, w.x, w.y + 132, w.w, w.h - 132, 8); ctx.fill(); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(17, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(t.name, w.x + 10, w.y + 150, w.w - 20); ui.para(ctx, t.blurb, w.x + 10, w.y + 176, w.w - 20, 13, UI_DIM, 'left', 2); ctx.fillStyle = UI_GOLD; ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('Team OVR ' + Math.round(roster.reduce((a, d) => a + overallOf(d.attrs), 0) / roster.length), w.x + 10, w.y + w.h - 16); } }); }); /* the blurb gets two lines */
-  return { widgets: items, name: 'chooseTeam', onBack() { game.ui.replace(tcCreateScreen(game)); }, draw(ctx, ui) { ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'JOIN A TEAM', 60, 60, 40); ui.label(ctx, 'You replace their weakest player. Ten games; the top four make the playoffs.', 60, 108, 14, UI_DIM, 'left', 1160); } };
-}
-function tcSeasonAverages(c) { const s = c.results.filter(r => r.season === c.league.season); const n = s.length || 1; const sum = k => s.reduce((a, r) => a + r.stats[k], 0) / n; return { g: s.length, pts: sum('pts'), reb: sum('reb'), ast: sum('ast'), stl: sum('stl'), blk: sum('blk') }; }
-function tcHub(game) {
-  const c = game.save.data.teamCareer; if (!c) return tcCreateScreen(game); const S = game.save.data.settings; const L = c.league; const G = CONFIG.teamCareer;
-  const g = tcUserGame(c); const opp = g ? tcOpponentOf(c, g) : null; const inPlayoffs = !!L.playoffs; const summary = c.seasonSummary; let t = 0;
-  const items = [];
-  const play = (human) => { const opts = tcMatchOptsFor(c, game.save.data, g, human); if (human) game.startMatch(opts, { kind: 'teamcareer' }); else { const r = simulateMatch(Object.assign({}, opts, { humanTeam: -1 }), { render: false }); const rec = tcAfterGame(game.save.data, r, 0); game.save.save(); game.ui.replace(tcHub(game)); game.ui.toastMsg((rec.win ? 'W ' : 'L ') + rec.score.join('-') + ' · grade ' + rec.grade + ' · +' + rec.coins + ' coins'); } };
-  if (g) { items.push(btn(inPlayoffs ? (L.playoffs.round === 0 ? 'PLAY SEMIFINAL' : 'PLAY THE FINAL') : 'PLAY GAME', 440, 420, 200, 56, () => play(true), { primary: true })); items.push(btn('SIM', 660, 420, 180, 56, () => play(false))); }
-  else if (inPlayoffs && !L.playoffs.pending) { items.push(btn('SIM THE PLAYOFFS', 440, 420, 400, 56, () => { tcSimPlayoffsWithoutUser(c, game.save.data); game.save.save(); game.ui.replace(tcHub(game)); }, { primary: true })); }
-  else if (L.week >= L.schedule.length && !inPlayoffs) { items.push(btn('START PLAYOFFS', 440, 420, 400, 56, () => { tcStartPlayoffs(c); game.save.save(); game.ui.replace(tcHub(game)); }, { primary: true })); }
-  const allStar = L.week >= 4 || inPlayoffs || L.season > 1;
-  const menu = [
-    btn('Standings & schedule', 0, 0, 0, 0, () => game.ui.push(tcStandingsScreen(game))),
-    btn('Upgrade player', 0, 0, 0, 0, () => game.ui.push(tcShopScreen(game, 'attrs')), { sub: c.coins + ' coins', align: 'left' }),
-    btn('Moves & style', 0, 0, 0, 0, () => game.ui.push(tcShopScreen(game, 'moves'))),
-    btn('Training (practice)', 0, 0, 0, 0, () => game.ui.push(freePracticeScreen(game))),
-    btn(allStar ? '3-Point Contest' : '3-Point Contest (week 5)', 0, 0, 0, 0, () => { if (allStar) game.ui.push(threePointScreen(game)); else game.ui.toastMsg('The All-Star event unlocks in week 5.'); }),
-    btn('Manager mode', 0, 0, 0, 0, () => { if (c.managerUnlocked) game.ui.push(tcManagerScreen(game)); else game.ui.toastMsg('Finish your first season to unlock the front office.'); }, { sub: c.managerUnlocked ? (c.manager.active ? 'ON' : 'OFF') : 'locked', align: 'left' }),
-    btn('Main menu', 0, 0, 0, 0, () => game.ui.replace(mainMenu(game))),
-    btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))),
-    btn('Delete career', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Delete this career?', () => { game.save.data.teamCareer = null; game.save.save(); game.ui.clearTo(tcCreateScreen(game)); }))),
-  ];
-  column(menu, 900, 92, 320, 40, 8); items.push(...menu);
-  const P = game.ui.phone, PG = phonePager(game.ui, menu, [], { x: 892, y: 84, w: 346, h: 498 }, 1, { x: 892, y: UI_H - tapH(game.ui, 44) - 12, w: 346 }); if (PG) items.push(PG.prev, PG.next); // phones: the menu as pages of 64 px buttons
-  if (P) { const h = tapH(game.ui, 44), y = UI_H - h - 12, main = items.filter(b => !menu.includes(b) && b !== PG.prev && b !== PG.next); main.forEach((b, i) => Object.assign(b, main.length === 2 ? { x: i ? 700 : 446, y, w: i ? 164 : 246, h } : { x: 446, y, w: 418, h })); }
-  const avg = tcSeasonAverages(c); const rec = L.standings[c.teamId]; const meDef = tcPlayerDef(c); const team = teamDef(c.teamId);
-  const rivalLine = opp === c.rivalTeamId ? RIVAL_LINES[Math.min(2, c.rivalSeen)][(L.week * 7) % 3] : null;
-  return { widgets: items, name: 'teamhub', update(dt) { t += dt; }, onEnter() { game.audio.setBeat(true); }, onBack() { game.ui.replace(mainMenu(game)); },
-    draw(ctx, ui) {
-      // top bar
-      ui.panel(ctx, 30, 20, 1220, 52, UI_PANEL2); ui.heading(ctx, (inPlayoffs ? 'PLAYOFFS' : 'SEASON ' + L.season + ' · WEEK ' + Math.min(L.week + 1, L.schedule.length) + ' / ' + L.schedule.length) + '   ·   ' + team.name.toUpperCase(), 50, 46, 22, UI_GOLD); ui.heading(ctx, c.coins + ' COINS', 1230, 46, 20, UI_GOLD, 'right');
-      // player card
-      ui.panel(ctx, 30, 84, 380, 616); drawPortrait(ctx, meDef, team.colors, 60, 100, 150); ui.heading(ctx, c.player.name.toUpperCase(), 225, 118, 24, UI_TEXT); ui.label(ctx, '#' + c.player.look.number + ' · ' + ARCHETYPES[c.player.arch].label, 225, 146, 14, UI_DIM, 'left', 175); ui.label(ctx, c.player.height.toFixed(2) + ' m', 225, 168, 14, UI_DIM);
-      ctx.fillStyle = UI_GOLD; ctx.beginPath(); ctx.arc(260, 218, 30, 0, TAU); ctx.fill(); ctx.strokeStyle = UI_INK; ctx.lineWidth = 3; ctx.stroke(); ctx.fillStyle = UI_INK; ctx.font = fontStr(28, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(overallOf(c.player.attrs)), 260, 220); ui.label(ctx, 'OVR', 302, 208, 13); ui.label(ctx, 'cap ' + c.capTotal, 302, 230, 12);
-      tcStatBars(ctx, c.player.attrs, 60, 268, 330, 26);
-      ui.heading(ctx, 'THIS SEASON', 60, 468, 15, UI_CYAN); ui.label(ctx, avg.g + ' games · ' + avg.pts.toFixed(1) + ' PPG', 60, 490, 15, UI_TEXT, 'left', 330); ui.label(ctx, avg.reb.toFixed(1) + ' RPG · ' + avg.ast.toFixed(1) + ' APG', 60, 512, 15, UI_TEXT, 'left', 330); ui.label(ctx, 'Team ' + rec.w + '-' + rec.l + ' · rank ' + (tcStandingsSorted(c).indexOf(c.teamId) + 1) + ' of 8', 60, 534, 15, UI_TEXT, 'left', 330);
-      ui.heading(ctx, 'CAREER', 60, 568, 15, UI_CYAN); ui.label(ctx, c.careerStats.games + ' games · ' + c.careerStats.wins + '-' + c.careerStats.losses + ' · ' + c.careerStats.titles + ' title' + (c.careerStats.titles === 1 ? '' : 's'), 60, 590, 15, UI_TEXT, 'left', 330); ui.label(ctx, c.awards.length ? c.awards.slice(-2).join(' · ') : 'No awards yet.', 60, 612, 13, UI_DIM, 'left', 330);
-      const mv = Object.keys(c.player.moves).filter(k => c.player.moves[k]); ui.para(ctx, 'Moves: ' + mv.join(', '), 60, 646, 330, 13, UI_DIM, 'left', 2);
-      // next game card
-      ui.panel(ctx, 430, 84, 450, 616);
-      if (g) { const od = teamDef(opp); ui.heading(ctx, inPlayoffs ? (L.playoffs.round === 0 ? 'SEMIFINAL' : 'THE FINAL') : 'NEXT GAME', 655, 112, 18, UI_CYAN, 'center'); drawTeamCard(ctx, od, 470, 132, 370, 140, false, tcStartersFor(c, opp, c.mode === '5v5' ? 5 : 3)); ui.heading(ctx, (g.home === c.teamId ? 'HOME vs ' : 'AWAY at ') + od.name.toUpperCase(), 655, 294, 20, UI_TEXT, 'center', 420); const os = L.standings[opp]; let yb = 318 + ui.para(ctx, od.blurb + '  ·  ' + os.w + '-' + os.l, 655, 318, 420, 14, UI_DIM, 'center', 2); if (opp === c.rivalTeamId) { ui.label(ctx, '★ RIVALRY GAME', 655, yb, 13, UI_GOLD, 'center'); yb += 22; } ui.label(ctx, (c.mode || '5v5') + ' · 2:00 halves · ' + DIFF_LABELS[DIFF_IDS.indexOf(S.difficulty)] + (c.manager.active ? ' · managing' : ''), 655, Math.min(yb, 398), 13, UI_DIM, 'center', 420); }
-      else if (inPlayoffs) { ui.heading(ctx, 'PLAYOFFS', 655, 112, 18, UI_CYAN, 'center'); ui.label(ctx, L.playoffs.alive ? 'Waiting for the other bracket.' : 'Your season ended in the playoffs. Sim the rest.', 655, 320, 15, UI_TEXT, 'center'); }
-      else { ui.heading(ctx, 'REGULAR SEASON OVER', 655, 112, 18, UI_CYAN, 'center'); ui.label(ctx, 'Top four teams advance.', 655, 320, 15, UI_TEXT, 'center'); }
-      if (rivalLine) { ctx.fillStyle = 'rgba(255,214,63,0.12)'; ctx.beginPath(); roundRectPath(ctx, 450, 548, 410, 54, 8); ctx.fill(); ui.para(ctx, '“' + rivalLine + '”', 655, 564, 390, 13, UI_GOLD, 'center', 2); }
-      // last results strip
-      const last = P ? [] : c.results.slice(-4); if (!P) ui.heading(ctx, 'RECENT', 450, 616, 13, UI_CYAN); last.forEach((r, i) => { const x = 450 + i * 103; ctx.fillStyle = r.win ? 'rgba(76,224,122,0.85)' : 'rgba(255,90,90,0.85)'; ctx.beginPath(); roundRectPath(ctx, x, 632, 97, 50, 6); ctx.fill(); ctx.fillStyle = UI_INK; ctx.font = fontStr(14, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText((r.win ? 'W ' : 'L ') + r.score.join('-'), x + 48, 646, 91); ctx.font = fontStr(11, false); ctx.fillText(teamDef(r.opp).abbr + ' · ' + r.grade, x + 48, 667, 91); }); /* the last four: each box fits its score at 2× */
-      if (summary && summary.season === L.season - 1 && c.results.filter(r => r.season === L.season).length === 0) { ctx.fillStyle = 'rgba(94,224,255,0.12)'; ctx.beginPath(); roundRectPath(ctx, 450, 486, 410, 54, 8); ctx.fill(); ui.para(ctx, 'Season ' + summary.season + ': ' + summary.record + ' · champion ' + summary.champion + ' · MVP ' + summary.mvp, 655, 502, 390, 13, UI_CYAN, 'center', 2); }
-      ui.panel(ctx, 880, 84, 370, 616);
-    } };
-}
-function tcStandingsScreen(game) {
-  const c = game.save.data.teamCareer, L = c.league; const items = [btn('Back', 60, 640, 200, 40, () => game.ui.pop())]; const P = phoneBar(game.ui, items, null, 40, 300);
-  return { widgets: items, name: 'standings', draw(ctx, ui) {
-      ui.panel(ctx, 30, 20, 600, 680); ui.title(ctx, 'STANDINGS', 60, 60, 36); const order = tcStandingsSorted(c);
-      ctx.textBaseline = 'middle'; ['#', 'TEAM', 'W', 'L', 'PF', 'PA'].forEach((h, i) => { ctx.font = fontStr(14, true); ctx.fillStyle = UI_CYAN; ctx.textAlign = i > 1 ? 'center' : 'left'; ctx.fillText(h, [60, 100, 400, 450, 510, 570][i], 110); });
-      order.forEach((id, i) => { const s = L.standings[id]; const y = 140 + i * 34; const mine = id === c.teamId; if (mine) { ctx.fillStyle = 'rgba(255,214,63,0.12)'; ctx.beginPath(); roundRectPath(ctx, 50, y - 15, 560, 30, 6); ctx.fill(); } if (i < 4) { ctx.fillStyle = UI_GREEN; ctx.fillRect(50, y - 12, 4, 24); } ctx.fillStyle = mine ? UI_GOLD : UI_TEXT; ctx.font = fontStr(16, mine); ctx.textAlign = 'left'; ctx.fillText(String(i + 1), 60, y); ctx.fillText(teamDef(id).name, 100, y); ctx.textAlign = 'center'; ctx.fillText(String(s.w), 400, y); ctx.fillText(String(s.l), 450, y); ctx.fillText(String(s.pf), 510, y); ctx.fillText(String(s.pa), 570, y); });
-      ui.label(ctx, 'Green bar = playoff position (top four).', 60, 440, 13);
-      if (L.playoffs) { ui.heading(ctx, 'PLAYOFFS', 60, 480, 16, UI_CYAN); L.playoffs.results.forEach((r, i) => ui.label(ctx, teamDef(r.home).abbr + ' ' + r.homeScore + ' – ' + r.awayScore + ' ' + teamDef(r.away).abbr, 60, (P ? 494 : 505) + i * 22, 14, UI_TEXT)); if (L.champion) ui.label(ctx, 'Champion: ' + teamDef(L.champion).name, P ? 360 : 60, P ? 480 : 590, 14, UI_GOLD); }
-      // schedule
-      ui.panel(ctx, 650, 20, 600, 680); ui.title(ctx, 'SCHEDULE', 680, 60, 36);
-      L.schedule.forEach((week, wi) => { const g = week.find(x => x.home === c.teamId || x.away === c.teamId); const y = 110 + wi * 30; const r = c.results.find(x => x.season === L.season && x.week === wi + 1 && !x.playoff); const opp = tcOpponentOf(c, g); ctx.font = fontStr(15, wi === L.week && !r); ctx.fillStyle = wi === L.week && !r ? UI_GOLD : UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('Week ' + (wi + 1) + ' · ' + (g.home === c.teamId ? 'vs ' : 'at ') + teamDef(opp).name + (opp === c.rivalTeamId ? ' ★' : ''), 680, y); ctx.textAlign = 'right'; ctx.fillStyle = r ? (r.win ? UI_GREEN : UI_RED) : UI_DIM; ctx.fillText(r ? (r.win ? 'W ' : 'L ') + r.score.join('-') + '  ' + r.grade : (wi === L.week ? 'next' : ''), 1220, y); });
-      const ps = c.results.filter(x => x.season === L.season && x.playoff); ps.forEach((r, i) => { const y = 110 + (L.schedule.length + i) * 30; ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.fillText('Playoff ' + (i + 1) + ' · ' + teamDef(r.opp).name, 680, y); ctx.textAlign = 'right'; ctx.fillStyle = r.win ? UI_GREEN : UI_RED; ctx.fillText((r.win ? 'W ' : 'L ') + r.score.join('-'), 1220, y); });
-    } };
-}
-function tcShopScreen(game, kind) {
-  const c = game.save.data.teamCareer; const G = CONFIG.teamCareer; const items = []; const total = () => RATING_KEYS.reduce((a, k) => a + c.player.attrs[k], 0);
-  const refresh = () => game.ui.replace(tcShopScreen(game, kind));
-  if (kind === 'attrs') { for (const k of RATING_KEYS) { const lvl = c.player.attrs[k]; const cost = G.upgradeCostPerLevel * (lvl + 1); const can = lvl < G.capRating && total() < c.capTotal && c.coins >= cost; items.push(btn(RATING_LABELS[k] + '  ' + lvl + ' → ' + Math.min(10, lvl + 1), 0, 0, 0, 0, () => { if (!can) { game.ui.toastMsg(lvl >= G.capRating ? 'Maxed.' : total() >= c.capTotal ? 'Season cap reached (' + c.capTotal + '). It grows next season.' : 'Not enough coins.'); return; } c.coins -= cost; c.player.attrs[k]++; game.save.save(); game.audio.ui('coin'); refresh(); }, { align: 'left', sub: lvl >= G.capRating ? 'MAX' : cost + ' coins' })); } }
-  else if (kind === 'moves') { for (const mk in G.moveCosts) { const owned = c.player.moves[mk]; const cost = G.moveCosts[mk]; const names = { spin: 'Spin (Sprint + Move)', stepback: 'Step-back (away + Move)', hesitation: 'Hesitation (tap Sprint)', euro: 'Euro-step (flip the stick)', dunk360: '360 dunk', windmill: 'Windmill dunk' }; items.push(btn(names[mk], 0, 0, 0, 0, () => { if (owned) { game.ui.toastMsg('Already yours.'); return; } if (c.coins < cost) { game.ui.toastMsg('Not enough coins.'); return; } c.coins -= cost; c.player.moves[mk] = true; game.save.save(); game.audio.ui('coin'); refresh(); }, { align: 'left', sub: owned ? 'OWNED' : cost + ' coins' })); }
-    const cos = [['headband', 'Headband'], ['sleeves', 'Sleeves'], ['shoes', 'Shoe colors'], ['ballskin', 'Ball skins']]; for (const [ck, label] of cos) { const owned = c.cosmetics[ck]; const cost = G.cosmeticCosts[ck]; items.push(btn(label, 0, 0, 0, 0, () => { if (owned) { if (ck === 'shoes') c.shoeColor = (c.shoeColor + 1) % 4; else if (ck === 'ballskin') c.ballSkin = (c.ballSkin + 1) % 5; else if (ck === 'headband') c.headbandOn = c.headbandOn === false; else if (ck === 'sleeves') c.sleevesOn = c.sleevesOn === false; game.save.save(); refresh(); return; } if (c.coins < cost) { game.ui.toastMsg('Not enough coins.'); return; } c.coins -= cost; c.cosmetics[ck] = true; game.save.save(); game.audio.ui('coin'); refresh(); }, { align: 'left', sub: owned ? (ck === 'shoes' ? 'owned · color ' + (c.shoeColor + 1) : ck === 'ballskin' ? 'owned · skin ' + (c.ballSkin + 1) : 'owned · ' + ((ck === 'headband' ? c.headbandOn !== false : c.sleevesOn !== false) ? 'on' : 'off')) : cost + ' coins' })); } }
-  items.push(btn('Back', 0, 0, 0, 0, () => game.ui.pop())); column(items, 60, 110, 560, 40, 6); let t = 0;
-  const PG = phonePager(game.ui, items.slice(0, -1), items.slice(-1), { x: 50, y: 84, w: 590, h: 498 }, 1); if (PG) items.push(PG.prev, PG.next); // phones: pages of 64 px rows
-  return { widgets: items, name: 'shop', update(dt) { t += dt; }, draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 620, PG ? 700 : 680); ui.title(ctx, kind === 'attrs' ? 'UPGRADE PLAYER' : 'MOVES & STYLE', 60, PG ? 50 : 60, PG ? 30 : 36); ui.heading(ctx, c.coins + ' coins', 620, PG ? 50 : 60, 18, UI_GOLD, 'right'); if (PG && PG.pages > 1) kitChip(ctx, PG.label(), 530, 50, { size: 18, color: UI_CYAN, align: 'right' }); ui.panel(ctx, 670, 20, 580, 680); drawMannequin(ctx, tcPlayerDef(c), teamDef(c.teamId), 960, 400, 300, 'focused', 1, t); tcStatBars(ctx, c.player.attrs, 700, 430, 520, 30); ui.label(ctx, 'Total ' + total() + ' / ' + c.capTotal + ' · cost = 100 × next level · OVR ' + overallOf(c.player.attrs), 960, 660, 13, UI_DIM, 'center'); } };
-}
-function tcManagerScreen(game) {
-  const c = game.save.data.teamCareer; const n = c.mode === '5v5' ? 5 : 3; const items = [
-    tgl('Manager mode active', 0, 0, 0, 0, () => c.manager.active, v => { c.manager.active = v; if (v && !c.manager.starters) c.manager.starters = tcStartersFor(c, c.teamId, n).map(tcNameOf); game.save.save(); }),
-    btn('Lineup', 0, 0, 0, 0, () => game.ui.push(tcLineupScreen(game))), btn('Trades', 0, 0, 0, 0, () => game.ui.push(tcTradeScreen(game))), btn('Free agents', 0, 0, 0, 0, () => game.ui.push(tcFreeAgentScreen(game))), btn('Team strategy', 0, 0, 0, 0, () => game.ui.push(tcStrategyScreen(game))), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(items, 60, 110, 380, 44, 8); const PG = phonePager(game.ui, items.slice(0, -1), items.slice(-1), { x: 46, y: 84, w: 408, h: 498 }, 1); if (PG) items.push(PG.prev, PG.next); // phones: pages of 64 px rows
-  return { widgets: items, name: 'manager', draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 440, PG ? 700 : 680); ui.title(ctx, 'FRONT OFFICE', 60, PG ? 50 : 60, PG ? 30 : 36); if (!PG) ui.para(ctx, 'Run the ' + teamDef(c.teamId).name + ': set the lineup, trade, sign free agents and set the game plan. When active, your lineup and strategy apply to every game. Bench yourself and you coach from the sideline (you control whoever has the ball).', 60, 440, 380, 14, UI_DIM); ui.heading(ctx, c.coins + ' coins', 440, PG ? 50 : 104, 16, UI_GOLD, 'right');
-      ui.panel(ctx, 490, 20, 760, 680); ui.title(ctx, 'ROSTER', 520, 60, 30); tcRosterList(ctx, ui, c, c.teamId, 520, 100, 700, 44, c.manager.starters); ui.heading(ctx, 'LOG', 520, 560, 14, UI_CYAN); c.manager.log.slice(-4).forEach((l, i) => ui.label(ctx, l, 520, 585 + i * 24, 13, UI_TEXT, 'left', 700)); } };
-}
-function tcRosterList(ctx, ui, c, teamId, x, y, w, rowH, starters) {
-  const names = c.league.rosters[teamId]; const team = teamDef(teamId);
-  names.forEach((nm, i) => { const d = tcDefByName(nm, c); if (!d) return; const yy = y + i * rowH; const isStarter = starters ? starters.includes(nm) : false; ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.15)'; ctx.fillRect(x, yy, w, rowH - 2); drawPortrait(ctx, d, team.colors, x + 4, yy + 3, rowH - 8); ui.heading(ctx, (isStarter ? '★ ' : '') + (d.isMe ? c.player.name + ' (you)' : d.name), x + rowH + 4, yy + rowH / 2, 15, isStarter ? UI_GOLD : UI_TEXT, 'left', w * 0.47 - rowH - 10); ui.label(ctx, ARCHETYPES[d.arch].label + ' · ' + d.height.toFixed(2) + ' m', x + w * 0.47, yy + rowH / 2, 13, UI_DIM, 'left', w * 0.53 - 100); ui.heading(ctx, 'OVR ' + overallOf(d.attrs), x + w - 10, yy + rowH / 2, 15, UI_CYAN, 'right'); }); /* a gold name and a star: a starter */
-}
-function tcLineupScreen(game) {
-  const c = game.save.data.teamCareer; const n = c.mode === '5v5' ? 5 : 3; if (!c.manager.starters) c.manager.starters = tcStartersFor(c, c.teamId, n).map(tcNameOf);
-  const names = c.league.rosters[c.teamId]; const items = names.map((nm, i) => { const d = tcDefByName(nm, c); return btn((d.isMe ? c.player.name + ' (you)' : d.name) + ' · OVR ' + overallOf(d.attrs), 0, 0, 0, 0, () => { const st = c.manager.starters; if (st.includes(nm)) { if (st.length <= n) { game.ui.toastMsg('You need ' + n + ' starters. Pick a replacement first.'); return; } c.manager.starters = st.filter(x => x !== nm); } else { if (st.length >= n) { game.ui.toastMsg('Lineup is full. Bench someone first.'); return; } st.push(nm); } game.save.save(); game.ui.replace(tcLineupScreen(game)); }, { align: 'left', sub: c.manager.starters.includes(nm) ? 'STARTER' : 'bench' }); });
-  items.push(btn('Back', 0, 0, 0, 0, () => game.ui.pop())); column(items, 60, 110, 600, 44, 8); const PG = phonePager(game.ui, items.slice(0, -1), items.slice(-1), { x: 46, y: 84, w: 628, h: 498 }, 1); if (PG) items.push(PG.prev, PG.next); // phones: pages of 64 px rows
-  return { widgets: items, name: 'lineup', draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 660, PG ? 700 : 680); ui.title(ctx, 'LINEUP', 60, PG ? 50 : 60, 36); ui.label(ctx, 'Exactly ' + n + ' starters. Bench yourself to coach from the sideline.', PG ? 230 : 300, PG ? 50 : 60, PG ? 17 : 13); } };
-}
-function tcTradeScreen(game) {
-  const c = game.save.data.teamCareer; const others = TC_LEAGUE_IDS.filter(id => id !== c.teamId); const st = game.tradeSt || (game.tradeSt = { team: 0, theirs: 0, mine: 0 });
-  const teamId = others[st.team]; const theirNames = c.league.rosters[teamId]; const myNames = c.league.rosters[c.teamId];
-  st.theirs = Math.min(st.theirs, theirNames.length - 1); st.mine = Math.min(st.mine, myNames.length - 1);
-  const label = nm => { const d = tcDefByName(nm, c); return (d.isMe ? c.player.name + ' (you)' : d.name) + ' · OVR ' + overallOf(d.attrs); };
-  const ev = tcEvaluateTrade(c, myNames[st.mine], theirNames[st.theirs]);
-  const items = [sel('Team', 0, 0, 0, 0, others.map(id => teamDef(id).name), () => st.team, i => { st.team = i; st.theirs = 0; game.ui.replace(tcTradeScreen(game)); }), sel('They send', 0, 0, 0, 0, theirNames.map(label), () => st.theirs, i => { st.theirs = i; game.ui.replace(tcTradeScreen(game)); }), sel('You send', 0, 0, 0, 0, myNames.map(label), () => st.mine, i => { st.mine = i; game.ui.replace(tcTradeScreen(game)); }),
-    btn(ev.ok ? 'PROPOSE TRADE' + (ev.sweetener ? ' (+' + ev.sweetener + ' coins)' : '') : 'THEY WANT ' + ev.sweetener + ' COINS MORE', 0, 0, 0, 0, () => { if (myNames[st.mine] === '__me__') { game.ui.toastMsg('You can\'t trade yourself.'); return; } if (tcExecuteTrade(c, teamId, myNames[st.mine], theirNames[st.theirs])) { game.save.save(); game.ui.toastMsg('Trade completed.'); game.ui.replace(tcTradeScreen(game)); } else game.ui.toastMsg('Not enough coins to make it fair.'); }, { primary: ev.ok }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(items, 60, 110, 620, 46, 10); const PG = phonePager(game.ui, items.slice(0, -1), items.slice(-1), { x: 46, y: 84, w: 648, h: 498 }, 1); if (PG) items.push(PG.prev, PG.next); // phones: 64 px rows; the portraits make way
-  return { widgets: items, name: 'trade', draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 680, PG ? 700 : 680); ui.title(ctx, 'TRADES', 60, PG ? 50 : 60, 36); ui.heading(ctx, c.coins + ' coins', 680, PG ? 50 : 60, 16, UI_GOLD, 'right'); const td = tcDefByName(theirNames[st.theirs], c), md = tcDefByName(myNames[st.mine], c); if (!PG) { ui.para(ctx, 'Teams accept when they get equal value. Otherwise they ask for coins: 60 per point of overall.', 60, 416, 620, 13, UI_DIM); drawPortrait(ctx, td, teamDef(teamId).colors, 100, 460, 120); drawPortrait(ctx, md, teamDef(c.teamId).colors, 400, 460, 120); ui.heading(ctx, '⇄', 310, 520, 40, UI_GOLD, 'center'); } ui.panel(ctx, 730, 20, 520, 680); ui.title(ctx, td.name.toUpperCase(), 760, 60, 24); tcStatBars(ctx, td.attrs, 760, 110, 460, 28); ui.para(ctx, strengthsText(td.attrs).strengths + ' ' + strengthsText(td.attrs).weaknesses, 760, 340, 460, 13, UI_DIM); } };
-}
-function tcFreeAgentScreen(game) {
-  const c = game.save.data.teamCareer; const items = c.league.freeAgents.map(nm => { const d = tcDefByName(nm, c); return btn(d.name + ' · OVR ' + overallOf(d.attrs) + ' · ' + ARCHETYPES[d.arch].label, 0, 0, 0, 0, () => { if (tcSignFreeAgent(c, nm)) { game.save.save(); game.audio.ui('coin'); game.ui.toastMsg('Signed ' + d.name); game.ui.replace(tcFreeAgentScreen(game)); } else game.ui.toastMsg(c.league.rosters[c.teamId].length >= CONFIG.teamCareer.rosterMax ? 'Roster full (max ' + CONFIG.teamCareer.rosterMax + ').' : 'Not enough coins.'); }, { align: 'left', sub: tcSignCost(d) + ' coins' }); });
-  c.league.rosters[c.teamId].filter(nm => nm !== '__me__').forEach(nm => { const d = tcDefByName(nm, c); items.push(btn('Release ' + d.name, 0, 0, 0, 0, () => { if (tcReleasePlayer(c, nm)) { game.save.save(); game.ui.replace(tcFreeAgentScreen(game)); } else game.ui.toastMsg('Keep at least a full lineup.'); }, { align: 'left', sub: 'no refund' })); });
-  items.push(btn('Back', 0, 0, 0, 0, () => game.ui.pop())); column(items, 60, 100, 700, 36, 6); const PG = phonePager(game.ui, items.slice(0, -1), items.slice(-1), { x: 46, y: 84, w: 728, h: 498 }, 1); if (PG) items.push(PG.prev, PG.next); // phones: pages of 64 px rows
-  return { widgets: items, name: 'freeagents', draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, 760, PG ? 700 : 680); ui.title(ctx, 'FREE AGENTS', 60, PG ? 50 : 60, 36); ui.heading(ctx, c.coins + ' coins', 760, PG ? 50 : 60, 16, UI_GOLD, 'right'); if (PG && PG.pages > 1) kitChip(ctx, PG.label(), 560, 50, { size: 18, color: UI_CYAN, align: 'right' }); } };
-}
-function tcStrategyScreen(game) {
-  const c = game.save.data.teamCareer; const s = c.manager.strategy; const mk = (k, label) => sld(label, 0, 0, 0, 0, 0, 1, 0.1, () => s[k], v => { s[k] = v; game.save.save(); }, v => v < 0.35 ? 'low' : v > 0.65 ? 'high' : 'balanced');
-  const items = [mk('pace', 'Pace'), mk('threeRate', 'Three-point rate'), mk('driveRate', 'Drive rate'), mk('passRate', 'Ball movement'), mk('aggression', 'Aggression'), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; column(items, 60, 110, 620, 46, 10); const PG = phonePager(game.ui, items.slice(0, -1), items.slice(-1), { x: 46, y: 84, w: 1188, h: 498 }, 2); if (PG) items.push(PG.prev, PG.next); // phones: 64 px rows in two columns
-  return { widgets: items, name: 'strategy', draw(ctx, ui) { ui.panel(ctx, 30, PG ? 10 : 20, PG ? 1220 : 680, PG ? 700 : 680); ui.title(ctx, 'GAME PLAN', 60, PG ? 50 : 60, 36); if (PG) ui.label(ctx, 'How your bot teammates pick shots, drives and passes, and how hard they play.', 330, 50, 18, UI_DIM); else ui.para(ctx, 'These bend how your bot teammates pick shots, drives, passes and how hard they play. Aggression: shoves and crashing the glass.', 60, 470, 620, 13, UI_DIM); } };
-}
-function tcTeamOverall(t) { const r = fullRoster(t.id); return r.reduce((a, p) => a + RATING_KEYS.reduce((s, k) => s + p.attrs[k], 0), 0) / r.length; }
-
-// ============================================================================
 // SECTION: ART LAB — the character sheet (every skin tone, hairstyle and facial hair; four expressions; both facings;
-// phone size and 250 px), key poses, the crowd atlas and venue previews. Extras → Art Lab, or open index.html?artlab.
+// phone size and 250 px), key poses, the crowd atlas and venue previews. The dev menu (`) → Art Lab, or open index.html?artlab.
 // tests/artlab.js screenshots every view for the visual rounds in shots/<milestone>/round-N/.
 // ============================================================================
 // Twelve invented players that together cover every skin tone, facial hair style and most hairstyles (the Hair view shows all).
@@ -9675,7 +9498,7 @@ function labCrop(src, sx, sy, sw, sh) { const c = document.createElement('canvas
 // One sheet of the UI kit in 620×612 design px: the logo, headings, the five button states, a select wall row, big digits.
 function labUiSample(ctx, ui, x, y, t) {
   kitPanel(ctx, x, y, 610, 606); kitLogo(ctx, x + 305, y + 64, 64); kitTitle(ctx, 'SETTINGS', x + 30, y + 150, 44); kitTitle(ctx, 'THE SELECT WALL', x + 30, y + 206, 26);
-  const B = [['PLAY', true, true], ['CONTINUE', true, false], ['Quick 1v1', false, true], ['Extras', false, false], ['Locked', false, false, false]];
+  const B = [['PLAY', true, true], ['CONTINUE', true, false], ['Quick 1v1', false, true], ['Practice', false, false], ['Locked', false, false, false]];
   B.forEach(([label, primary, focused, enabled], i) => { try { ui.drawWidget(ctx, { kind: 'button', label, primary, enabled: enabled !== false, x: x + 40 + (i % 2) * 280, y: y + 250 + Math.floor(i / 2) * 70, w: 250, h: 54 }, focused); } catch (e) { /* decoration */ } });
   for (let i = 0; i < 3; i++) drawSelectHead(ctx, { x: x + 330 + i * 90, y: y + 400, w: 70, h: 70 }, { name: 'p' + i, look: PRESET_LOOKS[i + 3] }, NEUTRAL_KIT.colors, i === 1, i === 2, t);
   kitTitle(ctx, '21', x + 300, y + 540, 80, { align: 'center', ramp: ['#FFFFFF', '#E8ECFF'], arch: 0 });
@@ -9923,7 +9746,7 @@ function createPlayerScreen(game) {
     sel('Play style', 0, 0, 0, 0, styleKeys.map(k => AM_STYLES[k].label), () => st.style, i => { st.style = i; }),
     sel('Pro seasons', 0, 0, 0, 0, CR.seasonLengths.map(n => n + ' games'), () => st.seasonLen, i => { st.seasonLen = i; }),
     sel('Pro games', 0, 0, 0, 0, CR.gameLengths.map(n => fmtClock(n) + ' halves'), () => st.gameLen, i => { st.gameLen = i; }),
-    btn('Face shape & extras', 0, 0, 0, 0, () => game.ui.push(customizeLookScreen(game, st))),
+    btn('Face shape & accessories', 0, 0, 0, 0, () => game.ui.push(customizeLookScreen(game, st))),
   ];
   const start = btn('START HIGH SCHOOL', 0, 0, 0, 0, () => { const a = amCreate(s, { name: st.name, look: st.look, number: st.number, style: styleKeys[st.style] || 'slasher', seasonLength: CR.seasonLengths[st.seasonLen], gameLength: CR.gameLengths[st.gameLen], seed: st.seed /* a test can fix the career's dice (R10: tests/fullcareer.js); a player never sets it */ }); game.newCareer = null; s._legacyCareer = undefined; game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: true });
   const items = [];
@@ -10722,7 +10545,7 @@ function commitDayScreen(game, c, ev, done) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { graphics: 'retro', arcadeExtras: 'quick', difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {} },
+    settings: { graphics: 'retro', arcadeExtras: 'off', extrasF1: true, difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {} },
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -10764,19 +10587,18 @@ function migrateSave(obj) {
   const merged = Object.assign({}, d, obj); merged.settings = Object.assign({}, d.settings, obj.settings || {}); merged.unlocks = Object.assign({}, d.unlocks, obj.unlocks || {}); merged.records = Object.assign({}, d.records, obj.records || {}); merged.stats = Object.assign({}, d.stats, obj.stats || {});
   delete merged.settings.careerMode; merged.unlocks.arena = true;
   if (!['retro', 'sharp', 'smooth'].includes(merged.settings.graphics)) merged.settings.graphics = 'retro'; // R1: the L15 Pixel setting becomes Retro
-  if (merged.settings.arcadeExtras === 'all') merged.settings.arcadeExtras = 'exhibitions'; else if (!['quick', 'exhibitions', 'off'].includes(merged.settings.arcadeExtras)) merged.settings.arcadeExtras = 'quick'; // R4: Everywhere (careers included) is gone: the career never runs extras
+  if (!(obj.settings && obj.settings.extrasF1)) { merged.settings.arcadeExtras = 'off'; merged.settings.extrasF1 = true; } else if (!['quick', 'off'].includes(merged.settings.arcadeExtras)) merged.settings.arcadeExtras = 'off'; /* F1: power-ups are a Quick 1v1 option, off by default: every older save starts with them off once (R4 had already taken the career option away) */
   if (!Array.isArray(merged.posters)) merged.posters = []; if (!Array.isArray(merged.hallOfFame)) merged.hallOfFame = [];
   // the classic team league (v2 saves) moves to its own slot and keeps going; its player also prefills a new 1v1 career
   if (merged.career && typeof merged.career === 'object' && merged.career.v === 2 && merged.career.player) { if (!merged.teamCareer) merged.teamCareer = merged.career; if (!merged._legacyCareer) merged._legacyCareer = { name: merged.career.player.name, look: merged.career.player.look || null }; merged.career = null; }
   if (merged.teamCareer && (typeof merged.teamCareer !== 'object' || !merged.teamCareer.player || merged.teamCareer.v !== 2)) merged.teamCareer = null;
-  if (merged.teamCareer) { merged.teamCareer = Object.assign(tcDefaultShape(), merged.teamCareer); merged.teamCareer.manager = Object.assign({ active: false, starters: null, strategy: { pace: 0.5, threeRate: 0.5, driveRate: 0.5, passRate: 0.5, aggression: 0.5 }, log: [] }, merged.teamCareer.manager || {}); }
+  /* F1: the classic team league is gone from the game; its data stays in the save untouched */
   if (merged.career && (typeof merged.career !== 'object' || !(merged.career.v === 4 || merged.career.v === 5))) { const old = merged.career; merged.career = null; const pl = old && (old.player || (old.players && old.players.me)); if (pl && pl.name) merged._legacyCareer = { name: pl.name, look: pl.look || null }; }
   if (obj._legacyCareer && !merged._legacyCareer) merged._legacyCareer = { name: obj._legacyCareer.player ? obj._legacyCareer.player.name : obj._legacyCareer.name, look: obj._legacyCareer.player ? obj._legacyCareer.player.look : obj._legacyCareer.look };
   if (merged.c1) { try { merged.c1 = amMigrate(merged.c1); } catch (e) { merged.c1 = null; } } // (first: a pro career's R3 upgrade takes its traits and genes from here)
   if (merged.career && (merged.career.v === 4 || merged.career.v === 5)) { merged.career = repairCareer(merged.career); if (merged.career) { try { proUpgrade5(merged.career, merged.c1); } catch (e) { console.warn('R3 upgrade failed', e); } } }
   if (merged.career && merged.c1) merged.c1.handedOff = true;
   if (v < 5) for (const k of ['c1', 'career', 'teamCareer', '_legacyCareer']) migrateLooks(merged[k], 0); // v5: looks move to the painted-face model
-  if (merged.teamCareer) { try { tcRepair(merged); } catch (e) { merged.teamCareer = null; } }
   merged.version = CONFIG.save.version; return merged;
 }
 // Converts every stored look to the v2 look model (faces are seeded from the owner's name, so they never change).
@@ -11574,126 +11396,6 @@ function amRepair(c) {
 
 // A pro league for tests and dev tools: a generated amateur, grown up and handed straight to draft night.
 function testProLeague(seed, save) { save = save || defaultSave(); const a = amCreate(save, { name: 'Model Check', look: PRESET_LOOKS[0], number: 1, style: 'slasher', seed: seed >>> 0 }); a.age = 20; a.height = a.heightFinal; a.stage = 'combine'; a.events = []; const c = createCareerFromAmateur(save, a); const L = ladderOf(c); if (L) { L.splice(L.indexOf('me'), 1); L.unshift('me'); } return c; } // tests and dev tools: you start (R4)
-
-// ============================================================================
-// SECTION: SAVE / PROGRESSION (part 3) — the classic team league's data: rosters, schedule, results, playoffs, coins
-// and manager moves. It lives in its own save slot (teamCareer) so it never touches the 1v1 career.
-// ============================================================================
-function tcDefaultShape() { return { v: 2, results: [], awards: [], careerStats: { games: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, wins: 0, losses: 0, titles: 0 }, managerUnlocked: false, rivalSeen: 0, capTotal: CONFIG.teamCareer.capTotal, cosmetics: { headband: false, sleeves: false, shoes: false, ballskin: false }, shoeColor: 0, ballSkin: 0, coins: 0 }; }
-let _tcPlayerDB = null;
-function tcPlayerDB() { if (_tcPlayerDB) return _tcPlayerDB; _tcPlayerDB = new Map(); for (const k in ROSTER) for (const d of ROSTER[k]) _tcPlayerDB.set(d.name, d); for (const d of TC_MATES) _tcPlayerDB.set(d.name, d); return _tcPlayerDB; }
-function tcDefByName(name, career) { if (name === '__me__') return tcPlayerDef(career); return tcPlayerDB().get(name) || null; }
-function tcRosterDefs(career, teamId) { return (career.league.rosters[teamId] || []).map(n => tcDefByName(n, career)).filter(Boolean); }
-function tcTeamDef(c, teamId) { const id = teamId || c.teamId; const base = teamDef(id); const players = tcRosterDefs(c, id); const pers = (id === c.teamId && c.manager && c.manager.active) ? Object.assign({}, base.personality, c.manager.strategy) : base.personality; return Object.assign({}, base, { personality: pers, players }); }
-function tcStartersFor(c, teamId, n) {
-  const defs = tcRosterDefs(c, teamId);
-  if (teamId === c.teamId && c.manager && c.manager.active && c.manager.starters) { const s = c.manager.starters.map(nm => tcDefByName(nm, c)).filter(Boolean); if (s.length >= n) return s.slice(0, n); }
-  const sorted = defs.slice().sort((a, b) => overallOf(b.attrs) - overallOf(a.attrs));
-  if (teamId === c.teamId) { const me = sorted.find(d => d.isMe); const rest = sorted.filter(d => !d.isMe); return me ? [me].concat(rest.slice(0, n - 1)) : rest.slice(0, n); }
-  return sorted.slice(0, n);
-}
-function tcPlayerDef(c) { const p = c.player; const look = Object.assign({}, p.look, { headband: !!c.cosmetics.headband && c.headbandOn !== false, sleeves: !!c.cosmetics.sleeves && c.sleevesOn !== false, shoes: c.cosmetics.shoes ? ['#FF4FA3', '#B8FF5A', '#8BE3FF', '#FFD23F'][c.shoeColor % 4] : null }); return { name: p.name, nick: p.nick, arch: p.arch, height: p.height, attrs: Object.assign({}, p.attrs), look, moves: Object.assign({}, p.moves), isMe: true }; }
-function tcNameOf(def) { return def.isMe ? '__me__' : def.name; }
-const TC_LEAGUE_IDS = TEAMS.map(t => t.id);
-function tcRoundRobin(ids, rng) { // circle method: 7 rounds of 4 pairings for 8 teams
-  const arr = rng.shuffle(ids.slice()); const n = arr.length; const rounds = [];
-  for (let r = 0; r < n - 1; r++) { const pairs = []; for (let i = 0; i < n / 2; i++) { const a = arr[i], b = arr[n - 1 - i]; pairs.push(r % 2 ? { home: b, away: a } : { home: a, away: b }); } rounds.push(pairs); arr.splice(1, 0, arr.pop()); }
-  return rounds;
-}
-function tcMakeSchedule(c, rng) {
-  const rounds = tcRoundRobin(TC_LEAGUE_IDS, rng); const weeks = rounds.concat(rounds.slice(0, CONFIG.teamCareer.seasonGames - rounds.length));
-  // the rival's team meets you in week 3 and in the finale
-  const rivalRound = rounds.findIndex(ps => ps.some(p => (p.home === c.teamId && p.away === c.rivalTeamId) || (p.away === c.teamId && p.home === c.rivalTeamId)));
-  if (rivalRound >= 0) { const swap = (i, j) => { const t = weeks[i]; weeks[i] = weeks[j]; weeks[j] = t; }; if (rivalRound !== 2) swap(rivalRound, 2); weeks[weeks.length - 1] = rounds[rivalRound]; }
-  return weeks;
-}
-// A team career whose league did not survive (a partial v2 save) gets a fresh league around the same player; its coins,
-// awards, results and career numbers stay, and so does the name that prefills a new 1v1 career.
-function tcRepair(save) {
-  const c = save.teamCareer; if (!c) return; const L = c.league;
-  if (L && Array.isArray(L.schedule) && L.standings && L.rosters && TC_LEAGUE_IDS.includes(c.teamId) && Array.isArray(L.rosters[c.teamId])) return;
-  const p = c.player || {}, arch = ARCHETYPES[p.arch] ? p.arch : 'slasher'; const legacy = save._legacyCareer;
-  const player = Object.assign({ nick: String(p.name || 'Ace').split(' ')[0], height: 1.92, attrs: tcScaledAttrs(arch, CONFIG.teamCareer.startPoints), moves: { crossover: true, spin: false, stepback: false, hesitation: false, euro: false, dunk360: false, windmill: false } }, p, { arch, name: p.name || 'Ace' });
-  player.look = cloneLook(p.look || PRESET_LOOKS[3], player.name);
-  const keep = { coins: c.coins || 0, awards: c.awards || [], results: c.results || [], careerStats: c.careerStats, managerUnlocked: !!c.managerUnlocked, cosmetics: c.cosmetics };
-  const fresh = tcCreateCareer(save, player, TC_LEAGUE_IDS.includes(c.teamId) ? c.teamId : TC_LEAGUE_IDS[0], c.mode || '5v5'); Object.assign(fresh, keep); if (legacy) save._legacyCareer = legacy;
-}
-function tcCreateCareer(save, player, teamId, mode) {
-  const rng = new RNG(Date.now() >>> 0); const c = Object.assign(tcDefaultShape(), { player, teamId, mode: mode || '5v5', coins: (save._legacyCareer && save._legacyCareer.coins) || 0, season: 1, week: 0, teamName: teamDef(teamId).name, abbr: teamDef(teamId).abbr, manager: { active: false, starters: null, strategy: { pace: 0.5, threeRate: 0.5, driveRate: 0.5, passRate: 0.5, aggression: 0.5 }, log: [] } });
-  // rosters: every league team keeps five; the rival joins another team; you replace your new team's weakest player
-  const rosters = {}; for (const id of TC_LEAGUE_IDS) rosters[id] = fullRoster(id).map(d => d.name);
-  const others = TC_LEAGUE_IDS.filter(id => id !== teamId); c.rivalTeamId = others[rng.int(others.length)];
-  const freeAgents = ROSTER.freeAgents.map(d => d.name);
-  const weakest = list => list.slice().sort((a, b) => overallOf(tcPlayerDB().get(a).attrs) - overallOf(tcPlayerDB().get(b).attrs))[0];
-  const cut = weakest(rosters[c.rivalTeamId]); rosters[c.rivalTeamId] = rosters[c.rivalTeamId].filter(n => n !== cut).concat([ROSTER.rival[0].name]); freeAgents.push(cut);
-  const cutMine = weakest(rosters[teamId]); rosters[teamId] = rosters[teamId].filter(n => n !== cutMine).concat(['__me__']); freeAgents.push(cutMine);
-  c.league = { rosters, freeAgents, standings: {}, playerStats: {}, week: 0, season: 1, schedule: null, playoffs: null, champion: null };
-  for (const id of TC_LEAGUE_IDS) c.league.standings[id] = { w: 0, l: 0, pf: 0, pa: 0 };
-  c.league.schedule = tcMakeSchedule(c, rng);
-  save.teamCareer = c; delete save._legacyCareer; return c;
-}
-function tcUserGame(c) { const L = c.league; if (L.playoffs) { const po = L.playoffs; const g = po.pending; return g && (g.home === c.teamId || g.away === c.teamId) ? g : null; } if (L.week >= L.schedule.length) return null; return L.schedule[L.week].find(g => g.home === c.teamId || g.away === c.teamId) || null; }
-function tcOpponentOf(c, g) { return g.home === c.teamId ? g.away : g.home; }
-function tcStandingsSorted(c) { return TC_LEAGUE_IDS.slice().sort((a, b) => { const A = c.league.standings[a], B = c.league.standings[b]; return (B.w - A.w) || ((B.pf - B.pa) - (A.pf - A.pa)) || a.localeCompare(b); }); }
-function tcRecordGame(c, homeId, awayId, homeScore, awayScore, box) {
-  const S = c.league.standings; if (S[homeId] && S[awayId]) { S[homeId].pf += homeScore; S[homeId].pa += awayScore; S[awayId].pf += awayScore; S[awayId].pa += homeScore; if (homeScore > awayScore) { S[homeId].w++; S[awayId].l++; } else { S[awayId].w++; S[homeId].l++; } }
-  if (box) for (const t of box.teams) for (const p of t.players) { const k = p.name === c.player.name ? '__me__' : p.name; const ps = c.league.playerStats[k] || (c.league.playerStats[k] = { g: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0 }); ps.g++; ps.pts += p.pts; ps.reb += p.reb; ps.ast += p.ast; ps.stl += p.stl; ps.blk += p.blk; }
-}
-function tcMatchOptsFor(c, save, g, human) {
-  const S = save.settings; const mode = c.mode || S.careerMode || '5v5'; const n = mode === '5v5' ? 5 : 3;
-  const mk = id => { const t = tcTeamDef(c, id); t.players = tcStartersFor(c, id, n); return t; };
-  let home = mk(g.home), away = mk(g.away); if (S.colorblind) [home, away] = colorblindTeams(home, away);
-  const mine = g.home === c.teamId; const teams = mine ? [home, away] : [away, home]; const meIdx = teams[0].players.findIndex(p => p.isMe);
-  const po = c.league.playoffs; const shift = po ? (po.round === 1 ? 0.6 : 0.3) : 0;
-  return { mode, teams, humanTeam: human ? 0 : -1, humanPlayerIndex: Math.max(0, meIdx), difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'arcade', format: { type: 'timed', half: 120 }, court: po ? 'arena' : COURT_ORDER[(c.league.week + (mine ? 0 : 1)) % 4], seed: (Date.now() % 1000000) >>> 0, controlMode: (c.manager && c.manager.active && meIdx < 0) ? 'ball' : 'lock', adaptive: false, ballSkin: c.cosmetics.ballskin ? c.ballSkin : 0, teammateDifficulty: 'allstar', benched: meIdx < 0 };
-}
-function tcGameGrade(s) { const v = s.pts * 1.0 + s.reb * 1.1 + s.ast * 1.6 + (s.stl + s.blk) * 2 - s.to * 1.5 - Math.max(0, s.fga - s.fgm * 2) * 0.5; return v >= 26 ? 'A+' : v >= 20 ? 'A' : v >= 15 ? 'B+' : v >= 11 ? 'B' : v >= 7 ? 'C' : v >= 3 ? 'D' : 'F'; }
-function tcAfterGame(save, box, userTeamIdx) {
-  const c = save.teamCareer, L = c.league, G = CONFIG.teamCareer; const g = tcUserGame(c); if (!g) return null;
-  const my = box.teams[userTeamIdx], their = box.teams[1 - userTeamIdx]; const won = my.score > their.score;
-  const me = my.players.find(p => p.name === c.player.name) || { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fga: 0, fgm: 0 };
-  const coins = (won ? G.coinWin : G.coinLoss) + me.pts * G.coinPerPoint + me.ast * G.coinPerAssist + (me.stl + me.blk) * G.coinPerStop + ((me.ankles || 0) + (me.posters || 0) + (me.dunkM || 0)) * G.coinPerHighlight;
-  c.coins += coins; const grade = tcGameGrade(me);
-  const rec = { season: L.season, week: L.week + 1, opp: tcOpponentOf(c, g), home: g.home === c.teamId, score: [my.score, their.score], win: won, stats: { pts: me.pts, reb: me.reb, ast: me.ast, stl: me.stl, blk: me.blk, to: me.to }, grade, coins, playoff: !!L.playoffs };
-  c.results.push(rec); const cs = c.careerStats; cs.games++; cs.pts += me.pts; cs.reb += me.reb; cs.ast += me.ast; cs.stl += me.stl; cs.blk += me.blk; if (won) cs.wins++; else cs.losses++;
-  if (tcOpponentOf(c, g) === c.rivalTeamId) c.rivalSeen++;
-  if (!L.playoffs) { tcRecordGame(c, g.home, g.away, g.home === c.teamId ? my.score : their.score, g.home === c.teamId ? their.score : my.score, box); tcSimulateOtherGames(c, save, L.schedule[L.week], g); L.week++; if (L.week >= L.schedule.length) tcStartPlayoffs(c); }
-  else { L.playoffs.results.push({ home: g.home, away: g.away, homeScore: g.home === c.teamId ? my.score : their.score, awayScore: g.home === c.teamId ? their.score : my.score }); tcAdvancePlayoffs(c, save, won); }
-  save.stats.games++; if (won) save.stats.wins++;
-  return rec;
-}
-function tcSimulateOtherGames(c, save, pairings, skip) {
-  const mode = c.mode || '5v5', n = mode === '5v5' ? 5 : 3;
-  for (const g of pairings) { if (g === skip) continue; const mk = id => { const t = tcTeamDef(c, id); t.players = tcStartersFor(c, id, n); return t; }; const r = simulateMatch({ mode, difficulty: 'pro', teams: [mk(g.home), mk(g.away)], seed: (Date.now() + hashString(g.home + g.away + c.league.week)) >>> 0, format: { type: 'timed', half: 60 }, ruleset: 'arcade', humanTeam: -1 }); tcRecordGame(c, g.home, g.away, r.teams[0].score, r.teams[1].score, r); }
-}
-function tcStartPlayoffs(c) { const seeds = tcStandingsSorted(c).slice(0, CONFIG.teamCareer.playoffTeams); c.league.playoffs = { round: 0, seeds, alive: seeds.includes(c.teamId), pending: null, results: [], winners: [] }; tcSchedulePlayoffRound(c); }
-function tcSchedulePlayoffRound(c) { const po = c.league.playoffs; if (po.round === 0) po.games = [{ home: po.seeds[0], away: po.seeds[3] }, { home: po.seeds[1], away: po.seeds[2] }]; else po.games = [{ home: po.winners[0], away: po.winners[1] }]; po.pending = po.games.find(g => g.home === c.teamId || g.away === c.teamId) || null; }
-function tcAdvancePlayoffs(c, save, userWon) {
-  const po = c.league.playoffs; const mode = c.mode || '5v5', n = mode === '5v5' ? 5 : 3; const winners = [];
-  for (const g of po.games) { if (g === po.pending) { winners.push(userWon ? c.teamId : (g.home === c.teamId ? g.away : g.home)); if (!userWon) po.alive = false; continue; } const mk = id => { const t = tcTeamDef(c, id); t.players = tcStartersFor(c, id, n); return t; }; const r = simulateMatch({ mode, difficulty: 'pro', teams: [mk(g.home), mk(g.away)], seed: (Date.now() + hashString(g.home + g.away + 'po' + po.round)) >>> 0, format: { type: 'timed', half: 60 }, ruleset: 'arcade', humanTeam: -1 }); winners.push(r.winner === 1 ? g.away : g.home); po.results.push({ home: g.home, away: g.away, homeScore: r.teams[0].score, awayScore: r.teams[1].score }); }
-  po.winners = winners; po.round++;
-  if (po.round >= 2) { tcFinishSeason(c, save, winners[0]); return true; }
-  tcSchedulePlayoffRound(c); if (!po.pending) { return tcAdvancePlayoffs(c, save, false); }
-  return false;
-}
-function tcSimPlayoffsWithoutUser(c, save) { const po = c.league.playoffs; if (!po || po.pending) return; tcAdvancePlayoffs(c, save, false); }
-function tcFinishSeason(c, save, championId) {
-  const L = c.league, G = CONFIG.teamCareer; L.champion = championId; const s = save.stats;
-  const champion = championId === c.teamId; if (champion) { c.careerStats.titles++; c.awards.push('Season ' + L.season + ' Champion'); if (!save.unlocks.trophies.includes('Career Champion')) save.unlocks.trophies.push('Career Champion'); save.unlocks.arena = true; }
-  // league MVP from accumulated stats
-  let mvp = null, best = -1; for (const k in L.playerStats) { const p = L.playerStats[k]; if (p.g < 4) continue; const v = (p.pts + 1.2 * p.reb + 1.5 * p.ast + 2 * (p.stl + p.blk)) / p.g; if (v > best) { best = v; mvp = k; } }
-  const mvpName = mvp === '__me__' ? c.player.name : mvp; if (mvp === '__me__') c.awards.push('Season ' + L.season + ' MVP'); L.lastMvp = mvpName;
-  c.seasonSummary = { season: L.season, champion: teamDef(championId).name, mvp: mvpName, record: L.standings[c.teamId].w + '-' + L.standings[c.teamId].l, madePlayoffs: L.playoffs && L.playoffs.seeds.includes(c.teamId) };
-  c.managerUnlocked = true; save.unlocks.manager = true;
-  c.capTotal = (c.capTotal || G.capTotal) + G.capPerSeason; c.coins += G.coinSeasonBonus;
-  // next season
-  const rng = new RNG((Date.now() + L.season * 977) >>> 0); L.season++; c.season = L.season; L.week = 0; L.playoffs = null; for (const id of TC_LEAGUE_IDS) L.standings[id] = { w: 0, l: 0, pf: 0, pa: 0 }; L.playerStats = {}; L.schedule = tcMakeSchedule(c, rng);
-}
-function tcSignCost(def) { return Math.max(60, (overallOf(def.attrs) - 40) * 12); }
-function tcEvaluateTrade(c, myName, theirName) { const mine = tcDefByName(myName, c), theirs = tcDefByName(theirName, c); const diff = overallOf(theirs.attrs) - overallOf(mine.attrs); const sweetener = diff <= 1 ? 0 : (diff - 1) * 60; return { diff, sweetener, ok: c.coins >= sweetener }; }
-function tcExecuteTrade(c, teamId, myName, theirName) { const ev = tcEvaluateTrade(c, myName, theirName); if (!ev.ok) return false; c.coins -= ev.sweetener; const R = c.league.rosters; R[c.teamId] = R[c.teamId].filter(n => n !== myName).concat([theirName]); R[teamId] = R[teamId].filter(n => n !== theirName).concat([myName]); if (c.manager.starters) c.manager.starters = c.manager.starters.map(n => n === myName ? theirName : n); c.manager.log.push('Traded ' + (myName === '__me__' ? c.player.name : myName) + ' for ' + theirName); return true; }
-function tcSignFreeAgent(c, name) { const def = tcDefByName(name, c); const cost = tcSignCost(def); if (c.coins < cost || c.league.rosters[c.teamId].length >= CONFIG.teamCareer.rosterMax) return false; c.coins -= cost; c.league.freeAgents = c.league.freeAgents.filter(n => n !== name); c.league.rosters[c.teamId].push(name); c.manager.log.push('Signed ' + name); return true; }
-function tcReleasePlayer(c, name) { const n = (c.mode === '5v5' ? 5 : 3); if (name === '__me__' || c.league.rosters[c.teamId].length <= n) return false; c.league.rosters[c.teamId] = c.league.rosters[c.teamId].filter(x => x !== name); c.league.freeAgents.push(name); if (c.manager.starters) c.manager.starters = c.manager.starters.filter(x => x !== name); c.manager.log.push('Released ' + name); return true; }
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 4) — the career week, shared by the amateur years and the pros (§8). Before each
@@ -13728,7 +13430,7 @@ class Game {
     this.canvas = document.getElementById('game'); this.ctx = this.canvas.getContext('2d'); RBF.mainCanvas = this.canvas; /* the bitmap font's screen canvas (its minimum scale is the UI's pixel size) */ this.W = 1280; this.H = 720; this.dpr = 1;
     this.input = new HumanInput(this.canvas); this.audio = new AudioSys(); this.cam = new Camera(); this.guard = new FrameGuard(); this.world = new WorldRenderer(); this.fx = new FXSystem(); this.ui = new UI(this); this.save = new SaveSystem(); this.perf = new PerfMonitor();
     this.match = null; this.after = null; this.mode = 'ui'; this.paused = false; this.acc = 0; this.last = 0; this.timeScale = 1; this.overlays = { f1: false, f2: false, f3: false };
-    this.replayPlayer = null; this.reel = null; this.posterShow = null; this.sceneCanvas = document.createElement('canvas'); this.portrait = false; this.tutorial = null; this.tournament = null; this.postgameOpened = false; this.safe = { top: 0, right: 0, bottom: 0, left: 0 };
+    this.replayPlayer = null; this.reel = null; this.posterShow = null; this.sceneCanvas = document.createElement('canvas'); this.portrait = false; this.tutorial = null; this.postgameOpened = false; this.safe = { top: 0, right: 0, bottom: 0, left: 0 };
     this.applySettings(); this.resize(); window.addEventListener('resize', () => this.resize()); if (window.visualViewport) window.visualViewport.addEventListener('resize', () => this.resize());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.autoPause(); });
     window.addEventListener('blur', () => this.autoPause());
@@ -13749,7 +13451,7 @@ class Game {
   startMatch(opts, after) {
     const S = this.save.data.settings; opts.dev = true; const k = (after && after.kind) || 'quick';
     if (S.colorblind && opts.teams && opts.teams.length === 2 && !opts.contest3 && k !== 'practice' && k !== 'tutorial') opts.teams = colorblindTeams(opts.teams[0], opts.teams[1]); /* R10: every two-sided game (pro games, the All-Star 1v1 and practice challenges missed it) */
-    if (CAREER_KINDS.includes(k)) opts.extras = false; else if (opts.extras == null) { const X = S.arcadeExtras || 'quick'; opts.extras = X === 'exhibitions' || (X === 'quick' && (k === 'quick' || k === 'tournament')); } /* L9: quick games and the tournament by default; R4: never in a career game (the user's rule), whatever the setting */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
+    if (CAREER_KINDS.includes(k)) opts.extras = false; else if (opts.extras == null) { opts.extras = S.arcadeExtras === 'quick' && k === 'quick'; } /* L9 power-ups; R4: never in a career game (the user's rule); F1: Quick 1v1 only, off by default */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, afterFake: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
@@ -13759,7 +13461,7 @@ class Game {
   }
   startTutorial() { const c = careerOf(this); const a = c ? matchTeamDef(c, c.meId, false) : Object.assign({}, TEAMS[2], { players: [ROSTER.legends[1]] }), b = Object.assign({}, TEAMS[5], { players: [ROSTER.nephews[2]] }); this.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'rookie', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'blacktop', seed: 7, controlMode: 'ball', practice: { noDefender: false, infiniteStamina: true, slowMo: false, breakdown: false, chart: false, easyTiming: true }, tutorial: true }, { kind: 'tutorial' }); }
   restartMatch(newSeed) { const o = Object.assign({}, this.matchOpts); if (newSeed || true) o.seed = (Date.now() % 1000000) >>> 0; const after = { kind: this.after.kind, nextKind: this.after.nextKind, opp: this.after.opp }; this.startMatch(o, after); }
-  quitToMenu() { this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(this.after && this.after.kind === 'teamcareer' && this.save.data.teamCareer ? tcHub(this) : careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
+  quitToMenu() { this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
   // Career games always count: the pause menu can finish one headlessly, with a bot playing your player on your ratings.
   simRestOfMatch() { const m = this.match; if (!m || m.ended) { this.resume(); return; } for (const p of m.players) { if (p.controlled) { p.controlled = false; p.input.reset(); if (p.brain) { p.brain.intent = null; p.brain.commitT = 0; } } } m.controlledPlayer = null; let n = 0; const wasHeadless = m.headless; m.headless = true; while (!m.ended && n < 120 * 60 * 20) { simStep(m, STEP); n++; } m.headless = wasHeadless; this.ui.stack.length = 0; this.paused = true; this.postgameOpened = false; this.openPostgame(); }
   pause() { if (this.mode !== 'match' || this.ui.screen) return; this.paused = true; this.ui.push(pauseScreen(this)); this.input.touch.clearAll(); }
@@ -13865,7 +13567,9 @@ class Game {
     if (rp) { kitStamp(ctx, 'REPLAY', W_ / 2, 60, 44, ['#FFFFFF', '#C9CCE0'], { tilt: -3, outline: 0.16 }); ctx.fillStyle = 'rgba(243,240,255,0.8)'; ctx.fillRect(W_ * 0.3, 90, W_ * 0.4 * rp.progress, 4); ctx.font = fontStr(14, false); ctx.textAlign = 'center'; ctx.fillStyle = '#F3F0FF'; ctx.fillText(rp.clip.label + (rp.clip.player ? ' · ' + rp.clip.player : '') + '   (jump to skip)', W_ / 2, 112); ctx.restore(); return; }
     if (!m.practice && !m.contest3 && !m.drill) drawScoreBug(ctx, m, W_, H_); 
     if (m.drill) drawDrillHud(ctx, m, W_);
-    if (m.contest3) { const c = m.contest3; stampText(ctx, fmtClockTenths(c.timeLeft), W_ / 2, 40, 44, '#F3F0FF', INK, 0); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(22, true); ctx.textAlign = 'center'; ctx.fillText('SCORE ' + c.score + '   ·   rack ' + Math.min(c.rack + 1, 5) + '/5   ball ' + Math.min(c.ball + 1, 5) + '/5', W_ / 2, 80); if (!c.started) { ctx.font = fontStr(18, false); ctx.fillText('Walk to the glowing rack and shoot. The clock starts on your first shot.', W_ / 2, 110); } }
+    if (m.contest3) { const c = m.contest3; const l1 = 'SCORE ' + c.score + '   ·   rack ' + Math.min(c.rack + 1, 5) + '/5   ball ' + Math.min(c.ball + 1, 5) + '/5', l2 = c.started ? '' : 'Hold Shoot, let go at the top. You move rack to rack on your own; the clock starts on your first shot.'; /* F2/F4: the contest's lines sit on their own dark strip, clear of the arena's banners */
+      ctx.font = fontStr(22, true); let w = ctx.measureText(l1).width; ctx.font = fontStr(16, false); if (l2) w = Math.max(w, Math.min(W_ - 40, ctx.measureText(l2).width)); w = Math.max(w, 200) + 40; const hh = l2 ? 124 : 100; ctx.fillStyle = 'rgba(8,12,40,0.78)'; ctx.beginPath(); roundRectPath(ctx, W_ / 2 - w / 2, 8, w, hh, 12); ctx.fill();
+      stampText(ctx, fmtClockTenths(c.timeLeft), W_ / 2, 40, 44, '#F3F0FF', INK, 0); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(22, true); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(l1, W_ / 2, 88); if (l2) { ctx.font = fontStr(16, false); ctx.fillStyle = UI_GOLD; ctx.fillText(l2, W_ / 2, 114, W_ - 60); } }
     if (m.practice && m.practice.breakdown) { const pr = m.practice; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(10, 10, 230, 120); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(14, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; const z = pr.byZone; const line = (k, l) => l + ' ' + z[k][0] + '/' + z[k][1] + (z[k][1] ? ' (' + Math.round(100 * z[k][0] / z[k][1]) + '%)' : ''); [ 'PRACTICE · ' + pr.makes + '/' + pr.shots + ' made', line('lay', 'Layups'), line('mid', 'Mid'), line('three', 'Threes'), line('deep', 'Deep'), line('dunk', 'Dunks') ].forEach((l, i) => ctx.fillText(l, 18, 16 + i * 18)); }
     if (m.practice && m.practice.chart) { const pr = m.practice; const hoop = m.human.hoop; const x0 = W_ - 250, y0 = 10, w = 240, h = 70; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(x0, y0, w, h); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(12, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('SHOT CHART (distance)', x0 + 6, y0 + 4); for (const s of pr.chart.slice(-60)) { const px = x0 + 10 + clamp01(s.d / 13) * (w - 20), py = y0 + 40 + ((s.id * 7) % 20); ctx.fillStyle = s.make ? '#B8FF5A' : '#FF4FA3'; ctx.beginPath(); ctx.arc(px, py, 3, 0, TAU); ctx.fill(); } ctx.fillStyle = '#F3F0FF'; ctx.fillText('0 m', x0 + 6, y0 + 56); ctx.textAlign = 'right'; ctx.fillText('13 m', x0 + w - 6, y0 + 56); }
     // shot meter for the controlled player (and any shooter when the meter is on)
@@ -13882,7 +13586,7 @@ class Game {
     if (this.overlays.f1) drawDebugF1(ctx, cam, m); if (this.overlays.f2) drawDebugF2(ctx, cam, m); if (this.overlays.f3) drawDebugF3(ctx, m, W_);
     if (m.dev && m.invariantCount > 0) { ctx.fillStyle = '#FF4FA3'; ctx.font = fontStr(12, true); ctx.textAlign = 'left'; ctx.fillText('invariant failures: ' + m.invariantCount, 10, H_ - 20); }
     ctx.restore();
-    if (this.input.touch.visible) { this.fitTouch(); const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; this.input.touch.offense = offense; this.input.touch.solo = m.perSide === 1; this.input.touch.superOn = !!(m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax); drawTouchControls(ctx, this.input.touch, offense); }
+    if (this.input.touch.visible) { this.fitTouch(); const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; this.input.touch.offense = offense; this.input.touch.solo = m.perSide === 1; this.input.touch.superOn = !!(m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax); this.input.touch.shootOnly = !!(m.contest3 && CONFIG.contest3.threesOnly); /* F2: the contest has one button */ drawTouchControls(ctx, this.input.touch, offense); }
     if (m.ended && !this.ui.screen && this.after.kind === 'practice') { ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.fillText('Practice over · Esc for the summary', W_ / 2, H_ - 40); }
   }
   drawPosterCard(ctx, ps) { const W_ = this.W, H_ = this.H; const k = easeOutBack(clamp01((CONFIG.fx.posterMs / 1000 - ps.t) / 0.25)); ctx.fillStyle = 'rgba(30,22,51,0.5)'; ctx.fillRect(0, 0, W_, H_);
