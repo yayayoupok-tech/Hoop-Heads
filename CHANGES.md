@@ -3,6 +3,53 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L18 — Phone layout (playtest pass, milestone 18)
+
+The playtest: on a phone the touch buttons sat over the court, and the jumbotron collided with the score bug.
+
+What changed
+- **Floor line at 70%.** The Legends View camera already puts the floor line at 70% of the screen height on every screen
+  (L13). The test now checks it on the phone: 273 of 390 px.
+- **Every touch control is in the floor band below the floor line**, so the court the players stand on sits above the
+  buttons. This applies to a Legends View match on a landscape touch screen (`TouchControls.fitBand`, from
+  `Game.touchBand()`).
+  - The stick sits at one end with its hint beside it ("▼ POST UP").
+  - The buttons (Shoot, Jump, Move/Steal, Pass/Fade, Super) sit in a row at the other end, centered in the band.
+  - The band starts under the floor line and under the feet of a player in the near lane (the lanes draw players up to
+    19 px lower), plus 4 px (`ART.touchBandGap`).
+  - Every control stays at least a 64 px tap target (radius 32; Shoot and the stick 43 at 844×390).
+  - Left-handed mode mirrors the layout. A screen too narrow for the hint drops it (`ART.touchHintW`).
+  - The band comes from the camera's nominal layout, so the controls never move in play. Classic view keeps the old
+    cluster.
+- **60% transparent when idle.** A control draws at 40% opacity idle and fully opaque while pressed (`touchAlpha`:
+  `ART.touchIdleA` 0.4 at the default Touch opacity setting `ART.touchOpacityRef` 0.55; the setting scales both). The
+  pause button stays fully visible. Before, everything drew at a flat 55%.
+- **No jumbotron on a phone** (a touch screen under 500 px on its short side). It sat right under the score bug.
+- **390×844 shows the rotate screen**, as before. The spec calls that size "the rotate screen", so a portrait phone still
+  asks to be turned for matches and menus alike.
+
+**Measured** (`l18/phones.js`: a Legends View 1v1 on a phone, 2.5 s in, guard level 0). "Over the players" means a
+control's circle reaches into the players' zone: from the backboards' top down to a near-lane player's feet, y 292. "Over
+the HUD" means it touches the score bug.
+
+| 844×390 | L17 | L18 |
+| --- | --- | --- |
+| floor line | 70% (y 273) | 70% (y 273) |
+| controls over the players or the HUD | 5: Shoot (y 279, r 44), Jump (y 232), Super (y 196), Pass (y 312), the stick (y 284, r 65) | **0**: all six in the floor band, centers at y 342, the tops at y 299 and lower (Shoot and the stick r 43, the rest r 32) |
+| idle opacity | 0.55 | **0.40** (1.00 pressed) |
+| jumbotron draws per frame | yes (3 of 3 frames) | **0** (desktop still draws it) |
+| pause button | 799, 45 (clear of the HUD at x 192–652) | same |
+| **390×844** | the rotate screen | the rotate screen |
+
+The new smoke step "phone layout (L18)" asserts all of this: the floor line at 70% ± 1%, no control above a near-lane
+player's feet or over the HUD, no control under a 64 px tap target, idle opacity 0.40 below the pressed one, no jumbotron on the phone
+while desktop draws one, and the rotate screen at 390×844. Screenshots at both sizes, before and after, are in
+`shots/l18/`.
+
+Tests: smoke 99/99, with the new L18 step; phone audit no errors; Art Lab 50 shots with no errors. The first cut started
+the band 6 px under the floor line. A near-lane player's feet reach 19 px below it, so the band now starts under those
+feet, and the test and the measurement count them. Modes, old saves and the gate run at L19.
+
 ## L17 — The players read against the crowd (playtest pass, milestone 17)
 
 The playtest: the players got lost in the crowd. Bright shirts, lettered LED boards and the scorer's table sat right

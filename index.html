@@ -2839,8 +2839,8 @@ class TouchControls {
     this.lastTapX = 0; this.lastTapY = 0; this.tapped = false;
   }
   // Thumb controls sized so the smallest button is CONFIG.ui.touchMinPx across (64 px), placed inside the safe area.
-  computeLayout(W, H, safe) {
-    this.W = W; this.H = H; const sf = safe || this.safe || { top: 0, right: 0, bottom: 0, left: 0 }; this.safe = sf;
+  computeLayout(W, H, safe, band) {
+    this.W = W; this.H = H; const sf = safe || this.safe || { top: 0, right: 0, bottom: 0, left: 0 }; this.safe = sf; this.band = band || null;
     const s = this.size, m = Math.max(CONFIG.ui.touchMinPx / (2 * 0.62), Math.min(W, H) * 0.11 * s);
     const inset = Math.min(W, H) * 0.06, iL = inset + sf.left, iR = inset + sf.right, iB = inset + sf.bottom, iT = inset * 0.8 + sf.top;
     const right = !this.leftHanded;
@@ -2857,6 +2857,17 @@ class TouchControls {
       ],
       pause: { x: W - iR * 0.8 - 26, y: iT + 26, r: 24 },
     };
+    if (band) this.fitBand(band, right, iL, iR);
+  }
+  // L18 (a Legends View match on a landscape touch screen): every control goes in the floor band under the floor line
+  // (y0…y1), below the players: the stick at one end with its hint beside it, the buttons in a row at the other end, sized
+  // to the band and never under touchMinPx. A screen too narrow for the hint drops it.
+  fitBand(B, right, iL, iR) {
+    const L = this.layout, W = this.W, h = B.y1 - B.y0, minR = CONFIG.ui.touchMinPx / 2, cy = B.y0 + h / 2; if (!(h > 2 * minR) || !(W > this.H)) return;
+    const r = Math.max(minR, Math.min(L.stick.r, h / 2 - 3)); L.stick = { x: right ? iL + r + 4 : W - iR - r - 4, y: cy, r, labelSide: right ? 1 : -1 };
+    const order = ['shoot', 'jump', 'action', 'pass', 'super']; let x = right ? W - iR : iL;
+    for (const k of order) { const b = L.buttons.find(q => q.key === k); if (!b) continue; b.r = Math.max(minR, Math.min(b.key === 'shoot' ? L.m * 0.85 : minR, h / 2 - 3)); x += (right ? -1 : 1) * b.r; b.x = x; b.y = cy; x += (right ? -1 : 1) * (b.r + 10); }
+    const gap = right ? x - (L.stick.x + r) : (L.stick.x - r) - x; if (gap < ART.touchHintW) L.stick.labelSide = 0; // (no room for the hint)
   }
   hitButton(x, y) { const L = this.layout; if (!L) return null; for (let i = 0; i < L.buttons.length; i++) { const b = L.buttons[i]; if (b.key === 'super' && !this.superOn) continue; if (dist2(x, y, b.x, b.y) < b.r * b.r * 1.3) return b.key; } return null; }
   // (named pointerDown, not down: `down` is the stance flag above and would shadow the method)
@@ -5915,14 +5926,16 @@ function drawHints(ctx, m, input, W_, H_, offense) {
   if (!items.length || input.lastDevice === 'touch' || (input.touch && input.touch.visible)) return; ctx.font = fontStr(15, false); /* no key hints on a touch screen: the touch buttons are labeled */ ctx.textBaseline = 'middle'; const pads = items.map(it => ctx.measureText(it.text).width + 22); const total = pads.reduce((a, b) => a + b, 0) + (items.length - 1) * 8; let x = W_ / 2 - total / 2; const y = input.lastDevice === 'touch' ? 102 : H_ - 26; // on touch the bottom belongs to the thumbs: hints go under the score bug
   items.forEach((it, i) => { ctx.globalAlpha = it.a * 0.9; ctx.fillStyle = 'rgba(8,12,40,0.7)'; ctx.beginPath(); roundRectPath(ctx, x, y - 13, pads[i], 26, 13); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke(); ctx.fillStyle = '#F3F0FF'; ctx.textAlign = 'left'; ctx.fillText(it.text, x + 11, y + 1); x += pads[i] + 8; }); ctx.globalAlpha = 1;
 }
+// L18: the controls' opacity: idle (60% transparent at the default setting) and in use. The Touch opacity setting scales both.
+function touchAlpha(tc, on) { const base = clamp(tc.opacity / ART.touchOpacityRef, 0.35, 1.8); return on ? clamp(base, 0.4, 1) : clamp(ART.touchIdleA * base, 0.15, 1); }
 function drawTouchControls(ctx, tc, offense) { // glassy thumb controls: dark translucent fills so the play shows through, gold when pressed
-  const L = tc.layout; if (!L || !tc.visible) return; ctx.save(); ctx.globalAlpha = clamp(tc.opacity, 0.2, 1);
-  const st = L.stick; ctx.fillStyle = 'rgba(10,14,40,0.35)'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+  const L = tc.layout; if (!L || !tc.visible) return; ctx.save(); const idleA = touchAlpha(tc, false), onA = touchAlpha(tc, true);
+  const st = L.stick; ctx.globalAlpha = tc.stickId >= 0 ? onA : idleA; ctx.fillStyle = 'rgba(10,14,40,0.35)'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   const kx = st.x + clamp(tc.stickDX, -st.r * 0.8, st.r * 0.8), ky = st.y + clamp(tc.stickDY, -st.r * 0.8, st.r * 0.8); ctx.fillStyle = tc.stickId >= 0 ? 'rgba(255,210,63,0.9)' : 'rgba(243,240,255,0.7)'; ctx.beginPath(); ctx.arc(kx, ky, st.r * 0.42, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(11,16,48,0.8)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(13, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ ' + (offense ? (tc.solo ? 'POST UP' : 'PROTECT') : 'STANCE'), st.x, st.y + st.r + 14);
-  for (const b of L.buttons) { if (b.key === 'super' && !tc.superOn) continue; const pressed = b.key === 'super' ? tc.action && tc.shoot : tc[b.key]; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : b.key === 'super' ? 'rgba(255,138,42,0.85)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(13, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const lab = '▼ ' + (offense ? (tc.solo ? 'POST UP' : 'PROTECT') : 'STANCE'); if (st.labelSide) { ctx.textAlign = st.labelSide > 0 ? 'left' : 'right'; ctx.fillText(lab, st.x + st.labelSide * (st.r + 8), st.y); } else if (st.labelSide !== 0) ctx.fillText(lab, st.x, st.y + st.r + 14);
+  for (const b of L.buttons) { if (b.key === 'super' && !tc.superOn) continue; const pressed = b.key === 'super' ? tc.action && tc.shoot : tc[b.key]; ctx.globalAlpha = pressed ? onA : idleA; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : b.key === 'super' ? 'rgba(255,138,42,0.85)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
     const lbl = tc.solo && b.key === 'pass' ? (offense ? 'FADE' : '—') : (offense ? b.labelO : b.labelD); ctx.font = fontStr(Math.max(12, b.r * 0.4), true); if (!pressed) { ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(5,8,24,0.75)'; ctx.strokeText(lbl, b.x, b.y + 1); } ctx.fillStyle = pressed ? '#0B1030' : '#FFFFFF'; ctx.fillText(lbl, b.x, b.y + 1); }
-  const pz = L.pause; ctx.fillStyle = 'rgba(10,14,40,0.55)'; ctx.beginPath(); ctx.arc(pz.x, pz.y, pz.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(pz.x - pz.r * 0.35, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8); ctx.fillRect(pz.x + pz.r * 0.12, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8);
+  const pz = L.pause; ctx.globalAlpha = onA; ctx.fillStyle = 'rgba(10,14,40,0.55)'; ctx.beginPath(); ctx.arc(pz.x, pz.y, pz.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(pz.x - pz.r * 0.35, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8); ctx.fillRect(pz.x + pz.r * 0.12, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8);
   ctx.restore();
 }
 
@@ -6105,10 +6118,10 @@ class Venue {
   clapping(m) { return !!(m && (m.phase === 'ft' || (m.ft && m.ft.active))); }
   bright() { return !!(LAY && LAY.legends) && (this.kind === 'pro' || this.kind === 'college' || this.kind === 'hs'); } // §5: career venues get the bright grade in Legends View
   // L0–L2: everything behind the floor
-  drawBack(ctx, cam, m, guard) {
+  drawBack(ctx, cam, m, guard, phone) {
     const t = m ? m.time : this.time, hz = ART.layerHz;
     this.back.update(cam, t, guard >= 1 ? ART.layerHz / 2 : hz, (g, v) => { this.paintFar(g, v.at(this.farF), m, t); for (const T of this.tiers) this.paintTier(g, v.at(T.f), T, m, t); if (this.kind === 'pro') this.drawBeams(g, v.at(0.3), t, guard < 3); if (this.kind === 'legends') this.drawCones(g, v.at(0.3), t); if (guard < 3) this.paintBloom(g, v); this.paintVignette(g, v); if (this.bright()) brightGrade(g, this.kind === 'hs' ? ART.brightGradeHs : ART.brightGrade); }, guard >= 1 ? ART.layerResLow : ART.layerRes); this.back.blit(ctx, cam, cam.sy(0) + 2);
-    if (this.kind === 'pro' || this.kind === 'legends') this.drawJumbotron(ctx, cam, m);
+    if ((this.kind === 'pro' || this.kind === 'legends') && !phone) this.drawJumbotron(ctx, cam, m); // L18: not on a phone (it collided with the score bug)
     this.drawNear(ctx, cam, m, t);
   }
   // L10: beams, dust, bloom and the vignette (guard level 3 drops beams' dust and bloom)
@@ -7123,6 +7136,10 @@ Object.assign(ART, {
   selBobDeg: 7,                     // ...by this many degrees
   wipeMs: 460,                      // the team-color wipe into a match (ms)
   hudScoreH: 0.06,                  // §6 HUD: score digits at least this share of the screen height
+  touchIdleA: 0.4,                  // L18: touch controls are 60% transparent when idle...
+  touchOpacityRef: 0.55,            // ...at the default Touch opacity setting (the setting scales both; in use they are opaque)
+  touchBandGap: 4,                  // L18: the floor band's controls start this far under a near-lane player's feet (px)
+  touchHintW: 96,                   // L18: room the stick's hint needs beside it in the floor band (px)
   hudGrinS: 1.6,                    // a scorer's HUD portrait grins (and the score pops) for this long (s)
   hudClockPill: 1.4,                // the shot-clock pill is this much bigger than before L8
   uiBeamHz: 0.07,                   // menu backdrop spotlights sweep at this rate (Hz)
@@ -11011,7 +11028,7 @@ function drawMatchScene(ctx, env, m, alpha) {
   ensureLayout(m); const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop, rp = env.rp, guard = env.guard || 0; const V = world.venueFor(m);
   const players = rp ? m.replay.ghosts : m.players; const ball = rp ? m.replay.ghostBall : m.ball; updateBallView(ball);
   const order = overlapOrder(m, players, alpha, ball, cam); // §3.11/L16: the one farther from the ball behind when heads overlap, else by lane
-  if (V) V.drawBack(ctx, cam, m, guard); else world.drawBackdrop(ctx, cam, court, m);        // L0–L2
+  if (V) V.drawBack(ctx, cam, m, guard, env.phone); else world.drawBackdrop(ctx, cam, court, m);        // L0–L2 (L18: no jumbotron on a phone)
   if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } if (m.halfCourt && LAY.legends) drawHalfCourtLine(ctx, cam); // L3
   const PXM = env.pixel && !env.pixelOff ? env.pixel : null, f = PXM ? PXM.f : 1; // §8/L15: Pixel mode swaps the characters and the ball for sprites (1 CSS px = f sprite px); the rest is the Smooth scene
   const drawAll = (g, reflection) => {
@@ -11162,13 +11179,13 @@ class Game {
     if (step.check(this, T.f) || T.stepT > CONFIG.tutorial.stepTimeoutS) { if (step.done) { m.ended = true; return; } T.step++; T.stepT = 0; T.f.t = 0; this.audio.ui('coin'); }
   }
   // ---- rendering ----
-  renderScene(ctx, m, alpha) { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null }, m, alpha); faceWarmTick(); }
+  renderScene(ctx, m, alpha) { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, phone: !!(this.ui && this.ui.phone), degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null }, m, alpha); faceWarmTick(); }
   // §8/L15: Pixel mode is the characters and the ball: the scene renders at full resolution with the Smooth renderer and
   // they land as sprites at k device pixels per sprite pixel, on that grid.
   renderSceneAny(ctx, m, alpha, dt) {
     this.pixelFrame = pixelSetting(this); if (!this.pixelFrame) { this.renderScene(ctx, m, alpha); return; }
     pxSetup(this); PXS.work = 0;
-    try { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null, pixel: PXS }, m, alpha); }
+    try { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, phone: !!(this.ui && this.ui.phone), degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? () => this.drawRacks(ctx, this.cam, m) : null, pixel: PXS }, m, alpha); }
     catch (e) { reportFrameError(e); }
     faceWarmTick(); pxGuard(PXS.work, this.input && this.input.hasTouch);
   }
@@ -11196,11 +11213,19 @@ class Game {
     if (this.overlays.f1) drawDebugF1(ctx, cam, m); if (this.overlays.f2) drawDebugF2(ctx, cam, m); if (this.overlays.f3) drawDebugF3(ctx, m, W_);
     if (m.dev && m.invariantCount > 0) { ctx.fillStyle = '#FF4FA3'; ctx.font = fontStr(12, true); ctx.textAlign = 'left'; ctx.fillText('invariant failures: ' + m.invariantCount, 10, H_ - 20); }
     ctx.restore();
-    if (this.input.touch.visible) { const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; this.input.touch.offense = offense; this.input.touch.solo = m.perSide === 1; this.input.touch.superOn = !!(m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax); drawTouchControls(ctx, this.input.touch, offense); }
+    if (this.input.touch.visible) { this.fitTouch(); const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; this.input.touch.offense = offense; this.input.touch.solo = m.perSide === 1; this.input.touch.superOn = !!(m.ex && m.human && m.human.ex && m.human.ex.meter >= CONFIG.extras.meterMax); drawTouchControls(ctx, this.input.touch, offense); }
     if (m.ended && !this.ui.screen && this.after.kind === 'practice') { ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.fillText('Practice over · Esc for the summary', W_ / 2, H_ - 40); }
   }
   drawPosterCard(ctx, ps) { const W_ = this.W, H_ = this.H; const k = easeOutBack(clamp01((CONFIG.fx.posterMs / 1000 - ps.t) / 0.25)); ctx.fillStyle = 'rgba(30,22,51,0.5)'; ctx.fillRect(0, 0, W_, H_); const cw = Math.min(W_ * 0.7, H_ * 0.7 * ps.canvas.width / ps.canvas.height), ch = cw * ps.canvas.height / ps.canvas.width; ctx.save(); ctx.translate(W_ / 2, H_ / 2); ctx.rotate(-0.035); ctx.scale(k, k); ctx.fillStyle = '#F3F0FF'; ctx.fillRect(-cw / 2 - 14, -ch / 2 - 14, cw + 28, ch + 28); ctx.drawImage(ps.canvas, -cw / 2, -ch / 2, cw, ch); ctx.restore(); }
   drawFocusHint(ctx, W_, H_) { const t = performance.now() / 1000; const w = Math.min(520, W_ - 40); inkShape(ctx, c => roundRectPath(c, W_ / 2 - w / 2, H_ - 96, w, 52, 8), '#FFD23F', INK, 3); ctx.fillStyle = INK; ctx.font = fontStr(Math.min(22, w / 22), true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText((Math.sin(t * 5) > 0 ? '▶ ' : '   ') + 'CLICK THE GAME TO GIVE IT THE KEYBOARD', W_ / 2, H_ - 70); }
+  // L18: in a Legends View match on a landscape touch screen the thumb controls live in the floor band, under the floor
+  // line (70% of the screen) and the feet of a player in the near lane. The band comes from the camera's nominal layout,
+  // so it never moves in play.
+  touchBand() {
+    if (!this.match || !LAY.legends || !this.input.hasTouch || !(this.W > this.H)) return null; const sf = this.safe || { bottom: 0 };
+    return { y0: this.H * CONFIG.camera.legends.floorAt + CONFIG.fx.laneOffsetPx * (0.5 - CONFIG.world.lanes[0]) + ART.touchBandGap, y1: this.H - sf.bottom - 2 }; // (below the near lane's feet)
+  }
+  fitTouch() { const B = this.touchBand(), key = B ? B.y0.toFixed(1) + '|' + B.y1.toFixed(1) + '|' + this.W + 'x' + this.H : 'none|' + this.W + 'x' + this.H; if (key !== this._touchKey) { this._touchKey = key; this.input.touch.computeLayout(this.W, this.H, this.safe, B); } }
   drawRotate(ctx, W_, H_) { ctx.fillStyle = '#1E1633'; ctx.fillRect(0, 0, W_, H_); stampText(ctx, 'ROTATE', W_ / 2, H_ * 0.4, Math.min(80, W_ * 0.2), '#FF4FA3', '#F3F0FF', -4); stampText(ctx, 'YOUR PHONE', W_ / 2, H_ * 0.4 + Math.min(80, W_ * 0.2), Math.min(60, W_ * 0.11), '#FF8A2A', '#F3F0FF', 3); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, false); ctx.textAlign = 'center'; ctx.fillText('Hoop Heads plays in landscape.', W_ / 2, H_ * 0.62); ctx.save(); ctx.translate(W_ / 2, H_ * 0.75); ctx.rotate(Math.sin(performance.now() / 500) * 0.4 + 0.8); ctx.strokeStyle = '#F3F0FF'; ctx.lineWidth = 4; ctx.strokeRect(-22, -38, 44, 76); ctx.restore(); }
 }
 
