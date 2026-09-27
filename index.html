@@ -800,7 +800,10 @@ const CONFIG = {
     xpStep: 5,                 // ratings grow in steps of 5 (half an engine point)
     xpBase: 20,                // XP for the next step = xpBase + xpPer × (rating / 10)
     xpPer: 7,
-    ageXpMul: [[17, 1.5], [21, 1.35], [25, 1.15], [28, 0.65], [31, 0.4], [99, 0.2]], // XP multiplier by age (up to and including): teens learn fastest (R3: 26–28 0.8 → 0.65, 29–31 0.45 → 0.4: with skills open to 95 for anyone, careers peaked at 82; the career simulator's targets need about 78)
+    xpEarn: 0.85,              // F6 (the user: "xp should get harder to earn"): every XP source (games, practice, drills, the bench, camps) pays × this (0.8 with the old ages: peak 78 → 74)
+    xpTop: 0.05,               // F6: ...and a step above xpTopFrom costs × (1 + xpTop × (rating − xpTopFrom) / 10) more (a step at 90: +15%)
+    xpTopFrom: 60,
+    ageXpMul: [[17, 1.5], [21, 1.35], [25, 1.4], [28, 0.8], [31, 0.45], [99, 0.22]], // XP multiplier by age (up to and including): teens learn fastest (F6: 22–25 1.15 → 1.4, 26–28 0.65 → 0.8, 29–31 0.4 → 0.45, 32+ 0.2 → 0.22, so that with xpEarn the pro years pay about what they did and the climb is slower, not shorter; R3: 26–28 0.8 → 0.65, 29–31 0.45 → 0.4: with skills open to 95 for anyone, careers peaked at 82; the career simulator's targets need about 78)
     xpGame: { base: 14, win: 12, perfCap: 24, pts: 0.4, reb: 0.5, stops: 1.5, simmed: 0.75, focusShare: 0.45 }, // XP per game = (base + win + min(perfCap, pts·p + reb·r + (stl+blk)·s)) × age × (simmed); focusShare goes to the training focus
     usage: { sho3: 3, shoMid: 1.5, rim: 2, reb: 0.4, blk: 1, stops: 2, floor: 0.5, move: 1, body: 0.3 }, // where the rest of the XP goes: makes → Shooting, rim finishes → Finishing, rebounds → Strength and Hops, steals and blocks → Defense (floor/move/body: baseline shares)
     trainFocus: { shooting: { label: 'Shooting', staff: 'shooting', split: { sho: 1 } }, finishing: { label: 'Finishing', staff: 'skills', split: { fin: 1 } }, handles: { label: 'Handles', staff: 'skills', split: { han: 1 } }, speed: { label: 'Speed', staff: 'strength', split: { spd: 1 } }, hops: { label: 'Hops', staff: 'strength', split: { jmp: 1 } }, defense: { label: 'Defense', staff: 'skills', split: { def: 1 } }, strength: { label: 'Strength', staff: 'strength', split: { str: 1 } } }, // training focuses, one drill per rating (R3 §3.2; was six, two of them split): the week's Practice works on one; it also takes 45% of every game's XP
@@ -10889,7 +10892,7 @@ function leaders(c, key, n, minG) { const rows = c.active.map(id => { const s = 
 // ---------------- progression: XP from games and training, level-ups, learned moves ----------------
 // A rating grows in steps of 5; the next step costs xpBase + xpPer × (rating / 10) XP. Ceilings (caps) come from your
 // play style, your height and your genes. Teens learn fastest; after 30 the legs go first.
-function xpNeed(r) { return CR.xpBase + CR.xpPer * (Number(r) || 0) / 10; }
+function xpNeed(r) { r = Number(r) || 0; return (CR.xpBase + CR.xpPer * r / 10) * (1 + CR.xpTop * Math.max(0, r - CR.xpTopFrom) / 10); } // F6: steeper at the top
 function ageXpMul(age) { for (const [a, m] of CR.ageXpMul) if (age <= a) return m; return 0.2; }
 function spendXp(r, xp, caps, add) {
   const gains = []; for (const k of RATING_KEYS) { if (!(add[k] > 0)) continue; xp[k] = (xp[k] || 0) + add[k]; let guard = 0;
@@ -10903,7 +10906,7 @@ function spendXp(r, xp, caps, add) {
 function developFromGame(r, xp, caps, split, age, st, won, simmed, focusMul, poolMul, B, len) { // B: the trait holder (R3: XP traits); len (F5): the game length over the old format's
   const X = CR.xpGame, U = CR.usage; st = st || {};
   const perf = Math.min(X.perfCap, ((st.pts || 0) * X.pts + (st.reb || 0) * X.reb + ((st.stl || 0) + (st.blk || 0)) * X.stops) / (len || 1)); // F5: a line from a one-minute game counts per the old length
-  const pool = (X.base + (won ? X.win : 0) + perf) * ageXpMul(age) * (simmed ? X.simmed : 1) * (poolMul || 1) * trXpMul(B, age);
+  const pool = (X.base + (won ? X.win : 0) + perf) * ageXpMul(age) * (simmed ? X.simmed : 1) * (poolMul || 1) * trXpMul(B, age) * CR.xpEarn; // F6
   const rim = (st.dunkM || 0) + (st.layM || 0) + (st.hookM || 0) + (st.tipM || 0);
   const use = { sho: (st.tpm || 0) * U.sho3 + Math.max(0, (st.fgm || 0) - (st.tpm || 0) - rim) * U.shoMid + U.floor, fin: rim * U.rim + U.floor, han: U.move, spd: U.move, jmp: (st.reb || 0) * U.reb + (st.blk || 0) * U.blk + U.body, def: ((st.stl || 0) + (st.blk || 0)) * U.stops + U.floor, str: (st.reb || 0) * U.reb + U.body };
   const tot = RATING_KEYS.reduce((a, k) => a + use[k], 0); split = split || {}; const sw = RATING_KEYS.reduce((a, k) => a + (split[k] || 0), 0);
@@ -11535,8 +11538,8 @@ function wkBenchWeek(B) { const out = { healed: false, injury: null, fatigueBefo
 function wkNewSeason(B) { B.fatigue = 0; B.injury = null; wkNew(B); }
 
 // --- the amateur week ---
-function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); }
-function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); } // R4: coach trust pays up to +20%
+function amSessionXp(c, intensity) { return CR.xpEarn /* F6 */ * WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); }
+function amDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); } // R4: coach trust pays up to +20%
 function amPractice(c, focus, intensity, xpIn) {
   if (CR.trainFocus[focus]) c.focus = focus; c.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = amOvr(c), movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c));
   const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, xpIn, c.intensity, amRng(c)); if (!res) return null;
@@ -11549,8 +11552,8 @@ function amStartGame(c) { wkFill(c); ladderSettlePending(c); if (c.wk.done) retu
 
 // --- the pro week ---
 function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proCoachMul(c, focus) * proTrainerMul(c) * proXpMul(c) * /* R7: the private coach (your focus), the personal trainer (practice), the pro XP base */ (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
-function proSessionXp(c, focus, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
-function proDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
+function proSessionXp(c, focus, intensity) { return CR.xpEarn /* F6 */ * WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
+function proDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proPractice(c, focus, intensity, xpIn) {
   const M = c.me, me = meOf(c); if (CR.trainFocus[focus]) M.focus = focus; M.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = recOvr(me), movesBefore = learnedMoves(me, M);
   const res = wkPractice(M, me.r, M.xp, me.caps, M.focus, xpIn, M.intensity, careerRng(c)); if (!res) return null;
@@ -12678,8 +12681,8 @@ function hsLiveOffers(c) { return (c.offers || []).filter(o => !o.pulled).slice(
 // ---------------- summers ----------------
 const HS_SUMMERS = ['aau', 'camp', 'rest', 'job'];
 const HS_SUMMER_INFO = {
-  aau: { title: 'AAU CIRCUIT', short: 'AAU', lines: () => ['Three tournaments against the best players in the country: ' + HS_CIRCUIT.join(', ') + '.', 'Big exposure: recruiting score +' + HS.aauExposure + ' for good. The games pay ' + HS.aauXp + ' XP.', 'The catch: you start the season tired (fatigue ' + HS.aauFatigue + ') and ' + Math.round(HS.aauInjury * 100) + '% of players carry an injury into it.'] },
-  camp: { title: 'SKILLS CAMP', short: 'Camp', lines: c => ['A week with a skills coach: ' + HS.campXp + ' XP into your focus (' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + ').', 'Costs $' + HS.campCost.toLocaleString() + (c.cash < HS.campCost ? ': you have $' + Math.round(c.cash).toLocaleString() + ' (a summer job pays $' + HS.jobPay.toLocaleString() + ').' : ' (you have $' + Math.round(c.cash).toLocaleString() + ').'), 'A little exposure: recruiting score +' + HS.campExposure + '.'] },
+  aau: { title: 'AAU CIRCUIT', short: 'AAU', lines: () => ['Three tournaments against the best players in the country: ' + HS_CIRCUIT.join(', ') + '.', 'Big exposure: recruiting score +' + HS.aauExposure + ' for good. The games pay ' + Math.round(HS.aauXp * CR.xpEarn) + ' XP.', 'The catch: you start the season tired (fatigue ' + HS.aauFatigue + ') and ' + Math.round(HS.aauInjury * 100) + '% of players carry an injury into it.'] },
+  camp: { title: 'SKILLS CAMP', short: 'Camp', lines: c => ['A week with a skills coach: ' + Math.round(HS.campXp * CR.xpEarn) + ' XP into your focus (' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + ').', 'Costs $' + HS.campCost.toLocaleString() + (c.cash < HS.campCost ? ': you have $' + Math.round(c.cash).toLocaleString() + ' (a summer job pays $' + HS.jobPay.toLocaleString() + ').' : ' (you have $' + Math.round(c.cash).toLocaleString() + ').'), 'A little exposure: recruiting score +' + HS.campExposure + '.'] },
   rest: { title: 'REST', short: 'Rest', lines: () => ['A summer off. You heal, you start the season fresh.', 'No extra XP, no exposure, no money.', 'Confidence +' + HS.restConf + ': you come back hungry.'] },
   job: { title: 'SUMMER JOB', short: 'Job', lines: () => ['Work the summer: you earn $' + HS.jobPay.toLocaleString() + ' (camps cost money; so does life).', 'The catch: less time in the gym. You lose ' + HS.jobXpLoss + ' XP of progress (never a rating).', 'No exposure.'] },
 };
@@ -12688,9 +12691,9 @@ function hsSummerChoose(c, kind) {
   const S = c.summer; if (!S || !S.pending) return null; hsFill(c); if (!HS_SUMMER_INFO[kind]) kind = 'rest'; if (kind === 'camp' && c.cash < HS.campCost) kind = 'rest';
   const rng = amRng(c), lines = [], split = (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split;
   if (kind === 'aau') { const mean = amStageMean(c) + HS.aauOvr; let W = 0, Lw = 0; for (const nm of HS_CIRCUIT) { let w = 0, l = 0; for (let g = 0; g < 6 && l < 2; g++) { if (rng.next() < amWinP(amOvr(c), mean + AMC.oppSd * rng.gauss())) w++; else l++; } W += w; Lw += l; lines.push(nm.charAt(0).toUpperCase() + nm.slice(1) + ': ' + w + '-' + l + (l < 2 ? ', champions!' : '.')); }
-    c.exposure += HS.aauExposure; const add = {}; for (const k of RATING_KEYS) add[k] = HS.aauXp / RATING_KEYS.length; spendXp(c.r, c.xp, c.caps, add); c.fatigue = Math.max(c.fatigue || 0, HS.aauFatigue); let hurt = null; if (injuriesOn() && !c.injury && rng.next() < HS.aauInjury * trMul(c, 'injury')) hurt = wkInjure(c, rng);
+    c.exposure += HS.aauExposure; const add = {}; for (const k of RATING_KEYS) add[k] = Math.round(HS.aauXp * CR.xpEarn) / RATING_KEYS.length; spendXp(c.r, c.xp, c.caps, add); c.fatigue = Math.max(c.fatigue || 0, HS.aauFatigue); let hurt = null; if (injuriesOn() && !c.injury && rng.next() < HS.aauInjury * trMul(c, 'injury')) hurt = wkInjure(c, rng);
     lines.push('Scouts saw you: recruiting score +' + HS.aauExposure + '. You start the season at fatigue ' + Math.round(c.fatigue) + (hurt ? ', with a ' + hurt.name.toLowerCase() + ' (' + hurt.games + ' game' + (hurt.games > 1 ? 's' : '') + ').' : '.')); storyNews(c, c.name + ' goes ' + W + '-' + Lw + ' on the AAU circuit.', 'league'); }
-  else if (kind === 'camp') { c.cash -= HS.campCost; const add = {}; for (const k in split) add[k] = HS.campXp * split[k]; const got = gainsMap(spendXp(c.r, c.xp, c.caps, add)); c.exposure += HS.campExposure; const gl = Object.keys(got).filter(k => got[k] > 0).map(k => RATING_SHORT[k] + ' +' + got[k]); lines.push(HS.campXp + ' XP into ' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + (gl.length ? ': ' + gl.join(', ') : '') + '. $' + HS.campCost + ' spent ($' + Math.round(c.cash) + ' left).'); }
+  else if (kind === 'camp') { c.cash -= HS.campCost; const add = {}; for (const k in split) add[k] = Math.round(HS.campXp * CR.xpEarn) * split[k]; const got = gainsMap(spendXp(c.r, c.xp, c.caps, add)); c.exposure += HS.campExposure; const gl = Object.keys(got).filter(k => got[k] > 0).map(k => RATING_SHORT[k] + ' +' + got[k]); lines.push(Math.round(HS.campXp * CR.xpEarn) + ' XP into ' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + (gl.length ? ': ' + gl.join(', ') : '') + '. $' + HS.campCost + ' spent ($' + Math.round(c.cash) + ' left).'); }
   else if (kind === 'job') { c.cash += HS.jobPay; for (const k of RATING_KEYS) c.xp[k] = Math.max(0, (c.xp[k] || 0) - HS.jobXpLoss / RATING_KEYS.length); lines.push('You earned $' + HS.jobPay.toLocaleString() + ' ($' + Math.round(c.cash).toLocaleString() + ' saved). Less gym time: −' + HS.jobXpLoss + ' XP of progress.'); }
   else { c.fatigue = 0; if (c.injury) c.injury = null; storyFill(c); c.confidence = Math.min(MD.confMax, (c.confidence || 0) + HS.restConf); lines.push('Rested and healed. Confidence +' + HS.restConf + '.'); }
   S.pending = false; S.kind = kind; c.summers.push({ season: S.season, year: S.year, kind }); const r = hsUpdateRank(c, 'summer');

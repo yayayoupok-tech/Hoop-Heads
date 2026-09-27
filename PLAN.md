@@ -228,7 +228,8 @@ desktop 22.1 → 13.7 ms, phone 33.1 → 17.0.
 to 1.8× too big); an overlap audit of every string at six window sizes and a HUD audit find nothing.
 **F5 — One-minute games** *(done)* — every career game is one timed minute (Settings: 1, 2 or 3) with sudden-death
 overtime; the league model and every per-game number scale with the length, so a season plays like before.
-**F6 — Harder XP** — every XP source pays less and the top steps cost more; the career simulator retuned.
+**F6 — Harder XP** *(done)* — every XP source pays 15% less and steps above 60 cost more; the pro years pay about
+what they did, so the climb is slower (OVR at 25: 75 → 72) and the peak a point lower.
 **F7 — Teams** — star-rated pro franchises with rosters; no draft: teams sign you by level; moving up through free agency
 and trade requests; the goal is starring for a top team; the hub organized like Retro Bowl's front office.
 **F8 — Shop** — gear bought with money: small capped bonuses, visible on the player, balance-tested.

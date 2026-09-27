@@ -3,6 +3,55 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F6 — XP is harder to earn (the F pass, milestone 6)
+
+The user: "xp should get harder to earn".
+
+- **Every XP source pays 15% less** (`career.xpEarn` 0.85), so the "+N XP" numbers are smaller everywhere. This covers:
+  - games (played, simulated or on the bench) and the college coach's share;
+  - practice sessions and drills (the previews show the new numbers);
+  - a skills camp and the AAU circuit.
+- **The top steps cost more.** A rating step above 60 costs `xpTop` 5% more per 10 points (a step at 90 costs 15% more),
+  so the last points before a cap take longest.
+- **The climb is slower, not shorter.** The age multipliers after 21 went up (22–25: 1.15 → 1.4; 26–28: 0.65 → 0.8;
+  29–31: 0.4 → 0.45; 32+: 0.2 → 0.22), so the pro years pay about what they did. The teen years pay less; the peak comes
+  a little lower and later.
+  - A flat 20% cut, with the old ages, dropped the peak from 78 to 74. Players develop in a loop (weaker players win less
+    and sit more), so a flat cut compounds.
+- The career simulator's targets moved with it: OVR at 17 53–58, at 21 64–68, at 25 70–74, peak 75–79, titles 0.4–1.0,
+  Hall of Fame 3–15%.
+
+The career simulator (40 careers each, `f6/sweep`):
+
+| | OVR 17 / 21 / 25 | Peak | Titles | Hall of Fame |
+| --- | --- | --- | --- | --- |
+| Before (F5) | 56 / 68 / 75 | 78 | 1.02 | 18% |
+| xpEarn 0.8, the old ages | 55 / 66 / 71 | 74 | 0.60 | 5% |
+| xpEarn 0.85 + top 0.05, the old ages | 55 / 66 / 71 | 75 | 0.82 | 3% |
+| **Chosen: 0.85 + 0.05 + the new ages** | 55 / 66 / 72 | 77 | 0.65 | 5% |
+| The same, seed 2 | 55 / 66 / 71 | 76 | 0.40 | 0% |
+
+The Hall of Fame gets rarer with slower growth: 0% on the second seed, under its new 3–15% target. F7's franchises
+change the pro path again, and its threshold is recalibrated there.
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `career.xpEarn` | 0.85 | every XP source pays × this |
+| `career.xpTop` / `xpTopFrom` | 0.05 / 60 | a step above 60 costs × (1 + 0.05 × (rating − 60) ÷ 10) |
+| `career.ageXpMul` | ≤17 1.5 · ≤21 1.35 · ≤25 1.4 · ≤28 0.8 · ≤31 0.45 · older 0.22 | XP by age |
+
+| Test | Result |
+| --- | --- |
+| Smoke | 131 of 131. The new F6 step checks that games, sessions and drills pay × xpEarn and that a step at 90 costs 15% more. |
+| Modes | 13 of 13 |
+| Old saves | 31 of 31 |
+| Dev tools | all OK |
+| Phone audit | no errors |
+| Art Lab | no errors |
+| Gate, balance | ✓ |
+| Career simulator | seed 1: every target met. Seed 2: Hall of Fame 0% ✗ (above). |
+| Trait balance | every trait in range (overall median legacy 46) |
+
 ## F5 — One-minute games (the F pass, milestone 5)
 
 The user: "games shouldn't be this long, like 1 min imo".
