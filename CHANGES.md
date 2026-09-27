@@ -3,6 +3,138 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F7 — Franchises instead of the draft; the goal is a great team (the F pass, milestone 7)
+
+The user: "the nba team concept should be improved and team/business should be more organized to fit like retro ball";
+"the goal of the game should be to get into a really good NBA team, so make sure to rework teams instead of making drafts
+and all". ("Retro ball" is read as Retro Bowl: a front office with star-rated teams and a few simple tabs.)
+
+**The league is twelve franchises, rated 1 to 5 stars.**
+- The four new franchises are the Laundromat Kings, the Corner Store Comets, the Overnight Owls and the Parking Garage
+  Pilots.
+- Each franchise has one league player, its starter in the league's games. The standings are the franchises'.
+- A franchise's stars come from its prestige rank: two 1★, two 2★, three 3★, three 4★ and two 5★ teams.
+- Prestige carries over and moves with the standings. Each offseason a franchise keeps 80% of its prestige and takes
+  20% from its finish, and a title adds to the finish. A franchise that moves gets a headline ("The Owls rise to 4★").
+- **Stars are what you play for:**
+  - training facilities (practice XP +0% at 1★–2★, +10% at 3★–4★, +20% at 5★);
+  - pay (×0.85 at 1★ to ×1.25 at 5★);
+  - fame per game (×0.85 to ×1.25);
+  - a deeper bench (a harder depth chart to top: the bench's OVR moves 3 per star from 3★).
+
+**No draft.** At the end of high school or college, the combine leads to PRO OFFERS: three franchises call.
+- **The best team that wants you:** you compete for the start there.
+- **One a star lower:** it promises you the start.
+- **A rebuilding team:** it starts you and pays 10% more.
+- The scouts' score (the old draft score) caps the offers' stars: 2★ teams call at 99, 3★ at 106, 4★ at 112 and 5★
+  at 118. Most players start on a 1–3★ team.
+- Signing day replaces draft night: the other rookies sign around the league, then your card flips to your franchise.
+- The college "Draft stock" screen is now "Pro stock", with the franchises' lines on its chart.
+
+**Moving up.** The goal is a great team, so the path there is visible everywhere.
+- **Your value** is OVR + fame ÷ 15 + hype ÷ 30.
+- **A franchise calls when your value reaches its bar:** 2★ 66, 3★ 71, 4★ 76, 5★ 83.
+- **Free agency** (when your deal ends) brings three offers:
+  - your team (your role stays);
+  - the best franchise that wants you (you earn the start);
+  - one a star lower that starts you.
+- **A trade request** (Office → Moving up) moves you at most one star up, once every two seasons, before the deadline.
+  It costs hype, and on the better team you earn the start.
+- **The goal track** is shown on the hub, in the Career menu and in the Office:
+  1. a 3★ team;
+  2. a 5★ team ("YOU MADE IT");
+  3. starting for a 5★ team;
+  4. a title with a 5★ team.
+
+  Each goal pays fame and gets a story card, a headline and a timeline entry.
+
+**The hub is organized like a front office** (the Retro Bowl read).
+- Before F7 the hub had nine links: League, Team, Player, Business, News, Trophies, Timeline, Settings and Main menu. A
+  phone hid three of them.
+- Now there are six:
+  - **Team:** the franchise's stars and perks, the coach and the roster.
+  - **League:** Standings, the new Franchises tab (each franchise's stars, starter, training, bar and "calls you" or
+    "needs +N"), Leaders, Schedule and the rest.
+  - **Office** (was Business): the new Moving up tab first (your value, the five bars, the trade request), then
+    contract, sponsors, training, home gym, lifestyle and the shop.
+  - **Career:** Player, News, Trophies and Timeline, with the goal.
+  - **Settings** and **Main menu.**
+- A phone shows everything but Settings (which stays on its main menu), so Trophies and Timeline are reachable there
+  now.
+- The hub's header shows your franchise's stars. The goal banner sits under the next game (on a phone, a one-line goal
+  sits beside the last results).
+
+**Old saves are migrated, never wiped.**
+- A pro career keeps its season and gains the four franchises. The eight old clubs' players spread out so each
+  franchise has one, and stars start from the old training facilities.
+- Goals the franchise already meets are recorded, and their cards show on the hub.
+- An amateur save at the combine or a "turn pro?" decision goes to the pro offers instead of the draft.
+
+**The Hall of Fame threshold is recalibrated** (F6 promised this): `career.hofScore` 90 → 85.
+- After F6's slower growth and F7's franchises, 90 let in 6% of 200 simulated careers across seeds 1, 2, 3 and 5.
+- 85 lets in about 8% (7.5% of the 120 careers on seeds 3 and 5).
+
+**Cut text (F4's follow-up).** Text cut short with "…" hides what it says, the same problem as overlapping text.
+- The screen audit now flags it (TEXT CUT: a line cut by its width, the screen's edge or a line limit). It found 23
+  desktop and 14 phone screens, all fixed. Among them:
+  - the pro offers and signing day;
+  - the team banner's perks and the teammates' lines (trait chips beside the name);
+  - the standings and franchises (names in full: stars as "3★", no PCT column, your rival in red);
+  - free agency (the role beside each offer);
+  - the depth chart beside a result (the OVR under the name);
+  - the news: headlines and posts wrap to two lines; a phone's BUZZ is its own tab;
+  - the press answers on a phone (two lines of quote);
+  - the recruiting blurbs, the national bracket (seeds in their own column), the player header, credits and the dev
+    menu.
+- High school's four week buttons on a desktop cut PRACTICE short. Study now sits behind Rest there too, as on a phone.
+
+The career simulator (40 careers a seed; `--fa=stars --trade=up`: the simulated player takes the best offer and asks
+for trades up):
+
+| Settings | First team 1★/2★/3★/4★ | Reached 5★ (median age) | Titles | Trades a career | Hall of Fame |
+| --- | --- | --- | --- | --- | --- |
+| First: bars 64/69/74/79, fame ÷ 10, keep 0.6, no trade limit | 10/8/14/8 | 80% (26) | 0.68 | 5.9 | 8% |
+| + a trade at most a star up, every 2 seasons | 15/12/10/3 | 75% (28) | 0.60 | 2.6 | 5% |
+| + bars 66/71/76/83, fame ÷ 15 | 15/12/10/3 | 70% (28) | 0.78 | 2.2 | 8% |
+| (bars 65/70/75/82) | 15/12/10/3 | 65% (28) | 0.53 | 2.5 | 5% |
+| **+ keep 0.8 (chosen)** | 15/12/10/3 | 65% (29) | 0.80 | 2.0 | 8% |
+| The same, seed 2 | 13/17/10/0 | 55% (29) | 0.42 | 1.9 | 3% |
+| The same, seeds 3 and 5 (60 each) | 34/45/36/5 | 55% / 62% (28) | 0.90 / 0.77 | 1.6 / 1.8 | 7% / 7% |
+
+- With keep 0.6, six franchises changed stars every season, so a team could fall from 5★ to 3★ in two years.
+- With the chosen settings, about half the careers that reach 5★ get there by moving and half because their own team
+  rose.
+- The Hall of Fame column is at the old threshold, 90.
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `franchise.starsDist` | 2, 2, 3, 3, 2 | the twelve franchises by stars (1★ to 5★) |
+| `franchise.keep` / `titleBoost` | 0.8 / 0.3 | prestige carried each offseason; a title's bonus to the finish |
+| `franchise.bar` | 0, 66, 71, 76, 83 | the value a 1–5★ franchise wants before it calls |
+| `franchise.fameDiv` / `hypeDiv` | 15 / 30 | value = OVR + fame ÷ 15 + hype ÷ 30 |
+| `franchise.rookieBar` | 0, 99, 106, 112, 118 | the scouts' score a 1–5★ franchise wants out of college or high school |
+| `franchise.benchStar` | 3 | a franchise's bench OVR + this per star above 3 |
+| `franchise.facByStars` | 1, 1, 2, 2, 3 | training facilities (the XP bonus) by stars |
+| `franchise.payByStars` | 0.85, 0.92, 1, 1.1, 1.25 | salary offers × this |
+| `franchise.fameByStars` | 0.85, 0.92, 1, 1.12, 1.25 | fame gained × this |
+| `franchise.rookieMore` | 0.1 | a rebuilding franchise's rookie offer pays this much more |
+| `franchise.tradeUp` / `tradeGap` | 1 / 2 | a trade moves you at most this many stars up, once every this many seasons |
+| `franchise.goalFame` | 3, 6, 4, 8 | fame for the four goals |
+| `career.hofScore` | 90 → 85 | the legacy score for the Hall of Fame |
+
+| Test | Result |
+| --- | --- |
+| Smoke | 132 of 132. The F7 step covers: the offers, the signing, one league player per franchise, the stars' spread, value and free agency, a trade, the goals, stars after six seasons, and a pre-F7 save. |
+| Modes | 13 of 13 |
+| Old saves | 31 of 31. The first run failed 11: the test's scripted tour looked for the free-agency buttons by their old wording. The tour was fixed; the game wasn't changed. |
+| Dev tools | all OK |
+| Screen audit (phone, desktop, 1000×1000) | 117, 119 and 119 screens, none flagged (overlap, cut text, off-screen, small targets) |
+| Full career through the UI | passes: high school, college, the pro offers, signing day, 13 pro seasons, retirement and the Hall of Fame verdict (929 actions) |
+| Art Lab | 54 screenshots, no errors |
+| Gate, balance | ✓ (brute force vs Pro 1.00 PPP; Legend beats Pro 78%) |
+| Career simulator | seed 1: every target met (Hall of Fame 10%, titles 0.80, 5★ reached by 65% at a median 29). Seed 2: every target met (3%, 0.42, 55%). |
+| Trait balance | every trait in range |
+
 ## F6 — XP is harder to earn (the F pass, milestone 6)
 
 The user: "xp should get harder to earn".

@@ -22,19 +22,20 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'title': case 'splash': g.ui.clearTo(mainMenu(g)); break; // R10: the boot splash after a reload
       case 'tip': pr(by(/^GOT IT$/)); break; // R10: a first-time tip
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
-      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|TRANSFER PORTAL|DRAFT COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
+      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|TURN PRO\?|TRANSFER PORTAL|DRAFT COMBINE|PRO COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
       case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM( THE GAME)?$/)); break;
       case 'recruit': pr(i % 3 === 0 ? by(/^VISIT$/) || by(/^COMMIT$/) : by(/^COMMIT$/)); break;
       case 'visit': pr(by(/^COMMIT HERE$/)); break;
       case 'confirm': pr(by(/^Yes$/)); break;
       case 'amdecision': pr(W.find(w => w.primary) || W[0]); break;
-      case 'combine': case 'draft': pr(by(/^(DRAFT NIGHT|START YOUR PRO CAREER)$/)); break;
+      case 'combine': case 'draft': pr(by(/^(PRO OFFERS|DRAFT NIGHT|START YOUR PRO CAREER)$/)); break;
+      case 'prooffers': pr(by(/^SIGN WITH THE /)); break; // F7: the first offer
       case 'press': pr(by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break;
       case 'dialog': pr(by(/^▼$/) || by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break; // R9: a dialogue card (page, continue or a choice)
       case 'amevent': case 'rivalmoment': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres':
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
-      case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)/.test(w.label || '')) || by(/^START SEASON/) || by(/^RETIRE/)); break;
+      case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^START SEASON/) || by(/^RETIRE/)); break;
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result
       case 'ladder': pr(by(/^Back$/)); break;

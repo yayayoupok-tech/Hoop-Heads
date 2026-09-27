@@ -52,8 +52,8 @@ fs.mkdirSync(OUT, { recursive: true });
   for (let i = 0; i < 4; i++) { const s = await name(); if (s === 'amresult') { await press(/CONTINUE/); await page.waitForTimeout(300); } } await drain();
   await ev(() => { const g = HH.game, a = g.save.data.c1; let guard = 0; while (a.stage !== 'combine' && guard++ < 300) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare' || a.decision.kind === 'portal') amDeclare(a, true); else amChooseCollege(a, a.decision.offers[0]); continue; } /* R6: the portal too */ if (!amSimGame(a)) break; } a.events.length = 0; g.ui.clearTo(amHub(g)); });
   await page.waitForTimeout(300); await shot('d20_combine_hub');
-  await press(/DRAFT COMBINE/); await page.waitForTimeout(6500); await shot('d21_combine');
-  await press(/DRAFT NIGHT/); await page.waitForTimeout(7000); await shot('d22_draft');
+  await press(/PRO COMBINE|DRAFT COMBINE/); await page.waitForTimeout(6500); await shot('d21_combine');
+  await press(/PRO OFFERS/); await page.waitForTimeout(700); await shot('d22_pro_offers'); await press(/^SIGN WITH THE /); await page.waitForTimeout(7000); await shot('d22_signing');
   await press(/START YOUR PRO CAREER/); await page.waitForTimeout(500); await drain(); await page.waitForTimeout(300); await ev(() => { const g = HH.game, c = g.save.data.career; ladderInit(c, 1); c.events.length = 0; g.ui.clearTo(careerHub(g)); }); await page.waitForTimeout(300); await shot('d23_pro_hub'); /* R4: a later pick starts a rung down */
   await press(/^PLAY( GAME)?$/); await page.waitForTimeout(400); await shot('d24_pregame');
   await press(/TIP OFF/); await page.waitForTimeout(2600); await shot('d25_pro_match_start');

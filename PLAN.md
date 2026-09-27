@@ -230,8 +230,11 @@ to 1.8× too big); an overlap audit of every string at six window sizes and a HU
 overtime; the league model and every per-game number scale with the length, so a season plays like before.
 **F6 — Harder XP** *(done)* — every XP source pays 15% less and steps above 60 cost more; the pro years pay about
 what they did, so the climb is slower (OVR at 25: 75 → 72) and the peak a point lower.
-**F7 — Teams** — star-rated pro franchises with rosters; no draft: teams sign you by level; moving up through free agency
-and trade requests; the goal is starring for a top team; the hub organized like Retro Bowl's front office.
+**F7 — Teams** *(done)* — twelve franchises rated 1–5★ (their stars bring facilities, pay, fame and a deeper bench, and
+move with the standings); no draft: three offers capped by the scouts' score, then signing day; you move up when your
+value (OVR, fame, hype) reaches a franchise's bar, in free agency or by a trade; the goal track (a 3★ team, a 5★ team,
+starting for one, a title with one); the hub organized like a front office (Team, League, Office, Career). Cut text is
+flagged by the screen audit and fixed.
 **F8 — Shop** — gear bought with money: small capped bonuses, visible on the player, balance-tested.
 **F9 — Stats guide** — what every meter does, in numbers, with its current value and how to raise it.
 **F10 — QA and release** — the suite, every screen at every size, the report, the artifact republished.
