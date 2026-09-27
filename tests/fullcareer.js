@@ -1,6 +1,6 @@
 // R10 §4 QA: one whole career through the real screens, from the title to the Hall of Fame. Player creation, tryouts,
 // four high school seasons (a summer each, recruiting, a visit, commitment day, the state tournament when it's earned),
-// college (NIL, the conference and national tournaments, the draft decision), the combine and the draft, then pro
+// college (NIL, the conference and national tournaments, the decision to turn pro), the combine and signing day (F7: the franchises' offers), then pro
 // seasons (the depth chart, contracts and free agency, sponsors and staff, the All-Star weekend, the playoffs, the
 // offseason) until retirement, the epilogue and the Hall of Fame. One game at each level is played as a real match (the
 // bots finish it through the real simulation); the rest are simmed with the SIM buttons. Every story card, press

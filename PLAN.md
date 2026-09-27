@@ -239,7 +239,8 @@ flagged by the screen audit and fixed.
 less fatigue; cash or money pays and gear comes along to the pros; +1 a level was tested and too strong.
 **F9 — Stats guide** *(done)* — every meter with its value right now, what it does in CONFIG's numbers and how to move
 it, from the Career menu, the amateur Stats screen and How to play.
-**F10 — QA and release** — the suite, every screen at every size, the report, the artifact republished.
+**F10 — QA and release** *(done)* — the suite, every screen at every size, a whole career through the screens on a
+desktop and a phone, the frame times, the report (CHANGES.md), the artifact republished.
 
 ## Testing every milestone
 

@@ -1,9 +1,10 @@
-// Old saves: every fixture in tests/fixtures (saves written by earlier builds, from the first 1v1 career to M7) is loaded
-// through a page reload, continued from the main menu and played on through the real screens: weeks with rotating
-// Practice / Rest / Film plans, the press room, recruiting and commitment day, the combine and the draft, the All-Star
-// weekend, the playoffs, the offseason and a new contract. Then the hub's pages are opened and, when the save has one,
-// the classic team league plays two games. Fails on any page error, frame exception, NaN in the save, or a screen the
-// driver cannot move past. Usage: node tests/oldsaves.js [actions per save, default 160]
+// Old saves: every fixture in tests/fixtures (saves written by earlier builds, from the first 1v1 career to R10) is
+// loaded through a page reload, continued from the main menu and played on through the real screens: weeks with
+// rotating Practice / Rest / Film plans, the press room, recruiting and commitment day, the combine and the pro offers
+// (the draft before F7), the All-Star weekend, the playoffs, the offseason and a new contract. Then the hub's pages are
+// opened and, when the save has one, the classic team league plays two games. Fails on any page error, frame exception,
+// NaN in the save, or a screen the driver cannot move past. Usage: node tests/oldsaves.js [actions per save,
+// default 160]
 const fs = require('fs'), path = require('path');
 const { launch, openPage, runner } = require('./lib');
 const FIX = path.join(__dirname, 'fixtures');

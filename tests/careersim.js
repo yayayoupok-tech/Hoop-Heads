@@ -3,9 +3,11 @@
 // [--set career.proMean=80 ...] (--set overrides a CONFIG value for a tuning run) [--trait=<id>] (R3: every career's
 // signature trait is <id> and it has no hidden one; the trait balance test runs this for each trait) [--press=team|confident|
 // trash|nocomment] (R8: every press answer) [--hype=chase|quiet] (R8: trash talk after a win and Confident after a loss, or
-// No comment after a win and Team first after a loss)
-// Reports medians at ages 17/21/25, peak OVR, draft picks, titles, the Hall of Fame rate and any stuck states against the
-// spec's targets.
+// No comment after a win and Team first after a loss) [--fa=stars|money|yours|best|starter] [--trade=up|never] (F7: free agency
+// takes the most stars, the most money or one kind of offer ("big" is the old name for best); trade requests go a star up, or
+// never) [--spend=smart|none] (R7) [--gear=buy|none] (F8: buy gear once the money covers it twice over, four times in the pros)
+// Reports medians at ages 17/21/25, peak OVR, the franchises reached, titles, the Hall of Fame rate and any stuck states
+// against the spec's targets.
 const { launch, openPage } = require('./lib');
 (async () => {
   const argv = process.argv.slice(2), sets = []; for (let i = 0; i < argv.length; i++) if (argv[i] === '--set') { sets.push(argv[i + 1]); argv.splice(i, 2); i--; }

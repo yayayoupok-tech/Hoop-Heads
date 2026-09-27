@@ -3,6 +3,129 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## The F pass (F1–F10): the report
+
+The user's playtest notes on the R10 build, in their words, and what each one became. Ten milestones in eight commits
+(F1 and F2 shared one, F3 and F4 another). Before every commit: the whole suite (smoke on desktop and phone, every mode,
+old saves migrated and never wiped, the dev tools, the screen audits, the §2 gate, the balance harness, the career
+simulator and trait balance) and the Art Lab screenshots, looked at.
+
+| The note | Milestone | What changed |
+| --- | --- | --- |
+| "remove extras" | F1 | The Extras menu is gone. Practice replaces it: shooting practice, the 3-Point Contest, the tutorial. The team league and the street tournament are gone (their saves' data is kept). Power-ups are one Quick 1v1 setting, off. |
+| "3 point tournament and even practice allow a layup … the rebound should come back to you" | F2 | The contest is threes only: the shooter walks rack to rack and Shoot is the only button. Practice passes every rebound back. |
+| "the game lags a LOT, especially during dunking" | F3 | Sprites repaint at pixel-art rate, not every frame. A dunk's shake no longer re-bakes the arena. A posterizer no longer freezes play. Median frame 22 → 14 ms (desktop), 33 → 17 ms (phone). |
+| "text overlaps, so we can't read other stuff" | F4, F7 | Text is sized from the letterboxed game area (it was up to 1.8× too big in tall windows). The screen audit flags overlapping text (F4) and text cut short with "…" (F7), at seven window sizes and at 1.25× text. |
+| "games shouldn't be this long, like 1 min" | F5 | Every career game is one timed minute with a sudden-death overtime (Settings: 1, 2 or 3 minutes). Everything fitted to the old lengths is rescaled, so a season plays like before. |
+| "xp should get harder to earn" | F6 | Every XP source pays 15% less and the top steps cost more. OVR at 25 went 75 → 72; the peak 78 → 77. |
+| "the nba team concept should be improved … like retro ball"; "the goal … a really good NBA team … rework teams instead of making drafts" | F7 | Twelve franchises rated 1–5★ and no draft: three offers, then signing day. You move up as your value reaches each star level's bar. A goal track (a 3★ team, a 5★ team, its starting spot, a title). The hub is a front office (Team, League, Office, Career). |
+| "add items you can buy … nothing too broken" | F8 | A gear shop: six pieces, three levels. +0.5 a level to one rating in games, fewer injuries, less fatigue. Tested at +1 a level too, which was too strong. |
+| "something that allows us to see stats, like what does hype do or fame" | F9 | A stats guide: every meter, its value right now, what it does in the game's own numbers, and how to move it. |
+
+### What each milestone measured
+
+| Milestone | Measured | Before → after |
+| --- | --- | --- |
+| F1 Extras | the main menu; the modes test | Extras (team league, street tournament, contest, practice, tutorial, Art Lab, credits) → Practice (shooting, the contest, the tutorial); 15 modes → 12 (13 with F5's one-minute quick game) |
+| F2 Contest and practice | a contest shooter who drives at the hoop every frame; practice rebounds | layups scored → 25 of 25 balls rack jumpers, no layup counts; the ball comes back 16 times in 40 s without the shooter moving |
+| F3 Lag | frame median / p95 in the pro arena, AI against AI (ms); a posterizer | desktop 22.1 / 32.1 → 13.7 / 24.1; phone 33.1 / 44.9 → 17.0 / 28.9; a posterizer 47–55 ms, a 1.4 s freeze and a 5 s replay → 18–25 ms, no freeze, no replay |
+| F4 Overlapping text | screens with overlapping text (six window sizes and 1.25× text; the HUD at five sizes) | up to 9 flagged at 1000×1000 → 0 of 111 at every size; the HUD 0 of 35 |
+| F5 One-minute games | a career game's length, AI against AI | 133–275 s → about 70 s (100–110 s with an overtime, in 12–14% of games); the favourite wins 71.5% at both lengths |
+| F6 Harder XP | OVR at 17 / 21 / 25 and the peak (40 careers, seed 1) | 56 / 68 / 75, 78 → 55 / 66 / 72, 77 |
+| F7 Franchises | first team 1★ / 2★ / 3★ / 4★; a 5★ team reached; trades a career (40 careers) | the draft → 15 / 12 / 10 / 3; 65% (median age 29); 2.0 |
+| F7 Cut text | screens with text cut short with "…" | 23 desktop and 14 phone → 0 |
+| F8 Gear | titles and Hall of Fame, a simulated player who buys gear against one who doesn't (three seeds) | −0.08 to +0.23 titles a career and +2 to +5 points of Hall of Fame; at +1 a level (rejected), titles ×1.5 and the Hall of Fame ×4 |
+| F9 Stats guide | the career's numbers explained | none → OVR, the ratings, XP, hype, fame, confidence, fatigue, injuries, gear, trust, the depth chart, value, stars, money, GPA and legacy, each with its value and its CONFIG rule |
+| F10 QA | screens with text a figure covers (a new check, at every audited size); Art Lab views with overlapping or cut text; saves written by the live R10 build | the first screen, and the growth card at three window sizes → none; 15 → 0; untested → 3 of 3 play on |
+
+### Tests on the final build (F10)
+
+| Test | Result |
+| --- | --- |
+| Syntax (`tests/check-syntax.js`) | ok |
+| Smoke: the game through the UI at 1280×720 and 844×390 | 134/134 |
+| Modes: every mode played to its end | 13/13 |
+| Old saves: every fixture, from the first 1v1 career to the R10 build, reloaded and played on | 34/34 (three new, written by the R10 build) |
+| Dev tools | all OK (1,000 balls, 0 tunneled) |
+| Every screen at 844×390: 64 px targets, off-screen, overlapping or unlaid widgets, labels off their buttons, overlapping text, cut text, text under a figure, errors | 129 screens, nothing flagged; the same at 1.25× text |
+| Every screen at 1280×720, 1024×768, 1440×900, 1920×1080, 1000×1000 and 800×1000 | 131 screens at each size, nothing flagged |
+| Every screen at 1280×720 with 1.25× text | 131 screens; 3 flagged, the press answers' quotes cut to one line (known limit 3) |
+| A whole career through the screens | desktop: 975 actions, a real game in high school, college and the pros, the combine, the offers and signing day, retired after 13 pro seasons at 35; phone: 893 actions, the same path, passed |
+| Art Lab | 55 screenshots, no errors; the text audit of every view and page: nothing flagged |
+| §2 gate (300 mirror games, 200 Legend-vs-Pro games) | Pro mirror 1.18 PPP (0.95–1.25 ✓), team A 48% (45–55% ✓), Legend beats Pro 83% (75–95% ✓), brute vs Pro 1.00 (≤ 1.30 ✓), sniper 1.72 (timing beats brute force ✓) |
+| Balance harness (Classic) | brute vs Pro 1.24 (≤ 1.30 ✓), perfect timing 2.12, Legend beats Pro 78% (75–95% ✓) |
+| Career simulator, 40 careers | seed 1: every target met (OVR 55 / 66 / 72 at 17 / 21 / 25, peak 77, 0.90 titles, Hall of Fame 15%), 0 stuck; seed 2: every target met (OVR 55 / 66 / 71 at 17 / 21 / 25, peak 75, 0.65 titles, Hall of Fame 5%), 0 stuck |
+| Trait balance (200 careers a trait) | all 17 in range (Generational +22%, Late Bloomer −13%, Glue Guy −12%) |
+| Perf (AI against AI, pro arena, headless) | the table in F10 below |
+
+### Deviations and known limits
+
+1. **"Retro ball" was read as Retro Bowl.** The game borrows Retro Bowl's organization (star-rated teams, a front
+   office with a few simple tabs), not its football.
+2. **One league player per franchise.** The league's games stay 1v1: each franchise's starter plays its games, and
+   your franchise's depth chart decides whether that's you.
+3. **At 1.25× text on a desktop, a press answer's quote shows one line.** Two lines don't fit four answers on the
+   panel; the answer and what it does stay whole. R10 made the same call.
+4. **Gear is deliberately small.** At +0.5 a level, what gear does to titles and the Hall of Fame is about the size of
+   the career simulator's noise; it shows up in fewer injuries and a little less fatigue.
+5. **Perf is measured in headless Chromium**, which draws the canvas on the CPU. Nothing was measured on a real phone.
+   The phone median, 17.4 ms, is just over a 60 fps frame (16.7 ms); the frame guard sheds cost when frames run
+   slow.
+6. **State and national titles stay rare** in the career simulator (it plays games from OVR): 0.03 state titles and no
+   national titles a career on seed 2.
+7. **Dead code:** the old 3-point contest screen (`allStarScreen`) is still in the build and nothing opens it (since
+   R7).
+
+## F10 — QA and release (the F pass, milestone 10)
+
+- **The final sweep.** The screen audit ran at seven window sizes (a phone, 1280×720, 1024×768, 1440×900, 1920×1080, a
+  1000×1000 square and an 800×1000 portrait window) and at 1.25× text on a desktop and a phone. A whole career was played
+  through the screens on a desktop and on a phone. The career simulator ran two seeds. Results are below.
+- **The first screen had text under art.** A new player's main menu drew its two players over the last line of the
+  league's pitch ("…sim the ones you want"): F7 made the pitch a line longer. The players are now sized to the room
+  under the text (at 1.25× text too). The screen audit missed it twice over:
+  - it compared text only with text;
+  - it never showed a menu without a career.
+
+  It now flags text that a figure drawn after it covers (a menu figure, a portrait or a trading card over a quarter of
+  the string). It also audits the new player's menu. On the old menu the check flags that line.
+- **The sweep's window sizes found one more.** On the growth-spurt card, last year's grey figure ran into the ruler's
+  5′6″ and 6′0″ labels at 1024×768, 1440×900 and 800×1000. The two figures moved 20 px right. The audit's high-school
+  film room step had been opening that card: before the first game there is no next opponent, so the film room falls
+  back to the hub. It now runs after the first game and opens the film room.
+- **Perf, measured again on the final build** (`f3/prof.js`, AI against AI in the pro arena, 240 frames). Frame times
+  are where F3 left them. The medians moved less than a run's noise (two F10 runs gave the phone 17.1 and 17.4 ms), and
+  p95 fell at every size:
+
+  | Window | F3: median / p95 / max (ms) | F10: median / p95 / max (ms) |
+  | --- | --- | --- |
+  | Desktop 1280×720 | 13.7 / 24.1 / 40.0 | 11.6 / 18.3 / 26.3 |
+  | Phone 844×390 at 2× | 17.0 / 28.9 / 68.9 | 17.4 / 23.5 / 35.3 |
+  | Square 1000×1000 | 7.8 / 14.2 / 24.1 | 7.2 / 13.5 / 28.6 |
+
+- **The README describes the game as it is now:** franchises, signing day and the goal instead of the draft; the gear
+  shop; the stats guide; Practice instead of Extras; one-minute games; harder XP. Four test files' headers were brought
+  up to date (the full career's signing day, the career simulator's policy flags, the audit's cut-text check, the old
+  saves' pro offers).
+- **Saves from the live game.** The old-save test never had a save from R10, the build the live game runs until this
+  update. The fixture generator now builds three with it:
+  - a high-school career with the old team league on the side;
+  - a pro career in its first season, drafted;
+  - a prospect waiting at the pro combine for the draft F7 removed.
+
+  All three play on through the screens on this build. The prospect's combine leads to three franchise offers
+  (PGP, NSN, LDK). The old-save test has 34 saves now.
+- **The Art Lab (a dev tool) had overlapping or cut text on 15 views.** A text audit of every view and page now finds
+  none:
+  - the hair names (two-word names on two lines) and the facial hair names;
+  - the crowd atlas's caption (two lines) and its pose names (they started off the screen);
+  - the Legends check's captions (three lines) and the phone-size figures' captions (two lines);
+  - the 250 px faces: the captions go over the heads on a backing, since a tall hairstyle covered them, and the
+    header moves under the buttons;
+  - the clips' variants on their own line;
+  - the Retro check: four characters a page, centered (six at 4× didn't fit and the last was cut), so seven pages;
+  - Symmetry: one key for the construction lines, and a panel line per fact.
+
 ## F9 — The stats guide (the F pass, milestone 9)
 
 The user: "add something that allows us to see stats, like for example what does hype do or fame etc."

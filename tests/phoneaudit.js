@@ -1,6 +1,7 @@
-// Phone audit (M9): opens about 70 screens at 844×390 with touch and lists every tap target under 64 CSS px (width or height),
-// widgets off the screen, overlapping widgets, and the smallest text each screen draws. It plays a scripted career to
-// reach the later screens. Usage: node tests/phoneaudit.js [shotsDir] [--desktop] [--text125]
+// Phone audit (M9): opens about 130 screens at 844×390 with touch (or at a desktop size) and lists every tap target under
+// 64 CSS px (width or height), widgets off the screen, overlapping widgets, overlapping text (F4), text cut short with "…"
+// (F7), text a figure covers (F10) and the smallest text each screen draws. It plays a scripted career to reach the later screens.
+// Usage: node tests/phoneaudit.js [shotsDir] [--desktop] [--size=WxH@dpr] [--text125]
 const path = require('path'), fs = require('fs');
 const { launch, openPage } = require('./lib');
 (async () => {
@@ -23,6 +24,11 @@ const { launch, openPage } = require('./lib');
   // F7: text cut short with '…' (a maxW, the screen edge or a line limit) hides what it says: the top screen's strings
   // from one synchronous UI draw that the font or a paragraph cut (faint text a<0.35 skipped).
   await ev(() => { window.__textCuts = () => { const g = HH.game; RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } catch (e) { /* the audit's own draw */ } const raw = RBF.boxes || []; RBF.boxes = null; const out = []; for (const b of raw) if (b.cut && b.a >= 0.35 && !out.includes(String(b.cut).slice(0, 48))) out.push(String(b.cut).slice(0, 48)); return out; }; });
+  // F10: a figure (a menu figure, a portrait, a trading card) drawn after a string and over at least a quarter of it hides
+  // it: the top screen's strings from one synchronous UI draw against each figure's box (faint text a<0.35 skipped).
+  await ev(() => { window.__artOverText = () => { const g = HH.game; RBF.boxes = []; RBF.art = []; try { g.drawUI(g.ctx, g.W, g.H); } catch (e) { /* the audit's own draw */ } const raw = RBF.boxes || [], art = RBF.art || []; RBF.boxes = null; RBF.art = null; const out = [];
+    for (const A of art) for (let i = 0; i < Math.min(A.n, raw.length); i++) { const b = raw[i]; if (!String(b.t).trim() || b.a < 0.35 || b.w < 1) continue; const ix = Math.min(b.x + b.w, A.x + A.w) - Math.max(b.x, A.x), iy = Math.min(b.y + b.h, A.y + A.h) - Math.max(b.y, A.y); if (ix > 0 && iy > 0 && ix * iy >= 0.25 * b.w * b.h) { const k = '"' + String(b.t).slice(0, 28) + '" under a ' + A.kind; if (!out.includes(k)) out.push(k); } }
+    return out; }; });
   if (big) await ev(() => { const D0 = defaultSave; window.defaultSave = () => { const d = D0(); d.settings.textSize = 1.25; return d; }; RBF.textScale = 1.25; });
   await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Phone Audit', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 31 }); a.events.length = 0; g.save.save(); });
   const audit = async (name, open, arg) => {
@@ -35,10 +41,12 @@ const { launch, openPage } = require('./lib');
     for (const o of ovf) r.bad.push('TEXT OVERFLOW ' + o);
     for (const o of await ev(() => window.__textOverlaps())) r.bad.push('TEXT OVERLAP ' + o); // F4
     for (const o of await ev(() => window.__textCuts())) r.bad.push('TEXT CUT "' + o + '"'); // F7
+    for (const o of await ev(() => window.__artOverText())) r.bad.push('ART OVER TEXT ' + o); // F10
     const minTxt = tx.length ? tx[0].px : 99; texts.push({ name, min: minTxt, tx });
     console.log((r.bad.length ? 'FLAG  ' : 'ok    ') + name + ' (' + r.name + ', ' + r.n + ' widgets, min text ' + minTxt.toFixed(1) + ' px)' + (r.bad.length ? ': ' + r.bad.slice(0, 12).join(' | ') + (r.bad.length > 12 ? ' …+' + (r.bad.length - 12) : '') : ''));
   };
   const texts = [];
+  await audit('menu-new', () => { const g = HH.game; g.__c1 = g.save.data.c1; g.save.data.c1 = null; g.ui.clearTo(mainMenu(g)); }); await ev(() => { const g = HH.game; g.save.data.c1 = g.__c1; delete g.__c1; }); // F10: a new player's menu (no career yet: the league's pitch beside two players)
   await audit('title', () => HH.game.ui.clearTo(titleScreen(HH.game))); // R10: every screen
   await audit('menu', () => HH.game.ui.clearTo(mainMenu(HH.game)));
   for (let t = 0; t < 5; t++) await audit('settings-' + t, t => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(settingsScreen(g, t)); }, t); // R10: the five tabs
@@ -70,13 +78,13 @@ const { launch, openPage } = require('./lib');
   await audit('am-story-event', () => { const g = HH.game, a = g.save.data.c1; a.events.push({ kind: 'story', from: 'Coach', title: 'FIRST DAY', lines: ['Line one of the story.', 'Line two.'] }); g.ui.clearTo(amHub(g)); });
   await audit('am-growth', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; a.events.push({ kind: 'growth', title: 'GROWTH SPURT!', grow: { from: a.height - 0.03, to: a.height }, lines: ['You grew 1″ this summer.', 'Height changes your game.'] }); g.ui.clearTo(amHub(g)); });
   await audit('am-practice', () => HH.game.ui.push(practiceScreen(HH.game)));
-  await audit('am-film', () => { HH.game.ui.clearTo(amHub(HH.game)); HH.game.ui.push(filmRoomScreen(HH.game)); });
   await audit('am-standings', () => { HH.game.ui.clearTo(amHub(HH.game)); HH.game.ui.push(amStandingsScreen(HH.game)); });
   await audit('am-history', () => { HH.game.ui.clearTo(amHub(HH.game)); HH.game.ui.push(amHistoryScreen(HH.game)); });
   await audit('news', () => { HH.game.ui.clearTo(amHub(HH.game)); HH.game.ui.push(headlinesScreen(HH.game)); });
   await audit('trophies', () => { HH.game.ui.clearTo(amHub(HH.game)); HH.game.ui.push(trophyCaseScreen(HH.game)); });
   await audit('timeline', () => { HH.game.ui.clearTo(amHub(HH.game)); HH.game.ui.push(timelineScreen(HH.game)); });
   await audit('am-result', () => { const g = HH.game, a = g.save.data.c1; const r = amSimGame(a); a.events.length = 0; g.ui.clearTo(amResultScreen(g, r, null)); });
+  await audit('am-film', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.ui.clearTo(amHub(g)); g.ui.push(filmRoomScreen(g)); }); // F10: after the first game (before it there was no next opponent, and this opened the growth card)
   await audit('press', () => { const g = HH.game, a = g.save.data.c1; g.ui.clearTo(amHub(g)); a.events.push({ kind: 'press', q: 'Test?', x: { name: a.name, won: true, us: 15, them: 9, opp: 'Some One' } }); });
   await audit('press-four', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.ui.clearTo(amHub(g)); const o = a.league.opps[0]; a.hype = 40; a.cash = 500; a.events.push({ kind: 'press', q: 'Nobody gave you a chance against ' + o.name.split(' ')[0] + '. What changed?', x: { name: a.name, won: true, us: 15, them: 11, opp: o.name, oppId: o.id, upsetWin: true, recs: [] } }); }); // R8: four answers
   await audit('press-trash-answered', () => { const g = HH.game, s = g.ui.screen; if (s && s.name === 'press') { const f0 = MD.trashFine; MD.trashFine = 1; try { s.widgets.find(w => w.ans === 'trash').onPress(); } finally { MD.trashFine = f0; } } }); // R8: the newspaper with a fine

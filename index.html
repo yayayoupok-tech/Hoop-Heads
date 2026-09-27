@@ -3060,6 +3060,9 @@ function rbGlyph(ch) {
   let g = RBF.G.get(ch); if (g) return g;
   const base = String(ch).normalize ? String(ch).normalize('NFD')[0] : ch; g = RBF.G.get(base) || RBF.G.get(base.toUpperCase ? base.toUpperCase() : base) || RBF.G.get('?'); RBF.G.set(ch, g); return g; // é → e; anything unknown → ?
 }
+// F10: the screen audit's figure boxes (a menu figure, a portrait, a trading card) in device px, each with the number of
+// strings drawn before it, so the audit can flag text a figure covers. RBF.art is null outside the audit (no cost).
+function rbArtBox(ctx, kind, x, y, w, h) { if (!RBF.art || ctx.canvas !== RBF.mainCanvas) return; const M = ctx.getTransform(); let X = M.a * x + M.c * y + M.e, Y = M.b * x + M.d * y + M.f, W = w * M.a, H = h * M.d; if (W < 0) { X += W; W = -W; } if (H < 0) { Y += H; H = -H; } RBF.art.push({ kind, x: X, y: Y, w: W, h: H, n: RBF.boxes ? RBF.boxes.length : 0 }); }
 // Width of a string in font pixels (one pixel between letters, none after the last).
 function rbWidth(text) { let w = 0, n = 0; for (const ch of String(text)) { w += rbGlyph(ch).w + 1; n++; } return n ? w - 1 : 0; }
 // A rendered string: `o` font pixels of outline around it (0 = the plain fill). Cached by scale, outline, color and text.
@@ -7762,6 +7765,7 @@ function uiRetro() { return RT.mode !== 'smooth'; }
 function uiPixK(canvas) { return rtGridK((canvas && canvas.height) || 720, RT.mode === 'sharp'); }
 // A portrait at (x, y), size × size design units, on the device pixel grid (pixel art in Retro, painted in Smooth).
 function drawPortrait(ctx, def, colors, x, y, size, expr, opts) {
+  rbArtBox(ctx, 'portrait', x, y, size, size); // F10: the audit's box
   try {
     if (!uiRetro() || ctx.canvas !== RBF.mainCanvas) { ctx.drawImage(portraitOf(def, colors, size > 100 ? 192 : size > 60 ? 128 : 96, expr), x, y, size, size); return; }
     const M = ctx.getTransform(), T = Math.hypot(M.a, M.b) || 1, k = uiPixK(ctx.canvas), n = Math.max(8, Math.round(size * T / k)), spr = rtPortrait(def, colors, n, expr, opts);
@@ -8482,7 +8486,7 @@ function paintCard(g, P, w, h) {
 }
 // Draw a card at (x, y), w × h design px. opts.t animates the foil; opts.res is the bake resolution (default 2).
 function drawTradingCard(ctx, x, y, w, h, P, opts) {
-  opts = opts || {}; try {
+  rbArtBox(ctx, 'card', x, y, w, h); /* F10: the audit's box */ opts = opts || {}; try {
     if (uiRetro() && ctx.canvas === RBF.mainCanvas) { const M = ctx.getTransform(), T = Math.abs(M.d) || 1, c = cardBake(P, w, h, T, uiPixK(ctx.canvas)); const X0 = M.a * x + M.c * y + M.e, Y0 = M.b * x + M.d * y + M.f, X1 = M.a * (x + w) + M.c * (y + h) + M.e, Y1 = M.b * (x + w) + M.d * (y + h) + M.f; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, Math.round(Math.min(X0, X1)), Math.round(Math.min(Y0, Y1)), Math.max(1, Math.round(Math.abs(X1 - X0))), Math.max(1, Math.round(Math.abs(Y1 - Y0)))); ctx.restore(); return; } // R1: on the device grid, 1:1 (squashed only mid-flip); no foil sheen
     const c = cardBake(P, w, h, opts.res || 2); ctx.drawImage(c, x, y, w, h);
     const tier = P.tier || cardTierOf(P.ovr); if ((tier === 'gold' || tier === 'diamond') && !opts.noFoil) {
@@ -8737,6 +8741,7 @@ function drawTeamCard(ctx, team, x, y, w, h, selected, roster) {
 // A standing mannequin of a player for menus: the real in-game renderer with a fake camera. Same size = same scale,
 // so two players drawn with the same size show their true height difference.
 function drawMannequin(ctx, def, teamDef, x, y, size, expr, facing, t, pose, opts) {
+  if (RBF.art) { const h = def.height || 1.9, s = size / 2.4, top = h * ((pose === 'stance' ? ART.crownStance : ART.crownStand) + 0.08) * s; rbArtBox(ctx, 'figure', x - 0.3 * h * s, y - top, 0.6 * h * s, top); } // F10: the audit's box (the head and 8% for hair)
   const p = { anim: { bobX: 0, bobY: 0, runPh: 0, squash: 1, expr: expr || 'focused', exprT: 0, defStance: pose === 'stance' }, look: Object.assign({ number: 0 }, def.look), height: def.height, facing: facing || 1, state: pose === 'stance' ? 'stance' : 'move', sd: {}, grounded: true, vx: 0, vy: 0, x: 0, y: 0, z: 0.5, px: 0, py: 0, pz: 0.5, hasBall: false, reach: def.height * CONFIG.player.reachMul, controlled: false, callingForBall: false, onFire: 0, stamina: 100, hand: { x: 0, y: 0 }, attrs: def.attrs || {}, inState() { return false; } };
   const s = size / 2.4; const cam = { scale: () => s, sx: wx => x + wx * s, sy: (wy, z) => y - wy * s, ppm: s, W: 0, H: 0, zoom: { x: 1 } };
   if (uiRetro() && ctx.canvas === RBF.mainCanvas && !(opts && opts.smooth)) { p.name = def.name; p.def = def; if (drawPixelFigure(ctx, cam, p, { colors: teamDef.colors, pattern: teamDef.pattern }, opts)) return; } // R1: the same pixel figure as in a match
@@ -8775,7 +8780,7 @@ function mainMenu(game) {
       } else { ui.heading(ctx, 'THE ISO LEAGUE', 530, 90, 30, UI_GOLD); ctx.font = fontStr(17, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
         const lines = ['One-on-one basketball. One ball, one hoop at each end, no teammates.', 'Start at 14 in high school. Your height comes from your genes: you find out as you grow. Get recruited, play college ball, get measured at the combine and pick a pro franchise from your offers.', 'Then the pro league: seasons, playoffs, awards, rivals, contracts, sponsors, injuries and aging. Play every game yourself or sim the ones you want.'];
         let y = 130; for (const l of lines) { y += wrapTextH(ctx, l, 530, y, 680, 24) + 16; }
-        const a = ROSTER.ballers[0], b = ROSTER.vandals[0]; drawMannequin(ctx, a, TEAMS[1], 760, 640, 300, 'focused', 1, t); drawMannequin(ctx, b, TEAMS[4], 1010, 640, 300, 'hyped', -1, t); }
+        const a = ROSTER.ballers[0], b = ROSTER.vandals[0], sz = clamp((640 - y - 14) * 2.4 / (Math.max(a.height, b.height) * ART.crownStand * 1.08), 150, 300); drawMannequin(ctx, a, TEAMS[1], 760, 640, sz, 'focused', 1, t); drawMannequin(ctx, b, TEAMS[4], 1010, 640, sz, 'hyped', -1, t); } // F10: sized to the room under the text (at 300 their heads covered its last line; 8% for the hair)
     } };
 }
 // F1 (the user: "remove extras"): the Extras menu is gone. Practice holds what was worth keeping from it: free shooting,
@@ -9266,8 +9271,8 @@ function amEventScreen(game) {
         if (ev.kind === 'genes') { const k = clamp01(t / 1.2); const hNow = lerp(1.5, c.growthLog && c.growthLog[0] ? c.growthLog[0].h : c.height, easeOutCubic(k)); drawMannequin(ctx, Object.assign(amDrawDef(c), { height: hNow }), amKit(c), 250, floor, size, 'focused', 1, t);
           const py = headTopY(floor, size, c.projection || c.heightFinal); ctx.save(); ctx.setLineDash([8, 6]); ctx.strokeStyle = UI_CYAN; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(150, py); ctx.lineTo(470, py); ctx.stroke(); ctx.restore(); pill(ctx, 'PROJECTED ' + fmtHeight(c.projection || c.heightFinal), 330, py - 18, 'rgba(94,224,255,0.3)', UI_TEXT, 13);
           const ny = headTopY(floor, size, hNow); ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(150, ny); ctx.lineTo(470, ny); ctx.stroke(); pill(ctx, 'NOW ' + fmtHeight(hNow), 330, ny + 18, UI_GOLD, UI_INK, 13); }
-        else { const g = ev.grow, k = clamp01(t / 1.4); const hNow = lerp(g.from, g.to, easeOutCubic(k)); drawMannequin(ctx, Object.assign(amDrawDef(c), { height: g.from }), { colors: ['#3A3F5A', '#5A607A'], pattern: 'solid' }, 180, floor, size, 'focused', 1, 0); drawMannequin(ctx, Object.assign(amDrawDef(c), { height: hNow }), amKit(c), 330, floor, size, 'hyped', 1, t);
-          ui.label(ctx, 'last year ' + fmtHeight(g.from), 180, floor + 26, 14, UI_DIM, 'center'); ui.heading(ctx, 'now ' + fmtHeight(hNow), 330, floor + 26, 16, UI_GOLD, 'center'); }
+        else { const g = ev.grow, k = clamp01(t / 1.4); const hNow = lerp(g.from, g.to, easeOutCubic(k)); drawMannequin(ctx, Object.assign(amDrawDef(c), { height: g.from }), { colors: ['#3A3F5A', '#5A607A'], pattern: 'solid' }, 200, floor, size, 'focused', 1, 0); drawMannequin(ctx, Object.assign(amDrawDef(c), { height: hNow }), amKit(c), 350, floor, size, 'hyped', 1, t); /* F10: 20 px right, clear of the ruler's marks */
+          ui.label(ctx, 'last year ' + fmtHeight(g.from), 200, floor + 26, 14, UI_DIM, 'center'); ui.heading(ctx, 'now ' + fmtHeight(hNow), 350, floor + 26, 16, UI_GOLD, 'center'); }
       }
     } };
 }
@@ -9366,7 +9371,7 @@ const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd'
 const LEGENDS_CHECK = [[0, 0, 0], [2, 3, 1], [3, 1, 3], [5, 5, 2], [6, 2, 4], [8, 4, 1], [9, 0, 3], [11, 1, 2]];
 const LEGENDS_POSES = ['run', 'jumpshot', 'dunk', 'flipdunk', 'knockdown', 'celebrate'];
 function labLegendsCast(k) { const [i, shape, nose] = LEGENDS_CHECK[k]; const c = LAB_CAST[i]; const face = faceParamsFromSeed(hashString(c.name + '|')); face.shape = shape; face.nose = nose; return Object.assign({}, c, { look: Object.assign({}, c.look, { face }), idx: i }); }
-function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 6 : view === 11 ? 6 : 1; }
+function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 7 : view === 11 ? 6 : 1; }
 const LAB_HAIR_NAMES = ['Buzz', 'Taper fade', 'High top', 'Afro', 'Curly top', 'Twists', 'Locs', 'Cornrows', 'Box braids', 'Bun', 'Side part', 'Mohawk', 'Long', 'Bald'];
 const LAB_FACIAL_NAMES = ['None', 'Stubble', 'Mustache', 'Goatee', 'Chin strap', 'Full beard'];
 
@@ -9441,8 +9446,8 @@ function artLabScreen(game) {
     onBack() { game.ui.pop(); },
     draw(ctx, ui) {
       ctx.fillStyle = '#0A0E26'; ctx.fillRect(0, 0, UI_W, UI_H);
-      ui.heading(ctx, 'ART LAB', 1090, 32, 22, UI_GOLD, 'right');
       try { [labViewFacesSmall, labViewFacesLarge, labViewPoses, labViewHair, labViewCrowd, labViewVenues, labViewBody, labViewClips, labViewUIKit, labViewLegends, labViewRetro, labViewSymmetry][st.view](ctx, ui, st, t); } catch (e) { labFail(e); }
+      ui.heading(ctx, 'ART LAB', 1090, 32, 22, UI_GOLD, 'right'); // F10: after the view, so a 250 px high top can't cover it
     } };
   return scr;
 }
@@ -9457,13 +9462,18 @@ function labViewFacesSmall(ctx, ui, st, t) {
   });
   // right: the same players as full figures at phone scale (head ≈ 40 px), sorted by height so true height shows
   const ppm = 36, bx = 560; labCaption(ctx, 'Full figures at phone scale · true heights · 36 px per meter', 900, 76, 12, UI_DIM);
-  LAB_CAST.forEach((c, i) => { const col = i % 6, row = Math.floor(i / 6); const x = bx + col * 115 + 40, yF = 330 + row * 300; labDrawFigure(ctx, c, i, x, yF, ppm, 1, 'idle', t); labCaption(ctx, (i + 1) + ' · ' + c.name.split(' ')[0] + ' · ' + fmtHeight(c.h), x, yF + 18, 11, UI_TEXT); });
+  LAB_CAST.forEach((c, i) => { const col = i % 6, row = Math.floor(i / 6); const x = bx + col * 115 + 40, yF = 330 + row * 300; labDrawFigure(ctx, c, i, x, yF, ppm, 1, 'idle', t); labCaption(ctx, c.name.split(' ')[0], x, yF + 16, 11, UI_TEXT); labCaption(ctx, (i + 1) + ' · ' + fmtHeight(c.h), x, yF + 36, 11, UI_DIM); }); // F10: two lines (one ran into its neighbors)
 }
 function labViewFacesLarge(ctx, ui, st, t) {
-  const c = LAB_CAST[st.ch]; labCaption(ctx, (st.ch + 1) + ' / 12 · ' + c.name + ' · ' + fmtHeight(c.h) + ' · age ' + c.age + ' · skin ' + c.look.skin + ' · hair ' + LAB_HAIR_NAMES[c.look.hair] + ' · ' + LAB_FACIAL_NAMES[c.look.facialHair], 960, 32, 13, UI_TEXT);
-  const slots = LAB_EXPRS_ALL.map(e => ({ e, f: 1 })).concat([{ e: 'neutral', f: -1 }]);
-  slots.forEach((s, k) => { const col = k % 4, row = Math.floor(k / 4); const cx = 170 + col * 310, cy = 236 + row * 300; labDrawHead(ctx, c, cx, cy, 250, s.f, s.e, t); labCaption(ctx, s.e + (s.f < 0 ? ' · facing left' : ''), cx, cy + 140, 13, UI_TEXT); });
+  const c = LAB_CAST[st.ch], slots = LAB_EXPRS_ALL.map(e => ({ e, f: 1 })).concat([{ e: 'neutral', f: -1 }]), cell = k => [170 + (k % 4) * 310, 236 + Math.floor(k / 4) * 300];
+  slots.forEach((s, k) => { const [cx, cy] = cell(k); labDrawHead(ctx, c, cx, cy, 250, s.f, s.e, t); });
+  // F10: the captions after every head, on a backing (a tall hairstyle from the row below covered the first row's), and the
+  // header under the buttons (it ran under them and off the screen)
+  slots.forEach((s, k) => { const [cx, cy] = cell(k); labTag(ctx, s.e + (s.f < 0 ? ' · facing left' : ''), cx, cy + 140, 13, UI_TEXT); });
+  labTag(ctx, (st.ch + 1) + ' / 12 · ' + c.name + ' · ' + fmtHeight(c.h) + ' · age ' + c.age + ' · skin ' + c.look.skin + ' · hair ' + LAB_HAIR_NAMES[c.look.hair] + ' · ' + LAB_FACIAL_NAMES[c.look.facialHair], 640, 76, 13, UI_TEXT);
 }
+// A caption on a dark backing, for text drawn over art.
+function labTag(ctx, text, x, y, size, color) { ctx.font = fontStr(size || 12, false); const w = ctx.measureText(text).width; ctx.fillStyle = 'rgba(8,10,30,0.8)'; ctx.fillRect(x - w / 2 - 8, y - 12, w + 16, 24); labCaption(ctx, text, x, y, size, color); }
 function labViewPoses(ctx, ui, st, t) {
   const cast = [LAB_CAST[0], LAB_CAST[5], LAB_CAST[11]], idx = [0, 5, 11]; const ppm = 78;
   LAB_POSES.forEach((p, k) => labCaption(ctx, p, 110 + k * 150, 76, 12, UI_TEXT));
@@ -9471,19 +9481,21 @@ function labViewPoses(ctx, ui, st, t) {
     LAB_POSES.forEach((p, k) => labDrawFigure(ctx, c, idx[r], 110 + k * 150, yF, ppm, 1, p, t)); });
 }
 function labViewHair(ctx, ui, st, t) {
-  const base = LAB_CAST[st.ch];
-  for (let s = 0; s < 14; s++) for (let f = 0; f < 2; f++) { const c = { name: base.name, h: base.h, age: 24, look: Object.assign({}, base.look, { hair: s, facialHair: 0, acc: {}, hairColor: s === 13 ? 0 : [0, 1, 2, 0, 1, 0, 1, 0, 0, 2, 3, 0, 5, 0][s] }), colors: base.colors }; const cx = 60 + s * 86, cy = 130 + f * 120; labDrawHead(ctx, c, cx, cy, 80, f ? -1 : 1, 'neutral', t); if (!f) labCaption(ctx, LAB_HAIR_NAMES[s], cx, 72, 11, UI_TEXT); }
-  labCaption(ctx, 'Hair colors', 60, 300, 12, UI_DIM, 'left');
-  for (let k = 0; k < 14; k++) { const c = { name: base.name, h: base.h, age: 24, look: Object.assign({}, base.look, { hair: k % 2 ? 10 : 3, hairColor: k, facialHair: 0, acc: {} }), colors: base.colors }; labDrawHead(ctx, c, 60 + k * 86, 380, 80, 1, 'neutral', t); }
-  labCaption(ctx, 'Facial hair (age 28) and aging (ages 16 / 28 / 36 / 42)', 60, 480, 12, UI_DIM, 'left');
-  for (let k = 0; k < 6; k++) { const c = { name: base.name, h: base.h, age: 28, look: Object.assign({}, base.look, { hair: 1, hairColor: 1, facialHair: k, acc: {} }), colors: base.colors }; labDrawHead(ctx, c, 60 + k * 110, 580, 90, 1, 'neutral', t); labCaption(ctx, LAB_FACIAL_NAMES[k], 60 + k * 110, 645, 11, UI_TEXT); }
-  [16, 28, 36, 42].forEach((age, k) => { const c = { name: base.name, h: base.h, age, look: Object.assign({}, base.look, { hair: 10, hairColor: 2, facialHair: 5 }), colors: base.colors }; labDrawHead(ctx, c, 760 + k * 120, 580, 90, 1, 'neutral', t); labCaption(ctx, 'age ' + age, 760 + k * 120, 645, 11, UI_TEXT); });
+  const base = LAB_CAST[st.ch]; // F10: two-word names on two lines and the rows 34 px lower (the names ran into each other)
+  const names = (txt, x, y, color) => txt.split(' ').forEach((w, j) => labCaption(ctx, w, x, y + j * 20, 11, color || UI_TEXT));
+  for (let s = 0; s < 14; s++) for (let f = 0; f < 2; f++) { const c = { name: base.name, h: base.h, age: 24, look: Object.assign({}, base.look, { hair: s, facialHair: 0, acc: {}, hairColor: s === 13 ? 0 : [0, 1, 2, 0, 1, 0, 1, 0, 0, 2, 3, 0, 5, 0][s] }), colors: base.colors }; const cx = 60 + s * 86, cy = 164 + f * 120; labDrawHead(ctx, c, cx, cy, 80, f ? -1 : 1, 'neutral', t); if (!f) names(LAB_HAIR_NAMES[s], cx, 64); }
+  labCaption(ctx, 'Hair colors', 60, 334, 12, UI_DIM, 'left');
+  for (let k = 0; k < 14; k++) { const c = { name: base.name, h: base.h, age: 24, look: Object.assign({}, base.look, { hair: k % 2 ? 10 : 3, hairColor: k, facialHair: 0, acc: {} }), colors: base.colors }; labDrawHead(ctx, c, 60 + k * 86, 414, 80, 1, 'neutral', t); }
+  labCaption(ctx, 'Facial hair (age 28) and aging (ages 16 / 28 / 36 / 42)', 60, 506, 12, UI_DIM, 'left');
+  for (let k = 0; k < 6; k++) { const c = { name: base.name, h: base.h, age: 28, look: Object.assign({}, base.look, { hair: 1, hairColor: 1, facialHair: k, acc: {} }), colors: base.colors }; labDrawHead(ctx, c, 60 + k * 110, 600, 90, 1, 'neutral', t); names(LAB_FACIAL_NAMES[k], 60 + k * 110, 666); }
+  [16, 28, 36, 42].forEach((age, k) => { const c = { name: base.name, h: base.h, age, look: Object.assign({}, base.look, { hair: 10, hairColor: 2, facialHair: 5 }), colors: base.colors }; labDrawHead(ctx, c, 760 + k * 120, 600, 90, 1, 'neutral', t); labCaption(ctx, 'age ' + age, 760 + k * 120, 666, 11, UI_TEXT); });
 }
 function labViewCrowd(ctx, ui, st, t) {
-  const A = fanAtlasFor('pro', LAB_CAST[5].colors, LAB_CAST[0].colors); const sc = Math.min(1200 / A.canvas.width, 520 / A.canvas.height);
-  ctx.fillStyle = '#222B5E'; ctx.fillRect(40, 90, A.canvas.width * sc, A.canvas.height * sc); ctx.drawImage(A.canvas, 40, 90, A.canvas.width * sc, A.canvas.height * sc);
-  ['seated', 'cheer', 'standing', 'clap A', 'clap B', 'oooh'].forEach((n, i) => labCaption(ctx, n, 36, 90 + (i + 0.5) * A.h * sc, 11, UI_TEXT, 'right'));
-  labCaption(ctx, 'Crowd atlas · ' + A.n + ' fans × 6 poses · ' + A.w + '×' + A.h + ' cells · baked per match in the two teams' + "'" + ' colors (40% home, 25% away, 35% neutral)', 640, 640, 13, UI_TEXT);
+  const A = fanAtlasFor('pro', LAB_CAST[5].colors, LAB_CAST[0].colors), x0 = 130; const sc = Math.min(1120 / A.canvas.width, 520 / A.canvas.height), bot = 90 + A.canvas.height * sc; // F10: room on the left for the pose names
+  ctx.fillStyle = '#222B5E'; ctx.fillRect(x0, 90, A.canvas.width * sc, A.canvas.height * sc); ctx.drawImage(A.canvas, x0, 90, A.canvas.width * sc, A.canvas.height * sc);
+  ['seated', 'cheer', 'standing', 'clap A', 'clap B', 'oooh'].forEach((n, i) => labCaption(ctx, n, x0 - 10, 90 + (i + 0.5) * A.h * sc, 11, UI_TEXT, 'right'));
+  labCaption(ctx, 'Crowd atlas · ' + A.n + ' fans × 6 poses · ' + A.w + '×' + A.h + ' cells', 640, bot + 34, 13, UI_TEXT); // F10: two lines (one ran off the screen)
+  labCaption(ctx, 'baked per match in the two teams' + "'" + ' colors (40% home, 25% away, 35% neutral)', 640, bot + 58, 13, UI_DIM);
 }
 function labViewVenues(ctx, ui, st, t) {
   labVenueIds().forEach((id, k) => { const col = k % 4, row = Math.floor(k / 4); const x = 20 + col * 312, y = 110 + row * 250; const img = labVenueShot(id, 1280, 720); ctx.drawImage(img, x, y, 300, 169); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, 300, 169); labCaption(ctx, (COURTS[id] ? COURTS[id].name || id : id), x + 8, y + 14, 13, UI_GOLD, 'left'); });
@@ -9492,19 +9504,19 @@ function labViewVenues(ctx, ui, st, t) {
 function labViewBody(ctx, ui, st, t) {
   const ppm = 128, yF = 420; ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.beginPath(); ctx.moveTo(30, yF); ctx.lineTo(660, yF); ctx.stroke();
   const geared = Object.assign({}, LAB_CAST[4], { look: Object.assign({}, LAB_CAST[4].look, { acc: { headband: true, sleeve: true, wristband: true, earring: true } }) });
-  [[LAB_CAST[0], 0, 1, 'idle'], [geared, 4, 1, 'idle'], [LAB_CAST[11], 11, 1, 'idle'], [LAB_CAST[6], 6, -1, 'defense']].forEach(([c, i, fc, pose], k) => { const x = 95 + k * 160; labDrawFigure(ctx, c, i, x, yF, ppm, fc, pose, t); labCaption(ctx, c.name.split(' ')[0] + ' · ' + fmtHeight(c.h) + (c === geared ? ' · all cosmetics' : ''), x, yF + 16, 11, UI_TEXT); });
+  [[LAB_CAST[0], 0, 1, 'idle'], [geared, 4, 1, 'idle'], [LAB_CAST[11], 11, 1, 'idle'], [LAB_CAST[6], 6, -1, 'defense']].forEach(([c, i, fc, pose], k) => { const x = 95 + k * 160; labDrawFigure(ctx, c, i, x, yF, ppm, fc, pose, t); labCaption(ctx, c.name.split(' ')[0] + ' · ' + fmtHeight(c.h), x, yF + 16, 11, UI_TEXT); if (c === geared) labCaption(ctx, 'all cosmetics', x, yF + 36, 11, UI_DIM); }); /* F10: two lines (one ran into its neighbors) */
   const poses = ['relaxed', 'open', 'cupped', 'fist', 'point', 'clap', 'highfive'], k = 470;
-  poses.forEach((p, j) => labCaption(ctx, p === 'cupped' ? 'holding' : p === 'highfive' ? 'high-five' : p, 714 + j * 72, 88, 12, UI_TEXT));
+  poses.forEach((p, j) => labCaption(ctx, ({ relaxed: 'relax', cupped: 'hold', highfive: 'hi-5' })[p] || p, 700 + j * 66, 88, 12, UI_TEXT)); /* F10: short names, so the seven fit */
   [[LAB_CAST[0], false, false], [LAB_CAST[11], false, true], [LAB_CAST[5], true, true]].forEach(([c, far, wrist], r) => {
     const L = normLook(c.look, c.name), T = skinToneOf(L), kit = kitOf({ colors: c.colors, pattern: 'solid' }, L);
-    labCaption(ctx, far ? 'far hand' : wrist ? 'wristband' : 'near hand', 1236, 140 + r * 100, 11, UI_DIM, 'right');
-    poses.forEach((p, j) => { try { ctx.save(); ctx.translate(704 + j * 72, 140 + r * 100); ctx.scale(k, k); drawHand(ctx, T, { x: 0, y: 0, pose: p, r: p === 'clap' ? 0 : p === 'highfive' ? -Math.PI / 2 : -0.2, tick: p === 'clap' ? 1 : 0 }, far, Math.max(ART.bodyLine, 2 / k), kit, wrist); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); } });
+    labCaption(ctx, far ? 'far hand' : wrist ? 'wristband' : 'near hand', 1250, 140 + r * 100, 11, UI_DIM, 'right');
+    poses.forEach((p, j) => { try { ctx.save(); ctx.translate(690 + j * 66, 140 + r * 100); ctx.scale(k, k); drawHand(ctx, T, { x: 0, y: 0, pose: p, r: p === 'clap' ? 0 : p === 'highfive' ? -Math.PI / 2 : -0.2, tick: p === 'clap' ? 1 : 0 }, far, Math.max(ART.bodyLine, 2 / k), kit, wrist); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); } });
   });
   labCaption(ctx, 'High-tops · team colorways and signature colorways · the far shoe is 15% darker', 40, 470, 12, UI_DIM, 'left');
   const ks = 640; [LAB_CAST[0], LAB_CAST[3], LAB_CAST[5], LAB_CAST[11], LAB_CAST[9]].forEach((c, j) => {
     const L = Object.assign({}, normLook(c.look, c.name)); if (j === 3) L.shoes = SIGNATURE_SHOES[1]; const kit = kitOf({ colors: c.colors, pattern: 'solid' }, L);
     try { ctx.save(); ctx.translate(100 + j * 240, 612); ctx.scale(ks, ks); drawSneaker(ctx, { x: 0, y: 0 }, j === 4, Math.max(ART.bodyLine, 2 / ks), kit); ctx.restore(); } catch (e) { ctx.restore(); labFail(e); }
-    labCaption(ctx, j === 3 ? 'signature ' + SIGNATURE_SHOES[1].join(' / ') : c.colors[0] + ' / ' + c.colors[1] + (j === 4 ? ' · far' : ''), 100 + j * 240 + 30, 632, 11, UI_TEXT);
+    labCaption(ctx, j === 3 ? SIGNATURE_SHOES[1].join(' / ') : c.colors[0] + ' / ' + c.colors[1], 100 + j * 240 + 30, 632, 11, UI_TEXT); if (j === 3 || j === 4) labCaption(ctx, j === 3 ? 'signature' : 'the far shoe', 100 + j * 240 + 30, 652, 11, UI_DIM); /* F10: the notes on a second line */
   });
 }
 // §10 the Legends check (see LEGENDS_CHECK). In-game scale = Legends View at 1280×720: 1280 px ÷ (the court and both walls: 16.8 m since R2).
@@ -9513,14 +9525,15 @@ function labViewLegends(ctx, ui, st, t) {
   const page = clamp(st.page | 0, 0, labPageCount(9) - 1), ppm = 1280 / (CONFIG.layout.legends.courtLength + 2 * CONFIG.layout.legends.wallPad);
   if (page === 0) {
     const yF = 470; labCaption(ctx, 'Legends check · in-game scale (Legends View, 1280×720) · floor reflections', 640, 70, 13, UI_TEXT);
-    const figs = LEGENDS_CHECK.map((q, k) => [labLegendsCast(k), 95 + k * 156]);
+    const figs = LEGENDS_CHECK.map((q, k) => [labLegendsCast(k), 80 + k * 160]);
     const drawAll = g => figs.forEach(([c, x], k) => labDrawFigure(g, c, c.idx, x, yF, ppm, k % 2 ? -1 : 1, k % 3 === 1 ? 'dribble' : 'idle', t, true));
     labLegendsFloor(ctx, yF, 720);
     if (!_labRefl) { _labRefl = document.createElement('canvas'); _labRefl.width = 1280; _labRefl.height = 720; } const rg = _labRefl.getContext('2d'); rg.setTransform(1, 0, 0, 1, 0, 0); rg.clearRect(0, 0, 1280, 720); drawAll(rg);
     ctx.save(); ctx.globalAlpha = 0.32; ctx.translate(0, 2 * yF); ctx.scale(1, -1); ctx.drawImage(_labRefl, 0, 0); ctx.restore();
     const fade = ctx.createLinearGradient(0, yF, 0, yF + 1.4 * ppm); fade.addColorStop(0, 'rgba(224,168,101,0)'); fade.addColorStop(1, 'rgba(224,168,101,1)'); ctx.fillStyle = fade; ctx.fillRect(0, yF, 1280, 1.4 * ppm); ctx.fillStyle = '#E0A865'; ctx.fillRect(0, yF + 1.4 * ppm, 1280, 720);
     drawAll(ctx);
-    figs.forEach(([c, x], k) => labCaption(ctx, c.name.split(' ')[0] + ' · ' + ART.shapeNames[c.look.face.shape] + ' · ' + ART.noseNames[c.look.face.nose], x, yF + 175, 11, '#3A1E0A'));
+    labCaption(ctx, 'under each player: the name, the face shape and the nose', 640, 92, 11, UI_DIM);
+    figs.forEach(([c, x]) => [c.name.split(' ')[0], ART.shapeNames[c.look.face.shape], ART.noseNames[c.look.face.nose]].forEach((txt, j) => labCaption(ctx, txt, x, yF + 150 + j * 22, 11, '#3A1E0A'))); // F10: three lines, 160 px apart (one line ran into its neighbors and off both edges)
   } else if (page <= LEGENDS_CHECK.length) {
     const c = labLegendsCast(page - 1); labCaption(ctx, page + ' / ' + LEGENDS_CHECK.length + ' · ' + c.name + ' · age ' + c.age + ' · skin ' + c.look.skin + ' · ' + ART.shapeNames[c.look.face.shape] + ' face · ' + ART.noseNames[c.look.face.nose] + ' nose · 384 px faces', 640, 70, 13, UI_TEXT);
     const cell = k => [170 + (k % 4) * 310, 250 + Math.floor(k / 4) * 290]; EXPRS.forEach((e, k) => { const [cx, cy] = cell(k); labDrawHead(ctx, c, cx, cy, 205, 1, e, t); });
@@ -9531,8 +9544,8 @@ function labViewLegends(ctx, ui, st, t) {
   }
 }
 // R1 §1.5 Retro check: 1 an in-game frame at 1280×720 (world pixels 2 screen px each); 2 the same moment on a phone
-// (844×390 at 2×, shown at half size: 1 screen px per world pixel); 3 4× crops of every character, a fan strip, a hoop and
-// a banner; 4 4× crops of the HUD and a menu, and the font specimen; 5 the automated checks.
+// (844×390 at 2×, shown at half size: 1 screen px per world pixel); 3–5 4× crops of every character, four a page; 6 4× crops
+// of a fan strip, a hoop, a banner, the HUD and a menu; 7 the font specimen and the automated checks.
 const _labRetro = {};
 function labRetroMatch(court) {
   const a = LAB_CAST[3], b = LAB_CAST[9];
@@ -9576,21 +9589,24 @@ function retroChecks(game) {
   RBF.audit = null; RT.audit = null; return out;
 }
 function labViewRetro(ctx, ui, st, t) {
-  const page = clamp(st.page | 0, 0, 5), T = Math.abs(ctx.getTransform().d) || 1, cap = (txt, y) => labCaption(ctx, txt, 640, y || 64, 13, UI_TEXT);
-  if (page === 0) { drawOnGrid(ctx, labRetroFrame(1280, 720, 1), 0, 0, 1280 / T, 720 / T); labCaption(ctx, 'Retro check 1 / 6 · in game at 1280×720 · k = 2: every world pixel is 2 screen px', 20, 692, 13, UI_TEXT, 'left'); }
-  else if (page === 1) { drawOnGrid(ctx, labRetroFrame(1688, 780, 2), 218, 120, 844 / T, 390 / T); cap('Retro check 2 / 6 · a phone, 844×390 at 2× (k = 2, 390 rows) · shown at half size: 1 screen px per world pixel', 540); }
-  else if (page === 2 || page === 3) { cap('Retro check ' + (page + 1) + ' / 6 · 4× crops: the characters at game size (1 world px = 4 screen px)');
-    labRetroChars().slice((page - 2) * 6, (page - 2) * 6 + 6).forEach((o, i) => { const x = 16 + i * 210; drawOnGrid(ctx, o.spr, x, 90, o.spr.width * 4 / T, o.spr.height * 4 / T); labCaption(ctx, o.c.name.split(' ')[0] + ' · ' + fmtHeight(o.c.h), x + 100, 690, 12, UI_DIM); }); }
-  else if (page === 4) { cap('Retro check 5 / 6 · 4× crops: a fan strip, a hoop, a banner, the HUD, a menu'); const f = labRetroFrame(1280, 720, 1), z = 2 / T; /* (the frame is 2 screen px per world px, so 2× is 4× world) */
+  const N = labPageCount(10), page = clamp(st.page | 0, 0, N - 1), T = Math.abs(ctx.getTransform().d) || 1, cap = (txt, y) => labCaption(ctx, txt, 640, y || 64, 13, UI_TEXT);
+  if (page === 0) { drawOnGrid(ctx, labRetroFrame(1280, 720, 1), 0, 0, 1280 / T, 720 / T); labCaption(ctx, 'Retro check 1 / ' + N + ' · in game at 1280×720 · k = 2: every world pixel is 2 screen px', 20, 692, 13, UI_TEXT, 'left'); }
+  else if (page === 1) { drawOnGrid(ctx, labRetroFrame(1688, 780, 2), 218, 120, 844 / T, 390 / T); cap('Retro check 2 / ' + N + ' · a phone, 844×390 at 2× (k = 2, 390 rows) · shown at half size: 1 screen px per world pixel', 540); }
+  else if (page <= 4) { cap('Retro check ' + (page + 1) + ' / ' + N + ' · 4× crops: the characters at game size (1 world px = 4 screen px)');
+    // F10: four a page, each centered on its own cell (six at 4× didn't fit: the last was cut and the names ran into the key hint)
+    labRetroChars().slice((page - 2) * 4, (page - 2) * 4 + 4).forEach((o, i) => { const cx = 160 + i * 320, bx = o.box || (o.box = labSpriteBox(o.spr)); drawOnGrid(ctx, o.spr, cx - (bx.x0 + bx.x1 + 1) * 2 / T, 90, o.spr.width * 4 / T, o.spr.height * 4 / T); labCaption(ctx, o.c.name.split(' ')[0] + ' · ' + fmtHeight(o.c.h), cx, 612, 12, UI_DIM); }); }
+  else if (page === 5) { cap('Retro check 6 / ' + N + ' · 4× crops: a fan strip, a hoop, a banner, the HUD, a menu'); const f = labRetroFrame(1280, 720, 1), z = 2 / T; /* (the frame is 2 screen px per world px, so 2× is 4× world) */
     const crop = (sx, sy, sw, sh, dx, dy, label) => { drawOnGrid(ctx, labCrop(f, sx, sy, sw, sh), dx, dy, sw * z, sh * z); labCaption(ctx, label, dx + sw * z / 2 * T, dy + sh * z * T + 12, 11, UI_DIM); };
     crop(560, 196, 170, 82, 20, 84, 'fans'); crop(90, 200, 110, 130, 390, 84, 'hoop'); crop(20, 60, 130, 136, 640, 84, 'banner'); crop(340, 6, 300, 76, 20, 390, 'HUD'); const mc = RBF.mainCanvas; if (mc) { drawOnGrid(ctx, labCrop(mc, 0, 0, 320, 64), 640, 390, 640 / T, 128 / T); labCaption(ctx, 'menu (this page, the frame before)', 960, 530, 11, UI_DIM); } }
-  else { cap('Retro check 6 / 6 · the Retro Ball font and the automated checks (§1.5)'); let y = 96; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  else { cap('Retro check 7 / ' + N + ' · the Retro Ball font and the automated checks (§1.5)'); let y = 96; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     [[2, '2× body text · The quick brown fox jumps over the lazy dog.'], [3, '3× 0123456789 · 21-19 · $2.4M'], [4, '4× HEADINGS']].forEach(([s, txt]) => { ctx.font = fontStr(s * 11 / T, true); ctx.fillStyle = UI_TEXT; ctx.fillText(txt, 40, y); y += s * 10 / T + 12; });
     labCaption(ctx, '(in-world signs use 1 world pixel per font pixel: 2 screen px here)', 40, y + 6, 11, UI_DIM, 'left'); kitTitle(ctx, 'HOOP HEADS', 1050, 160, 66, { align: 'center', ballAt: 1, arch: 2 }); /* right of the specimen lines, clear of the caption */
     const r = st.checks || (st.checks = retroChecks(null));
     const rows = [['Scaled draws with smoothing on (world buffer, screen)', r.smooth, r.smooth === 0], ['Bitmap glyph draws off a whole scale', r.glyphs + ' of ' + r.glyphN, r.glyphs === 0], ['Text drawn in any other font', r.native, r.native === 0], ['Character outline gaps (' + r.sprites + ' sprites scanned)', r.gaps, r.gaps === 0], ['Most colors in one sprite (limit ' + ART.rtColors + ')', r.colorsMax, r.colorsMax <= ART.rtColors]];
     rows.forEach(([lab, v, ok], i) => { const yy = 330 + i * 56; labCaption(ctx, lab, 60, yy, 16, UI_TEXT, 'left'); labCaption(ctx, String(v), 980, yy, 16, UI_GOLD, 'right'); labCaption(ctx, ok ? 'PASS' : 'FAIL', 1040, yy, 16, ok ? UI_GREEN : UI_RED, 'left'); }); }
 }
+// The columns a sprite's pixels span (its content, without the transparent margin).
+function labSpriteBox(c) { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x0 = c.width, x1 = 0; for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; } return x1 >= x0 ? { x0, x1 } : { x0: 0, x1: c.width - 1 }; }
 function labCrop(src, sx, sy, sw, sh) { const c = document.createElement('canvas'); c.width = sw; c.height = sh; c.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh); return c; }
 // One sheet of the UI kit in 620×612 design px: the logo, headings, the five button states, a select wall row, big digits.
 function labUiSample(ctx, ui, x, y, t) {
@@ -9678,7 +9694,7 @@ function labViewClips(ctx, ui, st, t) {
   for (let r = 0; r < LAB_CLIP_ROWS; r++) {
     const k = page * LAB_CLIP_ROWS + r; if (k >= LAB_CLIPS.length) break; const [clip, dur] = LAB_CLIPS[k], yF = 230 + r * 140;
     ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.moveTo(150, yF); ctx.lineTo(1260, yF); ctx.stroke();
-    labCaption(ctx, clip.replace(':', ' · '), 20, yF - 44, 13, UI_TEXT, 'left'); labCaption(ctx, Math.round(dur * 1000) + ' ms', 20, yF - 26, 11, UI_DIM, 'left');
+    const [nm, vr] = clip.split(':'); labCaption(ctx, nm, 20, yF - (vr ? 64 : 44), 13, UI_TEXT, 'left'); if (vr) labCaption(ctx, vr, 20, yF - 44, 13, UI_TEXT, 'left'); labCaption(ctx, Math.round(dur * 1000) + ' ms', 20, yF - 24, 11, UI_DIM, 'left'); // F10: a variant on its own line (a long one ran into the first frame's jersey number)
     for (let j = 0; j < LAB_CLIP_FRAMES; j++) labDrawClipFigure(ctx, c, 5, 205 + j * 144, yF, ppm, clip, dur * j / (LAB_CLIP_FRAMES - 1));
   }
 }
@@ -9714,7 +9730,7 @@ function labSymScore(c) { let r = _labSym.get(c.name); if (!r) { r = faceSymmetr
 // line to the nose line) and the jaw (0.80).
 function labFaceGuides(ctx, L, cx, cy, u) {
   const fr = faceFrame(L), X = v => cx + v * u, Y = v => cy + v * u; ctx.save(); ctx.lineWidth = 1.5; ctx.font = fontStr(11, false); ctx.textBaseline = 'middle';
-  const hl = (y, label, col) => { ctx.strokeStyle = col; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(X(-0.62), Y(y)); ctx.lineTo(X(0.62), Y(y)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.fillText(label, X(0.64), Y(y)); };
+  const hl = (y, label, col) => { ctx.strokeStyle = col; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(X(-0.62), Y(y)); ctx.lineTo(X(0.62), Y(y)); ctx.stroke(); ctx.setLineDash([]); }; // F10: labeled once, in the page's key (labels beside each face ran into the next face and off the screen)
   hl(fr.top, 'crown', 'rgba(94,224,255,0.9)'); hl(fr.chin, 'chin', 'rgba(94,224,255,0.9)'); hl(fr.eyeY, 'eyes 46%', 'rgba(255,210,63,0.95)'); hl(fr.noseY, 'nose 62%', 'rgba(255,138,42,0.95)'); hl(fr.mouthY, 'mouth 74%', 'rgba(226,76,138,0.95)');
   ctx.strokeStyle = 'rgba(94,224,255,0.6)'; ctx.beginPath(); ctx.moveTo(X(0), Y(fr.top - 0.05)); ctx.lineTo(X(0), Y(fr.chin + 0.05)); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,210,63,0.95)'; for (const s of [1, -1]) { ctx.strokeRect(X(s * ART.eyeX - ART.eyeW / 2), Y(fr.eyeY - ART.eyeH / 2), ART.eyeW * u, ART.eyeH * u); ctx.beginPath(); ctx.arc(X(s * ART.eyeX), Y(fr.eyeY), ART.irisR * u, 0, TAU); ctx.stroke(); }
@@ -9722,21 +9738,31 @@ function labFaceGuides(ctx, L, cx, cy, u) {
   ctx.strokeStyle = 'rgba(226,76,138,0.95)'; for (const [w, dy] of [[ART.mouthW, 0], [ART.grinW, 0.035]]) { ctx.beginPath(); ctx.moveTo(X(-w / 2), Y(fr.mouthY + dy)); ctx.lineTo(X(w / 2), Y(fr.mouthY + dy)); for (const s of [1, -1]) { ctx.moveTo(X(s * w / 2), Y(fr.mouthY + dy - 0.02)); ctx.lineTo(X(s * w / 2), Y(fr.mouthY + dy + 0.02)); } ctx.stroke(); }
   const pts = headPoints(L), ey = (fr.eyeY + fr.noseY) / 2; ctx.strokeStyle = 'rgba(180,255,120,0.95)';
   for (const s of [1, -1]) { const ex = faceEdgeX(pts, ey, s) + s * ART.earW * 0.15; ctx.strokeRect(X(ex - ART.earW / 2), Y(ey - ART.earH / 2), ART.earW * u, ART.earH * u); }
-  ctx.beginPath(); ctx.moveTo(X(-0.4), Y(pts[4][1])); ctx.lineTo(X(0.4), Y(pts[4][1])); for (const s of [1, -1]) { ctx.moveTo(X(s * 0.4), Y(pts[4][1] - 0.03)); ctx.lineTo(X(s * 0.4), Y(pts[4][1] + 0.03)); } ctx.stroke(); ctx.fillStyle = 'rgba(180,255,120,0.95)'; ctx.textAlign = 'left'; ctx.fillText('jaw 0.80', X(0.64), Y(pts[4][1]));
+  ctx.beginPath(); ctx.moveTo(X(-0.4), Y(pts[4][1])); ctx.lineTo(X(0.4), Y(pts[4][1])); for (const s of [1, -1]) { ctx.moveTo(X(s * 0.4), Y(pts[4][1] - 0.03)); ctx.lineTo(X(s * 0.4), Y(pts[4][1] + 0.03)); } ctx.stroke();
   ctx.restore();
+}
+// The construction's key: each line's color and what it marks.
+const LAB_GUIDE_KEY = [['crown · chin', 'rgba(94,224,255,0.9)'], ['eyes 46%', 'rgba(255,210,63,0.95)'], ['nose 62%', 'rgba(255,138,42,0.95)'], ['mouth 74%', 'rgba(226,76,138,0.95)'], ['jaw 0.80 · ears', 'rgba(180,255,120,0.95)']];
+function labGuideKey(ctx, x, y) {
+  ctx.font = fontStr(11, false); const ws = LAB_GUIDE_KEY.map(([txt]) => ctx.measureText(txt).width + 34); let xx = x - (ws.reduce((q, w) => q + w, 0) + (ws.length - 1) * 24) / 2;
+  LAB_GUIDE_KEY.forEach(([txt, col], k) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(xx, y); ctx.lineTo(xx + 26, y); ctx.stroke(); ctx.setLineDash([]); labCaption(ctx, txt, xx + 34, y, 11, col, 'left'); xx += ws[k] + 24; });
 }
 function labViewSymmetry(ctx, ui, st, t) {
   const pg = clamp(st.page | 0, 0, 5), guides = pg >= 3, first = (pg % 3) * 4, u = 256;
-  labCaption(ctx, 'Symmetry (L14) · 12 faces front-on at 256 px · the right half vs the left half mirrored · page ' + (pg + 1) + ' / 6' + (guides ? ' · with the construction' : ''), 640, 70, 13, UI_TEXT);
+  // F10: the title on two lines, one key for the construction and a panel line per fact (they ran into each other and off the screen)
+  labCaption(ctx, 'Symmetry (L14) · page ' + (pg + 1) + ' / 6 · 12 faces front-on at 256 px' + (guides ? ' · with the construction' : ''), 640, 66, 13, UI_TEXT);
+  labCaption(ctx, 'each score compares the right half with the left half mirrored', 640, 88, 11, UI_DIM);
+  if (guides) labGuideKey(ctx, 640, 526);
   for (let k = 0; k < 4; k++) {
-    const i = first + k, c = LAB_CAST[i]; if (!c) continue; const cx = 172 + k * 312, cy = 318, look = Object.assign({ v: 2 }, c.look);
+    const i = first + k, c = LAB_CAST[i]; if (!c) continue; const cx = 172 + k * 312, cy = 330, look = Object.assign({ v: 2 }, c.look);
     try { drawFace(ctx, look, cx, cy, u, 1, 'neutral', { name: c.name, age: c.age, team: c.colors, front: true, noBlink: true, lookX: 0, lookY: 0, t: 0, force: true }); if (guides) labFaceGuides(ctx, normLook(look, c.name), cx, cy, u); } catch (e) { labFail(e); }
     let r = null; try { r = labSymScore(c); } catch (e) { labFail(e); }
-    ctx.fillStyle = 'rgba(8,10,30,0.8)'; ctx.fillRect(cx - 140, 548, 280, 92);
-    labCaption(ctx, (i + 1) + ' · ' + c.name + ' · ' + LAB_HAIR_NAMES[c.look.hair], cx, 562, 13, UI_TEXT);
-    if (r) { const ok = r.diff < 0.03; labCaption(ctx, 'mirror diff ' + (r.diff * 100).toFixed(2) + '% ' + (r.symmetricHair ? (ok ? '✓ (< 3%)' : '✗ (≥ 3%)') : '(asymmetric hair: exempt)'), cx, 586, 13, r.symmetricHair ? (ok ? '#B8FF5A' : '#FF6B6B') : UI_DIM);
-      labCaption(ctx, 'eye width ratio ' + r.eyeRatio.toFixed(2) + ' · eye height diff ' + Math.abs(r.eyeDy).toFixed(3), cx, 608, 12, r.eyeRatio === 1 && r.eyeDy === 0 ? '#B8FF5A' : '#FF6B6B');
-      labCaption(ctx, r.px + ' px compared', cx, 628, 11, UI_DIM); }
+    ctx.fillStyle = 'rgba(8,10,30,0.8)'; ctx.fillRect(cx - 150, 544, 300, 146);
+    labCaption(ctx, (i + 1) + ' · ' + c.name, cx, 558, 13, UI_TEXT); labCaption(ctx, 'hair: ' + LAB_HAIR_NAMES[c.look.hair], cx, 580, 11, UI_DIM);
+    if (r) { const ok = r.diff < 0.03, sym = r.symmetricHair; labCaption(ctx, 'mirror diff ' + (r.diff * 100).toFixed(2) + '%' + (sym ? (ok ? ' ✓' : ' ✗') : ''), cx, 604, 13, sym ? (ok ? '#B8FF5A' : '#FF6B6B') : UI_DIM);
+      labCaption(ctx, sym ? 'passes under 3%' : 'asymmetric hair: exempt', cx, 626, 11, UI_DIM);
+      labCaption(ctx, 'eye ratio ' + r.eyeRatio.toFixed(2) + ', dy ' + Math.abs(r.eyeDy).toFixed(3), cx, 650, 12, r.eyeRatio === 1 && r.eyeDy === 0 ? '#B8FF5A' : '#FF6B6B');
+      labCaption(ctx, r.px + ' px compared', cx, 672, 11, UI_DIM); }
   }
 }
 
