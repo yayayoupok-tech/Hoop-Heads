@@ -3,6 +3,137 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R6 — College: the program you pick, a conference, its tournament, the national tournament, NIL, draft stock, the transfer portal and an agent (the R pass, milestone 6)
+
+Every game is still 1v1 (the change of plan): the program is your team, its record is yours, and your teammates are
+its depth chart.
+
+**The program you pick** (§3.5: blue bloods are deep, mid-majors start you)
+
+- Where you start on the depth chart: a small school or a mid-major starts you, a power program has you second, a blue
+  blood third (R4 had 1 / 2 / 3 / 4). When you arrive, the teammates ahead of you are 1 to 4 OVR better and everyone
+  else is at least 1 under you. The old rosters were built around the program's level, not yours, so most teammates
+  outranked you: in the career simulator freshmen sat whole seasons and the transfer portal opened in 7 of 8 careers.
+- The offer cards show the start ("you start" or "#3 to begin"), and each tier's blurb spells out the trade-off: a
+  blue blood is a deep roster with the biggest spotlight (scouts, NIL, a national tournament bid most years); a
+  mid-major starts you but needs a great season to get to the national tournament.
+
+**The season**
+
+- Three marquee non-conference games first (opponents 3 OVR over the level; scouts count them twice), then a single
+  round robin in an eight-program conference (seven games; your rival is in it). The conference record ranks you; the
+  overall record counts everything, the tournaments included.
+- **The conference tournament:** all eight programs, seeded by conference record, three rounds. The champion gets an
+  automatic bid.
+- **Selection:** everyone else is judged on a résumé (30 × the season's win share, 5 per program tier, 0.6 per OVR
+  point over the level, 2 for the conference title, 3 for the tournament title) that ranks you among 350 programs.
+  The top 45 get at-large bids; a LEFT OUT card if you miss.
+- **The national tournament:** 64 programs in four regions (seeds 1 to 16 by national rank), six rounds, simulated
+  around your games; its top seeds are up to 7 OVR over the level. Standings has both brackets (your region, then the
+  Final Four).
+- Awards: National champion (a title), National semifinalist, Conference tournament champion, Conference champion,
+  Conference MVP (first, with 5 of 7 conference wins), All-Conference 1st and 2nd team. The season recap ends with
+  NATIONAL CHAMPIONS!, "National tournament: out in the last 16" or "Left out of the national tournament (#62)".
+
+**Draft stock and the mock draft**
+
+- Every game you play moves your draft score: a win +0.5, a loss −0.3, and your points (−0.5 to +0.8 around 18),
+  twice as much in a marquee or tournament game, × 0.35, capped at ±4. Half of it carries into the next season.
+- A mock draft pick after every game. The DRAFT STOCK screen (a hub link in college) shows the scouts' grade, the mock
+  pick game by game (this season and last) and an agent's read.
+
+**NIL deals** (a card: take it or turn it down)
+
+- A preseason offer (with hype, an OVR edge over your level, four or five stars, or half the time anyway) and after
+  big games (20 points, or a marquee or tournament win; a quarter of the time). A deal is $4,000 × hype × your edge ×
+  the program tier × appearances (none to two; each costs 8 fatigue in a game week). The money comes with you to the
+  pros.
+
+**The transfer portal**
+
+- After a season with half your games or more on the bench (years 1 to 3): two programs that start you (one of the
+  same tier a rung higher, one a tier down at #1). Transfer (the next season there, a new team and conference), stay,
+  or declare.
+
+**Declaring and the agent**
+
+- The draft decision shows your mock pick and an agent's advice: go if you're a lottery or first-round pick (or a
+  second-rounder as a junior), stay if you're a fringe pick.
+- On the way to the draft (declaring, a senior's last season, skipping college or leaving from the portal) an agent
+  calls: 10% more on every contract (the rookie deal and free-agency offers) for 4% of your salary. Sign or go it
+  alone; the pros' BUSINESS screen shows your game check after the agent.
+
+**Screens and cards:** DRAFT STOCK, CONFERENCE TOURNAMENT and NATIONAL TOURNAMENT brackets, NIL OFFER and AN AGENT CALLS
+(yes-or-no cards), TRANSFER PORTAL, the draft decision with the agent; the hub's labels (MARQUEE · GAME 3 OF 10 · HOME,
+CONFERENCE QUARTERFINAL, NATIONAL · LAST 16) and headline (conference record, overall, mock pick); Standings with the
+marquee games and both tournaments; THE FIELD OF 64, LEFT OUT, TRANSFER; results labelled Marquee game, Conference
+tournament, National. On a phone the portal's four choices sit in a 2 × 2 grid.
+
+**Tuning**
+
+- College XP (games, practice, the bench) ×0.7: a season is now 11 to 19 games, not 7 to 9. At ×1.0 the career
+  simulator's players were 1 to 2 OVR better from 21 to 29 and won 1.8 pro titles a career (the R5 build on the same
+  seed: 1.43).
+- College opponents' mean 61 → 59: the new season adds marquee games at +3 and a tournament field up to +7, and at 61
+  the simulator's college teams won 38% of their games.
+- The résumé's national-rank curve: mean 16, spread 7 (at 20 and 8 only 7% of the simulator's seasons made the field).
+
+**The career simulator** (the suite's 40 careers, seed 1; the college line and a new line by program tier)
+
+| Program tier | Seasons | Win share | On the bench | National tournament | Conference tournament titles |
+| --- | --- | --- | --- | --- | --- |
+| Small school | 7 | 0.37 | 1% | 14% | 1 |
+| Mid-major | 43 | 0.41 | 12% | 5% | 1 |
+| Power program | 35 | 0.44 | 39% | 46% | 4 |
+| Blue blood | 6 | 0.47 | 26% | 100% | 0 |
+
+- 2.3 college seasons a career; 27% of seasons end in the national tournament (0.7 wins a trip; one Final Four in
+  40 careers; no national title, it takes six straight wins against the best); 3.8 NIL offers a career, 2.4
+  taken (the simulator takes deals with one appearance or none), $15,750 by the median; 14 careers went through the
+  portal (the simulator transfers a tier down); the median mock pick at a season's end is #39.
+- A mid-major's road to the national tournament is its conference tournament; a blue blood gets in on its résumé
+  even after a losing season. The simulator plays every game from OVR and its players sit under the college mean for
+  their first years (a player who plays the games does better).
+
+**Saves:** the amateur career goes to v5 (draft stock, the mock log and NIL start now); a college season in progress
+finishes in its old format and the next one is the new season; a "NEW: COLLEGE" card explains it. New fixtures from the
+R5 build, among them a college career three games into its first season (`tests/fixtures/save_r5_*`).
+
+**New constants** (all with a one-line comment): `CONFIG.college` (the season: conference 8, marquee 3, marqueeGap 3;
+selection: fieldSize 64, nationTeams 350, resMean 16, resSd 7, atLarge 45, seedTop 7, seedStep 0.7;
+colXp 0.7; draft stock: stockStep 0.35, stockWin 0.5, stockLoss −0.3, stockPts 18, stockPtsDiv 12, stockMax 4,
+stockKeep 0.5; NIL: nilBase 4000, nilAppMul 0.4, nilFatigue 8, nilOdds 0.25, nilPts 20; portalShare 0.5, seatAhead 4;
+agentFee 0.04, agentRaise 0.1). Changed: `CONFIG.team.ladderStart` [1, 2, 3, 4] → [1, 1, 2, 3],
+`CONFIG.amateur.stageMean.college` 61 → 59.
+
+**Tests on the committed build**
+
+- Smoke 111/111 (desktop 1280×720 and phone 844×390). New: seating by tier (every program, the band of the teammates
+  ahead of you); the season (marquee games first, the conference round robin, the rival in the conference, every
+  conference team playing seven conference games); draft stock (a marquee game moves it twice as far, the cap, a mock
+  pick a game); the conference tournament, the automatic bid and a field of 64 with seeds 1 to 16 in every region, six
+  rounds to the national title and its awards; at-large bids (a 1-12 mid-major left out, a 12-1 blue blood in); NIL
+  (an accepted deal pays and books appearances, each costs fatigue; a declined one changes nothing); the portal (opens
+  at half the games on the bench, two offers, transferring, staying, declaring); the agent (the call on the way to the
+  draft, the rookie deal +10%, the 4% fee; no agent: the scale); a v4 college save finishing its old season; every new
+  screen draws. The R4 step now checks the blue blood's third rung. The first suite run failed two smoke steps, both
+  gaps in the test's flow on the same build: an NIL card where the flow expected the hub (the drain step didn't know
+  the new card) and a pause-menu step that found the player benched after a teammate's challenge (the career's seed is
+  random). The test handles both now; the rerun on the same build passed 111/111.
+- Modes 15/15 · old saves 24/24 (new fixtures from the R5 build: high school, pro, and a college career three games
+  into its first season) · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 92 screens at 844×390 (8 new: the college hub, standings with marquee games, draft stock, an NIL offer,
+  both brackets, the portal, the agent's call): nothing flagged, no errors. The same 92 at 1280×720: nothing flagged.
+- Art Lab: 54 shots, no errors (`shots/r6/round-final/`). Screenshots of the new screens: `shots/r6/`.
+- §2 gate and the balance harness: identical to R5 line for line.
+- The career simulator (40 careers, seed 1): 0 stuck; OVR 56 / 68 / 75 at 17 / 21 / 25, peak 79; 1.27 titles a
+  career; Hall of Fame 18%; every target met.
+- Trait balance (200 careers per trait, seed 1): 16 of 17 in range; Late Bloomer −22% (the line is −20%; R5 −19%). Its
+  own median is unchanged (43); the overall median rose from 53 to 55. The same test on seed 2: all 17 in range, Late
+  Bloomer −13%. Its numbers are the spec's, so I left them; R7 reruns the test.
+- Perf, 844×390 @2x in the pro arena: guard 0 median 23.2 ms; the R5 build right before it on the same machine: 23.0
+  (the suite's R5 run measured 21.7 on a quieter machine). No change: R6 touches no match code.
+
 ## R5 — High school: tryouts, a district, the state tournament, recruiting, summers and grades (the R pass, milestone 5)
 
 Every game is still 1v1 (the change of plan): your team is the school, its record is yours, and the teammates are

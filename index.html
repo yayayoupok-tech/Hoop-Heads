@@ -895,7 +895,7 @@ const CONFIG = {
     capMin: 40,                // lowest ceiling
     genesOdds: 0.3,            // chance of gifted genes: Speed, Hops and Strength bases +5
     stages: { hs: { label: 'High school', league: 'Metro High School 1v1 League', size: 8, target: 15, court: 'gym', years: 4 }, college: { label: 'College', league: 'Collegiate 1v1 Conference', size: 8, target: 21, court: 'college', years: 4 } }, // leagues (players, first-to score)
-    stageMean: { hs: 44, hsPerYear: 5, college: 61, collegePerYear: 3, collegePerTier: 2 }, // opponent OVR mean by level and year
+    stageMean: { hs: 44, hsPerYear: 5, college: 59, collegePerYear: 3, collegePerTier: 2 }, // opponent OVR mean by level and year (R6: college 61 → 59; the new season adds marquee games at +3 and a tournament field up to +7, and at 61 the career simulator's teams won 38% of their games)
     oppSd: 5.5,                // opponent OVR spread
     winScale: 5.5,             // simulated games: win chance = 1 / (1 + e^(−ΔOVR / winScale))
     playoffSeeds: 4,           // players who make the playoffs
@@ -1004,7 +1004,7 @@ const CONFIG = {
     growOdds: 0.35,            // each summer every rating of a returning teammate goes up a step with this chance
     proBench: -14,             // a pro franchise's bench players sit this far under the league's veteran mean OVR (R4: at -8 the career simulator's players sat 65 pro weeks a career on the bench, at -14 40)
     tierGap: [-6, -2, 2, 6],   // R4: a team's teammates average this far from your OVR when you join, by program tier (a small school: you're the best; a blue blood: they are)
-    ladderStart: [1, 2, 3, 4], // R4: the depth-chart rung you start on, by program tier (high school teams are tier 0: the top)
+    ladderStart: [1, 1, 2, 3], // R4: the depth-chart rung you start on, by program tier (high school teams are tier 0: the top). R6: [1, 2, 3, 4] became this: mid-majors start you (§3.5); with the old rosters most freshmen sat their whole first season and 7 of 8 careers went to the transfer portal
     proStartTop: 30,           // R4: a first-round pick starts at the top of the franchise's ladder; later picks start a rung down
     challengeTarget: 7,        // R4: a ladder challenge is a practice game to 7 (2s and 3s)
     challengeOdds: 0.2,        // R4: after each week's game the teammate a rung below you challenges you with this chance... (0.3 kept rookies benched half their first pro season in the career simulator)
@@ -1078,6 +1078,35 @@ const CONFIG = {
     autoStudyAt: 2.3,          // AUTO: when your GPA is under this, the week you don't plan is a Study week (your coach's rule)
     reportWeek: 5,             // report cards: after this many regular-season games, and at the end of the season
     hsXp: 0.75,                // high school XP × this (games, practice, the bench): the R5 season has about 40% more weeks, and a season should pay what it did
+  },
+  college: {                   // R6 §3.5: college (1v1: your team is the program, its record is yours)
+    conference: 8,             // programs in a conference, you included: seven conference games (a round robin), then all eight play its tournament (three rounds)
+    marquee: 3,                // non-conference marquee games first (scouts come to these)...
+    marqueeGap: 3,             // ...against programs this much over your level's mean OVR
+    fieldSize: 64,             // the national tournament: 64 programs, four regions of 16, six rounds
+    nationTeams: 350,          // programs in the country (the national rank)...
+    resMean: 16,               // ...résumé scores spread around this... (at 20 and 8, 7% of the career simulator's seasons made the field; at 16 and 7, 27%)
+    resSd: 7,                  // ...with this standard deviation. Résumé = 30 × win share + 5 × tier + 0.6 × (OVR − the level's mean) + titles
+    atLarge: 45,               // an at-large bid needs a national rank this good (the conference tournament champion gets in anyway)
+    seedTop: 7,                // the national field: a 1 seed sits this far over your level's mean OVR...
+    seedStep: 0.7,             // ...and every seed line below it this much less
+    colXp: 0.7,                // college XP × this (games, practice, the bench): a season is 11–19 games, not 7–9; at 1.0 the career simulator's players were 1–2 OVR better at 21–29 and won 1.8 pro titles a career (R5 on the same seed: 1.43)
+    stockStep: 0.35,           // draft stock: each game moves it by its grade × this (× 2 at marquee games and tournaments: scouts are there)
+    stockWin: 0.5,             // a game's grade: a win...
+    stockLoss: -0.3,           // ...a loss...
+    stockPts: 18,              // ...plus (points − this) / stockPtsDiv (capped −0.5 to +0.8)
+    stockPtsDiv: 12,
+    stockMax: 4,               // draft stock adds at most ± this to the draft score
+    stockKeep: 0.5,            // a new season keeps this share of last season's stock (scouts' memory)
+    nilBase: 4000,             // NIL: a deal's base value ($), × (1 + hype/15) × (1 + OVR over the level's mean / 20) × (1 + 0.3 × tier)...
+    nilAppMul: 0.4,            // ...× (1 + this × appearances)...
+    nilFatigue: 8,             // ...and each appearance costs this much fatigue in a game week
+    nilOdds: 0.25,             // after a big game (nilPts points or a marquee win) a deal comes with this chance
+    nilPts: 20,
+    portalShare: 0.5,          // the transfer portal opens after a season on the bench for this share of your games or more
+    seatAhead: 4,              // a college depth chart when you arrive: the teammates ahead of you are 1 to this many OVR better; everyone else is at least 1 under you
+    agentFee: 0.04,            // an agent takes this share of your salary...
+    agentRaise: 0.1,           // ...and gets you this much more on every contract
   },
   dev: {                       // development switches (the R-pass build): off in the release
     gameSeconds: 24,           // every match started from the menus lasts this long in all (two halves; 0 = the real formats). The gate, the harness and the career simulator keep their own formats
@@ -8664,7 +8693,7 @@ function managementScreen(game) {
     ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'MANAGEMENT', 40, 52, 34); ui.heading(ctx, fmtMoney(M.money), 1240, 52, 24, UI_GOLD, 'right');
     const me = meOf(c); const club = clubOf(me.club);
     if (st.tab === 0) { drawTeamCard(ctx, club, 60, 150, 300, 110, true, null); ui.heading(ctx, club.name.toUpperCase(), 390, 170, 22, UI_TEXT); ui.label(ctx, fmtMoney(M.contract.salary) + ' a season · ' + M.contract.years + ' season' + (M.contract.years === 1 ? '' : 's') + ' left' + (M.contract.rookie ? ' · rookie deal' : ''), 390, 200, 16, UI_TEXT); const hm = ui.para(ctx, 'Market value today: ' + fmtMoney(marketValue(c, me)) + ' a season. When your deal runs out, clubs make offers in the offseason.', 390, 228, 840, 14, UI_DIM); ui.label(ctx, 'Facilities: ' + '★'.repeat(c.facilities[club.id]) + '☆'.repeat(3 - c.facilities[club.id]) + ' · home court: ' + COURTS[CLUB_COURT[club.id]].name, 390, 228 + hm + 2, 14, UI_DIM);
-      let inc = Math.round(M.contract.salary / c.seasonLength); for (const e of M.endorsements) inc += e.weekly; let exp = 0; for (const r in M.staff) exp += CR.staffCost[M.staff[r]] || 0; ui.heading(ctx, 'EACH WEEK', 60, 320, 15, UI_CYAN); ui.label(ctx, 'Game check ' + fmtMoney(Math.round(M.contract.salary / c.seasonLength)) + ' · sponsors ' + fmtMoney(inc - Math.round(M.contract.salary / c.seasonLength)) + (exp ? ' · staff −' + fmtMoney(exp) : ' · no staff') + ' · net ' + fmtMoney(inc - exp), 60, 346, 16, UI_TEXT);
+      let inc = salaryWeek(c); for (const e of M.endorsements) inc += e.weekly; let exp = 0; for (const r in M.staff) exp += CR.staffCost[M.staff[r]] || 0; ui.heading(ctx, 'EACH WEEK', 60, 320, 15, UI_CYAN); ui.label(ctx, 'Game check ' + fmtMoney(salaryWeek(c)) + (M.agent ? ' (after your agent)' : '') + ' · sponsors ' + fmtMoney(inc - salaryWeek(c)) + (exp ? ' · staff −' + fmtMoney(exp) : ' · no staff') + ' · net ' + fmtMoney(inc - exp), 60, 346, 16, UI_TEXT);
       ui.heading(ctx, 'FAME ' + Math.round(M.fame), 60, 400, 15, UI_CYAN); meterBar(ctx, 60, 420, 400, 12, M.fame / 100, UI_GOLD); ui.para(ctx, 'Winning, big nights, highlights and awards raise it. Sponsors and All-Star votes follow it.', 60, 452, 1160, 14, UI_DIM); }
     if (st.tab === 1) { const y0 = P ? 104 : 160, fs = P ? 19 : 15, lh = P ? 30 : 26; ui.heading(ctx, 'ACTIVE DEALS', 60, y0, fs, UI_CYAN); if (!M.endorsements.length) ui.para(ctx, (M.offers.length ? 'No active deals. Check the offers below.' : 'No sponsors yet. Brands call when your fame grows (' + Math.round(M.fame) + ' now): win, score, make highlights, make the All-Star team.'), 60, y0 + 30, P ? 1160 : 1160, fs, UI_DIM); M.endorsements.slice(0, P ? 5 : 6).forEach((e, i) => ui.label(ctx, e.brand + ' (' + e.what + ') · ' + fmtMoney(e.weekly) + '/week · ' + e.weeks + ' weeks left', 60, y0 + 30 + i * lh, fs, UI_TEXT)); ui.heading(ctx, 'OFFERS', 60, P ? 306 : 330, fs, UI_CYAN); if (!M.offers.length) ui.label(ctx, 'None right now.', 60, P ? 340 : 360, fs, UI_DIM); }
     if (st.tab === 2) { const intro = 'Staff multiply training XP (+' + Math.round(CR.staffBonus * 100) + '% per star) for their sessions. The physio makes a Rest week take off +' + WK.restPhysio + ' more fatigue per star and cuts injuries. Paid every week.';
@@ -8885,24 +8914,29 @@ function amDecisionScreen(game) {
     title = 'COLLEGE OFFERS'; lines = ['OVR ' + amOvr(c) + ' · ' + fmtHeightFull(c.height) + ' · ' + c.titles + ' titles · ' + c.mvps + ' MVPs', 'Bigger programs play tougher schedules, and the draft notices.'];
     d.offers.forEach((o, i) => items.push(btn(o.draft ? o.name : o.name + '  ·  ' + AMC.tiers[o.tier], 240, 280 + i * 66, 800, 56, go(() => amChooseCollege(c, o)), i === 0 ? { primary: true } : undefined)));
   } else if (d && d.kind === 'declare') {
-    title = 'DRAFT DECISION'; lines = ['Scouts project you as ' + amProjLabel(c) + '.', 'Declare now, or go back to ' + c.college + ' for another year of development.'];
-    items.push(btn('Declare for the draft', 240, 290, 800, 58, go(() => amDeclare(c, true)), { primary: true }));
-    items.push(btn('Return to ' + c.college, 240, 360, 800, 58, go(() => amDeclare(c, false))));
+    title = 'DRAFT DECISION'; lines = ['Scouts project you as ' + amProjLabel(c) + ' · mock draft ' + colMockText(amPickFrom(amDraftScore(c))) + '.', 'Agent ' + colAgentName(c) + ': "' + colAgentAdvice(c) + '"', 'Declare now, or go back to ' + c.college + ' for another year.']; /* R6: the agent's advice */
+    items.push(btn('Declare for the draft', 240, 330, 800, 58, go(() => amDeclare(c, true)), { primary: true }));
+    items.push(btn('Return to ' + c.college, 240, 400, 800, 58, go(() => amDeclare(c, false))));
+  } else if (d && d.kind === 'portal') { /* R6: a season on the bench opens the transfer portal */
+    title = 'TRANSFER PORTAL'; lines = ['You started ' + Math.max(0, (d.games || 0) - (d.bench || 0)) + ' of ' + (d.games || 0) + ' games at ' + c.college + '.', 'These programs want you to start. Or stay and fight for the spot, or declare (' + amProjLabel(c) + ').'];
+    d.offers.forEach((o, i) => items.push(btn(game.ui.phone ? o.name : o.name + '  ·  ' + AMC.tiers[o.tier] + '  ·  you start at #' + (o.start || 1), 240, 300 + i * 66, 800, 56, go(() => colPortalChoose(c, o)), Object.assign(i === 0 ? { primary: true } : {}, game.ui.phone ? { sub: AMC.tiers[o.tier] + ((o.start || 1) === 1 ? ' · starts you' : ' · #' + o.start + ' on the depth chart') } : {}))));
+    items.push(btn('Stay at ' + c.college, 240, 300 + d.offers.length * 66, 800, 56, go(() => colPortalChoose(c, null))), btn('Declare for the draft', 240, 300 + (d.offers.length + 1) * 66, 800, 56, go(() => colPortalChoose(c, 'declare'))));
   }
   items.push(btn('Back', 240, 600, 200, 50, () => game.ui.pop())); const P = game.ui.phone;
-  if (P) { const h = tapH(game.ui, 44); items.forEach((b, i) => Object.assign(b, i < items.length - 1 ? { x: 240, y: 262 + i * (h + 10), w: 800, h } : { x: 240, y: UI_H - h - 12, w: 300, h })); } // phones: 64 px buttons, Back at the bottom
-  return { widgets: items, name: 'amdecision', draw(ctx, ui) { ui.panel(ctx, 200, P ? 12 : 64, 880, P ? 700 : 612); ui.title(ctx, title, 240, P ? 64 : 124, 42); lines.forEach((l, i) => ui.label(ctx, l, 240, (P ? 126 : 186) + i * 34, P ? 21 : 18, i === 0 ? UI_GOLD : UI_TEXT)); } };
+  const top = P ? (d && d.kind === 'declare' ? 330 : d && d.kind === 'portal' ? 290 : 262) : 0; /* R6: room for the longer text */
+  if (P) { const h = tapH(game.ui, 44); if (d && d.kind === 'portal') { phoneGrid(game.ui, items.slice(0, -1), 240, top, 800, 2, 0, 10); Object.assign(items[items.length - 1], { x: 240, y: UI_H - h - 12, w: 300, h }); } else items.forEach((b, i) => Object.assign(b, i < items.length - 1 ? { x: 240, y: top + i * (h + 10), w: 800, h } : { x: 240, y: UI_H - h - 12, w: 300, h })); } // phones: 64 px buttons, Back at the bottom (R6: the portal's four in a 2 × 2 grid)
+  return { widgets: items, name: 'amdecision', draw(ctx, ui) { ui.panel(ctx, 200, P ? 12 : 64, 880, P ? 700 : 612); ui.title(ctx, title, 240, P ? 64 : 124, 42); let y = P ? 110 : 170; lines.forEach((l, i) => { y += ui.para(ctx, l, 240, y, 800, P ? 20 : 18, i === 0 ? UI_GOLD : UI_TEXT) + 8; }); } };
 }
 function amStandingsScreen(game) {
-  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; const L0 = c.league; if (L0 && L0.playoffs && L0.playoffs.state) items.push(btn('State bracket', 280, 640, 240, 48, () => game.ui.push(stateBracketScreen(game)))); phoneBar(game.ui, items, null, 40, items.length > 1 ? 620 : 300); // phones: a 64 px Back, bottom left (R5: and the state bracket)
+  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; const L0 = c.league; if (L0 && L0.playoffs && L0.playoffs.state) items.push(btn('State bracket', 280, 640, 240, 48, () => game.ui.push(stateBracketScreen(game)))); if (L0 && L0.format === 'conf' && L0.playoffs) { items.push(btn('Conference bracket', 280, 640, 280, 48, () => game.ui.push(collegeBracketScreen(game, 'conf')))); if (L0.playoffs.nat || L0.missed) items.push(btn('National bracket', 580, 640, 260, 48, () => game.ui.push(collegeBracketScreen(game, 'nat')))); } /* R6 */ phoneBar(game.ui, items, null, 40, items.length > 2 ? 1000 : items.length > 1 ? 620 : 300); // phones: a 64 px Back, bottom left (R5: and the state bracket)
   return { widgets: items, name: 'amstandings', draw(ctx, ui) {
-    const L = c.league; ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'STANDINGS', 60, 70, 40); if (!L) { ui.para(ctx, c.tryout && c.tryout.step !== 'done' ? 'Tryouts first: the league starts when the coach has picked varsity and JV.' : 'No league right now.', 60, 110, 700, 16, UI_DIM); return; } ui.label(ctx, L.name + ' · season ' + c.season + (L.format === 'jv' ? ' · no playoffs on JV: win and you get called up' : ' · the top ' + AMC.playoffSeeds + (L.format === 'district' ? ' play the district playoffs, the champion goes to state' : ' make the playoffs')), 60, 104, 15, UI_DIM, 'left', 1160);
+    const L = c.league; ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'STANDINGS', 60, 70, 40); if (!L) { ui.para(ctx, c.tryout && c.tryout.step !== 'done' ? 'Tryouts first: the league starts when the coach has picked varsity and JV.' : 'No league right now.', 60, 110, 700, 16, UI_DIM); return; } ui.label(ctx, L.name + ' · season ' + c.season + (L.format === 'jv' ? ' · no playoffs on JV: win and you get called up' : L.format === 'conf' ? ' · all ' + CO.conference + ' play the conference tournament' : ' · the top ' + AMC.playoffSeeds + (L.format === 'district' ? ' play the district playoffs, the champion goes to state' : ' make the playoffs')), 60, 104, 15, UI_DIM, 'left', 1160);
     [['#', 70], ['TEAM · PLAYER', 110], ['W-L', 470], ['+/-', 540], ['OVR', 610], ['HEIGHT', 670]].forEach(([h, x]) => ui.label(ctx, h, x, 140, 13, UI_DIM));
-    const rh = L.opps.length > 9 ? 37 : 44; amTable(c).forEach((r, i) => { const y = 172 + i * rh; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.14)'; ctx.fillRect(60, y - 17, 700, 34); } if (i === AMC.playoffSeeds - 1 && L.format !== 'jv') { ctx.fillStyle = 'rgba(255,210,63,0.45)'; ctx.fillRect(60, y + rh / 2 - 1, 700, 2); } const col = r.me ? UI_GOLD : (r.rival ? UI_RED : UI_TEXT); const d = r.rec.pf - r.rec.pa;
+    const rh = L.opps.length > 9 ? 37 : 44; amTable(c).forEach((r, i) => { const y = 172 + i * rh; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.14)'; ctx.fillRect(60, y - 17, 700, 34); } if (i === AMC.playoffSeeds - 1 && L.format !== 'jv' && L.format !== 'conf') { ctx.fillStyle = 'rgba(255,210,63,0.45)'; ctx.fillRect(60, y + rh / 2 - 1, 700, 2); } const col = r.me ? UI_GOLD : (r.rival ? UI_RED : UI_TEXT); const d = r.rec.pf - r.rec.pa;
       ui.label(ctx, String(i + 1), 70, y, 17, col); if (r.team) { ui.heading(ctx, teamShort(r.team) + (r.rival ? ' (RIVAL)' : ''), 110, y - 9, 13, col, 'left', 350); ui.label(ctx, r.name + (r.me ? ' (you)' : ''), 110, y + 11, 12, r.me ? UI_GOLD : UI_DIM, 'left', 350); } else ui.label(ctx, r.name + (r.rival ? '  (rival)' : ''), 110, y, 17, col, 'left', 350); /* R3: each row is a team and the player it sends */ ui.label(ctx, r.rec.w + '-' + r.rec.l, 470, y, 17, col); ui.label(ctx, (d > 0 ? '+' : '') + d, 540, y, 17, col); ui.label(ctx, String(r.ovr), 610, y, 17, col); ui.label(ctx, fmtHeight(r.height), 670, y, 17, col); });
     ui.heading(ctx, 'YOUR SCHEDULE', 800, 140, 18, UI_CYAN); const regular = L.games.filter(x => !x.po);
-    const sh = L.schedule.length > 8 ? 32 : 34; L.schedule.forEach((id, i) => { const o = amOppById(c, id); const g = regular[i]; const y = 172 + i * sh; const tag = i === L.rivalryWeek || i === L.seniorNight ? ' ★' : ''; ui.label(ctx, (i + 1) + '. ' + (L.home && L.home.length ? (L.home[i] ? 'vs ' : '@ ') : '') + (o ? (o.team ? teamShort(o.team) : o.name) : '?') + tag, 800, y, 15, (i === L.week && !L.playoffs) ? UI_GOLD : tag ? UI_ORANGE : UI_TEXT, 'left', 290); if (g) ui.label(ctx, g.before ? '(before you)' : (g.won ? 'W ' : 'L ') + g.my + '–' + g.their, 1220, y, g.before ? 12 : 15, g.before ? UI_DIM : g.won ? UI_GREEN : UI_RED, 'right'); }); if (L.rivalryWeek >= 0 || L.seniorNight >= 0) ui.label(ctx, '★ ' + [L.rivalryWeek >= 0 ? 'the rivalry game' : '', L.seniorNight >= 0 ? 'senior night' : ''].filter(Boolean).join(' · ') + ' · @ away', 800, 172 + L.schedule.length * sh - 6, 12, UI_DIM, 'left', 420); /* R5: home/away, the rivalry game, senior night, the weeks before a call-up */
-    if (L.playoffs) { const po = L.playoffs; const y = 172 + L.schedule.length * (L.schedule.length > 8 ? 32 : 34) + (L.rivalryWeek >= 0 || L.seniorNight >= 0 ? 30 : 16); const nm = id => id === 'me' ? c.name : ((amOppById(c, id) || { name: '?' }).name); ui.heading(ctx, po.round >= 3 ? 'STATE TOURNAMENT' : L.format === 'district' ? 'DISTRICT PLAYOFFS' : 'PLAYOFFS', 800, y, 18, UI_ORANGE); ui.label(ctx, po.champion ? (po.round >= 3 ? 'State champion: ' : 'Champion: ') + nm(po.champion) : (po.pending ? (po.round >= 3 ? (HS_ROUND_LABEL[po.round] || 'State') + ' vs ' : po.round === 1 ? 'Semifinal vs ' : 'Final vs ') + nm(po.pending) : ''), 800, y + 30, 15, UI_TEXT, 'left', 420); }
+    const sh = L.schedule.length > 8 ? 32 : 34; L.schedule.forEach((id, i) => { const o = amOppById(c, id); const g = regular[i]; const y = 172 + i * sh; const tag = i === L.rivalryWeek || i === L.seniorNight || (o && o.marquee) ? ' ★' : ''; ui.label(ctx, (i + 1) + '. ' + (L.home && L.home.length ? (L.home[i] ? 'vs ' : '@ ') : '') + (o ? (o.team ? teamShort(o.team) : o.name) : '?') + tag, 800, y, 15, (i === L.week && !L.playoffs) ? UI_GOLD : tag ? UI_ORANGE : UI_TEXT, 'left', 290); if (g) ui.label(ctx, g.before ? '(before you)' : (g.won ? 'W ' : 'L ') + g.my + '–' + g.their, 1220, y, g.before ? 12 : 15, g.before ? UI_DIM : g.won ? UI_GREEN : UI_RED, 'right'); }); if (L.rivalryWeek >= 0 || L.seniorNight >= 0) ui.label(ctx, '★ ' + [L.rivalryWeek >= 0 ? 'the rivalry game' : '', L.seniorNight >= 0 ? 'senior night' : ''].filter(Boolean).join(' · ') + ' · @ away', 800, 172 + L.schedule.length * sh - 6, 12, UI_DIM, 'left', 420); /* R5: home/away, the rivalry game, senior night, the weeks before a call-up */ if (L.format === 'conf') ui.label(ctx, '★ marquee (scouts ×2) · @ away', 800, 172 + L.schedule.length * sh - 6, 12, UI_DIM, 'left', 420); /* R6 */
+    if (L.playoffs) { const po = L.playoffs; const y = 172 + L.schedule.length * (L.schedule.length > 8 ? 32 : 34) + (L.rivalryWeek >= 0 || L.seniorNight >= 0 || L.format === 'conf' ? 30 : 16); const nm = id => id === 'me' ? c.name : ((amOppById(c, id) || { name: '?' }).name); if (L.format === 'conf') { ui.heading(ctx, po.round >= 31 ? 'NATIONAL TOURNAMENT' : 'CONFERENCE TOURNAMENT', 800, y, 18, UI_ORANGE); ui.label(ctx, po.pending ? amRoundLabel(c, po.round) + ' vs ' + nm(po.pending) : L.missed ? 'Left out of the national tournament (#' + L.natRank + ')' : po.champion ? 'National champion: ' + nm(po.champion) : '', 800, y + 30, 15, UI_TEXT, 'left', 420); return; } /* R6 */ ui.heading(ctx, po.round >= 3 ? 'STATE TOURNAMENT' : L.format === 'district' ? 'DISTRICT PLAYOFFS' : 'PLAYOFFS', 800, y, 18, UI_ORANGE); ui.label(ctx, po.champion ? (po.round >= 3 ? 'State champion: ' : 'Champion: ') + nm(po.champion) : (po.pending ? (po.round >= 3 ? (HS_ROUND_LABEL[po.round] || 'State') + ' vs ' : po.round === 1 ? 'Semifinal vs ' : 'Final vs ') + nm(po.pending) : ''), 800, y + 30, 15, UI_TEXT, 'left', 420); }
   } };
 }
 function amHistoryScreen(game) {
@@ -8924,7 +8958,7 @@ function amResultScreen(game, rec, m) {
   return { widgets: items, overlay: !!m, name: 'amresult', update(dt) { t += dt; }, onBack() {},
     draw(ctx, ui) {
       ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2); const head = rec.won ? 'WIN' : 'LOSS', score = rec.my + ' – ' + rec.their; ui.title(ctx, head, 60, 70, 60); ctx.font = fontStr(60, true); const hx = 60 + ctx.measureText(head).width + 30;
-      ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? (rec.playoff >= 3 ? 'State · ' : 'Playoffs · ') : rec.tag === 'rivalry' ? 'Rivalry game · ' : rec.tag === 'senior' ? 'Senior night · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
+      ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? amRoundTag(rec.playoff) : rec.tag === 'rivalry' ? 'Rivalry game · ' : rec.tag === 'senior' ? 'Senior night · ' : rec.tag === 'marquee' ? 'Marquee game · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
       const q = rec.line || {}; const tiles = [['POINTS', q.pts || 0, {}], ['FG', (x, r) => countUp(q.fgm || 0, x, r) + '/' + (q.fga || 0), {}], ['THREES', (x, r) => countUp(q.tpm || 0, x, r) + '/' + (q.tpa || 0), {}], ['REBOUNDS', q.reb || 0, {}], ['STL · BLK', (x, r) => countUp(q.stl || 0, x, r) + ' · ' + countUp(q.blk || 0, x, r), {}]]; tiles.forEach((tl, i) => statTile(ctx, 60 + i * 146, 128, 134, 92, tl[0], tl[1], t - 0.08 * i, tl[2]));
       if (rec.note) ui.heading(ctx, rec.note, 60, 250, 24, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed|Out in/.test(rec.note) ? UI_RED : UI_CYAN);
       ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); const g = rec.gains || []; if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
@@ -9800,13 +9834,13 @@ function amHub(game) {
   const s = game.save.data, c = amateurOf(game); if (!c) return careerOf(game) ? careerHub(game) : mainMenu(game);
   const ui = game.ui; let t = 0; const nx = amNext(c); const focusKeys = Object.keys(CR.trainFocus).filter(k => k !== 'recovery');
   const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); return; } hsAutoResolve(c); amStartGame(c); if (!isStarter(c) || c.ineligible > 0) { game.save.save(); game.ui.replace(amHub(game)); return; } game.save.save(); /* a challenge settled at tip-off can cost you the start */ game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id }); };
-  const actions = []; if (c.stage === 'combine') actions.push(btn('DRAFT COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : 'DRAFT DECISION', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (c.summer && c.summer.pending) actions.push(btn('YOUR SUMMER', 0, 0, 0, 0, () => game.ui.push(summerScreen(game)), { primary: true })); /* R5 */
+  const actions = []; if (c.stage === 'combine') actions.push(btn('DRAFT COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : c.decision.kind === 'portal' ? 'TRANSFER PORTAL' : 'DRAFT DECISION', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (c.summer && c.summer.pending) actions.push(btn('YOUR SUMMER', 0, 0, 0, 0, () => game.ui.push(summerScreen(game)), { primary: true })); /* R5 */
   else if (c.tryout && c.tryout.step !== 'done') actions.push(btn('TRYOUTS', 0, 0, 0, 0, () => game.ui.push(tryoutScreen(game)), { primary: true })); /* R5 */
   else if (nx && nx.opp && (!isStarter(c) || c.ineligible > 0)) actions.push(btn('SIM THE GAME', 0, 0, 0, 0, () => { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); }, { primary: true })); /* R4: on the bench: your teammate starts */
   else if (nx && nx.opp) actions.push(btn('PLAY', 0, 0, 0, 0, () => play(false), { primary: true }), btn('SIM', 0, 0, 0, 0, () => play(true)));
   const plan = nx && nx.opp ? planButtons(game, careerKit(game)) : [];
   const week = ui.phone || !plan.length ? [] : [sel('Focus', 0, 0, 0, 0, focusKeys.map(k => CR.trainFocus[k].label), () => Math.max(0, focusKeys.indexOf(c.focus)), i => { c.focus = focusKeys[i]; game.save.save(); })];
-  const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' })].concat(c.stage === 'hs' ? [btn('Recruiting', 0, 0, 0, 0, () => game.ui.push(recruitingScreen(game)))] : []).concat([btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { phoneHide: c.stage === 'hs' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })]);
+  const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' })].concat(c.stage === 'hs' ? [btn('Recruiting', 0, 0, 0, 0, () => game.ui.push(recruitingScreen(game)))] : c.stage === 'college' ? [btn('Draft stock', 0, 0, 0, 0, () => game.ui.push(draftStockScreen(game)))] : []) /* R6 */.concat([btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { phoneHide: c.stage === 'hs' || c.stage === 'college' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })]);
   const items = hubWidgets(ui, actions, week, links, plan);
   const L = c.league, def = amDrawDef(c), kit = amKit(c), last = c.log.length ? c.log[c.log.length - 1] : null;
   const hLast = last ? last.height : (c.growthLog && c.growthLog[0] ? c.growthLog[0].h : c.height);
@@ -9823,8 +9857,9 @@ function amHub(game) {
         const inel = c.ineligible > 0, sm = ladderStarterMate(c) || (inel ? hsSlotMate(c) : null); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = inel ? 'INELIGIBLE · ' + c.ineligible + ' GAME' + (c.ineligible > 1 ? 'S' : '') + ' · ' + sm.nick.toUpperCase() + ' PLAYS' : 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: inel ? 'plays for you' : 'starts this week' }; H.scout = inel ? 'Study weeks raise your GPA; you are eligible again after these games.' : 'Win a challenge in practice to take the spot back.'; } } // R4: benched (R5: or ineligible)
       else if (c.summer && c.summer.pending) { H.idleTitle = 'YOUR SUMMER'; H.idleText = 'Pick one: the AAU circuit (exposure), a skills camp ($' + HS.campCost + ', XP), rest, or a summer job ($' + HS.jobPay + ').'; }
       else if (c.tryout && c.tryout.step !== 'done') { H.idleTitle = 'TRYOUTS'; H.idleText = 'Varsity or JV: a 60-second shootout, then a 1v1 against a senior. Play them or sim them.'; }
-      else { H.idleTitle = c.stage === 'combine' ? 'THE DRAFT COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then draft night. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? 'Offers are in. Pick where you play next.' : 'Declare for the draft, or stay in school?') : ''; }
-      if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = (L.format === 'jv' ? 'JV ' : '') + 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + (L.size || stg.size) + (L.playoffs && !L.done ? (L.playoffs.round >= 3 ? ' · at state' : ' · in the playoffs') : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
+      else { H.idleTitle = c.stage === 'combine' ? 'THE DRAFT COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then draft night. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? 'Offers are in. Pick where you play next.' : c.decision.kind === 'portal' ? 'You sat most of the season. Transfer to a program that starts you, stay, or declare.' : 'Declare for the draft, or stay in school? Mock draft: ' + colMockText(amPickFrom(amDraftScore(c))) + '.') : ''; }
+      if (L && c.stage !== 'combine' && L.format === 'conf') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1, po = L.playoffs; H.headline = 'Conference ' + L.me.w + '-' + L.me.l + ' (#' + rank + ' of ' + L.size + ') · overall ' + L.all.w + '-' + L.all.l + (po && !L.done ? (po.round >= 31 ? ' · national tournament' : ' · conference tournament') : '') + ' · mock draft ' + colMockText(amPickFrom(amDraftScore(c))); } /* R6 */
+      else if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = (L.format === 'jv' ? 'JV ' : '') + 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + (L.size || stg.size) + (L.playoffs && !L.done ? (L.playoffs.round >= 3 ? ' · at state' : ' · in the playoffs') : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
       drawHub(ctx, ui, H, t);
     } };
   return scr;
@@ -10126,7 +10161,7 @@ function proEventScreen(game) {
   const done = () => { if (c && c.events && c.events.length) c.events.shift(); game.save.save(); game.ui.pop(); };
   return storyEventScreen(game, c, ev, done) || textEventScreen(game, ev, done);
 }
-function storyEventScreen(game, c, ev, done) { if (!c) return null; if (ev.kind === 'trait' || ev.kind === 'traitnew') return traitEventScreen(game, c, ev, done); if (ev.kind === 'ladder') return ladderEventScreen(game, c, ev, done); if (ev.kind === 'press') return pressScreen(game, c, ev, done); if (ev.kind === 'rival') return rivalMomentScreen(game, c, ev, done); if (ev.kind === 'allstar' && isPro(c)) return allStarWeekendScreen(game, c, ev, done); return null; }
+function storyEventScreen(game, c, ev, done) { if (!c) return null; if (ev.kind === 'trait' || ev.kind === 'traitnew') return traitEventScreen(game, c, ev, done); if (ev.kind === 'ladder') return ladderEventScreen(game, c, ev, done); if (ev.kind === 'press') return pressScreen(game, c, ev, done); if (ev.kind === 'rival') return rivalMomentScreen(game, c, ev, done); if (ev.kind === 'allstar' && isPro(c)) return allStarWeekendScreen(game, c, ev, done); if (ev.kind === 'nil') return nilEventScreen(game, c, ev, done); if (ev.kind === 'agent') return agentEventScreen(game, c, ev, done); return null; } // R6: NIL offers, the agent's call
 // A plain card: a title and lines of text.
 function textEventScreen(game, ev, done) {
   const items = [btn('Continue', 830, 600, 360, 58, done, { primary: true })]; if (game.ui.phone) phoneGrid(game.ui, items, 780, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0);
@@ -10316,7 +10351,7 @@ function timelineScreen(game) {
 // SECTION: UI (part 9) — recruiting (§8): the offer board, official campus visits and commitment day (you pick a
 // hat off the table).
 // ============================================================================
-const TIER_BLURB = ['Starts you against the weakest schedule. Few scouts come this far out.', 'A good league and a few scouts. Win here and people notice.', 'Tough nightly schedule, big crowds, scouts at every game.', 'The toughest schedule in the country and the biggest spotlight.'];
+const TIER_BLURB = ['You start from day one against the weakest schedule. Few scouts come this far out; the national tournament takes the conference title.', 'You start from day one. A good league and a few scouts: win here and people notice.', 'A tough nightly schedule, big crowds, scouts at every game. One teammate is ahead of you on the depth chart.', 'A deep roster (you start third), the toughest schedule and the biggest spotlight: NIL deals, scouts, the national tournament most years.']; // R6: the program trade-off (§3.5)
 function programFacts(o) { return { conf: AMC.stageMean.college + AMC.stageMean.collegePerTier * o.tier, exposure: AMC.draft.tier * o.tier }; }
 function drawProgramBanner(ctx, x, y, w, h, o) {
   const g = ctx.createLinearGradient(x, y, x, y + h); g.addColorStop(0, shadeHex(o.colors[0], 0.1)); g.addColorStop(1, shadeHex(o.colors[0], -0.35)); ctx.fillStyle = g; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, 10); ctx.fill();
@@ -10341,7 +10376,7 @@ function recruitScreen(game) {
       offers.forEach((o, i) => { const x = x0 + i * (cw + 16), y = 138, h = P ? 324 : 400, F = programFacts(o);
         kitPanel(ctx, x, y, cw, h, ART.uiPanel2); drawProgramBanner(ctx, x + 10, y + 10, cw - 20, 74, o);
         let yy = y + 106; const line = (a, b, col) => { ui.label(ctx, a, x + 14, yy, 13, UI_DIM); ui.heading(ctx, b, x + cw - 14, yy, 15, col || UI_TEXT, 'right'); yy += P ? 28 : 32; };
-        line('Program', AMC.tiers[o.tier], o.tier >= 3 ? UI_GOLD : UI_TEXT); line('Conference', '~' + F.conf + (F.conf > amOvr(c) + 3 ? ' tough' : ''), F.conf > amOvr(c) + 3 ? UI_ORANGE : UI_TEXT); line('Draft exposure', '+' + F.exposure); line('Facilities', o.visited ? '★'.repeat(o.fac) + '☆'.repeat(3 - o.fac) : '? visit', o.visited ? UI_GOLD : UI_DIM); line('Coach develops', o.visited ? Object.keys((CR.trainFocus[o.focus] || {}).split || {}).map(a => a.toUpperCase()).join('/') || '—' : '? visit', o.visited ? UI_CYAN : UI_DIM);
+        line('Program', AMC.tiers[o.tier], o.tier >= 3 ? UI_GOLD : UI_TEXT); line('Depth chart', TM.ladderStart[o.tier] === 1 ? 'you start' : '#' + TM.ladderStart[o.tier] + ' to begin', TM.ladderStart[o.tier] === 1 ? UI_GREEN : UI_ORANGE); /* R6 */ line('Conference', '~' + F.conf + (F.conf > amOvr(c) + 3 ? ' tough' : ''), F.conf > amOvr(c) + 3 ? UI_ORANGE : UI_TEXT); line('Draft exposure', '+' + F.exposure); line('Facilities', o.visited ? '★'.repeat(o.fac) + '☆'.repeat(3 - o.fac) : '? visit', o.visited ? UI_GOLD : UI_DIM); line('Coach develops', o.visited ? Object.keys((CR.trainFocus[o.focus] || {}).split || {}).map(a => a.toUpperCase()).join('/') || '—' : '? visit', o.visited ? UI_CYAN : UI_DIM);
         if (!P) { ui.label(ctx, o.coach, x + 14, yy + 6, 13, UI_DIM, 'left', cw - 28); ctx.font = fontStr(13, false); ui.para(ctx, TIER_BLURB[o.tier] || '', x + 14, yy + 34, cw - 28, 13, UI_DIM, 'left', Math.max(1, Math.floor((y + h - (o.contested ? 44 : 12) - (yy + 34)) / Math.max(17, rbLineH(ctx))) + 1)); } /* the blurb stops above the rival chip */
         if (o.contested) kitChip(ctx, 'RIVAL WANTS THIS SPOT', x + cw / 2, y + h - 22, { size: 12, align: 'center', fill: 'rgba(255,90,90,0.95)', color: '#FFFFFF', stroke: false }); });
     } };
@@ -10545,6 +10580,7 @@ function playerOf(c, id) { return c.players[id]; }
 function clubOf(id) { return TEAMS.find(t => t.id === id) || TEAMS[0]; }
 // Market value per season: max(0.9, (OVR − 55) × 0.8) million, less for players past 32, more for famous ones.
 function marketValue(c, p) { let v = Math.max(CR.payMin, (recOvr(p) - CR.payRef) * CR.payPerOvr) * 1e6; if (p.age >= 32) v *= 0.8; if (p.isMe) { v *= 1 + (c.me.fame || 0) / 250; v += (c.me.hype || 0) * CONFIG.media.hypeSalary * 1e6; } return Math.round(v / 10000) * 10000; } // hype adds to your salary (§8)
+function salaryWeek(c) { const M = c.me; return Math.round(M.contract.salary / c.seasonLength * (M.agent ? 1 - CO.agentFee : 1)); } // R6: a game week's pay (an agent takes their share)
 function rookiePay(pick) { const R = CR.rookiePay; return Math.round((pick > 60 ? R[2] : Math.max(R[2], R[0] - R[1] * Math.log(pick))) * 1e6 / 10000) * 10000; }
 function makeSchedule(ids, length, rng) {
   // circle method: each round pairs everyone once. Home court goes to whoever has had fewer home games so far,
@@ -10561,7 +10597,8 @@ function createCareerFromAmateur(save, a) {
   const seed = (((a.seed >>> 0) * 31 + 17) >>> 0) || 17; const A = CONFIG.amateur, D = A.draft;
   const c = { v: 5, seed, rs: 0, season: 1, week: 0, phase: 'regular', seasonLength: CR.seasonLengths.includes(a.seasonLength) ? a.seasonLength : CR.seasonLengths[0], gameLength: a.gameLength || 120, players: {}, active: [], standings: {}, stats: {}, schedule: [], results: [], playoffs: null, allStar: null, history: [], news: [], meId: 'me', me: defaultMeShape(), offseason: null, retiredList: [], nextId: 1, created: Date.now(),
     amateur: { school: a.school, college: a.college, tier: a.collegeTier || 0, titles: a.titles || 0, mvps: a.mvps || 0, awards: (a.awards || []).slice(), log: (a.log || []).slice(), totals: Object.assign({}, a.totals || {}), growthLog: (a.growthLog || []).slice(), projection: a.projection || null, heightFinal: a.heightFinal } };
-  if (a.cash > 0) c.me.money += Math.round(a.cash); // R5: what you saved in high school comes with you
+  if (a.cash > 0) c.me.money += Math.round(a.cash); // R5: what you saved in high school comes with you (R6: and your NIL money)
+  c.me.agent = a.agent || null; // R6: the agent you signed on the way to the draft (+10% on every contract, 4% of your salary)
   const rng = careerRng(c); const used = new Set([a.name]);
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
   rng.shuffle(pool);
@@ -10580,7 +10617,7 @@ function createCareerFromAmateur(save, a) {
   const clubIds = TEAMS.map(t => t.id); const count = {}; clubIds.forEach(id => count[id] = 0);
   const vetIds = c.active.filter(id => !c.players[id].rookie); rng.shuffle(vetIds);
   for (const id of vetIds) { const least = Math.min(...clubIds.map(k => count[k])); const club = rng.pick(clubIds.filter(k => count[k] === least)); c.players[id].club = club; count[club]++; c.players[id].contract.salary = marketValue(c, c.players[id]); }
-  for (const p of rookies) { const least = Math.min(...clubIds.map(k => count[k])); const club = rng.pick(clubIds.filter(k => count[k] === least)); p.club = club; count[club]++; p.contract = { years: CR.rookieYears, salary: rookiePay(p.draftPick) }; }
+  for (const p of rookies) { const least = Math.min(...clubIds.map(k => count[k])); const club = rng.pick(clubIds.filter(k => count[k] === least)); p.club = club; count[club]++; p.contract = { years: CR.rookieYears, salary: Math.round(rookiePay(p.draftPick) * (p.isMe && c.me.agent ? 1 + CO.agentRaise : 1)) }; }
   c.me.contract = { club: me.club, salary: me.contract.salary, years: CR.rookieYears, rookie: true }; c.me.startOvr = recOvr(me); c.me.prevOvr = recOvr(me);
   c.draft = { pick: me.draftPick, club: me.club, board: rookies.map(p => ({ id: p.id, name: p.name, arch: p.arch, h: p.h, ovr: recOvr(p), pot: potOf(p), club: p.club, pick: p.draftPick, age: p.age, rival: p.id === c.rivalId })) };
   c.facilities = {}; clubIds.forEach(id => c.facilities[id] = 1 + rng.int(3));
@@ -10725,7 +10762,7 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const me = meOf(c), movesBefore = learnedMoves(me, c.me), ovrBefore = recOvr(me); const grade = gradeFor(sMe, win);
   const dev = developFromGame(me.r, c.me.xp, me.caps, (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, 1, c.me); const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me));
   // money, fame, then the week: fatigue and injuries
-  const M = c.me; let pay = 0; if (!g.playoff) pay += Math.round(M.contract.salary / c.seasonLength); else pay += LG.playoffGamePay;
+  const M = c.me; let pay = 0; if (!g.playoff) pay += salaryWeek(c); else pay += LG.playoffGamePay;
   const fameGain = (win ? CR.fame.win : CR.fame.loss) + CR.fame.perPt * Math.max(0, my.pts - 20) + CR.fame.highlight * trMul(M, 'highlight') * ((my.dunkM || 0) * 0.3 + (my.posters || 0) + (my.ankles || 0)) + (g.playoff ? CR.fame.playoff : 0);
   M.fame = clamp(M.fame + fameGain, 0, 100); earn(c, pay);
   const wk = wkAfterGame(M, careerRng(c), { ot: r.ot, physio: M.staff.physio }); const injury = wk.injury; trustAfterGame(c, win, us, them); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
@@ -10798,7 +10835,7 @@ function proSimBenchGame(c) {
   try { r = simBox(c, g.h, g.a, rng); } finally { c.players[c.meId] = me; delete c._benchSub; } r.topOverride = { id: opp, pts: r.box[opp].pts, reb: r.box[opp].reb }; // the week's top line is never yours when you didn't play
   const us = g.h === c.meId ? r.hs : r.as, them = g.h === c.meId ? r.as : r.hs, win = us > them, O = c.players[opp];
   if (c.team) { if (win) c.team.w++; else c.team.l++; }
-  if (!g.playoff) earn(c, Math.round(M.contract.salary / c.seasonLength)); else earn(c, LG.playoffGamePay);
+  if (!g.playoff) earn(c, salaryWeek(c)); else earn(c, LG.playoffGamePay);
   M.log.unshift({ s: c.season, w: c.week, opp, home: g.h === c.meId, us, them, win, grade: 'DNP', pts: 0, reb: 0, stl: 0, blk: 0, to: 0, fg: '—', tp: '—', p: !!g.playoff, dnp: m.name }); if (M.log.length > 80) M.log.length = 80;
   pushNews(c, (g.playoff ? 'Playoffs: ' : '') + 'The ' + (c.team ? c.team.name : 'club') + ' start ' + m.name + ', who ' + (win ? 'beats ' : 'loses to ') + O.name + ' ' + Math.max(us, them) + '–' + Math.min(us, them) + '. ' + me.name + ' does not play.', 'result');
   const rec = { bench: true, starter: m.name, starterId: m.id, win, won: win, us, them, my: us, their: them, opp, oppName: O.name, playoff: !!g.playoff, home: g.h === c.meId, gains: {}, learned: [], xp: {}, ovrBefore: recOvr(me), ovrAfter: recOvr(me) };
@@ -10911,7 +10948,7 @@ function offseasonMoves(c) {
 // Offseason step 3: the user's contract. Returns offers when it expired, else null.
 function offseasonContract(c) {
   const M = c.me, me = meOf(c); M.contract.years--; if (M.contract.years > 0) { c.offseason.fa = null; return null; }
-  const rng = careerRng(c); const val = marketValue(c, me); const clubs = TEAMS.map(t => t.id); rng.shuffle(clubs);
+  const rng = careerRng(c); const val = marketValue(c, me) * (M.agent ? 1 + CO.agentRaise : 1); const clubs = TEAMS.map(t => t.id); /* R6: an agent gets you more */ rng.shuffle(clubs);
   const pick = [me.club].concat(clubs.filter(k => k !== me.club).slice(0, 2));
   const offers = pick.map((club, i) => ({ club, salary: Math.round(val * (i === 0 ? rng.range(0.9, 1.05) : rng.range(0.85, 1.2)) / 1000) * 1000, years: CR.contractYears, facilities: c.facilities[club] || 1, current: club === me.club })); // every deal runs four seasons: renewals in pro years 5, 9 and 13
   c.offseason.fa = { offers, value: val }; return offers;
@@ -10996,7 +11033,7 @@ function amMakeOpp(c, rng, stage, ovr, id) {
 }
 function amCreate(save, form) {
   const style = AM_STYLES[form.style] ? form.style : 'slasher';
-  const c = { v: 4, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number }), number: form.number, style, age: AMC.startAge,
+  const c = { v: 5, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number }), number: form.number, style, age: AMC.startAge,
     bloom: 'normal', heightFinal: AMC.heightMean, wing: AMC.wingMean, gifted: false, height: 0, r: amStartRatings(style, AMC.startPoints), xp: {}, caps: null, stage: 'hs', stageYear: 1, season: 1, focus: amStyle(style).train,
     school: '', college: '', collegeTier: 0, colors: AM_COLORS[0].slice(), log: [], totals: { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }, awards: [], titles: 0, mvps: 0, events: [], decision: null, draft: null, rival: null, league: null, seasonStats: null,
     seasonLength: CR.seasonLengths.includes(form.seasonLength) ? form.seasonLength : CR.seasonLengths[0], gameLength: form.gameLength || 120, growthLog: [], fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, hype: 0, confidence: 0, rivalFire: 0, boast: false, news: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, story: {}, timeline: [] };
@@ -11024,6 +11061,7 @@ function amCreate(save, form) {
 function amStageMean(c) { const y = c.stageYear, M = AMC.stageMean; return c.stage === 'hs' ? M.hs + M.hsPerYear * (y - 1) : M.college + M.collegePerYear * (y - 1) + M.collegePerTier * (c.collegeTier || 0); }
 function amNewSeason(c, rng) {
   if (c.stage === 'hs') return hsNewSeason(c, rng); // R5: tryouts, JV or a district (172_hs.js)
+  if (c.stage === 'college') return colNewSeason(c, rng); // R6: marquee games, a conference, its tournament, the national one (174_college.js)
   const S = AMC.stages[c.stage] || AMC.stages.hs; const mean = amStageMean(c); c.league = { name: S.league, opps: [], schedule: [], week: 0, me: { w: 0, l: 0, pf: 0, pa: 0 }, games: [], playoffs: null, done: false };
   for (let i = 0; i < S.size - 1; i++) c.league.opps.push(amMakeOpp(c, rng, c.stage, Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'o' + i));
   if (c.rival) { c.rival.rec = { w: 0, l: 0, pf: 0, pa: 0 }; c.league.opps[c.league.opps.length - 1] = c.rival; }
@@ -11031,7 +11069,7 @@ function amNewSeason(c, rng) {
   c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 };
   amAssignOppTeams(c, true); // R3: every opponent plays for a school (a college), in its colors
 }
-function amOppById(c, id) { const L = c.league; return (L && (L.opps.find(o => o.id === id) || (L.stateOpps || []).find(o => o.id === id))) || null; } // R5: state tournament opponents too
+function amOppById(c, id) { const L = c.league; if (!L) return null; for (const k of ['opps', 'nonconf', 'stateOpps', 'natOpps']) { const o = (L[k] || []).find(x => x.id === id); if (o) return o; } return null; } // R5: state tournament opponents too; R6: marquee games, the national tournament
 function amNext(c) { if (!c || c.decision || !c.league || c.league.done || c.stage === 'combine') return null; const L = c.league; if (L.playoffs) return L.playoffs.pending ? { opp: amOppById(c, L.playoffs.pending), playoff: L.playoffs.round } : null; if (L.week < L.schedule.length) return { opp: amOppById(c, L.schedule[L.week]), playoff: 0 }; return null; }
 function amTable(c) { const L = c.league; const rows = [{ id: 'me', name: c.name, team: c.team ? c.team.name : (c.stage === 'college' ? c.college : c.school), rec: L.me, ovr: amOvr(c), height: c.height, me: true }].concat(L.opps.map(o => ({ id: o.id, name: o.name, team: o.team || '', rec: o.rec, ovr: ovrOf(o.r, o.height), height: o.height, rival: !!o.rival }))); rows.sort((a, b) => (b.rec.w - a.rec.w) || ((b.rec.pf - b.rec.pa) - (a.rec.pf - a.rec.pa)) || (b.ovr - a.ovr)); return rows; }
 function amRec(r, pf, pa) { if (pf > pa) r.w++; else r.l++; r.pf += pf; r.pa += pa; }
@@ -11041,13 +11079,13 @@ function amOvrOf(c, id) { if (id === 'me') return amOvr(c); const o = amOppById(
 function amSimWeek(c, rng, skipId) { if (c.league && c.league.rounds && c.league.rounds.length) return hsSimRound(c, rng); /* R5: the district's fixed rounds */ const others = rng.shuffle(c.league.opps.filter(o => o.id !== skipId)); const T = AMC.stages[c.stage].target; for (let i = 0; i + 1 < others.length; i += 2) { const a = others[i], b = others[i + 1]; const sc = amSimScore(rng, ovrOf(a.r, a.height), ovrOf(b.r, b.height), T); amRec(a.rec, sc[0], sc[1]); amRec(b.rec, sc[1], sc[0]); if (a.rival || b.rival) { const rv = a.rival ? a : b, other = a.rival ? b : a, rs = a.rival ? sc[0] : sc[1], os = a.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
 function amSimSeries(c, rng, a, b) { return rng.next() < amWinP(amOvrOf(c, a), amOvrOf(c, b)) ? a : b; }
 function amStartPlayoffs(c, rng) {
-  const L = c.league; if (L.format === 'jv') { amEndSeason(c, rng, false); return 'The JV season is over'; } /* R5: JV has no playoffs */ const top = amTable(c).slice(0, AMC.playoffSeeds).map(r => r.id); const po = L.playoffs = { round: 1, seeds: top, pending: null, other: null, champion: null };
+  const L = c.league; if (L.format === 'jv') { amEndSeason(c, rng, false); return 'The JV season is over'; } if (L.format === 'conf') return colStartConfTourney(c, rng); /* R6 */ /* R5: JV has no playoffs */ const top = amTable(c).slice(0, AMC.playoffSeeds).map(r => r.id); const po = L.playoffs = { round: 1, seeds: top, pending: null, other: null, champion: null };
   if (!top.includes('me')) { const f1 = amSimSeries(c, rng, top[0], top[3]), f2 = amSimSeries(c, rng, top[1], top[2]); po.champion = amSimSeries(c, rng, f1, f2); amEndSeason(c, rng, false); return 'Missed the playoffs'; }
   const seed = top.indexOf('me'); const oppSeed = 3 - seed; po.pending = top[oppSeed]; const rest = top.filter((id, i) => i !== seed && i !== oppSeed); po.other = amSimSeries(c, rng, rest[0], rest[1]);
   return 'Playoffs! You are the #' + (seed + 1) + ' seed';
 }
 function amAdvancePlayoffs(c, rng, won) {
-  const po = c.league.playoffs; if (po.round >= 3) return hsAdvanceState(c, rng, won); // R5: the state bracket
+  const po = c.league.playoffs; if (c.league.format === 'conf') return colAdvance(c, rng, won); /* R6: the conference and national brackets */ if (po.round >= 3) return hsAdvanceState(c, rng, won); // R5: the state bracket
   if (!won) { po.champion = po.round === 1 ? amSimSeries(c, rng, po.pending, po.other) : po.pending; po.pending = null; amEndSeason(c, rng, false); return 'Eliminated'; }
   if (po.round === 1) { po.round = 2; po.pending = po.other; return 'On to the final'; }
   if (c.league.format === 'district') return hsStartState(c, rng); // R5: the district title sends you to state
@@ -11057,16 +11095,16 @@ function amAdvancePlayoffs(c, rng, won) {
 // ---------------- a game: results, stats and development ----------------
 function amApplyResult(c, opp, my, their, st, simmed) {
   const rng = amRng(c); const L = c.league; const won = my > their; const po = L.playoffs, poRound = po ? po.round : 0; const ovrBefore = amOvr(c); /* poRound: the round played (advancing changes po.round) */ if (c.team) { if (won) c.team.w++; else c.team.l++; } // the team's record is yours
-  if (!po) { amRec(L.me, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); }
-  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0 });
+  if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); // R6: marquee games count overall, not in the conference
+  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0, marquee: !!opp.marquee });
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
-  const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c), c);
+  const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c) * colXpMul(c), c);
   if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add)) gains.push(g2); } // the college coach's specialty
-  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
+  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
   storyFill(c); const md = mdAfterGame(c, won, my, their); { const hv = mdHighlights(c, st); if (tag === 'rivalry' && hv > 0) c.hype = Math.min(MD.hypeMax, c.hype + hv * (HS.rivalryHype - 1)); } /* R5: the rivalry game's highlights count half again */ const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
   if (opp.rival) { h2hAdd(c, won); c.rivalFire = 0; }
-  const x = { name: c.name, won, us: my, them: their, opp: opp.name, rival: !!opp.rival, rivalFirst: !!opp.rival && c.story.h2h.w + c.story.h2h.l === 1, rivalName: c.rival ? c.rival.name : '', playoff: !!po, final: !!po && (po.round === 2 || po.round === 6), champ: !!po && won && (po.round === 2 || po.round === 6), eliminated: !!po && !won, recs, first: T.g === 1 || (c.stage === 'college' && c.stageYear === 1 && S.g === 1), upsetWin: won && oppOvr >= ovrBefore + MD.upset, upsetLoss: !won && oppOvr <= ovrBefore - MD.upset, big: false, pts: st.pts || 0 };
+  const x = { name: c.name, won, us: my, them: their, opp: opp.name, rival: !!opp.rival, rivalFirst: !!opp.rival && c.story.h2h.w + c.story.h2h.l === 1, rivalName: c.rival ? c.rival.name : '', playoff: !!po, final: !!po && [2, 6, 23, 36].includes(po.round), champ: !!po && won && [2, 6, 23, 36].includes(po.round), eliminated: !!po && !won, recs, first: T.g === 1 || (c.stage === 'college' && c.stageYear === 1 && S.g === 1), upsetWin: won && oppOvr >= ovrBefore + MD.upset, upsetLoss: !won && oppOvr <= ovrBefore - MD.upset, big: false, pts: st.pts || 0 };
   const press = pressFor(c, x); if (press) c.events.push(press); { const tb = traitStoryAfterGame(c, { playoff: !!po, won, us: my, them: their }); if (tb) c.events.push(tb); } // R3: a trait's story beat
   storyNews(c, (po ? 'Playoffs: ' : opp.rival ? 'Rivalry: ' : '') + (won ? c.name + ' beats ' + opp.name + ' ' + my + '–' + their : opp.name + ' beats ' + c.name + ' ' + their + '–' + my) + ((st.pts || 0) >= Math.ceil(my * 0.9) && won ? ', scoring ' + st.pts : '') + '.', opp.rival ? 'rival' : 'result');
   for (const r of recs) storyNews(c, c.name + ' sets a career high: ' + r.v + ' ' + REC_WORDS[r.k] + '.', 'record');
@@ -11093,10 +11131,10 @@ function amSimBenchGame(c) {
   const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, poRound = po ? po.round : 0, stg = AMC.stages[c.stage] || AMC.stages.hs;
   const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + (opp.rival ? c.rivalFire || 0 : 0), stg.target); const my = sc[0], their = sc[1], won = my > their;
   if (c.team) { if (won) c.team.w++; else c.team.l++; }
-  if (!po) { amRec(L.me, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); }
-  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: poRound, bench: m.name, ineligible: inel });
+  if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); if (L.format === 'conf') L.benchWeeks = (L.benchWeeks || 0) + 1; // R6: marquee games count overall; the portal counts bench weeks
+  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: poRound, bench: m.name, ineligible: inel, marquee: !!opp.marquee });
   storyNews(c, (po ? 'Playoffs: ' : '') + teamShort(c.team.name) + ' (' + m.name + ') ' + (won ? 'beat ' : 'lost to ') + (opp.team ? teamShort(opp.team) + ' (' + opp.name + ')' : opp.name) + ' ' + Math.max(my, their) + '–' + Math.min(my, their) + '. ' + c.name + ' did not play' + (inel ? ' (academically ineligible).' : '.'), opp.rival ? 'rival' : 'result');
-  const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); hsGradeWeek(c); if (inel) c.ineligible--; trustAfterWeek(c, wk.plan, wk.fatigueBefore); if (!inel) ladderBenchStory(c);
+  const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); hsGradeWeek(c); colAfterWeek(c, rng, opp, false, null, null); /* R6: NIL appearances */ if (inel) c.ineligible--; trustAfterWeek(c, wk.plan, wk.fatigueBefore); if (!inel) ladderBenchStory(c);
   let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng); else note = hsAfterWeek(c, rng) || '';
   if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); amRivalMoments(c);
   return { bench: true, ineligible: inel, starter: m.name, starterId: m.id, won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains: bd.gains, benchXp: bd.xp, learned: [], note, ovrBefore: ovr0, ovrAfter: amOvr(c), line: {}, playoff: poRound, simmed: true, wk, recs: [], md: {}, press: false, rank: ladderRank(c) };
@@ -11107,16 +11145,17 @@ function amAfterMatch(game, box, after) { const c = game.save.data.c1; if (!c ||
 function amEndSeason(c, rng, champ) {
   const L = c.league; L.done = true; const S = c.seasonStats; const size = L.size || AMC.stages[c.stage].size; const rank = amTable(c).findIndex(r => r.id === 'me') + 1; const fmt = L.format || ''; // R5: 'jv' or 'district' in high school
   const ppg = S.g ? S.pts / S.g : 0, fg = S.fga ? 100 * S.fgm / S.fga : 0; const awards = [];
-  if (champ) { awards.push(fmt === 'district' ? 'State champion' : AMC.stages[c.stage].label + ' champion'); c.titles++; if (c.team) c.team.titles++; }
+  if (champ) { awards.push(fmt === 'district' ? 'State champion' : fmt === 'conf' ? 'National champion' : AMC.stages[c.stage].label + ' champion'); c.titles++; if (c.team) c.team.titles++; }
+  if (fmt === 'conf') { if (L.finalFour && !champ) awards.push('National semifinalist'); if (L.confTourney) awards.push('Conference tournament champion'); if (L.confChamp) awards.push('Conference champion'); } // R6
   if (L.districtChamp) { awards.push('District champion'); c.districts = (c.districts || 0) + 1; } // R5: a district title is an award (the state title is the title)
   if (fmt === 'jv') { if (rank === 1) awards.push('JV MVP'); } // JV awards don't count as MVPs
-  else if (rank === 1 && L.me.w >= Math.ceil(L.schedule.length * (fmt === 'district' ? HS.mvpWins : 0.7))) { awards.push(fmt === 'district' ? 'District MVP' : 'League MVP'); c.mvps++; }
-  if (fmt === 'district') { if (rank <= 2) awards.push('All-District 1st team'); else if (rank <= 4) awards.push('All-District 2nd team'); } else if (fmt !== 'jv') { if (rank <= 3) awards.push('All-League 1st team'); else if (rank <= 5) awards.push('All-League 2nd team'); }
+  else if (rank === 1 && L.me.w >= Math.ceil((fmt === 'conf' ? CO.conference - 1 : L.schedule.length) * (fmt === 'district' ? HS.mvpWins : 0.7))) { awards.push(fmt === 'district' ? 'District MVP' : fmt === 'conf' ? 'Conference MVP' : 'League MVP'); c.mvps++; }
+  if (fmt === 'district' || fmt === 'conf') { const w = fmt === 'conf' ? 'All-Conference' : 'All-District'; if (rank <= 2) awards.push(w + ' 1st team'); else if (rank <= 4) awards.push(w + ' 2nd team'); } else if (fmt !== 'jv') { if (rank <= 3) awards.push('All-League 1st team'); else if (rank <= 5) awards.push('All-League 2nd team'); }
   if (c.stage === 'college' && c.stageYear === 1 && rank <= 4) awards.push('Freshman of the Year');
-  for (const a of awards) { c.awards.push('Season ' + c.season + ': ' + a); if (a === 'District champion') continue; /* its news and timeline came with the title */ storyNews(c, c.name + (/champion/.test(a) ? ' and ' + (c.stage === 'college' ? c.college : c.school) + ' win the title!' : ': ' + a + '.'), 'award'); tlAdd(c, /champion/.test(a) ? 'title' : 'award', a + (c.stage === 'college' ? ' · ' + c.college : ' · ' + c.school)); }
+  for (const a of awards) { c.awards.push('Season ' + c.season + ': ' + a); if (a === 'District champion' || a === 'Conference champion' || a === 'Conference tournament champion') continue; /* its news and timeline came with the title */ storyNews(c, c.name + (/champion/.test(a) ? ' and ' + (c.stage === 'college' ? c.college : c.school) + ' win the title!' : ': ' + a + '.'), 'award'); tlAdd(c, /champion/.test(a) ? 'title' : 'award', a + (c.stage === 'college' ? ' · ' + c.college : ' · ' + c.school)); }
   storyFill(c); mdSeasonEnd(c);
   const fin = hsFinish(c), jv = c.seasonJv; c.log.push({ season: c.season, age: c.age, stage: c.stage, label: amStageLabel(c), w: L.me.w, l: L.me.l, rank, size, ppg: Math.round(ppg * 10) / 10, fg: Math.round(fg), ovr: amOvr(c), height: c.height, awards, champ: !!champ, squad: c.stage === 'hs' ? c.squad : undefined, finish: fin || undefined, jv: jv ? jv.w + '-' + jv.l : undefined });
-  const lines = [(fmt === 'jv' ? 'JV record ' : jv ? 'JV ' + jv.w + '-' + jv.l + ', called up · varsity ' : 'Record ') + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · ' + (fmt === 'district' ? 'STATE CHAMPIONS!' : 'CHAMPIONS!') : fin && fmt === 'district' ? ' · ' + fin : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'];
+  const lines = [(fmt === 'jv' ? 'JV record ' : jv ? 'JV ' + jv.w + '-' + jv.l + ', called up · varsity ' : 'Record ') + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · ' + (fmt === 'district' ? 'STATE CHAMPIONS!' : fmt === 'conf' ? 'NATIONAL CHAMPIONS!' : 'CHAMPIONS!') : fin && (fmt === 'district' || fmt === 'conf') ? ' · ' + fin : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'];
   const grow = amOffseason(c, rng, lines); c.season++; lines.push(amScoutLine(c));
   const before = c.events.length; amAfterSeason(c, rng, lines);
   c.events.splice(before, 0, { kind: 'recap', title: 'SEASON ' + (c.season - 1) + ' RECAP', lines, grow }); const gc = amStoryGrowth(c, grow); if (gc) c.events.splice(before + 1, 0, gc); const lb = traitStoryGrowth(c, c.age, grow); if (lb) c.events.splice(before + 1 + (gc ? 1 : 0), 0, lb);
@@ -11137,18 +11176,19 @@ function amAfterSeason(c, rng, lines) {
     if (c.stageYear < AMC.stages.hs.years) { if (c.stageYear === 2) hsOfferCheck(c, rng, 'soph'); else if (c.stageYear === 3) hsOfferCheck(c, rng, 'junior'); hsSummerStart(c); c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, lines); hsTeamSummer(c, lines); lines.push('Next: your summer, then ' + (c.tryout ? 'tryouts.' : 'the season.')); }
     else { amStartRecruiting(c, rng); lines.push('You graduated! College offers are waiting: take your official visits, then commit.'); }
   } else if (c.stage === 'college') {
-    if (c.stageYear < AMC.stages.college.years) { c.decision = { kind: 'declare' }; lines.push('Decision time: scouts project you as ' + amProjLabel(c) + '.'); }
+    if (c.stageYear < AMC.stages.college.years && colPortalDue(c)) { c.decision = { kind: 'portal', offers: colPortalOffers(c, rng), bench: c.league.benchWeeks || 0, games: c.league.all.w + c.league.all.l }; lines.push('You sat most of the season: the transfer portal is open.'); } // R6
+    else if (c.stageYear < AMC.stages.college.years) { c.decision = { kind: 'declare' }; lines.push('Decision time: scouts project you as ' + amProjLabel(c) + '.'); }
     else { lines.push('Four years done. You enter the draft.'); amGoToDraft(c); }
   }
 }
 // A new season at the same school: the seniors graduate, new freshmen arrive (R3).
 function amTeamSummer(c, lines) { if (!c.team) return; const gone = tmNewSeason(c); if (gone.length && lines) lines.push((c.team.kind === 'hs' ? 'Graduated: ' : 'Moved on: ') + gone.slice(0, 3).join(', ') + (gone.length > 3 ? ' and ' + (gone.length - 3) + ' more' : '') + '.'); }
 function amVertical(r) { const C = AMC.combine; return Math.round(C.vert + C.vertPer * r.jmp); }
-function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length - 1]; return amOvr(c) * D.ovr + (D.ageRef - c.age) * D.age + (c.collegeTier || 0) * D.tier + c.mvps * D.mvp + c.titles * D.title + (last ? last.ppg * D.ppg : 0) + D.wing * c.height * (c.wing - 1) + (amVertical(c.r) - D.vertRef) / D.vertDiv + (c.hype || 0) + TM.trustDraft * trustOf(c) / 100; } // R4: your coach's word with the scouts
+function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length - 1]; return amOvr(c) * D.ovr + (D.ageRef - c.age) * D.age + (c.collegeTier || 0) * D.tier + c.mvps * D.mvp + c.titles * D.title + (last ? last.ppg * D.ppg : 0) + D.wing * c.height * (c.wing - 1) + (amVertical(c.r) - D.vertRef) / D.vertDiv + (c.hype || 0) + TM.trustDraft * trustOf(c) / 100 + clamp(c.stock || 0, -CO.stockMax, CO.stockMax); } // R4: your coach's word with the scouts; R6: your draft stock (scouts at marquee games)
 function amPickFrom(score) { const D = AMC.draft; return Math.round(clamp(D.pickBase - (score - D.pickRef) * D.pickPer, 1, D.pickBase)); }
 function amProjLabel(c) { const p = amPickFrom(amDraftScore(c)); return p <= 5 ? 'a top-5 pick' : p <= 14 ? 'a lottery pick' : p <= 30 ? 'a first-round pick' : p <= 60 ? 'a second-round pick' : 'undrafted for now'; }
 function amDeclare(c, go) { const rng = amRng(c); c.decision = null; if (go) amGoToDraft(c); else { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, null); } }
-function amGoToDraft(c) { c.stage = 'combine'; c.decision = null; if (c.league) c.league.done = true; c.events.push({ kind: 'declare', title: 'YOU\'RE DECLARING', lines: ['Next stop: the draft combine. Scouts will measure your height, wingspan, reach, vertical and lane agility.', 'Then draft night: where you go decides your first club and your rookie contract.'] }); }
+function amGoToDraft(c) { c.stage = 'combine'; c.decision = null; if (c.league) c.league.done = true; c.events.push({ kind: 'declare', title: 'YOU\'RE DECLARING', lines: ['Next stop: the draft combine. Scouts will measure your height, wingspan, reach, vertical and lane agility.', 'Then draft night: where you go decides your first club and your rookie contract.'] }); colAgentPitch(c); } // R6: an agent calls
 
 // ---------------- the combine: measured, never chosen ----------------
 function amCombine(c) {
@@ -11173,7 +11213,7 @@ function amMatchOpts(game, c, opp, playoff) {
 
 // ---------------- saves from the first 1v1 career build (engine-scale attributes, five styles) ----------------
 function amMigrate(old) {
-  if (!old || typeof old !== 'object') return null; if (old.v === 4) return amRepair(old); if (old.v === 3) return amRepair(amUpgrade4(old)); if (old.v === 2) return amRepair(amUpgrade4(amUpgrade3(old)));
+  if (!old || typeof old !== 'object') return null; if (old.v === 5) return amRepair(old); if (old.v === 4) return amRepair(amUpgrade5(old)); if (old.v === 3) return amRepair(amUpgrade5(amUpgrade4(old))); if (old.v === 2) return amRepair(amUpgrade5(amUpgrade4(amUpgrade3(old))));
   if (old.v !== 1 || !old.attrs) return null;
   const c = { v: 2, seed: (hashString(String(old.name || 'x')) ^ 0x5bd1e995) >>> 0, rs: 0, name: String(old.name || 'Rookie').slice(0, 18), look: Object.assign({}, old.look || {}), number: old.number || 0, style: AM_OLD_STYLES[old.style] || (AM_STYLES[old.style] ? old.style : 'slasher'), age: old.age || 14,
     bloom: old.bloom || 'normal', heightFinal: old.heightFinal || AMC.heightMean, wing: AMC.wingMean, gifted: !!old.genes, height: old.height || AMC.heightMean, r: {}, xp: {}, caps: {}, stage: old.stage === 'college' ? 'college' : old.stage === 'hs' ? 'hs' : 'combine', stageYear: old.stageYear || 1, season: old.season || 1, focus: old.focus === 'athletic' || CR.trainFocus[old.focus] ? old.focus : 'shooting',
@@ -11184,7 +11224,7 @@ function amMigrate(old) {
   const rng = amRng(c);
   if (c.stage === 'combine') c.events.push({ kind: 'declare', title: 'ON TO THE DRAFT', lines: ['Your career moved to the new pro league. Next stop: the draft combine.'] });
   else { amNewSeason(c, rng); c.events.push({ kind: 'note', title: 'NEW SEASON', lines: ['Your career carried over to the new version. This season starts fresh; your ratings, height and history came with you.'] }); }
-  return amRepair(amUpgrade4(amUpgrade3(c))) || c;
+  return amRepair(amUpgrade5(amUpgrade4(amUpgrade3(c)))) || c;
 }
 // R3: a career from before traits, genes and teams. Its genes and traits roll from their own stream (the same ones a
 // new career with this seed would get); ceilings become the new model's but never drop under a rating you have; the
@@ -11206,6 +11246,13 @@ function amUpgrade4(c) {
   if (!Array.isArray(c.events)) c.events = []; if (c.stage === 'hs' && !c.handedOff) c.events.push({ kind: 'story', title: 'NEW: HIGH SCHOOL', lines: ['High school got bigger: tryouts (varsity or JV), a ten-game district with a rivalry game and senior night, the district playoffs and a 16-team state tournament. This season finishes the old way.', 'Recruiting ranks you nationally (stars, a Top-100 rank), and offers build through your junior and senior years. Summers: the AAU circuit, a skills camp, rest or a job.', 'Grades: a Study week raises your GPA (+' + HS.studyGpa + '); under ' + HS.gpaMin.toFixed(1) + ' you sit ' + HS.ineligibleGames + ' games and strict colleges pull their offers.'] });
   c.v = 4; return c;
 }
+// R6: a career from before the college rework: draft stock, the mock draft and NIL start now; a college season in
+// progress finishes in its old format (the next one is a conference with marquee games and the national tournament).
+function amUpgrade5(c) {
+  if (!c || c.v >= 5) return c; colFill(c); if (!Array.isArray(c.events)) c.events = [];
+  if (c.stage === 'college' && !c.handedOff) c.events.push({ kind: 'story', title: 'NEW: COLLEGE', lines: ['College got bigger: three marquee non-conference games, a conference, its tournament and a 64-team national tournament. This season finishes the old way.', 'Scouts rate every game (marquee games twice) and a mock draft follows you all season. NIL deals come with hype and big games. A season on the bench opens the transfer portal; an agent advises you when you declare.'] });
+  c.v = 5; return c;
+}
 function amRepair(c) {
   if (!c.r || !c.caps || !c.stage) return null; for (const k of RATING_KEYS) { if (!(c.r[k] > 0)) c.r[k] = 30; if (!(c.caps[k] > 0)) c.caps[k] = 75; if (!(c.xp[k] >= 0)) c.xp[k] = 0; }
   if (!Array.isArray(c.events)) c.events = []; if (!Array.isArray(c.log)) c.log = []; if (!Array.isArray(c.awards)) c.awards = []; if (!Array.isArray(c.growthLog)) c.growthLog = [];
@@ -11213,7 +11260,7 @@ function amRepair(c) {
   wkFill(c); storyFill(c); if (!CR.trainFocus[c.focus]) c.focus = FOCUS_R3[c.focus] || 'shooting'; // saves from before the week loop: fresh legs, Practice as the standing plan; no hype, no headlines yet
   if (!c.genes) c.genes = amRollGenes(amGenesRng(c), !!c.gifted); if (!traitsOf(c)) c.tr = traitsNew(amGenesRng(c)); if ((c.stage === 'hs' || c.stage === 'college') && !c.team) { try { amEnsureTeam(c); } catch (e) { /* no team yet */ } }
   if (!c.league && c.stage !== 'combine' && !c.handedOff && !c.decision && !(c.tryout && c.tryout.step !== 'done')) amNewSeason(c, amRng(c)); /* R5: no league yet while tryouts are open */
-  if (c.stage === 'hs') hsFill(c);
+  if (c.stage === 'hs') hsFill(c); colFill(c);
   return c;
 }
 
@@ -11420,8 +11467,8 @@ function wkBenchWeek(B) { const out = { healed: false, injury: null, fatigueBefo
 function wkNewSeason(B) { B.fatigue = 0; B.injury = null; wkNew(B); }
 
 // --- the amateur week ---
-function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c); }
-function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c); } // R4: coach trust pays up to +20%
+function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); }
+function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); } // R4: coach trust pays up to +20%
 function amPractice(c, focus, intensity, xpIn) {
   if (CR.trainFocus[focus]) c.focus = focus; c.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = amOvr(c), movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c));
   const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, xpIn, c.intensity, amRng(c)); if (!res) return null;
@@ -11586,8 +11633,8 @@ function amChooseCollege(c, o) {
     storyNews(c, contested && contested.name === o.name ? c.name + ' beats ' + c.rival.name + ' to ' + o.name + '. ' + c.rival.nick + ' signs with ' + rvSchool + '.' : c.rival.name + ' takes the last spot at ' + rvSchool + '.', 'rival'); }
   storyNews(c, c.name + ' commits to ' + o.name + '!', 'draft'); tlAdd(c, 'commit', 'Committed to ' + o.name + ' (' + AMC.tiers[o.tier] + ')');
   c.events.push({ kind: 'commit', title: 'COMMITMENT DAY', offers: offers.map(x => ({ name: x.name, colors: x.colors, tier: x.tier })), chosen: offers.findIndex(x => x.name === o.name), lines: [c.name + ' commits to ' + o.name + '.', AMC.tiers[o.tier] + ' · ' + (o.coach || 'the coach') + ' · facilities ' + '★'.repeat(o.fac || 1) + '☆'.repeat(3 - (o.fac || 1)), c.rival && c.rival.college ? c.rival.name + ' will be at ' + c.rival.college + ', in your conference.' : 'Bigger programs play tougher schedules, and more scouts are watching.'] });
-  tmArchive(c); c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach, base: amOvr(c) + TM.tierGap[o.tier] }); ladderInit(c, TM.ladderStart[o.tier]); // R3: the program is your team now; R4: bigger programs start you lower on the depth chart
-  amNewSeason(c, rng); c.events.push({ kind: 'story', title: 'WELCOME TO ' + o.name.toUpperCase(), lines: [(o.coach || 'Your coach') + ': “' + (COACH_PITCH[o.focus] || 'Work hard and you will play.') + '”', 'College games are first to 21. Every game here pays ' + Math.round(RCT.facXp * 100 * ((o.fac || 1) - 1)) + '% more XP from the facilities' + (o.focus ? ', and your coach adds extra ' + (CR.trainFocus[o.focus] || {}).label + ' work after every game.' : '.'), 'Declare for the draft after any season. Scouts will tell you where you would go.'] });
+  tmArchive(c); c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach, base: amOvr(c) + TM.tierGap[o.tier] }); colSeat(c, TM.ladderStart[o.tier]); // R3: the program is your team now; R4: bigger programs start you lower on the depth chart (R6: seated)
+  amNewSeason(c, rng); c.events.push({ kind: 'story', title: 'WELCOME TO ' + o.name.toUpperCase(), lines: [(o.coach || 'Your coach') + ': “' + (COACH_PITCH[o.focus] || 'Work hard and you will play.') + '”', 'College games are first to 21. Every game here pays ' + Math.round(RCT.facXp * 100 * ((o.fac || 1) - 1)) + '% more XP from the facilities' + (o.focus ? ', and your coach adds extra ' + (CR.trainFocus[o.focus] || {}).label + ' work after every game.' : '.'), 'Three marquee games, then the conference: win its tournament (or have the résumé) and you play in the national tournament. Scouts rate every game; declare after any season.'] });
   amRivalMoments(c);
 }
 
@@ -11893,7 +11940,7 @@ function ladderBenchStory(c) { const T = c.team; if (!T) return; const S = T.sto
 function benchDevelop(c) {
   const pro = isPro(c), B = holderOf(c), p = pro ? meOf(c) : null, r = pro ? p.r : c.r, xp = pro ? B.xp : c.xp, caps = pro ? p.caps : c.caps, age = pro ? p.age : c.age, X = CR.xpGame;
   const split = (CR.trainFocus[B.focus] || CR.trainFocus.shooting).split; const line = { pts: X.perfCap * 0.5 / X.pts * 0.5, reb: 3, stl: 1, blk: 0, fgm: 4, tpm: 1, layM: 2 };
-  const g = developFromGame(r, xp, caps, split, age, line, false, true, 1, TM.benchXp * (X.base + X.win * 0.5 + X.perfCap * 0.5) / (X.base + X.perfCap * 0.5) * (pro ? 1 : hsXpMul(c)), B); return { gains: gainsMap(g), xp: Math.round(g.pool) };
+  const g = developFromGame(r, xp, caps, split, age, line, false, true, 1, TM.benchXp * (X.base + X.win * 0.5 + X.perfCap * 0.5) / (X.base + X.perfCap * 0.5) * (pro ? 1 : hsXpMul(c) * colXpMul(c)), B); return { gains: gainsMap(g), xp: Math.round(g.pool) };
 }
 
 // ============================================================================
@@ -12089,7 +12136,7 @@ function benchResultScreen(game, rec) {
     draw(ctx, ui) {
       ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2); const won = rec.won != null ? rec.won : rec.win; ui.title(ctx, (won ? 'TEAM WIN' : 'TEAM LOSS'), 60, 80, 52); const T = c.team;
       ui.heading(ctx, (rec.my != null ? rec.my : rec.us) + ' – ' + (rec.their != null ? rec.their : rec.them), 60, 138, 34, UI_TEXT);
-      ui.label(ctx, (rec.playoff ? (rec.playoff >= 3 ? 'State · ' : 'Playoffs · ') : '') + (T ? T.name : 'Your team') + ' (' + rec.starter + ') vs ' + (isPro(c) ? rec.oppName : rec.opp), 60, 178, 16, UI_DIM, 'left', 720);
+      ui.label(ctx, (rec.playoff ? amRoundTag(rec.playoff) : '') + (T ? T.name : 'Your team') + ' (' + rec.starter + ') vs ' + (isPro(c) ? rec.oppName : rec.opp), 60, 178, 16, UI_DIM, 'left', 720);
       if (rec.note) ui.heading(ctx, rec.note, 60, 220, 22, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed|Out in/.test(rec.note) ? UI_RED : UI_CYAN);
       let y = 262; for (const l of [rec.ineligible ? 'You were academically ineligible (grades); ' + rec.starter + ' played. Study weeks raise your GPA.' : rec.starter + ' started. You were #' + (rec.rank || ladderRank(c)) + ' on the depth chart and did not play.', 'Scrimmages with the second unit: +' + (rec.benchXp || 0) + ' XP' + benchGainsText(rec.gains) + '. Fatigue ' + Math.round((rec.wk && rec.wk.fatigue) || 0) + ' (a week off the court).', rec.ineligible ? (c.ineligible > 0 ? c.ineligible + ' more game' + (c.ineligible > 1 ? 's' : '') + ' to sit.' : 'You are eligible again next game.') : 'Take the spot back: challenge the teammate above you in practice (Practice → Depth chart).']) y += ui.para(ctx, l, 60, y, 740, 17, UI_TEXT) + 10;
       drawLadderList(ctx, ui, c, 840, 120, 380, 8, 46);
@@ -12385,11 +12432,11 @@ function hsRoundRobin(ids, rng) {
   return { rounds: all, mine, home };
 }
 // The rest of the district's week (your pair is played or simmed on its own).
-function hsSimRound(c, rng) { const L = c.league, pairs = L.rounds[L.week - 1] || [], T = AMC.stages.hs.target; for (const [a, b] of pairs) { if (a === 'me' || b === 'me') continue; const A = amOppById(c, a), B = amOppById(c, b); if (!A || !B) continue; const sc = amSimScore(rng, ovrOf(A.r, A.height), ovrOf(B.r, B.height), T); amRec(A.rec, sc[0], sc[1]); amRec(B.rec, sc[1], sc[0]); if (A.rival || B.rival) { const rv = A.rival ? A : B, other = A.rival ? B : A, rs = A.rival ? sc[0] : sc[1], os = A.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
+function hsSimRound(c, rng) { const L = c.league, pairs = L.rounds[L.week - 1] || [], T = (AMC.stages[c.stage] || AMC.stages.hs).target; for (const [a, b] of pairs) { if (a === 'me' || b === 'me') continue; const A = amOppById(c, a), B = amOppById(c, b); if (!A || !B) continue; const sc = amSimScore(rng, ovrOf(A.r, A.height), ovrOf(B.r, B.height), T); amRec(A.rec, sc[0], sc[1]); amRec(B.rec, sc[1], sc[0]); if (A.rival || B.rival) { const rv = A.rival ? A : B, other = A.rival ? B : A, rs = A.rival ? sc[0] : sc[1], os = A.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
 // What makes this week's game special (the hub, the pregame card, hype).
-function hsGameTag(c, week) { const L = c.league; if (!L || !L.format || L.playoffs) return ''; if (week === L.rivalryWeek) return 'rivalry'; if (week === L.seniorNight) return 'senior'; return ''; }
+function hsGameTag(c, week) { const L = c.league; if (!L || !L.format || L.playoffs) return ''; if (L.format === 'conf') { const o = amOppById(c, L.schedule[week]); return o && o.marquee ? 'marquee' : ''; } /* R6 */ if (week === L.rivalryWeek) return 'rivalry'; if (week === L.seniorNight) return 'senior'; return ''; }
 function hsNextLabel(c, nx) {
-  const L = c.league; if (!L || !L.format || !nx) return ''; if (nx.playoff) return HS_ROUND_LABEL[nx.playoff] || 'PLAYOFFS';
+  const L = c.league; if (!L || !L.format || !nx) return ''; if (L.format === 'conf') return colNextLabel(c, nx); // R6: college if (nx.playoff) return HS_ROUND_LABEL[nx.playoff] || 'PLAYOFFS';
   const tag = hsGameTag(c, L.week), where = L.home[L.week] ? 'HOME' : 'AWAY';
   return (tag === 'rivalry' ? 'RIVALRY GAME · ' : tag === 'senior' ? 'SENIOR NIGHT · ' : L.format === 'jv' ? 'JV · ' : '') + 'GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · ' + where;
 }
@@ -12456,7 +12503,7 @@ function hsAdvanceState(c, rng, won) {
   po.round++; po.pending = hsStateOpp(S); return 'On to ' + HS_ROUND_WORD[po.round];
 }
 // The season's line for the recap and the log: how far you went.
-function hsFinish(c) { const L = c.league; if (!L || !L.format) return ''; if (L.format === 'jv') return 'JV season'; const po = L.playoffs; if (!po) return ''; if (po.champion === 'me' && po.round >= 3) return 'State champion'; if (po.round >= 3) return 'State: out in ' + (HS_ROUND_WORD[po.round] || 'state'); if (L.districtChamp) return 'District champion'; return po.round === 2 ? 'Lost the district final' : po.seeds && po.seeds.includes('me') ? 'Lost the district semifinal' : 'Missed the district playoffs'; }
+function hsFinish(c) { const L = c.league; if (!L || !L.format) return ''; if (L.format === 'jv') return 'JV season'; if (L.format === 'conf') { const P = L.playoffs; if (!P) return ''; if (P.champion === 'me' && L.inField) return 'National champion'; if (L.missed) return 'Left out of the national tournament (#' + L.natRank + ')'; if (L.inField) return 'National tournament: out in ' + (CO_ROUND_WORD[P.round] || 'the tournament'); return ''; } /* R6: college */ const po = L.playoffs; if (!po) return ''; if (po.champion === 'me' && po.round >= 3) return 'State champion'; if (po.round >= 3) return 'State: out in ' + (HS_ROUND_WORD[po.round] || 'state'); if (L.districtChamp) return 'District champion'; return po.round === 2 ? 'Lost the district final' : po.seeds && po.seeds.includes('me') ? 'Lost the district semifinal' : 'Missed the district playoffs'; }
 
 // ---------------- grades ----------------
 function hsGpaLetter(g) { return g >= 3.85 ? 'A' : g >= 3.5 ? 'A−' : g >= 3.15 ? 'B+' : g >= 2.85 ? 'B' : g >= 2.5 ? 'B−' : g >= 2.15 ? 'C+' : g >= 1.85 ? 'C' : g >= 1.5 ? 'C−' : 'D'; }
@@ -12526,7 +12573,7 @@ function hsSlotMate(c) { const L = ladderOf(c) || []; const id = L.find(x => x !
 // After every regular-season week, played or not: the midterm report card (and in the senior year the midseason
 // offers), a JV call-up, and the card before the rivalry game or senior night. Returns a note for the result screen.
 function hsAfterWeek(c, rng) {
-  const L = c.league; if (!L || !L.format || L.done || L.playoffs) return ''; let note = '';
+  const L = c.league; if (c.stage !== 'hs' || !L || !L.format || L.done || L.playoffs) return ''; let note = '';
   if (L.week === HS.reportWeek) { hsReportCard(c, 'mid'); if (c.stageYear >= 4) { hsUpdateRank(c, 'midseason'); hsOfferCheck(c, rng, 'senior'); } }
   if (hsMaybeCallUp(c, rng)) note = 'Called up to varsity!';
   hsPreGameCards(c); return note;
@@ -12632,6 +12679,209 @@ function stateBracketScreen(game) {
     for (let r = 0; r < 4; r++) { const R = S.rounds[r]; kitHeader(ctx, ['Round of 16', 'Quarterfinals', 'Semifinals', 'Final'][r], cols[r], top - 6, 250); if (!R) continue; const n = R.length, gap = H / n;
       R.forEach((id, i) => { const y = top + 20 + gap * (i + 0.5), win = S.rounds[r + 1] && S.rounds[r + 1].includes(id); const me = id === 'me'; if (me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(cols[r] - 4, y - 12, 250, 24); } ui.label(ctx, nm(id), cols[r], y, n > 8 ? 12 : 14, me ? UI_GOLD : win ? UI_TEXT : S.rounds[r + 1] ? UI_DIM : UI_TEXT, 'left', 240); }); }
     const champ = S.rounds.length > 4 ? S.rounds[4][0] : null; kitHeader(ctx, 'Champion', 1100, top - 6, 130); if (champ) ui.heading(ctx, nm(champ), 1100, top + 20 + H / 2, 16, champ === 'me' ? UI_GOLD : UI_TEXT, 'left', 140);
+  } };
+}
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 10) — R6 §3.5 college. A season is three marquee non-conference games and a
+// conference round robin (seven games), a conference tournament (every program, three rounds), then the national
+// tournament: 64 programs in four regions, six rounds, simulated around your games (the conference tournament's
+// champion gets in, everyone else on a national rank). NIL deals come with hype and big games (take them or not; some
+// cost fatigue); scouts at marquee games move your draft stock twice as far, and a mock draft follows you week by week;
+// a season on the bench opens the transfer portal; declaring comes with an agent's advice. The career is 1v1.
+// ============================================================================
+const CO = CONFIG.college;
+const CO_CONFS = ['Heartland Athletic Conference', 'Coastal Valley Conference', 'Summit Conference', 'Premier Eight'];
+const CO_SUFFIX = ['State', 'University', 'College', 'Tech', 'A&M'];
+const CO_ROUND_LABEL = { 21: 'CONFERENCE QUARTERFINAL', 22: 'CONFERENCE SEMIFINAL', 23: 'CONFERENCE FINAL', 31: 'NATIONAL · ROUND OF 64', 32: 'NATIONAL · ROUND OF 32', 33: 'NATIONAL · LAST 16', 34: 'NATIONAL · LAST 8', 35: 'NATIONAL SEMIFINAL', 36: 'NATIONAL CHAMPIONSHIP' };
+const CO_ROUND_WORD = { 21: 'the conference quarterfinals', 22: 'the conference semifinals', 23: 'the conference final', 31: 'the round of 64', 32: 'the round of 32', 33: 'the last 16', 34: 'the last 8', 35: 'the national semifinals', 36: 'the national championship' };
+const CO_SPONSORS = ['Main Street Motors', 'Rally Sports Drink', 'Corner Slice Pizza', 'Hometown Credit Union', 'Swift Kicks Shoes', 'Campus Coffee Co.', 'Northside Fitness', 'Pixel Arcade Bar', 'Lakeside Dental', 'Gridiron Grill'];
+const CO_REGION_ORDER = [1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15];
+function colXpMul(c) { return c && c.stage === 'college' ? CO.colXp : 1; }
+function colFill(c) { if (!(c.stock >= -99)) c.stock = 0; if (!Array.isArray(c.mockLog)) c.mockLog = []; if (!(c.nilApps >= 0)) c.nilApps = 0; if (!Array.isArray(c.nilDeals)) c.nilDeals = []; if (!(c.cash >= 0)) c.cash = 0; return c; }
+function colConfName(c) { return CO_CONFS[clamp(c.collegeTier || 0, 0, 3)]; }
+function isRoundCol(r) { return r >= 21; }
+// Labels for a playoff round (high school, college, or the old four-player playoff).
+function amRoundLabel(c, r) { if (r >= 21) return CO_ROUND_LABEL[r] || 'PLAYOFFS'; if (r >= 3 || (c && c.league && c.league.format === 'district')) return HS_ROUND_LABEL[r] || 'PLAYOFFS'; return r === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL'; }
+function amRoundTag(r) { return r >= 31 ? 'National · ' : r >= 21 ? 'Conference tournament · ' : r >= 3 ? 'State · ' : 'Playoffs · '; }
+function colNames(c, n, rng, avoid) { const used = new Set(avoid || []), out = [], base = AM_COLLEGES.flat().concat(AM_CONF_EXTRA).filter(x => !used.has(x)); for (const x of rng.shuffle(base)) { if (out.length >= n) break; out.push(x); used.add(x); } const towns = rng.shuffle(HS_TOWNS.slice()); let i = 0; while (out.length < n && i < 400) { const nm = towns[i % towns.length] + ' ' + CO_SUFFIX[Math.floor(i / towns.length) % CO_SUFFIX.length]; if (!used.has(nm)) { out.push(nm); used.add(nm); } i++; } return out; }
+
+// ---------------- the season ----------------
+function colNewSeason(c, rng) {
+  colFill(c); const mean = amStageMean(c), n = CO.conference - 1;
+  const L = c.league = { name: colConfName(c), format: 'conf', size: CO.conference, opps: [], nonconf: [], schedule: [], rounds: [], home: [], week: 0, me: { w: 0, l: 0, pf: 0, pa: 0 }, all: { w: 0, l: 0, pf: 0, pa: 0 }, games: [], playoffs: null, done: false, benchWeeks: 0 };
+  for (let i = 0; i < n; i++) L.opps.push(amMakeOpp(c, rng, 'college', Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'o' + i));
+  if (c.rival) { c.rival.rec = { w: 0, l: 0, pf: 0, pa: 0 }; L.opps[n - 1] = c.rival; } // your rival is in your conference
+  for (let i = 0; i < CO.marquee; i++) { const o = amMakeOpp(c, rng, 'college', Math.round(clamp(mean + CO.marqueeGap + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'm' + i); o.marquee = true; L.nonconf.push(o); }
+  const R = hsRoundRobin(['me'].concat(L.opps.map(o => o.id)), rng); // the first half of a double round robin is a single one
+  L.rounds = L.nonconf.map(() => null).concat(R.rounds.slice(0, n)); L.schedule = L.nonconf.map(o => o.id).concat(R.mine.slice(0, n)); L.home = L.nonconf.map((o, i) => i % 2 === 0).concat(R.home.slice(0, n));
+  c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.stock = Math.round((c.stock || 0) * CO.stockKeep * 100) / 100;
+  amAssignOppTeams(c, true); const names = colNames(c, L.nonconf.length, rng, [c.college].concat(L.opps.map(o => o.team))); L.nonconf.forEach((o, i) => { o.team = names[i]; o.colors = schoolColors(o.team); o.pattern = ['solid', 'stripes', 'chevron'][tmHash(o.team + '#p') % 3]; });
+  colNilOffer(c, rng, 'preseason'); return L;
+}
+function colIsMarquee(c, opp, po) { return !!(po || (opp && opp.marquee)); }
+function colNextLabel(c, nx) { const L = c.league; if (nx.playoff) return amRoundLabel(c, nx.playoff); const o = nx.opp; return (o && o.marquee ? 'MARQUEE · ' : 'CONFERENCE · ') + 'GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · ' + (L.home[L.week] ? 'HOME' : 'AWAY'); }
+
+// ---------------- brackets (the conference tournament and the national one) ----------------
+function brOpp(S) { const R = S.rounds[S.rounds.length - 1], i = R.indexOf('me'); return i < 0 ? null : R[i ^ 1]; }
+function brAdvance(c, S, won, rng) { const R = S.rounds[S.rounds.length - 1], next = []; for (let i = 0; i < R.length; i += 2) { const a = R[i], b = R[i + 1]; if (a === 'me' || b === 'me') next.push(won ? 'me' : (a === 'me' ? b : a)); else next.push(amSimSeries(c, rng, a, b)); } S.rounds.push(next); if (!won) { let cur = next; while (cur.length > 1) { const nx = []; for (let i = 0; i < cur.length; i += 2) nx.push(amSimSeries(c, rng, cur[i], cur[i + 1])); S.rounds.push(nx); cur = nx; } return { out: true, champion: cur[0] }; } return next.length === 1 ? { champ: true } : { next: true }; }
+function colStartConfTourney(c, rng) {
+  const L = c.league, seeds = amTable(c).map(r => r.id); L.confChamp = seeds[0] === 'me'; if (L.confChamp) { storyNews(c, c.college + ' wins the ' + L.name + ' regular season.', 'award'); tlAdd(c, 'award', 'Conference champion (regular season) · ' + c.college); }
+  const order = [0, 7, 3, 4, 1, 6, 2, 5].map(i => seeds[i]); L.playoffs = { round: 21, seeds, conf: { rounds: [order] }, pending: null, champion: null }; L.playoffs.pending = brOpp(L.playoffs.conf);
+  return 'Conference tournament: you are the #' + (seeds.indexOf('me') + 1) + ' seed';
+}
+function colAdvance(c, rng, won) {
+  const L = c.league, po = L.playoffs;
+  if (po.round < 31) { const r = brAdvance(c, po.conf, won, rng);
+    if (r.out) { po.confWinner = r.champion; return colSelection(c, rng, false) || 'Out in ' + CO_ROUND_WORD[po.round]; }
+    if (r.champ) { L.confTourney = true; storyNews(c, c.college + ' wins the ' + L.name + ' tournament and an automatic bid.', 'award'); tlAdd(c, 'award', 'Conference tournament champion · ' + c.college); return colSelection(c, rng, true); }
+    po.round++; po.pending = brOpp(po.conf); return 'On to ' + CO_ROUND_WORD[po.round]; }
+  const r = brAdvance(c, po.nat, won, rng);
+  if (r.out) { po.champion = r.champion; po.pending = null; const at = CO_ROUND_WORD[po.round]; if (po.round >= 35) L.finalFour = true; amEndSeason(c, rng, false); return 'Out in ' + at; }
+  if (r.champ) { po.champion = 'me'; po.pending = null; L.finalFour = true; amEndSeason(c, rng, true); return 'NATIONAL CHAMPIONS!'; }
+  po.round++; po.pending = brOpp(po.nat); if (po.round === 35) L.finalFour = true; return 'On to ' + CO_ROUND_WORD[po.round];
+}
+// The résumé: win share over the whole season, the program's tier, how good you are for your level, the titles.
+function colResume(c) { const L = c.league, g = (L.all.w + L.all.l) || 1; return 30 * L.all.w / g + 5 * (c.collegeTier || 0) + 0.6 * (amOvr(c) - amStageMean(c)) + (L.confChamp ? 2 : 0) + (L.confTourney ? 3 : 0); }
+function colNatRank(res) { return Math.max(1, Math.round(CO.nationTeams * (1 - normCdf((res - CO.resMean) / CO.resSd))) + 1); }
+// Selection Sunday: in with the automatic bid or on the national rank; the field of 64 around you.
+function colSelection(c, rng, auto) {
+  const L = c.league, po = L.playoffs, res = colResume(c), rank = colNatRank(res); L.natRank = rank;
+  if (!auto && rank > CO.atLarge) { po.pending = null; po.champion = po.confWinner || null; L.missed = true; c.events.push({ kind: 'story', title: 'LEFT OUT', lines: ['Selection day: ' + c.college + ' is not in the field of 64 (#' + rank + ' nationally).', 'Win the conference tournament and you are in, whatever your rank.', 'Scouts still saw your season: your draft stock stays.'] }); amEndSeason(c, rng, false); return 'Left out of the national tournament'; }
+  const seed = clamp(Math.ceil(rank / 4), 1, 16), mean = amStageMean(c), names = colNames(c, CO.fieldSize - 1, rng, [c.college]); let k = 0; L.natOpps = []; const regions = [];
+  for (let r = 0; r < 4; r++) { const reg = []; for (const s of CO_REGION_ORDER) { if (r === 0 && s === seed) { reg.push('me'); continue; } const o = amMakeOpp(c, rng, 'college', Math.round(clamp(mean + CO.seedTop - (s - 1) * CO.seedStep + rng.gauss() * 2, 28, 96)), 'n' + c.season + '_' + (k)); o.team = names[k++] || ('Program ' + k); o.colors = schoolColors(o.team); o.pattern = ['solid', 'stripes', 'chevron'][tmHash(o.team + '#p') % 3]; o.seed = s; o.nat = true; L.natOpps.push(o); reg.push(o.id); } regions.push(reg); }
+  po.nat = { rounds: [[].concat(...regions)], seed }; po.round = 31; po.pending = brOpp(po.nat); L.inField = true;
+  c.events.push({ kind: 'story', title: 'THE FIELD OF 64', lines: [(auto ? 'Automatic bid: ' : 'At-large bid: ') + c.college + ' is a ' + seed + ' seed (#' + rank + ' nationally).', 'Six rounds to a national title. First up: ' + ((amOppById(c, po.pending) || {}).team || 'a ' + (17 - seed) + ' seed') + ', a ' + (17 - seed) + ' seed.', 'Every game here is a marquee game: scouts count it twice.'] });
+  storyNews(c, c.college + ' is in the national tournament as a ' + seed + ' seed.', 'award'); return (auto ? 'CONFERENCE CHAMPIONS! ' : '') + 'In the field as a ' + seed + ' seed';
+}
+
+// ---------------- draft stock, the mock draft ----------------
+function colStockGame(c, opp, won, st, po) {
+  if (c.stage !== 'college') return 0; colFill(c); const pts = (st && st.pts) || 0, grade = (won ? CO.stockWin : CO.stockLoss) + clamp((pts - CO.stockPts) / CO.stockPtsDiv, -0.5, 0.8), w = colIsMarquee(c, opp, po) ? 2 : 1;
+  const d = grade * w * CO.stockStep; c.stock = Math.round(clamp(c.stock + d, -CO.stockMax, CO.stockMax) * 100) / 100; colMockLog(c); return d;
+}
+function colMockLog(c) { colFill(c); const pick = amPickFrom(amDraftScore(c)); const L = c.league; c.mockLog.push({ season: c.season, week: L ? L.week : 0, pick }); if (c.mockLog.length > 60) c.mockLog.shift(); return pick; }
+function colMockText(p) { return p >= AMC.draft.pickBase ? 'undrafted' : '#' + p; }
+function colAgentAdvice(c) { const p = amPickFrom(amDraftScore(c)), y = c.stageYear; if (p <= 14) return 'Go now. You are a lottery pick, and a year of college can only cost you.'; if (p <= 30) return 'Go. First round, guaranteed money, and your development moves to the pros.'; if (p <= 45 && y >= 3) return 'Go: a second-round pick now beats another year of risk.'; if (y >= 4) return 'Your eligibility is done. We go to the draft and fight for a spot.'; return 'Stay one more year. At #' + p + ' you are a fringe pick; one good season puts you in the first round.'; }
+
+// ---------------- NIL ----------------
+function colNilOffer(c, rng, when) {
+  if (c.stage !== 'college') return null; colFill(c); const mean = amStageMean(c), edge = Math.max(0, amOvr(c) - mean);
+  if (when === 'preseason' && !((c.hype || 0) >= 5 || edge >= 3 || (c.recruit && c.recruit.stars >= 4) || rng.next() < 0.5)) return null;
+  if (when === 'game' && rng.next() >= CO.nilOdds) return null;
+  const apps = rng.int(3), val = Math.round(CO.nilBase * (1 + (c.hype || 0) / 15) * (1 + edge / 20) * (1 + 0.3 * (c.collegeTier || 0)) * (1 + CO.nilAppMul * apps) * (0.8 + 0.4 * rng.next()) / 250) * 250;
+  const sponsor = rng.pick(CO_SPONSORS); const ev = { kind: 'nil', title: 'NIL OFFER', sponsor, amount: val, apps, lines: [sponsor + ' wants you: $' + val.toLocaleString() + (apps ? ' for ' + apps + ' appearance' + (apps > 1 ? 's' : '') + ' (fatigue +' + CO.nilFatigue + ' in each of the next ' + apps + ' game week' + (apps > 1 ? 's' : '') + ').' : ', just your name on a poster.'), 'Money you keep (it comes with you to the pros). Turn it down and nothing happens.', 'Deals come with hype and big games.'] };
+  c.events.push(ev); return ev;
+}
+function colNilAnswer(c, ev, accept) { colFill(c); if (!ev || ev.answered) return; ev.answered = true; ev.accepted = !!accept; if (!accept) return; c.cash += ev.amount; c.nilApps += ev.apps || 0; c.nilDeals.push({ season: c.season, sponsor: ev.sponsor, amount: ev.amount, apps: ev.apps || 0 }); c.nilEarned = (c.nilEarned || 0) + ev.amount; storyNews(c, c.name + ' signs an NIL deal with ' + ev.sponsor + '.', 'media'); tlAdd(c, 'nil', 'NIL deal: ' + ev.sponsor + ' ($' + ev.amount.toLocaleString() + ')'); }
+// After every college week: NIL appearances cost fatigue; a big game can bring an offer.
+function colAfterWeek(c, rng, opp, won, st, po) { if (c.stage !== 'college') return; colFill(c); if (c.nilApps > 0) { c.fatigue = clamp((c.fatigue || 0) + CO.nilFatigue, 0, 100); c.nilApps--; } if ((st && st.pts >= CO.nilPts) || (won && colIsMarquee(c, opp, po))) colNilOffer(c, rng, 'game'); }
+
+// ---------------- the depth chart when you arrive ----------------
+// §3.5: blue bloods are deep, mid-majors start you. `start − 1` teammates are ahead of you (1 to CO.seatAhead OVR
+// better); everyone else is behind you (at least 1 under). The roster is new, so the ones out of band are nudged (a
+// rating step at a time: the best ratings come down first, the weakest go up first).
+function tmNudgeOvr(m, lo, hi) { for (let i = 0; i < 80; i++) { const o = tmMateOvr(m); if (o >= lo && o <= hi) return true; const down = o > hi, ks = RATING_KEYS.filter(k => down ? m.r[k] - CR.xpStep >= CR.ratingMin : m.r[k] + CR.xpStep <= CR.ratingMax).sort((a, b) => down ? m.r[b] - m.r[a] : m.r[a] - m.r[b]); if (!ks.length) return false; m.r[ks[0]] += down ? -CR.xpStep : CR.xpStep; } return false; }
+function colSeat(c, start) {
+  const T = c.team; if (!T) return; const me = amOvr(c); T.mates.sort((a, b) => tmMateOvr(b) - tmMateOvr(a));
+  T.mates.forEach((m, i) => { const ahead = i < start - 1; tmNudgeOvr(m, ahead ? me + 1 : 0, ahead ? me + CO.seatAhead : me - 1); });
+  ladderInit(c, start);
+}
+
+// ---------------- the transfer portal ----------------
+function colPortalDue(c) { const L = c.league; if (!L || L.format !== 'conf') return false; const g = L.all ? L.all.w + L.all.l : 0; return g > 0 && (L.benchWeeks || 0) / g >= CO.portalShare; } // the overall record counts every game, the tournaments included
+function colPortalOffers(c, rng) { const t = c.collegeTier || 0, used = new Set([c.college]), out = []; for (const [tier, start] of [[t, Math.max(1, TM.ladderStart[t] - 1)], [Math.max(0, t - 1), 1]]) { const pool = AM_COLLEGES[tier].concat(tier === 0 ? AM_CONF_EXTRA.slice(0, 4) : []).filter(n => !used.has(n)); if (!pool.length) continue; const name = rng.pick(pool); used.add(name); out.push({ name, tier, start, colors: schoolColors(name), coach: 'Coach ' + genName(rng, new Set(), new Set()).split(' ')[1], focus: rng.pick(Object.keys(CR.trainFocus)), fac: clamp(1 + Math.round(tier * 0.6 + rng.next() * 1.2), 1, 3) }); } return out; }
+function colTransfer(c, o) {
+  const rng = amRng(c), from = c.college; tmArchive(c); c.college = o.name; c.collegeTier = o.tier; c.colors = o.colors.slice(); c.program = { name: o.name, tier: o.tier, fac: o.fac || 1, focus: o.focus || null, coach: o.coach || 'Coach' };
+  c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach, base: amOvr(c) + TM.tierGap[o.tier] }); colSeat(c, o.start || 1);
+  storyNews(c, c.name + ' transfers from ' + from + ' to ' + o.name + '.', 'league'); tlAdd(c, 'transfer', 'Transferred to ' + o.name + ' (' + AMC.tiers[o.tier] + ')');
+  c.events.push({ kind: 'story', title: 'TRANSFER', lines: ['You leave ' + from + ' for ' + o.name + ' (' + AMC.tiers[o.tier] + ').', (o.coach || 'The coach') + ': "You start here from day one: #' + (o.start || 1) + ' on the depth chart."', 'A fresh start: new teammates, a new conference, the same scouts.'] });
+}
+// The portal's answer: a transfer (the next season at the new program), stay, or declare.
+function colPortalChoose(c, o) {
+  const rng = amRng(c); c.decision = null;
+  if (o === 'declare') return amDeclare(c, true);
+  if (!o) return amDeclare(c, false);
+  colTransfer(c, o); c.stageYear++; amNewSeason(c, rng);
+}
+
+// ---------------- the agent ----------------
+function colAgentName(c) { if (!c.agentName) c.agentName = genName(new RNG(((c.seed >>> 0) ^ 0xA6E17) || 7), new Set([c.name]), new Set()); return c.agentName; }
+// On the way to the draft an agent calls: +10% on every contract for 4% of your salary (the pro career keeps the answer).
+function colAgentPitch(c) {
+  if (c.agent != null) return; const nm = colAgentName(c), p = amPickFrom(amDraftScore(c));
+  c.events.push({ kind: 'agent', title: 'AN AGENT CALLS', agent: nm, lines: ['Agent ' + nm + ' wants to represent you.', '"I get you ' + Math.round(CO.agentRaise * 100) + '% more on every contract you sign, your rookie deal included. I take ' + Math.round(CO.agentFee * 100) + '% of your salary."', p <= 60 ? 'Scouts have you at #' + p + ' in the mock draft.' : 'Scouts have you going undrafted; a contract is still a contract.', 'Or go it alone and keep every dollar of a smaller deal.'] });
+}
+function colAgentAnswer(c, ev, yes) { if (!ev || ev.answered) return; ev.answered = true; c.agent = yes ? ev.agent : false; if (yes) { storyNews(c, c.name + ' signs with agent ' + ev.agent + '.', 'media'); tlAdd(c, 'agent', 'Signed with agent ' + ev.agent); } }
+
+// ============================================================================
+// SECTION: UI (part 11) — R6 college: an NIL offer and the agent's call (a yes-or-no card each), the draft stock screen
+// (the scouts' grade and the mock draft game by game), the conference and national brackets.
+// ============================================================================
+// A card with a yes and a no (the answer is saved; Back does nothing: it needs an answer).
+function colChoiceScreen(game, ev, done, yes, no, answer, side) {
+  const pick = v => () => { answer(v); game.save.save(); done(); };
+  const items = [btn(yes, 0, 0, 0, 0, pick(true), { primary: true }), btn(no, 0, 0, 0, 0, pick(false))]; const ui = game.ui;
+  if (ui.phone) phoneGrid(ui, items, 420, UI_H - tapH(ui, 44) - 16, 820, 2, 0, 10); else column(items, 800, 540, 400, 54, 12);
+  return { widgets: items, name: 'colchoice', overlay: true, onBack() {},
+    draw(ctx, ui) { ui.panel(ctx, 60, 40, 1160, 640); ui.title(ctx, ev.title || '', 100, 100, 42); let y = 160; (ev.lines || []).forEach((l, i) => { y += ui.para(ctx, l, 100, y, 660, ui.phone ? 19 : 18, i === 0 ? UI_GOLD : UI_TEXT) + 10; }); if (side) side(ctx, ui); } };
+}
+function nilEventScreen(game, c, ev, done) {
+  return colChoiceScreen(game, ev, done, 'TAKE THE DEAL', 'TURN IT DOWN', v => colNilAnswer(c, ev, v), (ctx, ui) => {
+    const x = 820, y = 120, w = 360, h = 300, col = schoolColors(ev.sponsor || 'NIL'); ctx.fillStyle = 'rgba(6,10,30,0.92)'; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, 14); ctx.fill(); ctx.fillStyle = col[0]; ctx.beginPath(); roundRectPath(ctx, x, y, w, 110, 14); ctx.fill(); ctx.fillStyle = col[1]; ctx.fillRect(x, y + 104, w, 6);
+    ui.heading(ctx, String(ev.sponsor || '').toUpperCase(), x + w / 2, y + 44, 22, col[1], 'center', w - 30); ui.label(ctx, 'NIL DEAL', x + w / 2, y + 80, 14, col[1], 'center');
+    ui.heading(ctx, '$' + (ev.amount || 0).toLocaleString(), x + w / 2, y + 168, 44, UI_GOLD, 'center', w - 20);
+    ui.label(ctx, ev.apps ? ev.apps + ' APPEARANCE' + (ev.apps > 1 ? 'S' : '') + ' (FATIGUE +' + CO.nilFatigue + ')' : 'NO APPEARANCES', x + w / 2, y + h - 64, 15, UI_TEXT, 'center', w - 20);
+    ui.label(ctx, 'NIL money so far: $' + Math.round(c.nilEarned || 0).toLocaleString(), x + w / 2, y + h - 32, 13, UI_DIM, 'center', w - 20); });
+}
+function colAgentLook(name) { const L = genLook(new RNG(hashString(String(name)) || 5)); L.acc = Object.assign({}, L.acc, { headband: false, sleeve: false, wristband: false }); return L; } // an agent dresses for the office
+function agentEventScreen(game, c, ev, done) {
+  const last = String(ev.agent || 'Agent').split(' ').pop().toUpperCase();
+  return colChoiceScreen(game, ev, done, 'SIGN WITH ' + last, 'GO IT ALONE', v => colAgentAnswer(c, ev, v), (ctx, ui) => {
+    try { drawPortrait(ctx, { name: ev.agent, look: colAgentLook(ev.agent), age: 46 }, ['#20242E', '#C9CED8'], 820, 110, 200, 'focused'); } catch (e) { /* decoration */ }
+    ui.label(ctx, 'SPORTS AGENT', 920, 340, 14, UI_DIM, 'center'); ui.heading(ctx, ev.agent || '', 920, 366, 18, UI_TEXT, 'center', 340); });
+}
+
+// --- draft stock: the scouts' grade and the mock draft game by game ---
+function draftStockScreen(game) {
+  const c = amateurOf(game); if (!c) return mainMenu(game); colFill(c); const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; phoneBar(game.ui, items, null, 40, 300); const P = game.ui.phone;
+  return { widgets: items, name: 'draftstock', draw(ctx, ui) {
+    ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'DRAFT STOCK', 60, 70, 40); const pick = amPickFrom(amDraftScore(c)), base = AMC.draft.pickBase;
+    ui.heading(ctx, 'MOCK DRAFT: ' + colMockText(pick).toUpperCase(), 60, 126, 28, pick <= 30 ? UI_GOLD : pick < base ? UI_TEXT : UI_DIM, 'left', 540);
+    ui.label(ctx, 'Scouts project you as ' + amProjLabel(c) + '.', 60, 162, 16, UI_TEXT, 'left', 540);
+    kitHeader(ctx, 'The scouts\' grade this season', 60, 194, 540); const gx = 60, gw = 520, gy = 232, v = clamp(c.stock || 0, -CO.stockMax, CO.stockMax), mid = gx + gw / 2, px = mid + v / CO.stockMax * gw / 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(gx, gy - 8, gw, 16); ctx.fillStyle = v >= 0 ? UI_GREEN : UI_RED; ctx.fillRect(Math.min(mid, px), gy - 8, Math.abs(px - mid), 16); ctx.fillStyle = UI_TEXT; ctx.fillRect(mid - 1, gy - 12, 2, 24);
+    ui.label(ctx, (v > 0 ? '+' : '') + v.toFixed(1) + ' on your draft score (of ±' + CO.stockMax + ')', gx, gy + 26, 14, UI_DIM, 'left', gw);
+    let y = 286; for (const l of ['Every game moves it: a win, a loss, your points. Marquee games and tournament games count twice: the scouts are there.', 'Half of it carries into the next season.', 'The rest of the draft score: your OVR, age, program, titles, MVPs, hype, measurables and your coach\'s word.']) y += ui.para(ctx, l, 60, y, 540, P ? 15 : 14, UI_TEXT, 'left', 4) + 8;
+    if (c.stage === 'college') { kitHeader(ctx, 'An agent\'s read', 60, y + 6, 540); ui.para(ctx, '"' + colAgentAdvice(c) + '"', 60, y + 32, 540, P ? 15 : 14, UI_CYAN, 'left', 4); }
+    // the chart: the mock pick game by game, this season (last season faint); pick 1 at the top
+    const x0 = 700, x1 = 1200, y0 = 160, y1 = P ? 530 : 600; kitHeader(ctx, 'Mock draft pick, game by game', 650, 96, 560); ui.label(ctx, 'lottery to #14 · 1st round to #30 · 2nd to #60', 650, 122, 12, UI_DIM, 'left', 560);
+    const now = c.mockLog.filter(e => e.season === c.season), prev = c.mockLog.filter(e => e.season === c.season - 1), n = Math.max(10, now.length, prev.length);
+    const X = i => x0 + (x1 - x0) * (n > 1 ? i / (n - 1) : 0), Y = p => y0 + (y1 - y0) * (clamp(p, 1, base) - 1) / (base - 1);
+    for (const [p, lab] of [[1, '#1'], [14, '#14'], [30, '#30'], [60, '#60']]) { const yy = Y(p); ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(x0, yy, x1 - x0, 1); ui.label(ctx, lab, x0 - 8, yy, 12, UI_DIM, 'right', 60); } /* #14: the lottery, #30: the first round, #60: the second */
+    const line = (arr, col, wd) => { if (!arr.length) return; ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.beginPath(); arr.forEach((e, i) => { const xx = X(i), yy = Y(e.pick); if (i) ctx.lineTo(xx, yy); else ctx.moveTo(xx, yy); }); ctx.stroke(); };
+    line(prev, 'rgba(94,224,255,0.3)', 2); line(now, UI_GOLD, 3); if (now.length) { const e = now[now.length - 1]; ctx.fillStyle = UI_GOLD; ctx.fillRect(X(now.length - 1) - 5, Y(e.pick) - 5, 10, 10); }
+    ui.label(ctx, now.length ? 'This season: ' + now.length + ' game' + (now.length > 1 ? 's' : '') + (prev.length ? ' · last season faint' : '') : 'The first mock comes after your first college game.', x0, y1 + 24, 13, UI_DIM, 'left', x1 - x0);
+  } };
+}
+
+// --- the conference tournament (eight programs) and the national one (your region and the Final Four) ---
+function collegeBracketScreen(game, which) {
+  const c = amateurOf(game); const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; phoneBar(game.ui, items, null, 40, 300); const P = game.ui.phone, nat = which === 'nat';
+  return { widgets: items, name: nat ? 'natbracket' : 'confbracket', draw(ctx, ui) {
+    ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, nat ? 'NATIONAL TOURNAMENT' : 'CONFERENCE TOURNAMENT', 60, 70, 40); const L = c && c.league, po = L && L.playoffs;
+    const nm = id => { const seed = nat ? (id === 'me' ? (po.nat.seed + ' ') : ((amOppById(c, id) || {}).seed ? amOppById(c, id).seed + ' ' : '')) : ''; if (id === 'me') return seed + teamShort(c.college) + (nat ? '' : ' (you)'); /* the national bracket's columns are narrow: the highlight shows you */ const o = amOppById(c, id); return o ? seed + (o.team ? teamShort(o.team) : o.name) : '?'; };
+    const top = 140, H = P ? 400 : 470; /* a phone's Back button sits under 560 */
+    const col = (R, x, w, label, nextR) => { kitHeader(ctx, label, x, top - 6, w - 10); if (!R) return; const gap = H / R.length; R.forEach((id, i) => { const y = top + 20 + gap * (i + 0.5), me = id === 'me', win = nextR && nextR.includes(id); if (me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(x - 4, y - 12, w - 6, 24); } ui.label(ctx, nm(id), x, y, R.length > 8 ? 12 : 14, me ? UI_GOLD : win ? UI_TEXT : nextR ? UI_DIM : UI_TEXT, 'left', w - 12); }); };
+    if (!nat) { const S = po && po.conf; if (!S) { ui.para(ctx, 'After the conference season: all ' + CO.conference + ' programs, seeded by conference record. The champion gets an automatic bid to the national tournament.', 60, 120, 760, 17, UI_DIM); return; }
+      ui.label(ctx, L.name + ' · the champion goes to the national tournament', 60, 106, 15, UI_DIM, 'left', 1150); const cols = [60, 350, 640, 930];
+      ['Quarterfinals', 'Semifinals', 'Final', 'Champion'].forEach((lb, r) => col(S.rounds[r] || null, cols[r], 290, lb, S.rounds[r + 1])); return; }
+    const S = po && po.nat; if (!S) { ui.para(ctx, L && L.missed ? 'Left out: ' + c.college + ' was #' + L.natRank + ' nationally. The field takes every conference tournament champion and the best of the rest (the top ' + CO.atLarge + ').' : 'Sixty-four programs in four regions: the conference tournament champions and the best of the rest by national rank. The field is picked after the conference tournament.', 60, 120, 760, 17, UI_DIM); return; }
+    ui.label(ctx, 'Your region, then the Final Four · a ' + S.seed + ' seed (#' + (L.natRank || '?') + ' nationally)', 60, 106, 15, UI_DIM, 'left', 1150);
+    const q = R => R ? R.slice(0, R.length / 4) : null, cols = [60, 250, 440, 630], lbl = ['Round of 64', 'Round of 32', 'Last 16', 'Last 8'];
+    for (let r = 0; r < 4; r++) col(q(S.rounds[r]), cols[r], 190, lbl[r], q(S.rounds[r + 1]));
+    col(S.rounds[4] || null, 830, 200, 'Final Four', S.rounds[5]); col(S.rounds[5] || null, 1030, 190, 'Final', S.rounds[6]);
+    if (S.rounds[6]) { const ch = S.rounds[6][0]; ui.heading(ctx, 'CHAMPION', 1030, top + 20 + H / 2 - 14, 13, UI_ORANGE); ui.heading(ctx, nm(ch), 1030, top + 20 + H / 2 + 8, 14, ch === 'me' ? UI_GOLD : UI_TEXT, 'left', 180); }
   } };
 }
 

@@ -2,11 +2,11 @@
 // write: a high-school career in its second season with a classic team league on the side, and a pro career in the middle
 // of its first season (for M7 also one in the playoffs and one in the offseason). tests/oldsaves.js then loads each one in
 // this build and plays on. R3 adds the R2 build (a v2 amateur career and a v4 pro career, from before traits, genes and
-// teams); R5 adds the R4 build (a v3 amateur career from before tryouts, districts, recruiting ranks, summers and grades). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
+// teams); R5 adds the R4 build (a v3 amateur career from before tryouts, districts, recruiting ranks, summers and grades); R6 adds the R5 build (also a v4 college career three games into its first season, from before the conference, the national tournament, NIL and the draft stock). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
 const path = require('path'), fs = require('fs'), os = require('os'), { execFileSync } = require('child_process');
 const { ROOT, launch } = require('./lib');
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, 'tests', 'fixtures')), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'hoopheads-old-')); fs.mkdirSync(OUT, { recursive: true });
-const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2'], ['f037d96', 'r4']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
+const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2'], ['f037d96', 'r4'], ['d14751c', 'r5']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
 (async () => {
   const browser = await launch();
   for (const [commit, tag] of BUILDS) {
@@ -38,6 +38,11 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
       g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), season: c.season, week: c.week, phase: c.phase };
     });
     if (pro.err) console.log(tag, 'pro FAILED', pro.err); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_pro_midseason.json'), pro.raw); console.log(tag, 'pro', JSON.stringify({ season: pro.season, week: pro.week, phase: pro.phase, bytes: pro.raw.length })); }
+    // 2b) R5 only: a college career three games into its first season (the old college league)
+    if (tag === 'r5') { const col = await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data; const a = amCreate(s, { name: 'Old Save College', look: PRESET_LOOKS[2], number: 12, style: 'slasher', seed: 133 });
+        let guard = 0; while (!(a.stage === 'college' && a.league && a.league.week >= 3) && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, false); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
+        g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), stage: a.stage, week: a.league && a.league.week, season: a.season, v: a.v }; });
+      if (col.stage !== 'college') console.log(tag, 'college NOT REACHED: ' + col.stage); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_college_midseason.json'), col.raw); console.log(tag, 'college', JSON.stringify({ season: col.season, week: col.week, v: col.v, bytes: col.raw.length })); } }
     // 3) M7 only: the same pro career in the playoffs, then in the offseason
     if (tag === 'm7' || tag === 'r2') for (const want of ['playoffs', 'offseason']) {
       const r = await ev(want => { const g = HH.game; const s = g.save.data, c = s.career; let n = 0; if (want === 'playoffs') { const me = c.players[c.meId]; for (const k in me.r) me.r[k] = Math.max(me.r[k], 92); } /* good enough to make the playoffs */ while (c.phase !== want && n++ < 80) { if (c.events) c.events.length = 0; if (!simUserGame(s)) break; } g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), phase: c.phase, season: c.season, week: c.week }; }, want);

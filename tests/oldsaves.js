@@ -20,7 +20,7 @@ const FIX = path.join(__dirname, 'fixtures');
     switch (s.name) {
       case 'title': g.ui.clearTo(mainMenu(g)); break;
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
-      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|DRAFT COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break;
+      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|TRANSFER PORTAL|DRAFT COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
       case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM( THE GAME)?$/)); break;
       case 'recruit': pr(i % 3 === 0 ? by(/^VISIT$/) || by(/^COMMIT$/) : by(/^COMMIT$/)); break;
       case 'visit': pr(by(/^COMMIT HERE$/)); break;
@@ -40,6 +40,8 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'reststudy': pr(by(/^STUDY/)); break;
       case 'recruiting': case 'statebracket': case 'amstandings': pr(by(/^Back$/)); break;
       case 'tryoutpost': pr(by(/^CONTINUE$/)); break;
+      case 'colchoice': pr(W[i % 2] || W[0]); break; // R6: an NIL offer or the agent's call (yes or no, alternating)
+      case 'draftstock': case 'confbracket': case 'natbracket': pr(by(/^Back$/)); break; // R6
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';
