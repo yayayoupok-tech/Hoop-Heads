@@ -2,11 +2,11 @@
 // write: a high-school career in its second season with a classic team league on the side, and a pro career in the middle
 // of its first season (for M7 also one in the playoffs and one in the offseason). tests/oldsaves.js then loads each one in
 // this build and plays on. R3 adds the R2 build (a v2 amateur career and a v4 pro career, from before traits, genes and
-// teams). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
+// teams); R5 adds the R4 build (a v3 amateur career from before tryouts, districts, recruiting ranks, summers and grades). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
 const path = require('path'), fs = require('fs'), os = require('os'), { execFileSync } = require('child_process');
 const { ROOT, launch } = require('./lib');
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, 'tests', 'fixtures')), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'hoopheads-old-')); fs.mkdirSync(OUT, { recursive: true });
-const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
+const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2'], ['f037d96', 'r4']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
 (async () => {
   const browser = await launch();
   for (const [commit, tag] of BUILDS) {

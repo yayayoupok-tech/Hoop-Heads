@@ -16,11 +16,11 @@ const FIX = path.join(__dirname, 'fixtures');
     if ((s.name === 'combine' || s.name === 'draft') && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal
     const W = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && (w.kind === 'button' || (w.kind === 'custom' && w.onPress))); const by = re => W.find(w => re.test(w.label || ''));
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
-    const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice'];
+    const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
     switch (s.name) {
       case 'title': g.ui.clearTo(mainMenu(g)); break;
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
-      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|DRAFT COMBINE)$/) || by(/^SIM( THE GAME)?$/)); break;
+      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|DRAFT COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break;
       case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM( THE GAME)?$/)); break;
       case 'recruit': pr(i % 3 === 0 ? by(/^VISIT$/) || by(/^COMMIT$/) : by(/^COMMIT$/)); break;
       case 'visit': pr(by(/^COMMIT HERE$/)); break;
@@ -35,6 +35,11 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result
       case 'ladder': pr(by(/^Back$/)); break;
+      case 'tryout': pr(by(/^SIM IT$/)); break; // R5: tryouts (both parts simmed)
+      case 'summer': { const opts = W.filter(w => /AAU|CAMP|REST|JOB/.test(w.label || '')); if (opts.length) opts[i % opts.length].onPress(); pr(by(/^CHOOSE$/)); break; } // R5: a summer
+      case 'reststudy': pr(by(/^STUDY/)); break;
+      case 'recruiting': case 'statebracket': case 'amstandings': pr(by(/^Back$/)); break;
+      case 'tryoutpost': pr(by(/^CONTINUE$/)); break;
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

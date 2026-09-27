@@ -1025,6 +1025,60 @@ const CONFIG = {
     rimGap: 8,                 // Rim Runner: Hops and Finishing average this much over Shooting
     threeD: 62, threeDGap: 12, // 3-and-D: Shooting and Defense both at least threeD, within threeDGap of each other
   },
+  hs: {                        // R5 §3.4: high school (the career is 1v1: your team is the school, its record is yours)
+    tryoutYears: 2,            // freshmen try out, and so do sophomores still on JV; juniors and seniors are varsity
+    tryoutGood: 16,            // a shootout score this good counts in full at tryouts (the 60 s shootout: 25 balls, 30 points at most)
+    tryoutDrillW: 0.4,         // the tryout grade: this share from the shootout, the rest from the 1v1 against a senior
+    tryoutBar: [0.6, 0.5],     // a tryout grade this high makes varsity (a freshman, a sophomore)...
+    tryoutOvr: 2,              // ...and so does an OVR this much over your level's mean (the coach has seen enough)
+    tryoutTarget: 7,           // the 1v1 against a senior is a game to 7 (2s and 3s)
+    jvGap: 6,                  // JV opponents are this much under the varsity level's mean OVR
+    jvRoster: 5,               // JV teammates (freshmen and sophomores)
+    jvBase: -3,                // JV teammates center this far from your OVR when you join
+    promoteAfter: 4,           // after this many JV games...
+    promoteWin: 0.75,          // ...a win share this high gets you called up to varsity mid-season
+    district: 6,               // teams in a district, you included: a double round robin is 10 games
+    districtSeeds: 4,          // the top four play the district playoffs (semifinals, final)
+    mvpWins: 0.8,              // District MVP: first in the district with this share of its games won (a six-team district is easier to top than the old eight-player league, where 0.7 did)
+    stateTeams: 16,            // the state tournament: 16 district champions, four rounds
+    stateGap: 2,               // the other district champions sit this far over the level's mean OVR (± the usual spread): a player well above the level wins state often, an average one rarely
+    seniorConf: 2,             // senior night: confidence + this before your last regular-season home game
+    rivalryHype: 1.5,          // the rivalry game (your home game against the rival school): hype gains × this
+    classSize: 3000,           // recruiting: the national class you are ranked in...
+    recruitMean: 59,           // ...whose recruiting scores spread around this mean (the career simulator's median senior is about #300: a 3-to-4-star)...
+    recruitSd: 7,              // ...with this standard deviation
+    classAdj: 5,               // a younger player's recruiting score is projected + this per year before the senior year
+    stars: [30, 300, 1000, 2000], // national rank cutoffs for 5, 4, 3 and 2 stars (everyone else is 1 star)
+    offerCuts: [71, 64, 57],   // offers: the best program tier your recruiting score reaches (blue blood, power, mid-major, otherwise small). The old cuts (66, 60, 54) plus 3: the score now counts exposure and district titles
+    districtW: 1,              // recruiting score + this per district title (a state title counts as a title: + 2)
+    ppgW: 0.1,                 // recruiting score + this per point per game over ppgRef (last season)...
+    ppgRef: 12,                // ...the reference
+    aauExposure: 2,            // recruiting score + this for every AAU summer (the circuit is where scouts watch; 3 made always-AAU careers 7% better than the rest)
+    campExposure: 1,           // recruiting score + this for every skills camp
+    visits: 3,                 // official visits before commitment day
+    minOffers: 3,              // commitment day always has at least this many offers (small schools fill in)
+    strictOdds: 0.25,          // share of colleges with strict academic standards: they pull an offer when your GPA drops under gpaMin
+    startCash: 200,            // what you have saved as a freshman ($)
+    campCost: 600,             // summer skills camp: its cost ($)...
+    campXp: 150,               // ...and the XP it puts into your focus
+    jobPay: 1000,              // summer job: what it pays ($)...
+    jobXpLoss: 30,             // ...and the XP it costs (spread over your ratings' banks, never below zero; 60 left always-job careers 25% behind)
+    aauFatigue: 35,            // AAU circuit: you start the season this tired...
+    aauInjury: 0.2,            // ...with this chance of carrying an injury into it...
+    aauXp: 20,                 // ...and the summer games pay this much XP
+    aauOvr: 6,                 // AAU opponents sit this far over your level's mean OVR
+    restConf: 2,               // a summer off: confidence + this
+    gpaStart: 3.0,             // grades: a freshman's GPA centers here...
+    gpaSd: 0.25,               // ...with this spread
+    gpaDrift: 0.05,            // every week of games costs this much GPA (travel, practice, no homework)
+    studyGpa: 0.3,             // a Study week: GPA + this (up to 4.0)...
+    studyRest: 10,             // ...and it is a quiet week: fatigue − this
+    gpaMin: 2.0,               // a report card under this: ineligible for ineligibleGames games, and strict colleges pull their offers
+    ineligibleGames: 2,        // games you sit when ineligible
+    autoStudyAt: 2.3,          // AUTO: when your GPA is under this, the week you don't plan is a Study week (your coach's rule)
+    reportWeek: 5,             // report cards: after this many regular-season games, and at the end of the season
+    hsXp: 0.75,                // high school XP × this (games, practice, the bench): the R5 season has about 40% more weeks, and a season should pay what it did
+  },
   dev: {                       // development switches (the R-pass build): off in the release
     gameSeconds: 24,           // every match started from the menus lasts this long in all (two halves; 0 = the real formats). The gate, the harness and the career simulator keep their own formats
     otSeconds: 8,              // ...and an overtime this long
@@ -8738,6 +8792,7 @@ function postgameScreen(game, m, after) {
   if (after.kind === 'amateur') { if (!after.applied) { after.applied = true; after.rec = amAfterMatch(game, boxScore(m, 0), after); game.save.save(); } if (after.rec) return amResultScreen(game, after.rec, m); }
   if (after.kind === 'drill') { if (!after.screen) after.screen = drillPostScreen(game, m, after); return after.screen; }
   if (after.kind === 'ladder') { if (!after.screen) after.screen = ladderPostScreen(game, m, after); return after.screen; } // R4: a depth-chart challenge
+  if (after.kind === 'tryout') { if (!after.screen) after.screen = tryoutPostScreen(game, m, after); return after.screen; } // R5: high school tryouts
   if (after.kind === 'allstar1v1') { if (!after.screen) after.screen = allStar1v1ResultScreen(game, m, after); return after.screen; }
   if (after.kind === 'allstar') { const c = careerOf(game); if (c && c.allStar && !c.allStar.done) { finishAllStar(c, m.contest3 ? m.contest3.score : 0); game.save.save(); } const sc = allStarResultScreen(game); sc.overlay = true; sc.widgets[0].onPress = () => game.quitToMenu(); return sc; }
   const items = []; const human = m.humanTeam; const won = m.winner === human; const rec = m.replay; let reward = null;
@@ -8839,15 +8894,15 @@ function amDecisionScreen(game) {
   return { widgets: items, name: 'amdecision', draw(ctx, ui) { ui.panel(ctx, 200, P ? 12 : 64, 880, P ? 700 : 612); ui.title(ctx, title, 240, P ? 64 : 124, 42); lines.forEach((l, i) => ui.label(ctx, l, 240, (P ? 126 : 186) + i * 34, P ? 21 : 18, i === 0 ? UI_GOLD : UI_TEXT)); } };
 }
 function amStandingsScreen(game) {
-  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; phoneBar(game.ui, items, null, 40, 300); // phones: a 64 px Back, bottom left
+  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; const L0 = c.league; if (L0 && L0.playoffs && L0.playoffs.state) items.push(btn('State bracket', 280, 640, 240, 48, () => game.ui.push(stateBracketScreen(game)))); phoneBar(game.ui, items, null, 40, items.length > 1 ? 620 : 300); // phones: a 64 px Back, bottom left (R5: and the state bracket)
   return { widgets: items, name: 'amstandings', draw(ctx, ui) {
-    const L = c.league; ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'STANDINGS', 60, 70, 40); if (!L) return; ui.label(ctx, L.name + ' · season ' + c.season + ' · the top ' + AMC.playoffSeeds + ' make the playoffs', 60, 104, 15, UI_DIM);
+    const L = c.league; ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'STANDINGS', 60, 70, 40); if (!L) { ui.para(ctx, c.tryout && c.tryout.step !== 'done' ? 'Tryouts first: the league starts when the coach has picked varsity and JV.' : 'No league right now.', 60, 110, 700, 16, UI_DIM); return; } ui.label(ctx, L.name + ' · season ' + c.season + (L.format === 'jv' ? ' · no playoffs on JV: win and you get called up' : ' · the top ' + AMC.playoffSeeds + (L.format === 'district' ? ' play the district playoffs, the champion goes to state' : ' make the playoffs')), 60, 104, 15, UI_DIM, 'left', 1160);
     [['#', 70], ['TEAM · PLAYER', 110], ['W-L', 470], ['+/-', 540], ['OVR', 610], ['HEIGHT', 670]].forEach(([h, x]) => ui.label(ctx, h, x, 140, 13, UI_DIM));
-    const rh = L.opps.length > 9 ? 37 : 44; amTable(c).forEach((r, i) => { const y = 172 + i * rh; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.14)'; ctx.fillRect(60, y - 17, 700, 34); } if (i === AMC.playoffSeeds - 1) { ctx.fillStyle = 'rgba(255,210,63,0.45)'; ctx.fillRect(60, y + rh / 2 - 1, 700, 2); } const col = r.me ? UI_GOLD : (r.rival ? UI_RED : UI_TEXT); const d = r.rec.pf - r.rec.pa;
+    const rh = L.opps.length > 9 ? 37 : 44; amTable(c).forEach((r, i) => { const y = 172 + i * rh; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.14)'; ctx.fillRect(60, y - 17, 700, 34); } if (i === AMC.playoffSeeds - 1 && L.format !== 'jv') { ctx.fillStyle = 'rgba(255,210,63,0.45)'; ctx.fillRect(60, y + rh / 2 - 1, 700, 2); } const col = r.me ? UI_GOLD : (r.rival ? UI_RED : UI_TEXT); const d = r.rec.pf - r.rec.pa;
       ui.label(ctx, String(i + 1), 70, y, 17, col); if (r.team) { ui.heading(ctx, teamShort(r.team) + (r.rival ? ' (RIVAL)' : ''), 110, y - 9, 13, col, 'left', 350); ui.label(ctx, r.name + (r.me ? ' (you)' : ''), 110, y + 11, 12, r.me ? UI_GOLD : UI_DIM, 'left', 350); } else ui.label(ctx, r.name + (r.rival ? '  (rival)' : ''), 110, y, 17, col, 'left', 350); /* R3: each row is a team and the player it sends */ ui.label(ctx, r.rec.w + '-' + r.rec.l, 470, y, 17, col); ui.label(ctx, (d > 0 ? '+' : '') + d, 540, y, 17, col); ui.label(ctx, String(r.ovr), 610, y, 17, col); ui.label(ctx, fmtHeight(r.height), 670, y, 17, col); });
     ui.heading(ctx, 'YOUR SCHEDULE', 800, 140, 18, UI_CYAN); const regular = L.games.filter(x => !x.po);
-    L.schedule.forEach((id, i) => { const o = amOppById(c, id); const g = regular[i]; const y = 172 + i * 34; ui.label(ctx, (i + 1) + '. ' + (o ? (o.team ? teamShort(o.team) : o.name) : '?'), 800, y, 15, (i === L.week && !L.playoffs) ? UI_GOLD : UI_TEXT); if (g) ui.label(ctx, (g.won ? 'W ' : 'L ') + g.my + '–' + g.their, 1220, y, 15, g.won ? UI_GREEN : UI_RED, 'right'); });
-    if (L.playoffs) { const po = L.playoffs; const y = 172 + L.schedule.length * 34 + 16; const nm = id => id === 'me' ? c.name : ((amOppById(c, id) || { name: '?' }).name); ui.heading(ctx, 'PLAYOFFS', 800, y, 18, UI_ORANGE); ui.label(ctx, po.champion ? 'Champion: ' + nm(po.champion) : (po.pending ? (po.round === 1 ? 'Semifinal vs ' : 'Final vs ') + nm(po.pending) : ''), 800, y + 30, 15, UI_TEXT); }
+    const sh = L.schedule.length > 8 ? 32 : 34; L.schedule.forEach((id, i) => { const o = amOppById(c, id); const g = regular[i]; const y = 172 + i * sh; const tag = i === L.rivalryWeek || i === L.seniorNight ? ' ★' : ''; ui.label(ctx, (i + 1) + '. ' + (L.home && L.home.length ? (L.home[i] ? 'vs ' : '@ ') : '') + (o ? (o.team ? teamShort(o.team) : o.name) : '?') + tag, 800, y, 15, (i === L.week && !L.playoffs) ? UI_GOLD : tag ? UI_ORANGE : UI_TEXT, 'left', 290); if (g) ui.label(ctx, g.before ? '(before you)' : (g.won ? 'W ' : 'L ') + g.my + '–' + g.their, 1220, y, g.before ? 12 : 15, g.before ? UI_DIM : g.won ? UI_GREEN : UI_RED, 'right'); }); if (L.rivalryWeek >= 0 || L.seniorNight >= 0) ui.label(ctx, '★ ' + [L.rivalryWeek >= 0 ? 'the rivalry game' : '', L.seniorNight >= 0 ? 'senior night' : ''].filter(Boolean).join(' · ') + ' · @ away', 800, 172 + L.schedule.length * sh - 6, 12, UI_DIM, 'left', 420); /* R5: home/away, the rivalry game, senior night, the weeks before a call-up */
+    if (L.playoffs) { const po = L.playoffs; const y = 172 + L.schedule.length * (L.schedule.length > 8 ? 32 : 34) + (L.rivalryWeek >= 0 || L.seniorNight >= 0 ? 30 : 16); const nm = id => id === 'me' ? c.name : ((amOppById(c, id) || { name: '?' }).name); ui.heading(ctx, po.round >= 3 ? 'STATE TOURNAMENT' : L.format === 'district' ? 'DISTRICT PLAYOFFS' : 'PLAYOFFS', 800, y, 18, UI_ORANGE); ui.label(ctx, po.champion ? (po.round >= 3 ? 'State champion: ' : 'Champion: ') + nm(po.champion) : (po.pending ? (po.round >= 3 ? (HS_ROUND_LABEL[po.round] || 'State') + ' vs ' : po.round === 1 ? 'Semifinal vs ' : 'Final vs ') + nm(po.pending) : ''), 800, y + 30, 15, UI_TEXT, 'left', 420); }
   } };
 }
 function amHistoryScreen(game) {
@@ -8869,9 +8924,9 @@ function amResultScreen(game, rec, m) {
   return { widgets: items, overlay: !!m, name: 'amresult', update(dt) { t += dt; }, onBack() {},
     draw(ctx, ui) {
       ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2); const head = rec.won ? 'WIN' : 'LOSS', score = rec.my + ' – ' + rec.their; ui.title(ctx, head, 60, 70, 60); ctx.font = fontStr(60, true); const hx = 60 + ctx.measureText(head).width + 30;
-      ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? 'Playoffs · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
+      ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? (rec.playoff >= 3 ? 'State · ' : 'Playoffs · ') : rec.tag === 'rivalry' ? 'Rivalry game · ' : rec.tag === 'senior' ? 'Senior night · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
       const q = rec.line || {}; const tiles = [['POINTS', q.pts || 0, {}], ['FG', (x, r) => countUp(q.fgm || 0, x, r) + '/' + (q.fga || 0), {}], ['THREES', (x, r) => countUp(q.tpm || 0, x, r) + '/' + (q.tpa || 0), {}], ['REBOUNDS', q.reb || 0, {}], ['STL · BLK', (x, r) => countUp(q.stl || 0, x, r) + ' · ' + countUp(q.blk || 0, x, r), {}]]; tiles.forEach((tl, i) => statTile(ctx, 60 + i * 146, 128, 134, 92, tl[0], tl[1], t - 0.08 * i, tl[2]));
-      if (rec.note) ui.heading(ctx, rec.note, 60, 250, 24, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed/.test(rec.note) ? UI_RED : UI_CYAN);
+      if (rec.note) ui.heading(ctx, rec.note, 60, 250, 24, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed|Out in/.test(rec.note) ? UI_RED : UI_CYAN);
       ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); const g = rec.gains || []; if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
       g.slice(0, 8).forEach((x, i) => pill(ctx, RATING_LONG[x.k] + ' ' + x.from + ' → ' + x.to, 60 + (i % 3) * 260, 322 + Math.floor(i / 3) * 36, 'rgba(76,224,122,0.3)', UI_GREEN, 15));
       hexBadge(ctx, 96, 470, 32, rec.ovrAfter, {}); ui.heading(ctx, rec.ovrAfter > rec.ovrBefore ? '▲ ' + (rec.ovrAfter - rec.ovrBefore) + ' OVR' : 'OVR ' + rec.ovrAfter, 144, 470, 22, rec.ovrAfter > rec.ovrBefore ? UI_GREEN : UI_TEXT);
@@ -9731,7 +9786,7 @@ function drawHub(ctx, ui, H, t) {
 function hubWidgets(ui, actions, week, links, plan) {
   const P = ui.phone, out = [], x = 906, w = 340; let y = 108;
   const ah = P ? tapH(ui, 60) : 64; if (actions.length === 2) { out.push(Object.assign(actions[0], { x, y, w: w * 0.58 - 5, h: ah })); out.push(Object.assign(actions[1], { x: x + w * 0.58 + 5, y, w: w * 0.42 - 5, h: ah })); } else if (actions.length) { out.push(Object.assign(actions[0], { x, y, w, h: ah })); } y += ah + (P ? 10 : 44);
-  if (plan && plan.length) { if (P) { const ph = tapH(ui, 44), pw = (432 - 16) / 3; plan.forEach((b, i) => out.push(Object.assign(b, { x: 424 + i * (pw + 8), y: 706 - ph - 12, w: pw, h: ph }))); } else { const pw = (w - 8) / 3; plan.forEach((b, i) => out.push(Object.assign(b, { x: x + i * (pw + 4), y, w: pw, h: 58 }))); y += 66; } }
+  if (plan && plan.length) { if (P) { const ph = tapH(ui, 44), pw = (432 - 8 * (plan.length - 1)) / plan.length; plan.forEach((b, i) => out.push(Object.assign(b, { x: 424 + i * (pw + 8), y: 706 - ph - 12, w: pw, h: ph }))); } else { const pw = (w - 4 * (plan.length - 1)) / plan.length; plan.forEach((b, i) => out.push(Object.assign(b, { x: x + i * (pw + 4), y, w: pw, h: 58 }))); y += 66; } } /* R5: four plans in high school on desktop */
   if (week.length) { const wh = P ? tapH(ui, 44) : 46; for (const wd of week) { out.push(Object.assign(wd, { x, y, w, h: wh })); y += wh + 8; } }
   out.statusY = plan && plan.length ? y : -1; if (out.statusY >= 0) y += P ? 56 : 70;
   y = P ? y + 4 : Math.max(y + 10, 330); const many = !P && links.filter(b => !b.phoneHide || !P).length > 8, lh = P ? tapH(ui, 44) : many ? 44 : 50, cols = 2, lw = (w - 10) / 2; /* nine links on desktop: shorter rows so the last one clears the panel */
@@ -9744,12 +9799,14 @@ function hubWidgets(ui, actions, week, links, plan) {
 function amHub(game) {
   const s = game.save.data, c = amateurOf(game); if (!c) return careerOf(game) ? careerHub(game) : mainMenu(game);
   const ui = game.ui; let t = 0; const nx = amNext(c); const focusKeys = Object.keys(CR.trainFocus).filter(k => k !== 'recovery');
-  const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); return; } amStartGame(c); if (!isStarter(c)) { game.save.save(); game.ui.replace(amHub(game)); return; } game.save.save(); /* a challenge settled at tip-off can cost you the start */ game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id }); };
-  const actions = []; if (c.stage === 'combine') actions.push(btn('DRAFT COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : 'DRAFT DECISION', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (nx && nx.opp && !isStarter(c)) actions.push(btn('SIM THE GAME', 0, 0, 0, 0, () => { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); }, { primary: true })); /* R4: on the bench: your teammate starts */
+  const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); return; } hsAutoResolve(c); amStartGame(c); if (!isStarter(c) || c.ineligible > 0) { game.save.save(); game.ui.replace(amHub(game)); return; } game.save.save(); /* a challenge settled at tip-off can cost you the start */ game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id }); };
+  const actions = []; if (c.stage === 'combine') actions.push(btn('DRAFT COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : 'DRAFT DECISION', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (c.summer && c.summer.pending) actions.push(btn('YOUR SUMMER', 0, 0, 0, 0, () => game.ui.push(summerScreen(game)), { primary: true })); /* R5 */
+  else if (c.tryout && c.tryout.step !== 'done') actions.push(btn('TRYOUTS', 0, 0, 0, 0, () => game.ui.push(tryoutScreen(game)), { primary: true })); /* R5 */
+  else if (nx && nx.opp && (!isStarter(c) || c.ineligible > 0)) actions.push(btn('SIM THE GAME', 0, 0, 0, 0, () => { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); }, { primary: true })); /* R4: on the bench: your teammate starts */
   else if (nx && nx.opp) actions.push(btn('PLAY', 0, 0, 0, 0, () => play(false), { primary: true }), btn('SIM', 0, 0, 0, 0, () => play(true)));
   const plan = nx && nx.opp ? planButtons(game, careerKit(game)) : [];
   const week = ui.phone || !plan.length ? [] : [sel('Focus', 0, 0, 0, 0, focusKeys.map(k => CR.trainFocus[k].label), () => Math.max(0, focusKeys.indexOf(c.focus)), i => { c.focus = focusKeys[i]; game.save.save(); })];
-  const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game))), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })];
+  const links = [btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game)), { phoneHide: c.stage === 'combine' }), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: c.news && c.news.length ? '' : '' })].concat(c.stage === 'hs' ? [btn('Recruiting', 0, 0, 0, 0, () => game.ui.push(recruitingScreen(game)))] : []).concat([btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { phoneHide: c.stage === 'hs' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { phoneHide: true }), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game)), { phoneHide: true }), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })]);
   const items = hubWidgets(ui, actions, week, links, plan);
   const L = c.league, def = amDrawDef(c), kit = amKit(c), last = c.log.length ? c.log[c.log.length - 1] : null;
   const hLast = last ? last.height : (c.growthLog && c.growthLog[0] ? c.growthLog[0].h : c.height);
@@ -9759,13 +9816,15 @@ function amHub(game) {
       const H = { header: 'SEASON ' + c.season, sub: c.stage === 'combine' ? 'DRAFT PROSPECT' : (amStageLabel(c) + (c.team && c.team.mascot ? ' ' + c.team.mascot : '')).toUpperCase(), weeks: L && !L.done ? L.schedule.length : 0, week: L ? Math.min(L.week, L.schedule.length) : 0, playoffs: !!(L && L.playoffs),
         me: { def, kit, ovr: amOvr(c), delta: last ? amOvr(c) - last.ovr : 0, h: c.height, hLast, age: c.age, style: roleLabel(c.r, c.height), r: c.r, tr: traitsOf(c), info: c.age < 20 && c.heightFinal - c.height > 0.005 ? 'Still growing' : '' },
         last5: L ? L.games.slice(-5).map(g => g.won) : [], weekY: 198, statusY: items.statusY, B: c };
-      if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · FIRST TO ' + stg.target };
+      if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: L.format ? hsNextLabel(c, nx) : nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · FIRST TO ' + stg.target }; /* R5: district, JV and state labels */
         H.myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school };
         H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' };
         H.scout = scoutLine(myR, effRatings(o.r, o.height), c.height, o.height, o.rival ? 'Your rival will' : 'They'); if (o.rival) H.scout = H.scout.replace('Your rival will own', 'Your rival owns').replace('Your rival will want', 'Your rival wants');
-        const sm = ladderStarterMate(c); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: 'starts this week' }; H.scout = 'Win a challenge in practice to take the spot back.'; } } // R4: benched
+        const inel = c.ineligible > 0, sm = ladderStarterMate(c) || (inel ? hsSlotMate(c) : null); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = inel ? 'INELIGIBLE · ' + c.ineligible + ' GAME' + (c.ineligible > 1 ? 'S' : '') + ' · ' + sm.nick.toUpperCase() + ' PLAYS' : 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: inel ? 'plays for you' : 'starts this week' }; H.scout = inel ? 'Study weeks raise your GPA; you are eligible again after these games.' : 'Win a challenge in practice to take the spot back.'; } } // R4: benched (R5: or ineligible)
+      else if (c.summer && c.summer.pending) { H.idleTitle = 'YOUR SUMMER'; H.idleText = 'Pick one: the AAU circuit (exposure), a skills camp ($' + HS.campCost + ', XP), rest, or a summer job ($' + HS.jobPay + ').'; }
+      else if (c.tryout && c.tryout.step !== 'done') { H.idleTitle = 'TRYOUTS'; H.idleText = 'Varsity or JV: a 60-second shootout, then a 1v1 against a senior. Play them or sim them.'; }
       else { H.idleTitle = c.stage === 'combine' ? 'THE DRAFT COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then draft night. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? 'Offers are in. Pick where you play next.' : 'Declare for the draft, or stay in school?') : ''; }
-      if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + stg.size + (L.playoffs && !L.done ? ' · in the playoffs' : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
+      if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = (L.format === 'jv' ? 'JV ' : '') + 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + (L.size || stg.size) + (L.playoffs && !L.done ? (L.playoffs.round >= 3 ? ' · at state' : ' · in the playoffs') : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
       drawHub(ctx, ui, H, t);
     } };
   return scr;
@@ -9894,37 +9953,40 @@ function careerKit(game) {
   const a = amateurOf(game); if (!a) return null; const c = a;
   const next = () => { const g = amNext(c); if (!g || !g.opp) return null; const o = g.opp; return { id: o.id, name: o.name, h: o.height, r: o.r, arch: o.style, look: o.look, colors: o.colors, wl: o.rec ? o.rec.w + '-' + o.rec.l : '', rival: !!o.rival, playoff: !!g.playoff, card: { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' } }; };
   return { pro: false, c, B: c, name: c.name, h: c.height, r: c.r, caps: c.caps, xp: c.xp, age: c.age, arch: c.style, colors: c.colors, focus: () => c.focus, setFocus: f => { if (CR.trainFocus[f]) c.focus = f; }, ovr: () => amOvr(c), next,
-    practice: (f, i, x) => amPractice(c, f, i, x), rest: () => amRest(c), film: () => amFilm(c), sessionXp: (f, i) => amSessionXp(c, i), drillXp: (f, i, s) => amDrillXp(c, f, i, s), mul: () => 1, hub: () => amHub(game),
+    practice: (f, i, x) => amPractice(c, f, i, x), rest: () => amRest(c), film: () => amFilm(c), study: () => wkStudy(c), sessionXp: (f, i) => amSessionXp(c, i), drillXp: (f, i, s) => amDrillXp(c, f, i, s), mul: () => 1, hub: () => amHub(game),
     myCard: () => ({ key: 'am-me', name: c.name, look: Object.assign({}, c.look, { number: c.number }), height: c.height, colors: c.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school }) };
 }
 
 // --- the hub's week row: three plan buttons. The one you did this week lights up; the others lock until the game. ---
 function planButtons(game, K) {
-  const B = K.B, out = [];
+  const B = K.B, out = [], hs = !K.pro && K.c && K.c.stage === 'hs'; K.phoneRow = !!game.ui.phone; // R5: high school weeks can be Study weeks
   const press = plan => () => {
     const w = wkOf(B);
     if (w.done) { game.ui.toastMsg(w.done === plan ? 'Done for this week. Play the game to start a new week.' : 'One plan a week: you chose ' + WEEK_PLAN_LABEL[w.done].toLowerCase() + '.'); return; }
     if (plan === 'practice') { game.ui.push(practiceScreen(game)); return; }
     if (plan === 'film') { if (!K.next()) { game.ui.toastMsg('No game to study for.'); return; } game.ui.push(filmRoomScreen(game)); return; }
+    if (plan === 'study') { const r = wkStudy(B); game.save.save(); if (r) game.ui.toastMsg('Studied: GPA ' + r.before.toFixed(2) + ' → ' + r.after.toFixed(2)); return; }
+    if (plan === 'rest' && hs && game.ui.phone) { game.ui.push(restStudyScreen(game, K)); return; } // R5: a phone's row has room for three: Rest or Study
     const r = K.rest(); game.save.save(); if (r) game.ui.toastMsg('Rested: fatigue ' + Math.round(r.before) + ' → ' + Math.round(r.after) + (r.healed ? ' · injury healed' : ''));
   };
-  for (const plan of WEEK_PLANS) out.push({ kind: 'custom', plan, label: WEEK_PLAN_LABEL[plan], x: 0, y: 0, w: 0, h: 0, enabled: true, onPress: press(plan), draw(ctx, focused, ui) { drawPlanButton(ctx, this, focused, ui, K); } });
+  for (const plan of WEEK_PLANS.filter(p => p !== 'study' || (hs && !game.ui.phone))) out.push({ kind: 'custom', plan, label: WEEK_PLAN_LABEL[plan], x: 0, y: 0, w: 0, h: 0, enabled: true, onPress: press(plan), draw(ctx, focused, ui) { drawPlanButton(ctx, this, focused, ui, K); } });
   return out;
 }
 function planSub(plan, K) { // [long, short]: the button shows the long one when it fits, else the short one
   const B = K.B, w = B.wk || {}, done = w.done === plan;
   if (plan === 'practice') { const F = CR.trainFocus[K.focus()] || {}; return done ? ['+' + (w.xp || 0) + ' XP', '+' + (w.xp || 0)] : [F.label || 'Focus', Object.keys(F.split || {}).map(a => a.toUpperCase()).join('/') || 'Focus']; }
-  if (plan === 'rest') return done ? ['fatigue ' + Math.round(B.fatigue || 0), String(Math.round(B.fatigue || 0))] : ['−' + WK.restFatigue + ' fatigue', '−' + WK.restFatigue];
+  if (plan === 'rest') return done ? ['fatigue ' + Math.round(B.fatigue || 0), String(Math.round(B.fatigue || 0))] : (B.stage === 'hs' && K.phoneRow ? ['or study', 'or study'] : ['−' + WK.restFatigue + ' fatigue', '−' + WK.restFatigue]);
+  if (plan === 'study') return done ? ['GPA ' + (B.gpa || 0).toFixed(2), (B.gpa || 0).toFixed(1)] : ['GPA ' + (B.gpa || 0).toFixed(2), 'GPA ' + (B.gpa || 0).toFixed(1)];
   return done ? ['+' + trFilmBonus(B) + ' DEF · SHO', '+' + trFilmBonus(B) + ' D·S'] : ['scout them', 'scout'];
 }
 // The plan that runs if you play without choosing one ('' once the week is planned).
-function autoPlan(B) { const w = B.wk || {}; return w.done ? '' : (B.plan || 'practice'); }
+function autoPlan(B) { const w = B.wk || {}; if (w.done) return ''; if (B.stage === 'hs' && B.gpa < HS.autoStudyAt) return 'study'; return B.plan === 'study' ? 'practice' : (B.plan || 'practice'); } // R5: under the GPA line, the coach makes it a Study week
 function drawPlanButton(ctx, b, focused, ui, K) {
   const w = K.B.wk || {}, done = w.done === b.plan, locked = !!w.done && !done, auto = autoPlan(K.B) === b.plan;
   if (auto) { ctx.strokeStyle = UI_CYAN; ctx.lineWidth = 2; ctx.beginPath(); roundRectPath(ctx, b.x - 4, b.y - 4, b.w + 8, b.h + 8, 10); ctx.stroke(); } /* the auto plan: a cyan outline (the header or a pill says AUTO) */
   kitButton(ctx, { x: b.x, y: b.y, w: b.w, h: b.h, primary: done, enabled: !locked, _pressT: b._pressT }, focused && !locked, ui.t, { noPointer: true });
-  const ink = done ? '#1A1206' : locked ? 'rgba(243,240,255,0.4)' : UI_TEXT, big = b.h >= 80; ctx.font = fontStr(Math.min(big ? 24 : 17, b.h * 0.34), true);
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = ink; ctx.fillText((done ? '✓ ' : '') + b.label, b.x + b.w / 2, b.y + b.h * 0.36, b.w - 8);
+  const ink = done ? '#1A1206' : locked ? 'rgba(243,240,255,0.4)' : UI_TEXT, big = b.h >= 80; const lbl = (done ? '✓ ' : '') + b.label; let fs = Math.min(big ? 24 : 17, b.h * 0.34); ctx.font = fontStr(fs, true); while (fs > 10 && ctx.measureText(lbl).width > b.w - 8) { fs--; ctx.font = fontStr(fs, true); } /* R5: four plans in a row are narrower: the label shrinks to fit */
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = ink; ctx.fillText(lbl, b.x + b.w / 2, b.y + b.h * 0.36, b.w - 8);
   const subs = planSub(b.plan, K); ctx.font = fontStr(Math.min(big ? 17 : 12, b.h * 0.22), false); const sub = subs.find(t => ctx.measureText(t).width <= b.w - 10);
   if (sub) { ctx.fillStyle = done ? 'rgba(26,18,6,0.8)' : locked ? 'rgba(243,240,255,0.35)' : UI_GOLD; ctx.fillText(sub, b.x + b.w / 2, b.y + b.h * 0.72); }
   if (auto && ui.phone) { ctx.font = fontStr(11, true); const tw = ctx.measureText('AUTO').width + 12, th = rbLineH(ctx) + 2 || 18, ty = b.y + 4; ctx.fillStyle = UI_CYAN; ctx.beginPath(); roundRectPath(ctx, b.x + b.w / 2 - tw / 2, ty, tw, th, th / 2); ctx.fill(); ctx.fillStyle = UI_INK; ctx.fillText('AUTO', b.x + b.w / 2, ty + th / 2 + 1); } /* phone: a tag in the button's top edge (no header there) */
@@ -9945,7 +10007,7 @@ function drawWeekStatus(ctx, ui, B, x, y, w, small) {
 // This week's effects as a column of chips (the pro pregame, centered on x).
 function weekChips(ctx, B, x, y) {
   const w = B.wk || {}, chips = [], cut = Math.round(100 * fatigueCut(B.fatigue));
-  if (!w.done) chips.push(['NOT PLANNED: ' + WEEK_PLAN_LABEL[B.plan || 'practice'] + ' AT TIP-OFF', 'rgba(8,12,36,0.85)', UI_TEXT]);
+  if (!w.done) chips.push(['NOT PLANNED: ' + WEEK_PLAN_LABEL[autoPlan(B) || 'practice'] + ' AT TIP-OFF', 'rgba(8,12,36,0.85)', UI_TEXT]);
   if (w.done === 'film' || (!w.done && B.plan === 'film')) chips.push(['FILM +' + trFilmBonus(B) + ' DEF · +' + trFilmBonus(B) + ' SHO', 'rgba(94,224,255,0.9)', UI_INK]);
   if (w.done === 'practice' || (!w.done && B.plan === 'practice')) chips.push(['PRACTICE WEEK: FOCUS XP ×' + WK.practiceFocusMul, 'rgba(76,224,122,0.9)', UI_INK]);
   if (w.done === 'rest') chips.push(['RESTED', 'rgba(76,224,122,0.9)', UI_INK]);
@@ -10499,6 +10561,7 @@ function createCareerFromAmateur(save, a) {
   const seed = (((a.seed >>> 0) * 31 + 17) >>> 0) || 17; const A = CONFIG.amateur, D = A.draft;
   const c = { v: 5, seed, rs: 0, season: 1, week: 0, phase: 'regular', seasonLength: CR.seasonLengths.includes(a.seasonLength) ? a.seasonLength : CR.seasonLengths[0], gameLength: a.gameLength || 120, players: {}, active: [], standings: {}, stats: {}, schedule: [], results: [], playoffs: null, allStar: null, history: [], news: [], meId: 'me', me: defaultMeShape(), offseason: null, retiredList: [], nextId: 1, created: Date.now(),
     amateur: { school: a.school, college: a.college, tier: a.collegeTier || 0, titles: a.titles || 0, mvps: a.mvps || 0, awards: (a.awards || []).slice(), log: (a.log || []).slice(), totals: Object.assign({}, a.totals || {}), growthLog: (a.growthLog || []).slice(), projection: a.projection || null, heightFinal: a.heightFinal } };
+  if (a.cash > 0) c.me.money += Math.round(a.cash); // R5: what you saved in high school comes with you
   const rng = careerRng(c); const used = new Set([a.name]);
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
   rng.shuffle(pool);
@@ -10933,7 +10996,7 @@ function amMakeOpp(c, rng, stage, ovr, id) {
 }
 function amCreate(save, form) {
   const style = AM_STYLES[form.style] ? form.style : 'slasher';
-  const c = { v: 3, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number }), number: form.number, style, age: AMC.startAge,
+  const c = { v: 4, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number }), number: form.number, style, age: AMC.startAge,
     bloom: 'normal', heightFinal: AMC.heightMean, wing: AMC.wingMean, gifted: false, height: 0, r: amStartRatings(style, AMC.startPoints), xp: {}, caps: null, stage: 'hs', stageYear: 1, season: 1, focus: amStyle(style).train,
     school: '', college: '', collegeTier: 0, colors: AM_COLORS[0].slice(), log: [], totals: { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }, awards: [], titles: 0, mvps: 0, events: [], decision: null, draft: null, rival: null, league: null, seasonStats: null,
     seasonLength: CR.seasonLengths.includes(form.seasonLength) ? form.seasonLength : CR.seasonLengths[0], gameLength: form.gameLength || 120, growthLog: [], fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, hype: 0, confidence: 0, rivalFire: 0, boast: false, news: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, story: {}, timeline: [] };
@@ -10953,12 +11016,14 @@ function amCreate(save, form) {
   c.events.push({ kind: 'genes', title: 'YOUR GENES', lines: ['You are ' + fmtHeightFull(c.height) + ' as a freshman.', 'Doctors project you will end up around ' + fmtHeight(proj) + ' (' + proj.toFixed(2) + ' m), give or take an inch.', c.bloom === 'late' ? 'Late bloomer: most of your growing is still ahead of you.' : c.bloom === 'early' ? 'Early bloomer: you have already done most of your growing.' : 'You should keep growing for a few more years.', 'Wingspan: ' + (c.wing >= 1.055 ? 'long arms, good for contests and blocks.' : c.wing <= 1.005 ? 'short arms; you will have to beat length with timing.' : 'normal for your height.'), 'At that height: ' + amHeightFxText(c.heightFinal) + '.', 'Your rival from day one is ' + rv.name + '. You will meet again at every level.'] });
   tlAdd(c, 'start', 'Freshman at ' + c.school + ', ' + fmtHeight(c.height) + '. Doctors project ' + fmtHeight(proj) + '.'); storyNews(c, c.name + ' starts high school at ' + c.school + '.', 'league'); amStoryStart(c);
   c.team = tmNewAm(c, 'hs', { name: c.school, colors: c.colors, coach: c.coach, base: amOvr(c) + TM.tierGap[0] }); ladderInit(c, TM.ladderStart[0]); c.pastTeams = []; amRivalMoments(c); // R3: your school's team (its coach is the one from the first day); R4: its depth chart
+  hsFill(c); { const g = new RNG(((c.seed >>> 0) ^ 0x5BD1E995) >>> 0 || 17); c.gpa = Math.round(clamp(HS.gpaStart + HS.gpaSd * g.gauss(), 2.4, 3.8) * 100) / 100; } hsUpdateRank(c, 'start'); // R5: grades (their own stream), savings, the national rank; tryouts come first (amNewSeason)
   save.c1 = c; return c;
 }
 
 // ---------------- seasons, standings, playoffs ----------------
 function amStageMean(c) { const y = c.stageYear, M = AMC.stageMean; return c.stage === 'hs' ? M.hs + M.hsPerYear * (y - 1) : M.college + M.collegePerYear * (y - 1) + M.collegePerTier * (c.collegeTier || 0); }
 function amNewSeason(c, rng) {
+  if (c.stage === 'hs') return hsNewSeason(c, rng); // R5: tryouts, JV or a district (172_hs.js)
   const S = AMC.stages[c.stage] || AMC.stages.hs; const mean = amStageMean(c); c.league = { name: S.league, opps: [], schedule: [], week: 0, me: { w: 0, l: 0, pf: 0, pa: 0 }, games: [], playoffs: null, done: false };
   for (let i = 0; i < S.size - 1; i++) c.league.opps.push(amMakeOpp(c, rng, c.stage, Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'o' + i));
   if (c.rival) { c.rival.rec = { w: 0, l: 0, pf: 0, pa: 0 }; c.league.opps[c.league.opps.length - 1] = c.rival; }
@@ -10966,55 +11031,56 @@ function amNewSeason(c, rng) {
   c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 };
   amAssignOppTeams(c, true); // R3: every opponent plays for a school (a college), in its colors
 }
-function amOppById(c, id) { return (c.league && c.league.opps.find(o => o.id === id)) || null; }
+function amOppById(c, id) { const L = c.league; return (L && (L.opps.find(o => o.id === id) || (L.stateOpps || []).find(o => o.id === id))) || null; } // R5: state tournament opponents too
 function amNext(c) { if (!c || c.decision || !c.league || c.league.done || c.stage === 'combine') return null; const L = c.league; if (L.playoffs) return L.playoffs.pending ? { opp: amOppById(c, L.playoffs.pending), playoff: L.playoffs.round } : null; if (L.week < L.schedule.length) return { opp: amOppById(c, L.schedule[L.week]), playoff: 0 }; return null; }
 function amTable(c) { const L = c.league; const rows = [{ id: 'me', name: c.name, team: c.team ? c.team.name : (c.stage === 'college' ? c.college : c.school), rec: L.me, ovr: amOvr(c), height: c.height, me: true }].concat(L.opps.map(o => ({ id: o.id, name: o.name, team: o.team || '', rec: o.rec, ovr: ovrOf(o.r, o.height), height: o.height, rival: !!o.rival }))); rows.sort((a, b) => (b.rec.w - a.rec.w) || ((b.rec.pf - b.rec.pa) - (a.rec.pf - a.rec.pa)) || (b.ovr - a.ovr)); return rows; }
 function amRec(r, pf, pa) { if (pf > pa) r.w++; else r.l++; r.pf += pf; r.pa += pa; }
 function amWinP(a, b) { return 1 / (1 + Math.exp(-(a - b) / AMC.winScale)); }
 function amSimScore(rng, a, b, target) { const aw = rng.next() < amWinP(a, b); const lose = Math.floor(target * (0.35 + rng.next() * 0.55)); return aw ? [target, lose] : [lose, target]; }
 function amOvrOf(c, id) { if (id === 'me') return amOvr(c); const o = amOppById(c, id); return o ? ovrOf(o.r, o.height) : 50; }
-function amSimWeek(c, rng, skipId) { const others = rng.shuffle(c.league.opps.filter(o => o.id !== skipId)); const T = AMC.stages[c.stage].target; for (let i = 0; i + 1 < others.length; i += 2) { const a = others[i], b = others[i + 1]; const sc = amSimScore(rng, ovrOf(a.r, a.height), ovrOf(b.r, b.height), T); amRec(a.rec, sc[0], sc[1]); amRec(b.rec, sc[1], sc[0]); if (a.rival || b.rival) { const rv = a.rival ? a : b, other = a.rival ? b : a, rs = a.rival ? sc[0] : sc[1], os = a.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
+function amSimWeek(c, rng, skipId) { if (c.league && c.league.rounds && c.league.rounds.length) return hsSimRound(c, rng); /* R5: the district's fixed rounds */ const others = rng.shuffle(c.league.opps.filter(o => o.id !== skipId)); const T = AMC.stages[c.stage].target; for (let i = 0; i + 1 < others.length; i += 2) { const a = others[i], b = others[i + 1]; const sc = amSimScore(rng, ovrOf(a.r, a.height), ovrOf(b.r, b.height), T); amRec(a.rec, sc[0], sc[1]); amRec(b.rec, sc[1], sc[0]); if (a.rival || b.rival) { const rv = a.rival ? a : b, other = a.rival ? b : a, rs = a.rival ? sc[0] : sc[1], os = a.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
 function amSimSeries(c, rng, a, b) { return rng.next() < amWinP(amOvrOf(c, a), amOvrOf(c, b)) ? a : b; }
 function amStartPlayoffs(c, rng) {
-  const L = c.league; const top = amTable(c).slice(0, AMC.playoffSeeds).map(r => r.id); const po = L.playoffs = { round: 1, seeds: top, pending: null, other: null, champion: null };
+  const L = c.league; if (L.format === 'jv') { amEndSeason(c, rng, false); return 'The JV season is over'; } /* R5: JV has no playoffs */ const top = amTable(c).slice(0, AMC.playoffSeeds).map(r => r.id); const po = L.playoffs = { round: 1, seeds: top, pending: null, other: null, champion: null };
   if (!top.includes('me')) { const f1 = amSimSeries(c, rng, top[0], top[3]), f2 = amSimSeries(c, rng, top[1], top[2]); po.champion = amSimSeries(c, rng, f1, f2); amEndSeason(c, rng, false); return 'Missed the playoffs'; }
   const seed = top.indexOf('me'); const oppSeed = 3 - seed; po.pending = top[oppSeed]; const rest = top.filter((id, i) => i !== seed && i !== oppSeed); po.other = amSimSeries(c, rng, rest[0], rest[1]);
   return 'Playoffs! You are the #' + (seed + 1) + ' seed';
 }
 function amAdvancePlayoffs(c, rng, won) {
-  const po = c.league.playoffs;
+  const po = c.league.playoffs; if (po.round >= 3) return hsAdvanceState(c, rng, won); // R5: the state bracket
   if (!won) { po.champion = po.round === 1 ? amSimSeries(c, rng, po.pending, po.other) : po.pending; po.pending = null; amEndSeason(c, rng, false); return 'Eliminated'; }
   if (po.round === 1) { po.round = 2; po.pending = po.other; return 'On to the final'; }
+  if (c.league.format === 'district') return hsStartState(c, rng); // R5: the district title sends you to state
   po.champion = 'me'; po.pending = null; amEndSeason(c, rng, true); return 'CHAMPIONS!';
 }
 
 // ---------------- a game: results, stats and development ----------------
 function amApplyResult(c, opp, my, their, st, simmed) {
-  const rng = amRng(c); const L = c.league; const won = my > their; const po = L.playoffs; const ovrBefore = amOvr(c); if (c.team) { if (won) c.team.w++; else c.team.l++; } // the team's record is yours
+  const rng = amRng(c); const L = c.league; const won = my > their; const po = L.playoffs, poRound = po ? po.round : 0; const ovrBefore = amOvr(c); /* poRound: the round played (advancing changes po.round) */ if (c.team) { if (won) c.team.w++; else c.team.l++; } // the team's record is yours
   if (!po) { amRec(L.me, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); }
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0 });
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
-  const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1, c);
+  const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c), c);
   if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add)) gains.push(g2); } // the college coach's specialty
-  const wk = wkAfterGame(c, rng, {}); const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
+  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
-  storyFill(c); const md = mdAfterGame(c, won, my, their); mdHighlights(c, st); const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
+  storyFill(c); const md = mdAfterGame(c, won, my, their); { const hv = mdHighlights(c, st); if (tag === 'rivalry' && hv > 0) c.hype = Math.min(MD.hypeMax, c.hype + hv * (HS.rivalryHype - 1)); } /* R5: the rivalry game's highlights count half again */ const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
   if (opp.rival) { h2hAdd(c, won); c.rivalFire = 0; }
-  const x = { name: c.name, won, us: my, them: their, opp: opp.name, rival: !!opp.rival, rivalFirst: !!opp.rival && c.story.h2h.w + c.story.h2h.l === 1, rivalName: c.rival ? c.rival.name : '', playoff: !!po, final: !!po && po.round === 2, champ: !!po && won && po.round === 2, eliminated: !!po && !won, recs, first: T.g === 1 || (c.stage === 'college' && c.stageYear === 1 && S.g === 1), upsetWin: won && oppOvr >= ovrBefore + MD.upset, upsetLoss: !won && oppOvr <= ovrBefore - MD.upset, big: false, pts: st.pts || 0 };
+  const x = { name: c.name, won, us: my, them: their, opp: opp.name, rival: !!opp.rival, rivalFirst: !!opp.rival && c.story.h2h.w + c.story.h2h.l === 1, rivalName: c.rival ? c.rival.name : '', playoff: !!po, final: !!po && (po.round === 2 || po.round === 6), champ: !!po && won && (po.round === 2 || po.round === 6), eliminated: !!po && !won, recs, first: T.g === 1 || (c.stage === 'college' && c.stageYear === 1 && S.g === 1), upsetWin: won && oppOvr >= ovrBefore + MD.upset, upsetLoss: !won && oppOvr <= ovrBefore - MD.upset, big: false, pts: st.pts || 0 };
   const press = pressFor(c, x); if (press) c.events.push(press); { const tb = traitStoryAfterGame(c, { playoff: !!po, won, us: my, them: their }); if (tb) c.events.push(tb); } // R3: a trait's story beat
   storyNews(c, (po ? 'Playoffs: ' : opp.rival ? 'Rivalry: ' : '') + (won ? c.name + ' beats ' + opp.name + ' ' + my + '–' + their : opp.name + ' beats ' + c.name + ' ' + their + '–' + my) + ((st.pts || 0) >= Math.ceil(my * 0.9) && won ? ', scoring ' + st.pts : '') + '.', opp.rival ? 'rival' : 'result');
   for (const r of recs) storyNews(c, c.name + ' sets a career high: ' + r.v + ' ' + REC_WORDS[r.k] + '.', 'record');
   if (wk.injury) { storyNews(c, c.name + ' is playing through a ' + wk.injury.name.toLowerCase() + ' (' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '') + ').', 'injury'); tlAdd(c, 'injury', wk.injury.name + ', ' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '')); }
   if (T.g === 1) { tlAdd(c, 'first', 'First game: ' + (won ? 'beat ' : 'lost to ') + opp.name + ' ' + my + '–' + their); amStoryAfterFirstGame(c, won); }
   if (md.boastCost) storyNews(c, 'So much for "just getting started": ' + c.name + ' loses and the hype cools.', 'media');
-  let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng);
+  let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng); else note = hsAfterWeek(c, rng) || '';
   amRivalMoments(c);
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // R3: the hidden trait's story moment
   if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
-  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: po ? po.round : 0, simmed: !!simmed, wk, recs, md, press: !!press };
+  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag };
 }
 function amSimGame(c) {
-  const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending)) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c)) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id);
+  hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c) || c.ineligible > 0) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id);
   const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff), ovrOf(g.opp.r, g.opp.height) + (g.opp.rival ? c.rivalFire || 0 : 0), stg.target); const a = sc[0], b = sc[1]; // traits: what their in-game effects are worth
   let tpm = Math.min(Math.floor(a / 3), Math.round(a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3)); if ((a - 3 * tpm) % 2) tpm = tpm > 0 ? tpm - 1 : 1; const twos = Math.max(0, (a - 3 * tpm) / 2); /* 2s and 3s that add up to the score */ const fgm = tpm + twos; const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62);
   const st = { pts: 3 * tpm + 2 * twos, fgm, fga: Math.max(fgm, Math.round(fgm / pct)), tpm, tpa: Math.max(tpm, Math.round(tpm / 0.36)), reb: Math.round(2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12), stl: Math.floor(rng.next() * 3), blk: Math.floor(rng.next() * 2 + Math.max(0, c.height - 1.95) * 6), dunkM: 0, layM: Math.round(twos * 0.5) };
@@ -11023,32 +11089,34 @@ function amSimGame(c) {
 }
 // R4: a week you don't start: the teammate on the top rung plays the team's game (simulated); you practiced.
 function amSimBenchGame(c) {
-  const g = amNext(c); if (!g || !g.opp || isStarter(c)) return null; const m = ladderStarterMate(c); if (!m) return null;
-  const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, stg = AMC.stages[c.stage] || AMC.stages.hs;
+  const g = amNext(c); const inel = c.ineligible > 0; if (!g || !g.opp || (isStarter(c) && !inel)) return null; const m = ladderStarterMate(c) || hsSlotMate(c); if (!m) return null; // R5: ineligible (grades): the next rung plays
+  const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, poRound = po ? po.round : 0, stg = AMC.stages[c.stage] || AMC.stages.hs;
   const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + (opp.rival ? c.rivalFire || 0 : 0), stg.target); const my = sc[0], their = sc[1], won = my > their;
   if (c.team) { if (won) c.team.w++; else c.team.l++; }
   if (!po) { amRec(L.me, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); }
-  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0, bench: m.name });
-  storyNews(c, (po ? 'Playoffs: ' : '') + teamShort(c.team.name) + ' (' + m.name + ') ' + (won ? 'beat ' : 'lost to ') + (opp.team ? teamShort(opp.team) + ' (' + opp.name + ')' : opp.name) + ' ' + Math.max(my, their) + '–' + Math.min(my, their) + '. ' + c.name + ' did not play.', opp.rival ? 'rival' : 'result');
-  const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); trustAfterWeek(c, wk.plan, wk.fatigueBefore); ladderBenchStory(c);
-  let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng);
+  L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: poRound, bench: m.name, ineligible: inel });
+  storyNews(c, (po ? 'Playoffs: ' : '') + teamShort(c.team.name) + ' (' + m.name + ') ' + (won ? 'beat ' : 'lost to ') + (opp.team ? teamShort(opp.team) + ' (' + opp.name + ')' : opp.name) + ' ' + Math.max(my, their) + '–' + Math.min(my, their) + '. ' + c.name + ' did not play' + (inel ? ' (academically ineligible).' : '.'), opp.rival ? 'rival' : 'result');
+  const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); hsGradeWeek(c); if (inel) c.ineligible--; trustAfterWeek(c, wk.plan, wk.fatigueBefore); if (!inel) ladderBenchStory(c);
+  let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng); else note = hsAfterWeek(c, rng) || '';
   if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); amRivalMoments(c);
-  return { bench: true, starter: m.name, starterId: m.id, won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains: bd.gains, benchXp: bd.xp, learned: [], note, ovrBefore: ovr0, ovrAfter: amOvr(c), line: {}, playoff: po ? po.round : 0, simmed: true, wk, recs: [], md: {}, press: false, rank: ladderRank(c) };
+  return { bench: true, ineligible: inel, starter: m.name, starterId: m.id, won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains: bd.gains, benchXp: bd.xp, learned: [], note, ovrBefore: ovr0, ovrAfter: amOvr(c), line: {}, playoff: poRound, simmed: true, wk, recs: [], md: {}, press: false, rank: ladderRank(c) };
 }
 function amAfterMatch(game, box, after) { const c = game.save.data.c1; if (!c || c.stage === 'combine' || c.handedOff) return null; const opp = amOppById(c, after.oppId); if (!opp) return null; const me = box.teams[0], them = box.teams[1]; return amApplyResult(c, opp, me.score, them.score, Object.assign({}, me.players[0] || {}), false); }
 
 // ---------------- the end of a season: awards, growth, what comes next ----------------
 function amEndSeason(c, rng, champ) {
-  const L = c.league; L.done = true; const S = c.seasonStats; const size = AMC.stages[c.stage].size; const rank = amTable(c).findIndex(r => r.id === 'me') + 1;
+  const L = c.league; L.done = true; const S = c.seasonStats; const size = L.size || AMC.stages[c.stage].size; const rank = amTable(c).findIndex(r => r.id === 'me') + 1; const fmt = L.format || ''; // R5: 'jv' or 'district' in high school
   const ppg = S.g ? S.pts / S.g : 0, fg = S.fga ? 100 * S.fgm / S.fga : 0; const awards = [];
-  if (champ) { awards.push(AMC.stages[c.stage].label + ' champion'); c.titles++; if (c.team) c.team.titles++; }
-  if (rank === 1 && L.me.w >= Math.ceil(L.schedule.length * 0.7)) { awards.push('League MVP'); c.mvps++; }
-  if (rank <= 3) awards.push('All-League 1st team'); else if (rank <= 5) awards.push('All-League 2nd team');
+  if (champ) { awards.push(fmt === 'district' ? 'State champion' : AMC.stages[c.stage].label + ' champion'); c.titles++; if (c.team) c.team.titles++; }
+  if (L.districtChamp) { awards.push('District champion'); c.districts = (c.districts || 0) + 1; } // R5: a district title is an award (the state title is the title)
+  if (fmt === 'jv') { if (rank === 1) awards.push('JV MVP'); } // JV awards don't count as MVPs
+  else if (rank === 1 && L.me.w >= Math.ceil(L.schedule.length * (fmt === 'district' ? HS.mvpWins : 0.7))) { awards.push(fmt === 'district' ? 'District MVP' : 'League MVP'); c.mvps++; }
+  if (fmt === 'district') { if (rank <= 2) awards.push('All-District 1st team'); else if (rank <= 4) awards.push('All-District 2nd team'); } else if (fmt !== 'jv') { if (rank <= 3) awards.push('All-League 1st team'); else if (rank <= 5) awards.push('All-League 2nd team'); }
   if (c.stage === 'college' && c.stageYear === 1 && rank <= 4) awards.push('Freshman of the Year');
-  for (const a of awards) { c.awards.push('Season ' + c.season + ': ' + a); storyNews(c, c.name + (/champion/.test(a) ? ' and ' + (c.stage === 'college' ? c.college : c.school) + ' win the title!' : ': ' + a + '.'), 'award'); tlAdd(c, /champion/.test(a) ? 'title' : 'award', a + (c.stage === 'college' ? ' · ' + c.college : ' · ' + c.school)); }
+  for (const a of awards) { c.awards.push('Season ' + c.season + ': ' + a); if (a === 'District champion') continue; /* its news and timeline came with the title */ storyNews(c, c.name + (/champion/.test(a) ? ' and ' + (c.stage === 'college' ? c.college : c.school) + ' win the title!' : ': ' + a + '.'), 'award'); tlAdd(c, /champion/.test(a) ? 'title' : 'award', a + (c.stage === 'college' ? ' · ' + c.college : ' · ' + c.school)); }
   storyFill(c); mdSeasonEnd(c);
-  c.log.push({ season: c.season, age: c.age, stage: c.stage, label: amStageLabel(c), w: L.me.w, l: L.me.l, rank, size, ppg: Math.round(ppg * 10) / 10, fg: Math.round(fg), ovr: amOvr(c), height: c.height, awards, champ: !!champ });
-  const lines = ['Record ' + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · CHAMPIONS!' : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'];
+  const fin = hsFinish(c), jv = c.seasonJv; c.log.push({ season: c.season, age: c.age, stage: c.stage, label: amStageLabel(c), w: L.me.w, l: L.me.l, rank, size, ppg: Math.round(ppg * 10) / 10, fg: Math.round(fg), ovr: amOvr(c), height: c.height, awards, champ: !!champ, squad: c.stage === 'hs' ? c.squad : undefined, finish: fin || undefined, jv: jv ? jv.w + '-' + jv.l : undefined });
+  const lines = [(fmt === 'jv' ? 'JV record ' : jv ? 'JV ' + jv.w + '-' + jv.l + ', called up · varsity ' : 'Record ') + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · ' + (fmt === 'district' ? 'STATE CHAMPIONS!' : 'CHAMPIONS!') : fin && fmt === 'district' ? ' · ' + fin : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'];
   const grow = amOffseason(c, rng, lines); c.season++; lines.push(amScoutLine(c));
   const before = c.events.length; amAfterSeason(c, rng, lines);
   c.events.splice(before, 0, { kind: 'recap', title: 'SEASON ' + (c.season - 1) + ' RECAP', lines, grow }); const gc = amStoryGrowth(c, grow); if (gc) c.events.splice(before + 1, 0, gc); const lb = traitStoryGrowth(c, c.age, grow); if (lb) c.events.splice(before + 1 + (gc ? 1 : 0), 0, lb);
@@ -11065,7 +11133,8 @@ function amOffseason(c, rng, lines) {
 }
 function amAfterSeason(c, rng, lines) {
   if (c.stage === 'hs') {
-    if (c.stageYear < AMC.stages.hs.years) { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, lines); }
+    hsReportCard(c, 'end'); const rk = hsUpdateRank(c, 'season'); lines.push('Recruiting: ' + hsStarText(rk.stars) + ' · ' + hsRankText(rk) + ' · GPA ' + c.gpa.toFixed(2) + (c.cash ? ' · $' + Math.round(c.cash).toLocaleString() + ' saved' : '')); // R5: grades, the national rank
+    if (c.stageYear < AMC.stages.hs.years) { if (c.stageYear === 2) hsOfferCheck(c, rng, 'soph'); else if (c.stageYear === 3) hsOfferCheck(c, rng, 'junior'); hsSummerStart(c); c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, lines); hsTeamSummer(c, lines); lines.push('Next: your summer, then ' + (c.tryout ? 'tryouts.' : 'the season.')); }
     else { amStartRecruiting(c, rng); lines.push('You graduated! College offers are waiting: take your official visits, then commit.'); }
   } else if (c.stage === 'college') {
     if (c.stageYear < AMC.stages.college.years) { c.decision = { kind: 'declare' }; lines.push('Decision time: scouts project you as ' + amProjLabel(c) + '.'); }
@@ -11104,7 +11173,7 @@ function amMatchOpts(game, c, opp, playoff) {
 
 // ---------------- saves from the first 1v1 career build (engine-scale attributes, five styles) ----------------
 function amMigrate(old) {
-  if (!old || typeof old !== 'object') return null; if (old.v === 3) return amRepair(old); if (old.v === 2) return amRepair(amUpgrade3(old));
+  if (!old || typeof old !== 'object') return null; if (old.v === 4) return amRepair(old); if (old.v === 3) return amRepair(amUpgrade4(old)); if (old.v === 2) return amRepair(amUpgrade4(amUpgrade3(old)));
   if (old.v !== 1 || !old.attrs) return null;
   const c = { v: 2, seed: (hashString(String(old.name || 'x')) ^ 0x5bd1e995) >>> 0, rs: 0, name: String(old.name || 'Rookie').slice(0, 18), look: Object.assign({}, old.look || {}), number: old.number || 0, style: AM_OLD_STYLES[old.style] || (AM_STYLES[old.style] ? old.style : 'slasher'), age: old.age || 14,
     bloom: old.bloom || 'normal', heightFinal: old.heightFinal || AMC.heightMean, wing: AMC.wingMean, gifted: !!old.genes, height: old.height || AMC.heightMean, r: {}, xp: {}, caps: {}, stage: old.stage === 'college' ? 'college' : old.stage === 'hs' ? 'hs' : 'combine', stageYear: old.stageYear || 1, season: old.season || 1, focus: old.focus === 'athletic' || CR.trainFocus[old.focus] ? old.focus : 'shooting',
@@ -11115,7 +11184,7 @@ function amMigrate(old) {
   const rng = amRng(c);
   if (c.stage === 'combine') c.events.push({ kind: 'declare', title: 'ON TO THE DRAFT', lines: ['Your career moved to the new pro league. Next stop: the draft combine.'] });
   else { amNewSeason(c, rng); c.events.push({ kind: 'note', title: 'NEW SEASON', lines: ['Your career carried over to the new version. This season starts fresh; your ratings, height and history came with you.'] }); }
-  return amRepair(amUpgrade3(c)) || c;
+  return amRepair(amUpgrade4(amUpgrade3(c))) || c;
 }
 // R3: a career from before traits, genes and teams. Its genes and traits roll from their own stream (the same ones a
 // new career with this seed would get); ceilings become the new model's but never drop under a rating you have; the
@@ -11130,13 +11199,21 @@ function amUpgrade3(c) {
   if (!Array.isArray(c.events)) c.events = []; if (c.tr && !c.handedOff) c.events.push({ kind: 'traitnew', title: 'NEW: TRAITS', sig: c.tr.sig, lines: ['Every player now has two traits. Yours is ' + traitName(c.tr.sig) + ' (' + traitRarity(c.tr.sig) + '): ' + traitDef(c.tr.sig).up.toLowerCase() + ', but ' + traitDef(c.tr.sig).down.charAt(0).toLowerCase() + traitDef(c.tr.sig).down.slice(1) + '.', 'A second, hidden trait will show itself in a story moment.', 'Ceilings changed too: skills are open to anyone up to ' + AMC.genes.skillCap + '; Speed, Hops and Strength top out at your genes.'] });
   c.v = 3; return c;
 }
+// R5: a career from before the high school rework: grades, savings and the national rank start now; the season in
+// progress finishes in its old format (the next one is a district, with tryouts for a freshman or sophomore).
+function amUpgrade4(c) {
+  if (!c || c.v >= 4) return c; hsFill(c); if (c.stage === 'hs') { if (!c.squad && !(c.tryout && c.tryout.step !== 'done')) c.squad = 'varsity'; if (!c.recruit) hsUpdateRank(c, 'start'); }
+  if (!Array.isArray(c.events)) c.events = []; if (c.stage === 'hs' && !c.handedOff) c.events.push({ kind: 'story', title: 'NEW: HIGH SCHOOL', lines: ['High school got bigger: tryouts (varsity or JV), a ten-game district with a rivalry game and senior night, the district playoffs and a 16-team state tournament. This season finishes the old way.', 'Recruiting ranks you nationally (stars, a Top-100 rank), and offers build through your junior and senior years. Summers: the AAU circuit, a skills camp, rest or a job.', 'Grades: a Study week raises your GPA (+' + HS.studyGpa + '); under ' + HS.gpaMin.toFixed(1) + ' you sit ' + HS.ineligibleGames + ' games and strict colleges pull their offers.'] });
+  c.v = 4; return c;
+}
 function amRepair(c) {
   if (!c.r || !c.caps || !c.stage) return null; for (const k of RATING_KEYS) { if (!(c.r[k] > 0)) c.r[k] = 30; if (!(c.caps[k] > 0)) c.caps[k] = 75; if (!(c.xp[k] >= 0)) c.xp[k] = 0; }
   if (!Array.isArray(c.events)) c.events = []; if (!Array.isArray(c.log)) c.log = []; if (!Array.isArray(c.awards)) c.awards = []; if (!Array.isArray(c.growthLog)) c.growthLog = [];
   if (c.stage === 'college' && !c.program) c.program = { name: c.college, tier: c.collegeTier || 0, fac: 1, focus: null, coach: 'Coach' }; if (c.decision && c.decision.kind === 'college' && !(c.decision.visits >= 0)) c.decision.visits = RCT.visits;
   wkFill(c); storyFill(c); if (!CR.trainFocus[c.focus]) c.focus = FOCUS_R3[c.focus] || 'shooting'; // saves from before the week loop: fresh legs, Practice as the standing plan; no hype, no headlines yet
   if (!c.genes) c.genes = amRollGenes(amGenesRng(c), !!c.gifted); if (!traitsOf(c)) c.tr = traitsNew(amGenesRng(c)); if ((c.stage === 'hs' || c.stage === 'college') && !c.team) { try { amEnsureTeam(c); } catch (e) { /* no team yet */ } }
-  if (!c.league && c.stage !== 'combine' && !c.handedOff && !c.decision) amNewSeason(c, amRng(c));
+  if (!c.league && c.stage !== 'combine' && !c.handedOff && !c.decision && !(c.tryout && c.tryout.step !== 'done')) amNewSeason(c, amRng(c)); /* R5: no league yet while tryouts are open */
+  if (c.stage === 'hs') hsFill(c);
   return c;
 }
 
@@ -11271,8 +11348,8 @@ function tcReleasePlayer(c, name) { const n = (c.mode === '5v5' ? 5 : 3); if (na
 // career itself, or the pro career's c.me.
 // ============================================================================
 const WK = CONFIG.week;
-const WEEK_PLANS = ['practice', 'rest', 'film'];
-const WEEK_PLAN_LABEL = { practice: 'PRACTICE', rest: 'REST', film: 'FILM' };
+const WEEK_PLANS = ['practice', 'rest', 'film', 'study']; // R5: Study is high school only
+const WEEK_PLAN_LABEL = { practice: 'PRACTICE', rest: 'REST', film: 'FILM', study: 'STUDY' };
 const DRILL_FOCUS = { shooting: 'shooting', handles: 'offense', finishing: 'offense', defense: 'defense' }; // which 60 s drill each focus plays (athleticism and strength are weight-room work: sim only)
 const DRILL_INFO = { // the 60 s drills: name and scoring, for the practice screen and the match HUD
   shooting: { title: 'SHOOTOUT', how: '60 seconds, five racks along the arc. Every make is 1; the last ball of a rack is 2.' },
@@ -11301,6 +11378,7 @@ function wkSummary(B) {
   if (w.done === 'film') parts.push('Film: +' + trFilmBonus(B) + ' DEF, +' + trFilmBonus(B) + ' SHO');
   if (w.done === 'practice') parts.push('Practice: focus XP ×' + WK.practiceFocusMul);
   if (w.done === 'rest') parts.push('Rested');
+  if (w.done === 'study') parts.push('Studied: GPA ' + (B.gpa || 0).toFixed(2));
   if (B.injury) parts.push(B.injury.name + ': −' + WK.injurySpd + ' SPD (' + B.injury.games + ' game' + (B.injury.games > 1 ? 's' : '') + ')');
   const cs = confShoOf(B); if (Math.abs(cs) >= 0.5) parts.push((cs > 0 ? 'Confident: +' : 'Shaken: ') + cs.toFixed(0).replace('-', '−') + ' SHO');
   if (cut > 0) parts.push('Tired: −' + cut + '% to every rating');
@@ -11342,8 +11420,8 @@ function wkBenchWeek(B) { const out = { healed: false, injury: null, fatigueBefo
 function wkNewSeason(B) { B.fatigue = 0; B.injury = null; wkNew(B); }
 
 // --- the amateur week ---
-function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c); }
-function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c); } // R4: coach trust pays up to +20%
+function amSessionXp(c, intensity) { return WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c); }
+function amDrillXp(c, focus, intensity, score) { return drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c); } // R4: coach trust pays up to +20%
 function amPractice(c, focus, intensity, xpIn) {
   if (CR.trainFocus[focus]) c.focus = focus; c.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = amOvr(c), movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c));
   const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, xpIn, c.intensity, amRng(c)); if (!res) return null;
@@ -11352,7 +11430,7 @@ function amPractice(c, focus, intensity, xpIn) {
 function amRest(c) { return wkRest(c); }
 function amFilm(c) { const g = amNext(c); return wkFilm(c, g && g.opp ? g.opp.id : null); }
 // Nobody skips a week: if you play without choosing, your standing plan runs (Practice is a simmed session).
-function amStartGame(c) { wkFill(c); ladderSettlePending(c); if (c.wk.done) return null; const p = c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
+function amStartGame(c) { wkFill(c); ladderSettlePending(c); if (c.wk.done) return null; if (c.stage === 'hs' && hsFill(c).gpa < HS.autoStudyAt) return wkStudy(c); /* R5: grades first (the coach's rule) */ const p = c.plan === 'study' ? 'practice' : c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
 
 // --- the pro week ---
 function proTrainMul(c, focus) { const M = c.me, me = meOf(c), F = CR.trainFocus[focus] || CR.trainFocus.shooting; return (1 + CR.staffBonus * (M.staff[F.staff] || 0)) * (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
@@ -11490,9 +11568,10 @@ function amCollegeOffers(c, rng) {
   return out;
 }
 function amStartRecruiting(c, rng) {
-  const offers = amCollegeOffers(c, rng); c.decision = { kind: 'college', offers, visits: RCT.visits };
+  hsOfferCheck(c, rng, 'final'); let offers = hsLiveOffers(c).map(o => Object.assign({}, o)); if (!offers.length) offers = amCollegeOffers(c, rng).filter(o => !o.draft).slice(-1); // R5: the offers you built up (never none)
+  if (c.rival && offers.length) offers[0].contested = true; if (amOvr(c) >= AMC.skipCollegeOvr) offers.push({ name: 'Skip college: declare for the draft', tier: -1, draft: true }); c.decision = { kind: 'college', offers, visits: HS.visits };
   const best = offers[0]; storyNews(c, c.name + ' has ' + offers.filter(o => !o.draft).length + ' scholarship offers, led by ' + best.name + '.', 'draft');
-  if (c.rival && best && !best.draft) c.events.push(rivalCard('recruit', 'RECRUITING BATTLE', [best.name + ' (' + AMC.tiers[best.tier] + ') has one scholarship left, and they want you or ' + c.rival.name + '.', 'Commit there and ' + c.rival.nick + ' goes somewhere else. Pick another school and ' + c.rival.nick + ' takes the spot.', 'You get ' + RCT.visits + ' official visits before commitment day.']));
+  if (c.rival && best && !best.draft) c.events.push(rivalCard('recruit', 'RECRUITING BATTLE', [best.name + ' (' + AMC.tiers[best.tier] + ') has one scholarship left, and they want you or ' + c.rival.name + '.', 'Commit there and ' + c.rival.nick + ' goes somewhere else. Pick another school and ' + c.rival.nick + ' takes the spot.', 'You get ' + HS.visits + ' official visits before commitment day.']));
 }
 function amVisit(c, i) {
   const d = c.decision; if (!d || d.kind !== 'college') return null; const o = d.offers[i]; if (!o || o.draft || o.visited || !(d.visits > 0)) return null;
@@ -11521,7 +11600,7 @@ function amScoutLine(c) { const eff = effRatings(c.caps, c.heightFinal || c.heig
 // --- the first ten minutes: the first game, the week, the first growth spurt ---
 function amStoryStart(c) {
   c.coach = c.coach || ('Coach ' + genName(amRng(c), new Set(), new Set()).split(' ')[1]);
-  c.events.push({ kind: 'story', title: 'FIRST DAY', lines: [c.coach + ': “Freshman, you\'re starting. I don\'t care how tall you are. Show me you can play.”', 'Games are one on one, first to 15. Hold Shoot and let go at the top of your jump; a dribble move beats a defender who leans the wrong way.', 'Your rival, ' + (c.rival ? c.rival.name : 'a kid across town') + ', is in this league too. You will see each other soon.'] });
+  c.events.push({ kind: 'story', title: 'FIRST DAY', lines: [c.coach + ': “Tryouts are Monday. Varsity or JV: show me you can shoot, then show me you can play. I don\'t care how tall you are.”', 'Games are one on one, first to 15. Hold Shoot and let go at the top of your jump; a dribble move beats a defender who leans the wrong way.', 'Your rival, ' + (c.rival ? c.rival.name : 'a kid across town') + ', is in this league too. You will see each other soon.'] });
 }
 function amStoryAfterFirstGame(c, won) {
   c.events.push({ kind: 'story', title: 'THE WEEK', lines: [(c.coach || 'Coach') + ': “' + (won ? 'Not bad for a freshman. Now we get to work.' : 'Welcome to high school. Now we get to work.') + '”', 'Before every game you choose one: PRACTICE (focus XP, and a 60-second drill if you want to play it), REST (fatigue −' + WK.restFatigue + ') or FILM (+' + WK.filmBonus + ' Defense and Shooting next game).', 'Every game adds ' + WK.fatiguePerGame + ' fatigue. Past ' + WK.fatigueFreeAt + ' your ratings drop, and tired players get hurt.'] });
@@ -11719,8 +11798,8 @@ function tmNewAm(c, kind, o) {
 function tmNewSeason(c, rng) {
   const T = c.team; if (!T || T.kind === 'pro') return []; rng = rng || tmRng(c); const gone = [], used = new Set(T.mates.map(m => m.name).concat([c.name]));
   for (const m of T.mates.slice()) { m.cls++; m.age++; if (m.cls > 4) { gone.push(m.name); T.mates.splice(T.mates.indexOf(m), 1); continue; } for (const k of RATING_KEYS) if (rng.next() < TM.growOdds) m.r[k] = Math.min(CR.ratingMax, m.r[k] + CR.xpStep); if (T.kind === 'hs' && m.age <= 17) m.height = Math.round((m.height + 0.015) * 100) / 100; }
-  const mean = T.kind === 'hs' ? AMC.stageMean.hs : AMC.stageMean.college + AMC.stageMean.collegePerTier * T.tier + TM.tierOvr * T.tier;
-  while (T.mates.length < TM.roster[T.kind]) T.mates.push(tmMakeMate(c, rng, T.kind, Math.round(clamp(mean + TM.classOvr[0] + TM.sd * rng.gauss(), 28, 92)), 'tm' + (c.tmn = (c.tmn || 0) + 1), used, 1));
+  const mean = (T.kind === 'hs' ? AMC.stageMean.hs : AMC.stageMean.college + AMC.stageMean.collegePerTier * T.tier + TM.tierOvr * T.tier) - (T.jv ? HS.jvGap : 0);
+  while (T.mates.length < (T.jv ? HS.jvRoster : TM.roster[T.kind])) T.mates.push(tmMakeMate(c, rng, T.kind, Math.round(clamp(mean + TM.classOvr[0] + TM.sd * rng.gauss(), 28, 92)), 'tm' + (c.tmn = (c.tmn || 0) + 1), used, 1));
   T.seasons++; ladderRepair(c); return gone;
 }
 // Leaving a team (graduation, college, the draft, a trade): it goes to c.pastTeams with your record there.
@@ -11798,7 +11877,7 @@ function ladderSettlePending(c) { const T = c && c.team; if (T && T.pending) ret
 function trustAfterGame(c, won, us, them) { if (!c.team) return 0; let d = won ? TM.trust.win : TM.trust.loss; if (!won && them > 0 && them - us > MD.blowoutFrac * them) d += TM.trust.blowout; return trustAdd(c, d); }
 function trustAfterWeek(c, plan, fatigue) { if (!c.team) return 0; if (plan === 'practice') return trustAdd(c, TM.trust.practice); if (plan === 'rest' && (fatigue || 0) < TM.trust.freshAt) return trustAdd(c, TM.trust.restFresh); return 0; }
 // R4: match kinds that belong to a career. Arcade extras (super meter, specials, power-ups) never run in them.
-const CAREER_KINDS = ['career', 'amateur', 'drill', 'ladder', 'allstar', 'allstar1v1'];
+const CAREER_KINDS = ['career', 'amateur', 'drill', 'ladder', 'tryout', 'allstar', 'allstar1v1'];
 // Teammates in the story: the first time you lose the start and the first time you win it at a team (coach's lines by personality).
 const COACH_BENCH = { fiery: 'You want the ball? Take it from %s in practice. Nobody hands you anything here.', teacher: '%s earned it this week. Watch how the defense gets read, then go take it back.', players: 'I know it stings. %s starts this week. Keep your head up and win it back.', oldschool: 'Seniority is earned. %s earned it. Go earn it back.', numbers: 'The numbers say %s this week. Change the numbers.' };
 const COACH_START = { fiery: 'That is what I want to see. It is your spot. Keep it.', teacher: 'You out-read %s. Remember how that felt. You start.', players: 'Told you. You start. Now let us go win some games.', oldschool: 'You earned it the right way. You start.', numbers: 'Your numbers in practice made the call. You start.' };
@@ -11814,7 +11893,7 @@ function ladderBenchStory(c) { const T = c.team; if (!T) return; const S = T.sto
 function benchDevelop(c) {
   const pro = isPro(c), B = holderOf(c), p = pro ? meOf(c) : null, r = pro ? p.r : c.r, xp = pro ? B.xp : c.xp, caps = pro ? p.caps : c.caps, age = pro ? p.age : c.age, X = CR.xpGame;
   const split = (CR.trainFocus[B.focus] || CR.trainFocus.shooting).split; const line = { pts: X.perfCap * 0.5 / X.pts * 0.5, reb: 3, stl: 1, blk: 0, fgm: 4, tpm: 1, layM: 2 };
-  const g = developFromGame(r, xp, caps, split, age, line, false, true, 1, TM.benchXp * (X.base + X.win * 0.5 + X.perfCap * 0.5) / (X.base + X.perfCap * 0.5), B); return { gains: gainsMap(g), xp: Math.round(g.pool) };
+  const g = developFromGame(r, xp, caps, split, age, line, false, true, 1, TM.benchXp * (X.base + X.win * 0.5 + X.perfCap * 0.5) / (X.base + X.perfCap * 0.5) * (pro ? 1 : hsXpMul(c)), B); return { gains: gainsMap(g), xp: Math.round(g.pool) };
 }
 
 // ============================================================================
@@ -12010,9 +12089,9 @@ function benchResultScreen(game, rec) {
     draw(ctx, ui) {
       ui.panel(ctx, 30, 20, 1220, 680, UI_PANEL2); const won = rec.won != null ? rec.won : rec.win; ui.title(ctx, (won ? 'TEAM WIN' : 'TEAM LOSS'), 60, 80, 52); const T = c.team;
       ui.heading(ctx, (rec.my != null ? rec.my : rec.us) + ' – ' + (rec.their != null ? rec.their : rec.them), 60, 138, 34, UI_TEXT);
-      ui.label(ctx, (rec.playoff ? 'Playoffs · ' : '') + (T ? T.name : 'Your team') + ' (' + rec.starter + ') vs ' + (isPro(c) ? rec.oppName : rec.opp), 60, 178, 16, UI_DIM, 'left', 720);
-      if (rec.note) ui.heading(ctx, rec.note, 60, 220, 22, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed/.test(rec.note) ? UI_RED : UI_CYAN);
-      let y = 262; for (const l of [rec.starter + ' started. You were #' + (rec.rank || ladderRank(c)) + ' on the depth chart and did not play.', 'Scrimmages with the second unit: +' + (rec.benchXp || 0) + ' XP' + benchGainsText(rec.gains) + '. Fatigue ' + Math.round((rec.wk && rec.wk.fatigue) || 0) + ' (a week off the court).', 'Take the spot back: challenge the teammate above you in practice (Practice → Depth chart).']) y += ui.para(ctx, l, 60, y, 740, 17, UI_TEXT) + 10;
+      ui.label(ctx, (rec.playoff ? (rec.playoff >= 3 ? 'State · ' : 'Playoffs · ') : '') + (T ? T.name : 'Your team') + ' (' + rec.starter + ') vs ' + (isPro(c) ? rec.oppName : rec.opp), 60, 178, 16, UI_DIM, 'left', 720);
+      if (rec.note) ui.heading(ctx, rec.note, 60, 220, 22, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed|Out in/.test(rec.note) ? UI_RED : UI_CYAN);
+      let y = 262; for (const l of [rec.ineligible ? 'You were academically ineligible (grades); ' + rec.starter + ' played. Study weeks raise your GPA.' : rec.starter + ' started. You were #' + (rec.rank || ladderRank(c)) + ' on the depth chart and did not play.', 'Scrimmages with the second unit: +' + (rec.benchXp || 0) + ' XP' + benchGainsText(rec.gains) + '. Fatigue ' + Math.round((rec.wk && rec.wk.fatigue) || 0) + ' (a week off the court).', rec.ineligible ? (c.ineligible > 0 ? c.ineligible + ' more game' + (c.ineligible > 1 ? 's' : '') + ' to sit.' : 'You are eligible again next game.') : 'Take the spot back: challenge the teammate above you in practice (Practice → Depth chart).']) y += ui.para(ctx, l, 60, y, 740, 17, UI_TEXT) + 10;
       drawLadderList(ctx, ui, c, 840, 120, 380, 8, 46);
     } };
 }
@@ -12249,6 +12328,311 @@ function formatHarnessTable(rows) {
   const L = ['strategy                                   vs       games  win%  PPP   botPPP  FG%   rim/mid/3/hook per game   blk  opp-blk  stl  TO'];
   for (const r of rows) { const g = r.games || 1; L.push((HARNESS_LABELS[r.strategy] || r.strategy).padEnd(42) + ' ' + r.difficulty.padEnd(7) + ' ' + String(r.games).padStart(5) + '  ' + String(Math.round(100 * r.wins / g)).padStart(4) + '  ' + r.ppp.toFixed(2) + '  ' + r.botPPP.toFixed(2).padStart(6) + '  ' + String(Math.round(r.fga ? 100 * r.fgm / r.fga : 0)).padStart(3) + '   ' + [r.rimA, r.midA, r.threeA, r.hookA].map(v => (v / g).toFixed(1)).join('/').padEnd(22) + '  ' + (r.blk / g).toFixed(1) + '  ' + (r.botBlk / g).toFixed(1).padStart(6) + '  ' + (r.stl / g).toFixed(1) + '  ' + (r.to / g).toFixed(1) + (r.timeouts ? '  timeouts ' + r.timeouts : '') + (r.invariant ? '  invariant fails ' + r.invariant : '')); }
   return L;
+}
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 9) — R5 §3.4 high school. Tryouts put you on JV or varsity (JV can call you up
+// mid-season); varsity plays a six-team district (a double round robin: ten games, one of them the rivalry game at
+// home, and senior night in your last year), the district playoffs and a 16-team state bracket. Recruiting ranks you
+// nationally (stars, a Top-100 rank) every season and offers build through the junior and senior years; summers are
+// the AAU circuit, a skills camp, rest or a job. Grades come from Study weeks, and a bad report card costs games and
+// some offers. The career is 1v1: the school's record is yours.
+// ============================================================================
+const HS = CONFIG.hs;
+const HS_TOWNS = ['Ashford', 'Bellmont', 'Cedar Grove', 'Dunmore', 'Eastlake', 'Fairview', 'Glenwood', 'Hollis', 'Ironton', 'Jasper', 'Kingsbridge', 'Lakeview', 'Marlow', 'Northfield', 'Oakdale', 'Pinecrest', 'Quarry Hill', 'Redmond', 'Stonebridge', 'Tidewater', 'Union City', 'Westfield', 'Yardley', 'Brookside'];
+const HS_CIRCUIT = ['the Summer Jam', 'the Elite Classic', 'the Nationals'];
+const HS_ROUND_LABEL = { 1: 'DISTRICT SEMIFINAL', 2: 'DISTRICT FINAL', 3: 'STATE · ROUND OF 16', 4: 'STATE QUARTERFINAL', 5: 'STATE SEMIFINAL', 6: 'STATE CHAMPIONSHIP' };
+const HS_ROUND_WORD = { 3: 'the round of 16', 4: 'the quarterfinals', 5: 'the semifinals', 6: 'the state final' };
+function hsXpMul(c) { return c && c.stage === 'hs' ? HS.hsXp : 1; } // high school XP (games, practice, the bench): the longer R5 season pays the same per season
+function normCdf(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+function hsFormat(c) { const L = c && c.league; return (L && L.format) || ''; } // 'jv', 'district', or '' (a league from before R5, or college)
+function hsDistrictName(c) { return 'District ' + (1 + tmHash(String(c.school) + '#d') % 16); }
+function hsVarsityTeam(c) { return c.squad === 'jv' ? c.varsity || null : c.team; }
+function hsFill(c) { if (!(c.gpa >= 0)) c.gpa = HS.gpaStart; if (!(c.cash >= 0)) c.cash = HS.startCash; if (!Array.isArray(c.offers)) c.offers = []; if (!Array.isArray(c.summers)) c.summers = []; if (!Array.isArray(c.rankLog)) c.rankLog = []; if (!(c.exposure >= 0)) c.exposure = 0; if (!(c.districts >= 0)) c.districts = 0; if (!(c.ineligible >= 0)) c.ineligible = 0; return c; }
+
+// ---------------- the season: tryouts first, then the league for your squad ----------------
+function hsNeedsTryout(c) { return c.stage === 'hs' && c.stageYear <= HS.tryoutYears && c.squad !== 'varsity'; }
+function hsNewSeason(c, rng) {
+  hsFill(c); c.league = null; c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.seasonJv = null;
+  if (c.squad === 'jv' && c.stageYear > HS.tryoutYears) hsToVarsity(c, 'junior'); // juniors are varsity
+  if (hsNeedsTryout(c)) { c.tryout = { step: 'drill', drill: null, game: null, result: null, season: c.season }; return; }
+  c.tryout = null; hsBuildLeague(c, rng);
+}
+// A pending tryout, or a summer not chosen yet, when a game is simmed: the summer defaults to rest, the tryout is simmed.
+function hsAutoResolve(c) { if (!c || c.stage !== 'hs') return; if (c.summer && c.summer.pending) hsSummerChoose(c, 'rest'); if (c.tryout && c.tryout.step !== 'done') hsSimTryout(c); }
+// The league for your squad: a six-team district (JV or varsity), a double round robin. ffWeeks: weeks already played
+// (a mid-season call-up: the varsity played them without you).
+function hsBuildLeague(c, rng, ffWeeks) {
+  const jv = c.squad === 'jv', mean = amStageMean(c) - (jv ? HS.jvGap : 0), n = HS.district - 1, dn = hsDistrictName(c);
+  const L = c.league = { name: dn + (jv ? ' · JV' : ' · varsity'), format: jv ? 'jv' : 'district', size: HS.district, opps: [], schedule: [], rounds: [], home: [], week: 0, me: { w: 0, l: 0, pf: 0, pa: 0 }, games: [], playoffs: null, done: false, rivalryWeek: -1, seniorNight: -1 };
+  for (let i = 0; i < n; i++) L.opps.push(amMakeOpp(c, rng, 'hs', Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + (jv ? 'j' : 'o') + i));
+  if (c.rival) { c.rival.rec = { w: 0, l: 0, pf: 0, pa: 0 }; L.opps[n - 1] = c.rival; } // your rival's school is in your district
+  const R = hsRoundRobin(['me'].concat(L.opps.map(o => o.id)), rng); L.rounds = R.rounds; L.schedule = R.mine; L.home = R.home;
+  if (c.rival) L.rivalryWeek = L.schedule.findIndex((id, w) => id === c.rival.id && L.home[w]);
+  if (!jv && c.stageYear >= 4) { let w = L.schedule.length - 1; while (w > 0 && !L.home[w]) w--; L.seniorNight = w; }
+  amAssignOppTeams(c, true);
+  if (!(ffWeeks > 0)) hsPreGameCards(c);
+  if (ffWeeks > 0) { const V = c.team, st = V ? (V.mates.slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a))[0] || null) : null; const T = AMC.stages.hs.target;
+    for (let w = 0; w < ffWeeks && w < L.schedule.length; w++) { const o = amOppById(c, L.schedule[w]); if (o) { const sc = amSimScore(rng, st ? tmMateOvr(st) : mean, ovrOf(o.r, o.height), T); amRec(L.me, sc[0], sc[1]); amRec(o.rec, sc[1], sc[0]); L.games.push({ opp: o.id, name: o.name, my: sc[0], their: sc[1], won: sc[0] > sc[1], po: 0, bench: st ? st.name : 'Varsity', before: true }); } L.week = w + 1; amSimWeek(c, rng, L.schedule[w]); } hsPreGameCards(c); }
+  return L;
+}
+// The circle method: every team plays every other once in five rounds, then again with home and away swapped.
+function hsRoundRobin(ids, rng) {
+  const arr = rng.shuffle(ids.slice()), n = arr.length, rounds = [];
+  for (let r = 0; r < n - 1; r++) { const pairs = []; for (let i = 0; i < n / 2; i++) { const a = arr[i], b = arr[n - 1 - i]; pairs.push((r + i) % 2 ? [b, a] : [a, b]); } rounds.push(pairs); arr.splice(1, 0, arr.pop()); } // [home, away]
+  const all = rounds.concat(rounds.map(p => p.map(x => [x[1], x[0]]))); const mine = [], home = [];
+  for (const pairs of all) { const p = pairs.find(x => x[0] === 'me' || x[1] === 'me'); mine.push(p[0] === 'me' ? p[1] : p[0]); home.push(p[0] === 'me'); }
+  return { rounds: all, mine, home };
+}
+// The rest of the district's week (your pair is played or simmed on its own).
+function hsSimRound(c, rng) { const L = c.league, pairs = L.rounds[L.week - 1] || [], T = AMC.stages.hs.target; for (const [a, b] of pairs) { if (a === 'me' || b === 'me') continue; const A = amOppById(c, a), B = amOppById(c, b); if (!A || !B) continue; const sc = amSimScore(rng, ovrOf(A.r, A.height), ovrOf(B.r, B.height), T); amRec(A.rec, sc[0], sc[1]); amRec(B.rec, sc[1], sc[0]); if (A.rival || B.rival) { const rv = A.rival ? A : B, other = A.rival ? B : A, rs = A.rival ? sc[0] : sc[1], os = A.rival ? sc[1] : sc[0]; storyNews(c, 'Rival watch: ' + rv.name + (rs > os ? ' beats ' : ' loses to ') + other.name + ' ' + Math.max(rs, os) + '–' + Math.min(rs, os) + '.', 'rival'); } } }
+// What makes this week's game special (the hub, the pregame card, hype).
+function hsGameTag(c, week) { const L = c.league; if (!L || !L.format || L.playoffs) return ''; if (week === L.rivalryWeek) return 'rivalry'; if (week === L.seniorNight) return 'senior'; return ''; }
+function hsNextLabel(c, nx) {
+  const L = c.league; if (!L || !L.format || !nx) return ''; if (nx.playoff) return HS_ROUND_LABEL[nx.playoff] || 'PLAYOFFS';
+  const tag = hsGameTag(c, L.week), where = L.home[L.week] ? 'HOME' : 'AWAY';
+  return (tag === 'rivalry' ? 'RIVALRY GAME · ' : tag === 'senior' ? 'SENIOR NIGHT · ' : L.format === 'jv' ? 'JV · ' : '') + 'GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · ' + where;
+}
+
+// ---------------- tryouts: the shootout, then a 1v1 against a senior ----------------
+function hsTryoutSenior(c) { const V = hsVarsityTeam(c); if (!V || !V.mates || !V.mates.length) return null; const srs = V.mates.filter(m => m.cls === 4); return (srs.length ? srs : V.mates).slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a))[0]; }
+function hsSimShootout(c, rng) { const e = wkEff(c.r, c.height, c); return Math.round(clamp(4 + 0.2 * e.sho + rng.gauss() * 3, 0, 30)); }
+function hsTryoutDrill(c, score) { const T = c.tryout; if (!T || T.step !== 'drill') return null; T.drill = Math.max(0, Math.round(Number(score) || 0)); T.step = 'game'; return T; }
+function hsTryoutGame(c, won, my, their) { const T = c.tryout; if (!T || T.step !== 'game') return null; T.game = { won: !!won, my: my | 0, their: their | 0 }; return hsTryoutDecide(c); }
+function hsSimTryoutGame(c, rng) { const m = hsTryoutSenior(c); const p = m ? 1 / (1 + Math.exp(-(myChallengeOvr(c) - tmMateOvr(m) - trSimEdge(m, false)) / TM.challengeScale)) : 1; const won = rng.next() < p; const lose = Math.floor(HS.tryoutTarget * (0.3 + rng.next() * 0.6)); return hsTryoutGame(c, won, won ? HS.tryoutTarget : lose, won ? lose : HS.tryoutTarget); }
+function hsSimTryout(c) { const rng = amRng(c); if (c.tryout && c.tryout.step === 'drill') hsTryoutDrill(c, hsSimShootout(c, rng)); if (c.tryout && c.tryout.step === 'game') hsSimTryoutGame(c, rng); return c.tryout; }
+function hsTryoutBar(c) { return HS.tryoutBar[Math.min(HS.tryoutBar.length, Math.max(1, c.stageYear)) - 1]; }
+function hsTryoutGrade(T) { const d = clamp01((T.drill || 0) / HS.tryoutGood), g = T.game ? (T.game.won ? 1 : 0.6 * (T.game.my || 0) / HS.tryoutTarget) : 0; return HS.tryoutDrillW * d + (1 - HS.tryoutDrillW) * g; }
+function hsTryoutDecide(c) {
+  const T = c.tryout, V = hsVarsityTeam(c), grade = hsTryoutGrade(T), rng = amRng(c); const ovrs = V && V.mates.length ? V.mates.map(tmMateOvr).sort((a, b) => a - b) : [0], med = ovrs[Math.floor(ovrs.length / 2)];
+  const bar = hsTryoutBar(c), varsity = grade >= bar || amOvr(c) >= amStageMean(c) + HS.tryoutOvr; T.result = varsity ? 'varsity' : 'jv'; T.grade = Math.round(grade * 100) / 100; T.step = 'done'; const sr = hsTryoutSenior(c);
+  const coach = (V && V.coach && V.coach.name) || c.coach || 'Coach', year = AM_CLASS[Math.min(3, c.stageYear - 1)].toLowerCase();
+  if (varsity) hsToVarsity(c, 'tryout'); else hsToJv(c);
+  hsBuildLeague(c, rng);
+  const res = 'Shootout ' + T.drill + ' · 1v1 vs ' + (sr ? sr.name : 'a senior') + ' ' + (T.game ? (T.game.won ? 'W ' : 'L ') + T.game.my + '–' + T.game.their : '');
+  c.events.push({ kind: 'story', title: varsity ? 'VARSITY!' : 'JUNIOR VARSITY', lines: [res + '.', coach + ': "' + (varsity ? 'You made varsity as a ' + year + '. You are #' + ladderRank(c) + ' on the depth chart. Earn the rest."' : 'JV this year. Win there and I will call you up. I watch every JV game."'), varsity ? 'Your district plays ten games; the top four make the district playoffs, and the district champion goes to state.' : 'JV plays ten games. Win three of every four and you get called up to varsity mid-season.'] });
+  tlAdd(c, 'tryout', (varsity ? 'Made varsity' : 'JV') + ' as a ' + year + ' (' + res + ')'); storyNews(c, c.name + (varsity ? ' makes varsity at ' : ' starts on JV at ') + c.school + ' as a ' + year + '.', 'league');
+  return T;
+}
+// Squads: the varsity team is the school's team (R3/R4); JV is a team of its own with its own depth chart.
+function ladderInitByOvr(c) { const T = c.team; if (!T) return; const me = amOvr(c); ladderInit(c, 1 + T.mates.filter(m => tmMateOvr(m) > me).length); }
+function hsToVarsity(c, why) {
+  if (c.squad === 'jv' && c.varsity) { c.jvTeam = c.team; c.team = c.varsity; } c.varsity = null; c.squad = 'varsity';
+  if (c.team) { ladderInitByOvr(c); if (why === 'callup' || why === 'junior') c.team.story = Object.assign({}, c.team.story); }
+}
+function hsToJv(c) {
+  if (c.squad !== 'jv') c.varsity = c.team; c.squad = 'jv'; const V = c.varsity, rng = tmRng(c), used = new Set((V ? V.mates.map(m => m.name) : []).concat([c.name]));
+  const T = { kind: 'hs', jv: true, name: c.school + ' JV', mascot: V ? V.mascot : schoolMascot(c.school), colors: (V ? V.colors : c.colors).slice(), tier: 0, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0, trust: TM.trustStart.hs };
+  for (let i = 0; i < HS.jvRoster; i++) { const cls = 1 + (i % 2); T.mates.push(tmMakeMate(c, rng, 'hs', Math.round(clamp(amOvr(c) + HS.jvBase + TM.classOvr[cls - 1] + TM.sd * rng.gauss(), 28, 92)), 'jv' + (c.tmn = (c.tmn || 0) + 1), used, cls)); }
+  c.team = T; ladderInitByOvr(c);
+}
+// JV: win three of every four after four games and the varsity coach calls you up; the varsity's first weeks are on
+// the books already (its top rung played them).
+function hsMaybeCallUp(c, rng) {
+  const L = c.league; if (!L || L.format !== 'jv' || L.done || L.playoffs || L.week < HS.promoteAfter || L.week >= L.schedule.length) return null; const g = L.me.w + L.me.l; if (!g || L.me.w / g < HS.promoteWin) return null;
+  const week = L.week, jv = { w: L.me.w, l: L.me.l, games: L.games.slice() }; c.seasonJv = jv; hsToVarsity(c, 'callup'); const V = hsBuildLeague(c, rng, week); const coach = (c.team && c.team.coach && c.team.coach.name) || c.coach || 'Coach';
+  c.events.push({ kind: 'story', title: 'CALLED UP!', lines: ['JV ' + jv.w + '-' + jv.l + ': that was enough. You are on varsity for the rest of the season.', coach + ': "You earned it on JV. Now you are #' + ladderRank(c) + ' on the depth chart here. Climb."', 'The varsity is ' + V.me.w + '-' + V.me.l + ' in the district so far; ' + (V.schedule.length - V.week) + ' games left, then the district playoffs.'] });
+  tlAdd(c, 'callup', 'Called up to varsity after a ' + jv.w + '-' + jv.l + ' JV start'); storyNews(c, c.name + ' is called up to the ' + c.school + ' varsity after a ' + jv.w + '-' + jv.l + ' start on JV.', 'league'); return V;
+}
+// Each summer both of the school's teams move on (the seniors graduate); a JV team is picked fresh at tryouts.
+function hsTeamSummer(c, lines) { const V = c.varsity; if (V && c.team !== V) { const keep = c.team; c.team = V; const gone = tmNewSeason(c); c.team = keep; if (gone.length && lines) lines.push('Varsity graduates: ' + gone.slice(0, 3).join(', ') + (gone.length > 3 ? ' and ' + (gone.length - 3) + ' more' : '') + '.'); } }
+
+// ---------------- the district playoffs, then state ----------------
+function hsStartState(c, rng) {
+  const L = c.league, po = L.playoffs; L.districtChamp = true; L.stateOpps = []; const towns = rng.shuffle(HS_TOWNS.slice()), used = new Set(AM_SCHOOLS);
+  for (let i = 0; i < HS.stateTeams - 1; i++) { const o = amMakeOpp(c, rng, 'hs', Math.round(clamp(amStageMean(c) + HS.stateGap + rng.gauss() * AMC.oppSd, 28, 94)), 'st' + c.season + '_' + i); let nm = towns[i % towns.length] + ' High'; if (used.has(nm)) nm = towns[i % towns.length] + ' Prep'; used.add(nm); o.team = nm; o.colors = schoolColors(nm); o.pattern = ['solid', 'stripes', 'chevron'][tmHash(nm + '#p') % 3]; o.state = true; L.stateOpps.push(o); }
+  po.state = { rounds: [rng.shuffle(['me'].concat(L.stateOpps.map(o => o.id)))] }; po.round = 3; po.champion = null; po.pending = hsStateOpp(po.state);
+  c.events.push({ kind: 'story', title: 'DISTRICT CHAMPIONS!', lines: [c.school + ' wins ' + hsDistrictName(c) + '. The banner goes up in the gym.', 'Next: the state tournament. Sixteen district champions, four rounds.', 'First up: ' + (amOppById(c, po.pending) || { name: '?' }).name + ' of ' + ((amOppById(c, po.pending) || {}).team || 'another district') + '.'] });
+  storyNews(c, c.school + ' wins ' + hsDistrictName(c) + ' and heads to the state tournament.', 'award'); tlAdd(c, 'award', 'District champion · ' + c.school);
+  return 'DISTRICT CHAMPIONS! On to state';
+}
+function hsStateOpp(S) { const R = S.rounds[S.rounds.length - 1], i = R.indexOf('me'); return i < 0 ? null : R[i ^ 1]; }
+function hsAdvanceState(c, rng, won) {
+  const po = c.league.playoffs, S = po.state, R = S.rounds[S.rounds.length - 1], next = [];
+  for (let i = 0; i < R.length; i += 2) { const a = R[i], b = R[i + 1]; if (a === 'me' || b === 'me') next.push(won ? 'me' : (a === 'me' ? b : a)); else next.push(amSimSeries(c, rng, a, b)); }
+  S.rounds.push(next);
+  if (!won) { let cur = next; while (cur.length > 1) { const nx = []; for (let i = 0; i < cur.length; i += 2) nx.push(amSimSeries(c, rng, cur[i], cur[i + 1])); S.rounds.push(nx); cur = nx; } po.champion = cur[0]; po.pending = null; const at = HS_ROUND_WORD[po.round] || 'state'; amEndSeason(c, rng, false); return 'Out in ' + at; }
+  if (next.length === 1) { po.champion = 'me'; po.pending = null; amEndSeason(c, rng, true); return 'STATE CHAMPIONS!'; }
+  po.round++; po.pending = hsStateOpp(S); return 'On to ' + HS_ROUND_WORD[po.round];
+}
+// The season's line for the recap and the log: how far you went.
+function hsFinish(c) { const L = c.league; if (!L || !L.format) return ''; if (L.format === 'jv') return 'JV season'; const po = L.playoffs; if (!po) return ''; if (po.champion === 'me' && po.round >= 3) return 'State champion'; if (po.round >= 3) return 'State: out in ' + (HS_ROUND_WORD[po.round] || 'state'); if (L.districtChamp) return 'District champion'; return po.round === 2 ? 'Lost the district final' : po.seeds && po.seeds.includes('me') ? 'Lost the district semifinal' : 'Missed the district playoffs'; }
+
+// ---------------- grades ----------------
+function hsGpaLetter(g) { return g >= 3.85 ? 'A' : g >= 3.5 ? 'A−' : g >= 3.15 ? 'B+' : g >= 2.85 ? 'B' : g >= 2.5 ? 'B−' : g >= 2.15 ? 'C+' : g >= 1.85 ? 'C' : g >= 1.5 ? 'C−' : 'D'; }
+function hsGradeWeek(c) { if (!c || c.stage !== 'hs') return; hsFill(c); c.gpa = Math.round(clamp(c.gpa - HS.gpaDrift, 0, 4) * 100) / 100; } // every week of games (a Study week adds its + at once)
+function wkStudy(B) { const w = wkOf(B); if (w.done) return null; hsFill(B); const before = B.gpa; B.gpa = Math.round(clamp(B.gpa + HS.studyGpa, 0, 4) * 100) / 100; B.fatigue = Math.max(0, (B.fatigue || 0) - HS.studyRest); w.done = 'study'; return { before, after: B.gpa }; } // a Study week isn't sticky: next week's AUTO plan is still yours
+function hsReportCard(c, when) {
+  hsFill(c); const g = c.gpa, fail = g < HS.gpaMin, lines = ['GPA ' + g.toFixed(2) + ' (' + hsGpaLetter(g) + ')' + (when === 'end' ? ' for the year.' : ' at midterm.')];
+  if (fail) { c.ineligible = HS.ineligibleGames; const pulled = []; for (const o of c.offers) if (!o.pulled && o.strict) { o.pulled = true; pulled.push(o.name); }
+    lines.push('Under ' + HS.gpaMin.toFixed(1) + ': you are academically ineligible for the next ' + HS.ineligibleGames + ' games. Your teammates play them.'); if (pulled.length) lines.push(pulled.join(', ') + (pulled.length > 1 ? ' pull their offers' : ' pulls its offer') + ' (strict academic standards).'); else lines.push('Study weeks raise your GPA (+' + HS.studyGpa + ' each); every game week costs ' + HS.gpaDrift + '.');
+    storyNews(c, c.name + ' is academically ineligible for ' + HS.ineligibleGames + ' games.' + (pulled.length ? ' ' + pulled.join(', ') + ' pull' + (pulled.length > 1 ? '' : 's') + ' ' + (pulled.length > 1 ? 'their offers' : 'its offer') + '.' : ''), 'league'); tlAdd(c, 'grades', 'Academically ineligible (GPA ' + g.toFixed(2) + ')');
+  } else lines.push(g < HS.autoStudyAt + 0.2 ? 'Close to the line (' + HS.gpaMin.toFixed(1) + '). Your coach will make you study when it drops under ' + HS.autoStudyAt.toFixed(1) + '.' : 'Eligible. Keep it that way: every game week costs ' + HS.gpaDrift + ', a Study week adds ' + HS.studyGpa + '.');
+  c.events.push({ kind: 'story', title: 'REPORT CARD', lines }); return fail;
+}
+
+// ---------------- recruiting: stars, the national rank, offers ----------------
+function hsRecruitScore(c) { const last = c.log && c.log.length ? c.log[c.log.length - 1] : null, ppg = last && last.stage === 'hs' ? last.ppg || 0 : 0; return amOvr(c) + 2 * (c.titles || 0) + HS.districtW * (c.districts || 0) + 2 * (c.mvps || 0) + 0.5 * (c.hype || 0) + TM.trustRecruit * trustOf(c) / 100 + (c.exposure || 0) + HS.ppgW * (ppg - HS.ppgRef); }
+function hsNatRank(score, yearsLeft) { const z = (score + HS.classAdj * Math.max(0, yearsLeft || 0) - HS.recruitMean) / HS.recruitSd; return Math.max(1, Math.round(HS.classSize * (1 - normCdf(z))) + 1); }
+function hsStars(rank) { const S = HS.stars; return rank <= S[0] ? 5 : rank <= S[1] ? 4 : rank <= S[2] ? 3 : rank <= S[3] ? 2 : 1; }
+function hsStarText(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+function hsRankText(r) { return r ? (r.nat <= 100 ? '#' + r.nat + ' in the nation' : '#' + r.nat + ' nationally') : 'unranked'; }
+// yearsLeft: seasons before your senior year is done (a sophomore's score is projected up).
+function hsUpdateRank(c, why) { hsFill(c); const yl = c.stage === 'hs' ? 4 - c.stageYear : 0; const score = hsRecruitScore(c), nat = hsNatRank(score, yl), stars = hsStars(nat); const prev = c.recruit || null; c.recruit = { score: Math.round(score * 10) / 10, nat, stars, why: why || '' }; c.rankLog.push({ season: c.season, year: c.stageYear, nat, stars }); if (c.rankLog.length > 12) c.rankLog.shift(); if (prev && stars > prev.stars) { storyNews(c, c.name + ' is now a ' + stars + '-star recruit (' + hsRankText(c.recruit) + ').', 'draft'); tlAdd(c, 'recruit', stars + '-star recruit, ' + hsRankText(c.recruit)); } return c.recruit; }
+function hsOfferTier(score) { const cuts = HS.offerCuts; return score >= cuts[0] ? 3 : score >= cuts[1] ? 2 : score >= cuts[2] ? 1 : 0; }
+// Offers build: after the sophomore season only for the elite, after the junior season from the top two tiers you
+// project into, midway through the senior year, then a full set (one program per tier from the best down) after it.
+// A tier that already has an offer (or had one pulled) gets no second one.
+function hsOfferCheck(c, rng, when) {
+  hsFill(c); const yl = when === 'soph' ? 2 : when === 'junior' ? 1 : 0; const score = hsRecruitScore(c) + HS.classAdj * yl, top = hsOfferTier(score); const tiers = [];
+  if (when === 'soph') { if (top === 3) tiers.push(3); } else if (when === 'final') { for (let t = top; t >= 0 && tiers.length < RCT.offers; t--) tiers.push(t); } else { tiers.push(top); if (top > 0) tiers.push(top - 1); }
+  const have = new Set(c.offers.map(o => o.tier)), used = new Set(c.offers.map(o => o.name)), foci = Object.keys(CR.trainFocus), fresh = [];
+  if (when === 'final') { let live = hsLiveOffers(c).length + tiers.filter(t => !have.has(t)).length; while (live < HS.minOffers && tiers.length < 8) { tiers.push(0); live++; } } // at least minOffers on commitment day (small schools fill in)
+  for (const tier of tiers) { if (have.has(tier) && !(when === 'final' && tier === 0 && tiers.indexOf(0) !== tiers.lastIndexOf(0))) continue; const pool = AM_COLLEGES[tier].filter(n => !used.has(n)); if (!pool.length) continue; const name = rng.pick(pool); used.add(name); have.add(tier);
+    const o = { name, tier, colors: rng.pick(AM_COLORS).slice(), coach: 'Coach ' + genName(rng, new Set(), new Set()).split(' ')[1], focus: rng.pick(foci), fac: clamp(1 + Math.round(tier * 0.6 + rng.next() * 1.2), 1, 3), visited: false, strict: rng.next() < HS.strictOdds, when, season: c.season }; c.offers.push(o); fresh.push(o); }
+  if (fresh.length) { c.events.push({ kind: 'story', title: fresh.length > 1 ? 'SCHOLARSHIP OFFERS' : 'A SCHOLARSHIP OFFER', lines: [fresh.map(o => o.name + ' (' + AMC.tiers[o.tier] + ')').join(', ') + (fresh.length > 1 ? ' offer you scholarships.' : ' offers you a scholarship.'), 'You are ' + hsStarText(c.recruit ? c.recruit.stars : 1) + ', ' + hsRankText(c.recruit) + '. ' + (when === 'final' ? 'Commitment day is next: take your official visits, then pick a hat.' : 'More offers can come: win, put up numbers, get seen on the AAU circuit.'), fresh.some(o => o.strict) ? 'Keep your grades up: ' + fresh.filter(o => o.strict).map(o => o.name).join(', ') + ' will pull an offer if your GPA drops under ' + HS.gpaMin.toFixed(1) + '.' : 'Keep your GPA over ' + HS.gpaMin.toFixed(1) + ': some colleges pull offers from ineligible players.'] });
+    for (const o of fresh) storyNews(c, o.name + ' (' + AMC.tiers[o.tier] + ') offers ' + c.name + ' a scholarship.', 'draft'); tlAdd(c, 'offer', 'Offer' + (fresh.length > 1 ? 's' : '') + ': ' + fresh.map(o => o.name).join(', ')); }
+  return fresh;
+}
+function hsLiveOffers(c) { return (c.offers || []).filter(o => !o.pulled).slice().sort((a, b) => b.tier - a.tier); }
+
+// ---------------- summers ----------------
+const HS_SUMMERS = ['aau', 'camp', 'rest', 'job'];
+const HS_SUMMER_INFO = {
+  aau: { title: 'AAU CIRCUIT', short: 'AAU', lines: () => ['Three tournaments against the best players in the country: ' + HS_CIRCUIT.join(', ') + '.', 'Big exposure: recruiting score +' + HS.aauExposure + ' for good. The games pay ' + HS.aauXp + ' XP.', 'The catch: you start the season tired (fatigue ' + HS.aauFatigue + ') and ' + Math.round(HS.aauInjury * 100) + '% of players carry an injury into it.'] },
+  camp: { title: 'SKILLS CAMP', short: 'Camp', lines: c => ['A week with a skills coach: ' + HS.campXp + ' XP into your focus (' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + ').', 'Costs $' + HS.campCost.toLocaleString() + (c.cash < HS.campCost ? ': you have $' + Math.round(c.cash).toLocaleString() + ' (a summer job pays $' + HS.jobPay.toLocaleString() + ').' : ' (you have $' + Math.round(c.cash).toLocaleString() + ').'), 'A little exposure: recruiting score +' + HS.campExposure + '.'] },
+  rest: { title: 'REST', short: 'Rest', lines: () => ['A summer off. You heal, you start the season fresh.', 'No extra XP, no exposure, no money.', 'Confidence +' + HS.restConf + ': you come back hungry.'] },
+  job: { title: 'SUMMER JOB', short: 'Job', lines: () => ['Work the summer: you earn $' + HS.jobPay.toLocaleString() + ' (camps cost money; so does life).', 'The catch: less time in the gym. You lose ' + HS.jobXpLoss + ' XP of progress (never a rating).', 'No exposure.'] },
+};
+function hsSummerStart(c) { hsFill(c); c.summer = { pending: true, year: c.stageYear, season: c.season }; }
+function hsSummerChoose(c, kind) {
+  const S = c.summer; if (!S || !S.pending) return null; hsFill(c); if (!HS_SUMMER_INFO[kind]) kind = 'rest'; if (kind === 'camp' && c.cash < HS.campCost) kind = 'rest';
+  const rng = amRng(c), lines = [], split = (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split;
+  if (kind === 'aau') { const mean = amStageMean(c) + HS.aauOvr; let W = 0, Lw = 0; for (const nm of HS_CIRCUIT) { let w = 0, l = 0; for (let g = 0; g < 6 && l < 2; g++) { if (rng.next() < amWinP(amOvr(c), mean + AMC.oppSd * rng.gauss())) w++; else l++; } W += w; Lw += l; lines.push(nm.charAt(0).toUpperCase() + nm.slice(1) + ': ' + w + '-' + l + (l < 2 ? ', champions!' : '.')); }
+    c.exposure += HS.aauExposure; const add = {}; for (const k of RATING_KEYS) add[k] = HS.aauXp / RATING_KEYS.length; spendXp(c.r, c.xp, c.caps, add); c.fatigue = Math.max(c.fatigue || 0, HS.aauFatigue); let hurt = null; if (injuriesOn() && !c.injury && rng.next() < HS.aauInjury * trMul(c, 'injury')) hurt = wkInjure(c, rng);
+    lines.push('Scouts saw you: recruiting score +' + HS.aauExposure + '. You start the season at fatigue ' + Math.round(c.fatigue) + (hurt ? ', with a ' + hurt.name.toLowerCase() + ' (' + hurt.games + ' game' + (hurt.games > 1 ? 's' : '') + ').' : '.')); storyNews(c, c.name + ' goes ' + W + '-' + Lw + ' on the AAU circuit.', 'league'); }
+  else if (kind === 'camp') { c.cash -= HS.campCost; const add = {}; for (const k in split) add[k] = HS.campXp * split[k]; const got = gainsMap(spendXp(c.r, c.xp, c.caps, add)); c.exposure += HS.campExposure; const gl = Object.keys(got).filter(k => got[k] > 0).map(k => RATING_SHORT[k] + ' +' + got[k]); lines.push(HS.campXp + ' XP into ' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + (gl.length ? ': ' + gl.join(', ') : '') + '. $' + HS.campCost + ' spent ($' + Math.round(c.cash) + ' left).'); }
+  else if (kind === 'job') { c.cash += HS.jobPay; for (const k of RATING_KEYS) c.xp[k] = Math.max(0, (c.xp[k] || 0) - HS.jobXpLoss / RATING_KEYS.length); lines.push('You earned $' + HS.jobPay.toLocaleString() + ' ($' + Math.round(c.cash).toLocaleString() + ' saved). Less gym time: −' + HS.jobXpLoss + ' XP of progress.'); }
+  else { c.fatigue = 0; if (c.injury) c.injury = null; storyFill(c); c.confidence = Math.min(MD.confMax, (c.confidence || 0) + HS.restConf); lines.push('Rested and healed. Confidence +' + HS.restConf + '.'); }
+  S.pending = false; S.kind = kind; c.summers.push({ season: S.season, year: S.year, kind }); const r = hsUpdateRank(c, 'summer');
+  lines.push('Recruiting: ' + hsStarText(r.stars) + ' · ' + hsRankText(r) + '.');
+  c.events.push({ kind: 'story', title: 'SUMMER: ' + HS_SUMMER_INFO[kind].title, lines }); tlAdd(c, 'summer', 'Summer: ' + HS_SUMMER_INFO[kind].title.toLowerCase());
+  return { kind, lines };
+}
+
+// ---------------- the week around the games ----------------
+// Who plays your slot when you can't (ineligible while you are on the top rung): the next teammate on the ladder.
+function hsSlotMate(c) { const L = ladderOf(c) || []; const id = L.find(x => x !== 'me'); return id ? ladderMate(c, id) : null; }
+// After every regular-season week, played or not: the midterm report card (and in the senior year the midseason
+// offers), a JV call-up, and the card before the rivalry game or senior night. Returns a note for the result screen.
+function hsAfterWeek(c, rng) {
+  const L = c.league; if (!L || !L.format || L.done || L.playoffs) return ''; let note = '';
+  if (L.week === HS.reportWeek) { hsReportCard(c, 'mid'); if (c.stageYear >= 4) { hsUpdateRank(c, 'midseason'); hsOfferCheck(c, rng, 'senior'); } }
+  if (hsMaybeCallUp(c, rng)) note = 'Called up to varsity!';
+  hsPreGameCards(c); return note;
+}
+function hsPreGameCards(c) {
+  const L = c.league; if (!L || !L.format || L.done || L.playoffs || L.week >= L.schedule.length) return; const tag = hsGameTag(c, L.week), o = amOppById(c, L.schedule[L.week]);
+  if (tag === 'rivalry' && !L.rivalryCard && o) { L.rivalryCard = true; c.events.push({ kind: 'story', title: 'RIVALRY GAME', lines: ['Next: ' + c.school + ' against ' + (o.team || 'your rival\'s school') + ', at home. The whole town will be there.', o.name + ' (' + (o.rec ? o.rec.w + '-' + o.rec.l : '0-0') + ') is the reason you practice. Beat them in front of everyone.', 'Highlights count half again for hype tonight.'] }); }
+  if (tag === 'senior' && !L.seniorCard) { L.seniorCard = true; storyFill(c); c.confidence = Math.min(MD.confMax, (c.confidence || 0) + HS.seniorConf); c.events.push({ kind: 'story', title: 'SENIOR NIGHT', lines: ['Your last regular-season home game at ' + c.school + '.', 'Before tip-off the seniors walk out with their families, and the gym stands up.', 'Confidence +' + HS.seniorConf + '. Make it count.'] }); tlAdd(c, 'senior', 'Senior night at ' + c.school); }
+}
+
+// ============================================================================
+// SECTION: UI (part 11) — R5 high school screens: tryouts (the shootout and the 1v1 against a senior, played or
+// simmed), the summer choice, recruiting (stars, the national rank, offers, grades), the state bracket, and the phone's
+// Rest-or-Study chooser.
+// ============================================================================
+// --- tryouts ---
+function startTryoutDrill(game) {
+  const c = amateurOf(game); if (!c || !c.tryout || c.tryout.step !== 'drill') return; const mine = { id: 'amme', name: c.name, abbr: amAbbr(c.name), colors: (c.team ? c.team.colors : c.colors).slice(), pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c)] };
+  game.startMatch({ mode: '1v1', teams: [mine, Object.assign({}, mine)], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'gym', seed: (Date.now() % 100000) >>> 0, controlMode: 'ball', contest3: {} }, { kind: 'tryout', part: 'drill' });
+}
+function startTryoutGame(game) {
+  const c = amateurOf(game); if (!c || !c.tryout || c.tryout.step !== 'game') return; const m = hsTryoutSenior(c); if (!m) { hsSimTryoutGame(c, amRng(c)); game.save.save(); game.ui.clearTo(amHub(game)); return; } const S = game.save.data.settings;
+  const shift = careerTierShift('hs', c.stageYear, amOvr(c), tmMateOvr(m), false);
+  game.startMatch({ mode: '1v1', teams: [myPracticeTeam(c), mateTeam(c, m)], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'half', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'first', target: HS.tryoutTarget, winBy2: false }, court: 'gym', seed: (Date.now() % 100000) >>> 0, controlMode: 'lock', adaptive: false, extras: false }, { kind: 'tryout', part: 'game', mateId: m.id });
+}
+function tryoutPostScreen(game, m, after) {
+  const c = amateurOf(game); let line = '';
+  if (c && c.tryout) { if (after.part === 'drill' && c.tryout.step === 'drill') { const sc = m.contest3 ? m.contest3.score : 0; hsTryoutDrill(c, sc); line = 'Shootout: ' + sc + ' points.'; } else if (after.part === 'game' && c.tryout.step === 'game') { const won = m.winner === 0; hsTryoutGame(c, won, m.teams[0].score, m.teams[1].score); line = '1v1: ' + (won ? 'W ' : 'L ') + m.teams[0].score + '–' + m.teams[1].score + '.'; } }
+  game.save.save(); const items = [btn('CONTINUE', 0, 0, 0, 0, () => game.quitToMenu(), { primary: true })]; column(items, UI_W / 2 - 180, 600, 360, tapH(game.ui, 54), 0);
+  return { widgets: items, name: 'tryoutpost', overlay: true, onBack() { game.quitToMenu(); },
+    draw(ctx, ui) { ui.panel(ctx, 240, 120, 800, 440, UI_PANEL2); ui.title(ctx, 'TRYOUTS', 280, 180, 44); ui.heading(ctx, line, 280, 240, 24, UI_GOLD, 'left', 720);
+      const T = c && c.tryout; if (T && T.step === 'done') { ui.heading(ctx, T.result === 'varsity' ? 'VARSITY!' : 'JUNIOR VARSITY', 280, 300, 34, T.result === 'varsity' ? UI_GREEN : UI_CYAN); ui.para(ctx, 'Tryout grade ' + Math.round(T.grade * 100) + ' (varsity at ' + Math.round(hsTryoutBar(c) * 100) + ').', 280, 340, 720, 17, UI_TEXT); }
+      else ui.para(ctx, 'Next: the 1v1 against a senior, first to ' + HS.tryoutTarget + '.', 280, 300, 720, 17, UI_TEXT); } };
+}
+function tryoutScreen(game) {
+  const c = amateurOf(game); if (!c || !c.tryout) return amHub(game); const ui = game.ui, P = ui.phone, T = c.tryout;
+  const play = btn('PLAY', 0, 0, 0, 0, () => { if (T.step === 'drill') startTryoutDrill(game); else if (T.step === 'game') startTryoutGame(game); }, { primary: true });
+  const sim = btn('SIM IT', 0, 0, 0, 0, () => { const rng = amRng(c); if (T.step === 'drill') hsTryoutDrill(c, hsSimShootout(c, rng)); else if (T.step === 'game') hsSimTryoutGame(c, rng); game.save.save(); if (T.step === 'done') game.ui.clearTo(amHub(game)); });
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()); const items = [play, sim, back];
+  if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 16, 1200, 3, 0, 10); else { column([play, sim], 820, 520, 400, 52, 10); Object.assign(back, { x: 820, y: 640, w: 200, h: 46 }); }
+  return { widgets: items, name: 'tryout', update() { const done = T.step === 'done'; play.hidden = done; sim.hidden = done; play.label = T.step === 'drill' ? 'PLAY THE SHOOTOUT' : 'PLAY THE 1V1 (FIRST TO ' + HS.tryoutTarget + ')'; if (done) game.ui.clearTo(amHub(game)); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'TRYOUTS', 60, 70, 40); const V = hsVarsityTeam(c), coach = (V && V.coach) || { name: c.coach || 'Coach' };
+      ui.label(ctx, c.school + ' · ' + AM_CLASS[Math.min(3, c.stageYear - 1)] + ' · varsity or JV', 60, 110, 16, UI_TEXT, 'left', 700);
+      try { drawPortrait(ctx, { name: coach.name, look: coach.look, age: coach.age || 50 }, (c.team || { colors: c.colors }).colors, 60, 140, P ? 96 : 110); } catch (e) { /* decoration */ }
+      ui.heading(ctx, coach.name, 190, 160, 18, UI_TEXT, 'left', 560); ui.para(ctx, '"Two parts. Shoot for me for sixty seconds, then play one of my seniors to ' + HS.tryoutTarget + '. Make it hard for me to cut you from varsity."', 190, 186, 560, 15, UI_DIM, 'left', 3);
+      const box = (y, n, title, how, status, ok) => { kitHeader(ctx, n + ' · ' + title, 60, y, 700); ui.para(ctx, how, 60, y + 22, 700, 14, UI_DIM, 'left', 2); ui.heading(ctx, status, 60, y + 70, 20, ok ? UI_GREEN : status === 'next' ? UI_GOLD : UI_DIM, 'left', 700); };
+      const sr = hsTryoutSenior(c);
+      box(290, '1', 'THE SHOOTOUT', '60 seconds, five racks along the arc: every make is 1, the last ball of a rack 2. ' + HS.tryoutGood + ' counts in full.', T.drill != null ? 'Score: ' + T.drill : T.step === 'drill' ? 'next' : '', T.drill != null);
+      box(420, '2', '1V1 VS ' + (sr ? sr.name.toUpperCase() : 'A SENIOR'), 'A game to ' + HS.tryoutTarget + ' (2s and 3s) against ' + (sr ? 'a ' + fmtHeight(sr.height) + ' senior, OVR ' + tmMateOvr(sr) : 'a senior') + '. A win counts in full; a loss counts your points.', T.game ? (T.game.won ? 'W ' : 'L ') + T.game.my + '–' + T.game.their : T.step === 'game' ? 'next' : '', T.game && T.game.won);
+      if (sr && !P) try { drawPortrait(ctx, { name: sr.name, look: sr.look, age: sr.age || 17 }, (hsVarsityTeam(c) || c.team || { colors: c.colors }).colors, 1080, 140, 110, 'focused'); } catch (e) { /* decoration */ }
+      if (!P) { kitHeader(ctx, 'How the coach decides', 820, 290, 400); ui.para(ctx, 'Varsity if the grade reaches ' + Math.round(hsTryoutBar(c) * 100) + ' (the shootout ' + Math.round(HS.tryoutDrillW * 100) + '%, the 1v1 ' + Math.round((1 - HS.tryoutDrillW) * 100) + '%), or if your OVR is already ' + (amStageMean(c) + HS.tryoutOvr) + ' (you are ' + amOvr(c) + '). Otherwise JV: win there and you get called up.', 820, 314, 400, 14, UI_TEXT, 'left', 7); }
+    } };
+}
+
+// --- the summer ---
+function summerScreen(game) {
+  const c = amateurOf(game); if (!c || !c.summer || !c.summer.pending) return amHub(game); hsFill(c); const ui = game.ui, P = ui.phone; const st = { pick: Math.max(0, HS_SUMMERS.indexOf(c.summers.length ? c.summers[c.summers.length - 1].kind : 'aau')) };
+  const opts = HS_SUMMERS.map((k, i) => btn(HS_SUMMER_INFO[k].title, 0, 0, 0, 0, () => { st.pick = i; }, { align: 'left' }));
+  const go = btn('CHOOSE', 0, 0, 0, 0, () => { const k = HS_SUMMERS[st.pick]; if (k === 'camp' && c.cash < HS.campCost) { game.ui.toastMsg('The camp costs $' + HS.campCost + '. You have $' + Math.round(c.cash) + '.'); return; } hsSummerChoose(c, k); game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: true });
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()); const items = opts.concat([go, back]);
+  if (P) { phoneGrid(ui, opts, 40, 150, 520, 2, 0, 10); phoneGrid(ui, [go, back], 620, UI_H - tapH(ui, 44) - 16, 620, 2, 0, 10); } /* the header's two lines above the options */ else { column(opts, 60, 130, 380, 60, 12); Object.assign(go, { x: 820, y: 600, w: 400, h: 56 }); Object.assign(back, { x: 60, y: 640, w: 200, h: 46 }); }
+  return { widgets: items, name: 'summer', update() { opts.forEach((b, i) => { b.label = (i === st.pick ? '✓ ' : '') + HS_SUMMER_INFO[HS_SUMMERS[i]].title; b.enabled = HS_SUMMERS[i] !== 'camp' || c.cash >= HS.campCost; }); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'YOUR SUMMER', 60, 70, 40); const head = 'After your ' + AM_CLASS[Math.min(3, (c.summer.year || 1) - 1)].toLowerCase() + ' year · $' + Math.round(c.cash).toLocaleString() + ' saved', rk = 'Recruiting: ' + hsStarText(c.recruit ? c.recruit.stars : 1) + ' #' + (c.recruit ? c.recruit.nat : '—'); if (P) { ui.label(ctx, head, 60, 104, 15, UI_TEXT, 'left', 520); ui.label(ctx, rk, 60, 128, 14, UI_DIM, 'left', 520); } else ui.label(ctx, head + ' · ' + hsStarText(c.recruit ? c.recruit.stars : 1) + ' #' + (c.recruit ? c.recruit.nat : '—'), 60, 106, 15, UI_TEXT, 'left', 760);
+      opts.forEach((b, i) => { if (i === st.pick) { ctx.strokeStyle = UI_CYAN; ctx.lineWidth = 3; ctx.beginPath(); roundRectPath(ctx, b.x - 5, b.y - 5, b.w + 10, b.h + 10, 11); ctx.stroke(); } });
+      const k = HS_SUMMERS[st.pick], I = HS_SUMMER_INFO[k], x = P ? 620 : 500, w = P ? 620 : 720; kitHeader(ctx, I.title, x, 140, w); let y = 170; for (const l of I.lines(c)) y += ui.para(ctx, l, x, y, w, P ? 16 : 17, UI_TEXT) + 12;
+      if (k === 'aau') ui.para(ctx, 'AAU summers so far: ' + c.summers.filter(s => s.kind === 'aau').length + ' · recruiting exposure +' + (c.exposure || 0) + '.', x, y + 10, w, 14, UI_DIM);
+    } };
+}
+// --- a phone's plan row: Rest or Study ---
+function restStudyScreen(game, K) {
+  const B = K.B; const rest = btn('REST · −' + WK.restFatigue + ' FATIGUE', 0, 0, 0, 0, () => { const r = K.rest(); game.save.save(); game.ui.pop(); if (r) game.ui.toastMsg('Rested: fatigue ' + Math.round(r.before) + ' → ' + Math.round(r.after)); }, { primary: true });
+  const study = btn('STUDY · GPA +' + HS.studyGpa, 0, 0, 0, 0, () => { const r = wkStudy(B); game.save.save(); game.ui.pop(); if (r) game.ui.toastMsg('Studied: GPA ' + r.before.toFixed(2) + ' → ' + r.after.toFixed(2)); });
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()); const items = [rest, study, back]; phoneGrid(game.ui, items, 160, 360, 960, 3, 0, 12);
+  return { widgets: items, name: 'reststudy', overlay: true, draw(ctx, ui) { ui.panel(ctx, 120, 150, 1040, 420, UI_PANEL2); ui.title(ctx, 'THIS WEEK', 160, 210, 38); ui.para(ctx, 'Rest takes ' + WK.restFatigue + ' fatigue off (an injury heals a game faster). Study raises your GPA ' + HS.studyGpa + ' (now ' + (B.gpa || 0).toFixed(2) + '); under ' + HS.gpaMin.toFixed(1) + ' you sit games.', 160, 250, 960, 17, UI_TEXT, 'left', 3); } };
+}
+
+// --- recruiting: where you stand ---
+function recruitingScreen(game) {
+  const c = amateurOf(game); if (!c) return mainMenu(game); hsFill(c); const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; phoneBar(game.ui, items, null, 40, 300); const P = game.ui.phone;
+  return { widgets: items, name: 'recruiting', draw(ctx, ui) {
+    ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'RECRUITING', 60, 70, 40); const r = c.recruit || { stars: 1, nat: HS.classSize, score: 0 };
+    ui.heading(ctx, hsStarText(r.stars), 60, 128, 34, UI_GOLD); ui.heading(ctx, hsRankText(r).toUpperCase(), 60, 172, 20, r.nat <= 100 ? UI_GREEN : UI_TEXT, 'left', 520);
+    ui.label(ctx, 'Class: ' + HS.classSize.toLocaleString() + ' players · GPA ' + c.gpa.toFixed(2) + ' (' + hsGpaLetter(c.gpa) + ')', 60, 204, 14, UI_DIM, 'left', 520);
+    kitHeader(ctx, 'What scouts look at', 60, 236, 520); let y = 260;
+    for (const l of ['Your OVR (projected for your class year), titles, MVPs, district titles, hype, points per game and your coach\'s word (trust ' + trustOf(c) + ').', 'Exposure: +' + (c.exposure || 0) + ' so far (AAU summers +' + HS.aauExposure + ', camps +' + HS.campExposure + ').', 'Offers come after your sophomore season (the elite), after your junior season, midway through your senior year and after it.']) y += ui.para(ctx, l, 60, y, 520, P ? 14 : 13, UI_TEXT, 'left', 4) + 8;
+    const byYear = {}; for (const e of c.rankLog || []) byYear[e.year || 1] = e; const yrs = Object.keys(byYear).sort(); if (yrs.length) { kitHeader(ctx, 'Your rank by year', 60, y + 10, 520); yrs.forEach((k, i) => { const e = byYear[k]; ui.label(ctx, AM_CLASS[Math.min(3, k - 1)] + ': ' + e.stars + '★ · #' + e.nat, 60 + (i % 2) * 280, y + 36 + Math.floor(i / 2) * 22, 13, UI_TEXT, 'left', 272); }); } /* the latest rank each year */
+    const x = P ? 620 : 640, w = P ? 600 : 580; kitHeader(ctx, 'Offers (' + hsLiveOffers(c).length + ')', x, 96, w); const all = (c.offers || []).slice().sort((a, b) => b.tier - a.tier);
+    if (!all.length) ui.para(ctx, 'No offers yet. Win, put up numbers, get seen on the AAU circuit; offers start after your sophomore season for the elite, after your junior season for everyone else.', x, 124, w, 15, UI_DIM, 'left', 4);
+    all.slice(0, 8).forEach((o, i) => { const yy = 132 + i * 50; ctx.fillStyle = o.colors[0]; ctx.fillRect(x, yy - 14, 12, 28); ctx.fillStyle = o.colors[1]; ctx.fillRect(x + 12, yy - 14, 4, 28); ui.heading(ctx, o.name, x + 26, yy - 6, 16, o.pulled ? UI_DIM : UI_TEXT, 'left', w - 40); ui.label(ctx, AMC.tiers[o.tier] + (o.strict ? ' · strict academics' : '') + (o.pulled ? ' · PULLED (grades)' : ''), x + 26, yy + 14, 12, o.pulled ? UI_RED : o.strict ? UI_ORANGE : UI_DIM, 'left', w - 40); });
+  } };
+}
+
+// --- the state bracket ---
+function stateBracketScreen(game) {
+  const c = amateurOf(game); const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop())]; phoneBar(game.ui, items, null, 40, 300);
+  return { widgets: items, name: 'statebracket', draw(ctx, ui) {
+    ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'STATE TOURNAMENT', 60, 70, 40); const L = c && c.league, S = L && L.playoffs && L.playoffs.state; if (!S) { ui.para(ctx, 'Win your district to get here.', 60, 120, 700, 17, UI_DIM); return; }
+    ui.label(ctx, 'Sixteen district champions, four rounds · season ' + c.season, 60, 106, 15, UI_DIM);
+    const nm = id => { if (id === 'me') return c.school.replace(/ High$/, '') + ' (you)'; const o = amOppById(c, id); return o ? (o.team ? teamShort(o.team) : o.name) : '?'; };
+    const cols = [60, 330, 600, 870], top = 140, H = game.ui.phone ? 400 : 470; /* a phone's Back button sits under 560 */
+    for (let r = 0; r < 4; r++) { const R = S.rounds[r]; kitHeader(ctx, ['Round of 16', 'Quarterfinals', 'Semifinals', 'Final'][r], cols[r], top - 6, 250); if (!R) continue; const n = R.length, gap = H / n;
+      R.forEach((id, i) => { const y = top + 20 + gap * (i + 0.5), win = S.rounds[r + 1] && S.rounds[r + 1].includes(id); const me = id === 'me'; if (me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(cols[r] - 4, y - 12, 250, 24); } ui.label(ctx, nm(id), cols[r], y, n > 8 ? 12 : 14, me ? UI_GOLD : win ? UI_TEXT : S.rounds[r + 1] ? UI_DIM : UI_TEXT, 'left', 240); }); }
+    const champ = S.rounds.length > 4 ? S.rounds[4][0] : null; kitHeader(ctx, 'Champion', 1100, top - 6, 130); if (champ) ui.heading(ctx, nm(champ), 1100, top + 20 + H / 2, 16, champ === 'me' ? UI_GOLD : UI_TEXT, 'left', 140);
+  } };
 }
 
 // ============================================================================

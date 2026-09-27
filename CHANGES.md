@@ -3,6 +3,131 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R5 — High school: tryouts, a district, the state tournament, recruiting, summers and grades (the R pass, milestone 5)
+
+Every game is still 1v1 (the change of plan): your team is the school, its record is yours, and the teammates are
+your depth chart (R4).
+
+**Tryouts, JV and varsity**
+
+- A freshman tries out before the season, and so does a sophomore still on JV: a 60-second shootout, then a 1v1
+  against the varsity's best senior (a game to 7). Play either or sim it. The grade is 40% the shootout (16 counts in
+  full), 60% the 1v1 (a win counts in full; a loss counts your points). Varsity at 60 as a freshman, 50 as a sophomore,
+  or with an OVR already 2 over your level's mean. Juniors and seniors are varsity.
+- **JV** is a team of its own (5 freshmen and sophomores, its own coach and depth chart) in a JV district: ten games,
+  no playoffs, opponents 6 OVR under the varsity level. **Call-up:** after four JV games, win three of every four and
+  the varsity coach calls you up mid-season: you join the varsity's depth chart by OVR, and its first weeks (played
+  by its top rung) stay on the books.
+- The career simulator (the suite's 40 careers): 55% of freshmen make varsity; call-ups average 0.35 a career and a
+  whole season on JV 0.13.
+
+**The season**
+
+- A six-team district, a double round robin: ten games, five at home, everyone plays every week. Your rival's school
+  is in your district; your home game against it is **the rivalry game** (a card before it; its highlights count half
+  again for hype). A senior's last home game is **senior night** (a card, confidence +2).
+- **District playoffs** (the top four: semifinals and a final). The district champion goes to the **state
+  tournament**: sixteen district champions, four rounds, simulated around your games, with its own bracket screen
+  (Standings → State bracket). A district title is an award (recruiting +1); the state title is a title (it counts
+  where titles always did: offers, the draft, the Hall of Fame).
+- Awards: District MVP (first, with 8 wins of 10; a six-team district is easier to top than the old eight-player
+  league, where 7 of 10 did), All-District 1st team (top two) and 2nd team (top four), JV MVP (not an MVP).
+- State titles are rare: none in the suite's 40 simulated careers (0.5 district titles a career). The simulator plays
+  every game from OVR, and state is four straight wins against district champions (each 2 OVR over the level's mean,
+  `stateGap`); in a 24-career run one career won it. A player who plays the games wins more.
+- Before R5 a season was 7 games and a four-player playoff. The longer season would have made players better, so
+  high school XP (games, practice and the bench) is ×0.75: a season pays what it did.
+
+**Recruiting**
+
+- A recruiting score (your OVR, 2 per title, 1 per district title, 2 per MVP, half your hype, your coach's word (up to
+  4 at full trust), exposure, and 0.1 per point per game over 12) ranks you in a national class of 3,000: stars by
+  rank (top 30 five stars, 300 four, 1,000 three, 2,000 two) and a Top-100 rank ("#57 in the nation"). A younger
+  player's score is projected (+5 a year before the senior year). It updates at the end of every season, after every
+  summer and midway through the senior year. A RECRUITING screen (a hub link) shows the stars, the rank by year,
+  what counts, and your offers.
+- **Offers build:** after the sophomore season (blue bloods only, for the elite), after the junior season and midway
+  through the senior year (the top two tiers your score reaches), and after the senior season a full set, one program
+  per tier from your best down (at least three: small schools fill in). A tier from the score: 71 blue blood, 64
+  power, 57 mid-major (the old cuts were 66/60/54 on a score without exposure or district titles). Every offer is a
+  card and a headline.
+- A quarter of the colleges have **strict academic standards**: a failing report card and they pull the offer.
+- **Three official visits** before commitment day (was two). Commitment day (the hats) is unchanged.
+- The career simulator (the suite's 40 careers): the median senior is #498 nationally (3 stars in 23 careers, 4 stars
+  in 12, no 5-star); the best offer is a blue blood in 5 careers, a power program in 24, a mid-major in 10, a small
+  school in 1 (R4: 7 / 24 / 8 of 40).
+
+**Summers** (after the freshman, sophomore and junior years; a card and the hub's YOUR SUMMER button)
+
+- **AAU circuit:** three tournaments against the best players in the country (simulated); recruiting score +2 for
+  good; 20 XP; but you start the season at fatigue 35 and 20% of players carry an injury into it.
+- **Skills camp:** $600 for 150 XP into your focus (and exposure +1). **Rest:** heal, start fresh, confidence +2.
+  **Summer job:** +$1,000, −30 XP of progress (never a rating).
+- You start with $200 saved; what's left comes with you into the pros.
+
+**Grades**
+
+- A GPA (about 3.0 at the start). Every game week costs 0.05; a **Study week** (a fourth weekly plan in high school)
+  adds 0.3 and rests you a little. On phones the plan row has room for three: REST opens Rest or Study.
+- Your coach's rule: when your GPA is under 2.3, a week you don't plan is a Study week (the AUTO plan shows it).
+- **Report cards** after five games and at the end of the season. Under 2.0: you are ineligible for the next two
+  games (the next rung on the depth chart plays them; your stats don't count) and strict colleges pull their offers.
+
+**Screens and cards:** TRYOUTS (both parts, played or simmed), YOUR SUMMER, RECRUITING, STATE TOURNAMENT, the phone's
+Rest-or-Study chooser; the hub's labels (JV · GAME 3 OF 10 · AWAY, RIVALRY GAME, SENIOR NIGHT, STATE QUARTERFINAL,
+INELIGIBLE · 2 GAMES); Standings with home and away and the special games; the cards VARSITY! / JUNIOR VARSITY,
+CALLED UP!, RIVALRY GAME, SENIOR NIGHT, REPORT CARD, SCHOLARSHIP OFFERS, DISTRICT CHAMPIONS!, SUMMER: …
+
+**Saves:** the amateur career goes to v4: grades, savings and the national rank start now; a season in progress
+finishes in its old format (the next one is a district, with tryouts for a freshman or a sophomore); a "NEW: HIGH
+SCHOOL" card explains it. New fixtures from the R4 build (`tests/fixtures/save_r4_*`).
+
+**Also:** a result screen's playoff label showed the next round, not the one just played. While building R5 I
+introduced a comment that swallowed the team-record update after a game (the TEAM screen would have shown 0-0); the
+R3 team test caught it before any commit, and the build's lint flags it (I had cut its output short).
+
+**New constants** (all with a one-line comment): `CONFIG.hs` (tryouts: tryoutYears 2, tryoutGood 16, tryoutDrillW 0.4,
+tryoutBar [0.6, 0.5], tryoutOvr 2, tryoutTarget 7; JV: jvGap 6, jvRoster 5, jvBase −3, promoteAfter 4, promoteWin
+0.75; the season: district 6, districtSeeds 4, mvpWins 0.8, stateTeams 16, stateGap 2, seniorConf 2, rivalryHype 1.5;
+recruiting: classSize 3000, recruitMean 59, recruitSd 7, classAdj 5, stars [30, 300, 1000, 2000], offerCuts [71, 64,
+57], districtW 1, ppgW 0.1, ppgRef 12, aauExposure 2, campExposure 1, visits 3, minOffers 3, strictOdds 0.25; summers:
+startCash 200, campCost 600, campXp 150, jobPay 1000, jobXpLoss 30, aauFatigue 35, aauInjury 0.2, aauXp 20, aauOvr 6,
+restConf 2; grades: gpaStart 3.0, gpaSd 0.25, gpaDrift 0.05, studyGpa 0.3, studyRest 10, gpaMin 2.0, ineligibleGames 2,
+autoStudyAt 2.3, reportWeek 5; hsXp 0.75).
+
+**Summers against each other** (the career simulator, 60 careers each, seed 3, the same summer every year)
+
+| Summers | OVR at 17 / 21 / 25 | Legacy median | Titles | Hall of Fame | 5★ / 4★ at signing | Best offer: blue blood / power / mid |
+| --- | --- | --- | --- | --- | --- | --- |
+| A job, a camp, then AAU (the simulator's default) | 56 / 68 / 74 | 56 | 1.15 | 18% | 0 / 23 | 7 / 35 / 18 |
+| AAU every summer | 57 / 69 / 75 | 59 | 1.48 | 20% | 4 / 38 | 25 / 31 / 4 |
+| Rest every summer | 56 / 68 / 74 | 61 | 1.38 | 18% | 1 / 8 | 6 / 31 / 23 |
+| A job every summer | 56 / 67 / 74 | 55 | 1.12 | 12% | 0 / 4 | 3 / 30 / 27 |
+
+The first values (AAU exposure +3 and 40 XP, fatigue 30, 15% injuries; a job −60 XP) gave AAU 65, rest 61 and a job
+44: AAU dominated and a job was a trap. Now AAU buys exposure (blue-blood offers) at a cost in wear, rest is the safe
+choice, and a job pays for a camp. "A camp every summer" can't be run: it costs $600 and you start with $200.
+
+**Tests on the committed build**
+
+- Smoke 109/109 (desktop 1280×720 and phone 844×390). New: tryouts from the hub (sim the shootout and the 1v1; the
+  coach picks); a whole high school season (tryouts to JV or varsity, the six-team district's double round robin with
+  five home games, the rivalry game at home, senior night, a JV call-up, the district playoffs, the 16-team state
+  bracket, report cards and ineligibility, the national rank, offers, summers); an R4 save migrating.
+- Modes 15/15 (new: tryouts played live) · old saves 21/21 (new fixtures from the R4 build: a high school team league
+  and a pro mid-season) · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 84 screens at 844×390 (9 new: tryouts before and between the two parts, the tryout result, YOUR SUMMER,
+  Rest-or-Study, RECRUITING, the state bracket, standings with the state tournament, the hub waiting for the summer):
+  nothing flagged, no errors. The same 84 at 1280×720: nothing flagged.
+- Art Lab: 54 shots, no errors (`shots/r5/round-final/`). Screenshots of the new screens: `shots/r5/`.
+- §2 gate and the balance harness: identical to R4 line for line.
+- The career simulator (40 careers, seed 1): 0 stuck; OVR 56 / 67 / 75 at 17 / 21 / 25, peak 79; 1.00 titles a
+  career; Hall of Fame 13%; bench weeks 14.1 amateur and 27.2 pro a career; 5.0 study weeks a career, no ineligible
+  games (the auto-study rule); every target met.
+- Trait balance (200 careers per trait): all 17 in range (overall median legacy 53; Late Bloomer −19%, near its
+  −20% edge; Generational +33%).
+- Perf, 844×390 @2x in the pro arena (median / p95): guard 0 21.7 / 27.3 ms (R4: 21.8 / 26.3). No change.
+
 ## R4 — The depth chart: 1v1 challenges decide who plays, coach trust, no extras in the career (the R pass, milestone 4)
 
 The spec's milestone 4 was "teams and team games". Under the change of plan the career is 1v1 only, so there are no

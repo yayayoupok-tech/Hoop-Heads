@@ -49,8 +49,13 @@ const { launch, openPage, runner } = require('./lib');
   await teamLeague('5v5'); await teamLeague('3v3');
   // the career
   const drain = async () => { await P.page.waitForTimeout(150); /* let the hub's update push a pending story card first */ for (let i = 0; i < 14; i++) { const s = await P.screen(); if (s === 'press') { await press(/^HUMBLE$/); await press(/^CONTINUE$/); continue; } if (s === 'ladderevent') { await press(/^SIM IT$/); await press(/^Continue$/); continue; } /* R4: a teammate's challenge */ if (s === 'allstarweekend' || !/^(amevent|rivalmoment|commitday)$/.test(s)) return s; await press(/^(Continue|CONTINUE)$/); } return P.screen(); };
-  await R.step('career, high school: a live game to the end, the result, back to the hub', async () => {
+  await R.step('career tryouts (R5): the 60 s shootout and the 1v1 against a senior, played live, then the hub', async () => {
     await toMenu(); await ev(() => { const g = HH.game, s = g.save.data; s.c1 = null; s.career = null; amCreate(s, { name: 'Mode Kid', look: PRESET_LOOKS[6], number: 12, style: 'shooter', seed: 5 }); g.save.save(); g.ui.clearTo(amHub(g)); }); await drain();
+    await waitScreen(/^amhub$/); await press(/^TRYOUTS$/, /^tryout$/); await press(/^PLAY THE SHOOTOUT$/); const d = await finish(100); await waitScreen(/^tryoutpost$/); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/);
+    await press(/^TRYOUTS$/, /^tryout$/); await press(/^PLAY THE 1V1/); const r = await finish(); await waitScreen(/^tryoutpost$/); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/); const res = await ev(() => { const c = HH.game.save.data.c1; return c.tryout.result + ' · ' + c.league.format; }); if (!/^(varsity · district|jv · jv)$/.test(res)) throw new Error('tryout result ' + res); await frames(); console.log('     shootout ' + d.score + ' · 1v1 ' + r.score + ' · ' + res);
+  }, P);
+  await R.step('career, high school: a live game to the end, the result, back to the hub', async () => {
+    await ev(() => { const g = HH.game, c = g.save.data.c1; ladderInit(c, 1); c.events.length = 0; g.save.save(); g.ui.clearTo(amHub(g)); }); await drain(); /* the starter plays the week's game */
     await waitScreen(/^amhub$/); await press(/^PLAY$/); const r = await finish(); await waitScreen(/^amresult$/); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/); await frames(); console.log('     ' + r.score + ' in ' + r.secs + ' s');
   }, P);
   await R.step('career drill: practice → PLAY THE DRILL → 60 s → the drill result → hub', async () => {
