@@ -1,11 +1,12 @@
 // Old-save fixtures (M9): runs older builds straight from git history (before M0, M0, M5 and M7) and saves what they
 // write: a high-school career in its second season with a classic team league on the side, and a pro career in the middle
 // of its first season (for M7 also one in the playoffs and one in the offseason). tests/oldsaves.js then loads each one in
-// this build and plays on. Needs the git history. Usage: node tests/gen_oldsaves.js [outDir]  (default tests/fixtures/)
+// this build and plays on. R3 adds the R2 build (a v2 amateur career and a v4 pro career, from before traits, genes and
+// teams). Needs the git history. Usage: node tests/gen_oldsaves.js [outDir] [tag]  (default tests/fixtures/; tag: one build)
 const path = require('path'), fs = require('fs'), os = require('os'), { execFileSync } = require('child_process');
 const { ROOT, launch } = require('./lib');
 const OUT = path.resolve(process.argv[2] || path.join(ROOT, 'tests', 'fixtures')), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'hoopheads-old-')); fs.mkdirSync(OUT, { recursive: true });
-const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7']];
+const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], ['6cfa017', 'm7'], ['5eef835', 'r2']].filter(b => !process.argv[3] || b[1] === process.argv[3]);
 (async () => {
   const browser = await launch();
   for (const [commit, tag] of BUILDS) {
@@ -38,7 +39,7 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
     });
     if (pro.err) console.log(tag, 'pro FAILED', pro.err); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_pro_midseason.json'), pro.raw); console.log(tag, 'pro', JSON.stringify({ season: pro.season, week: pro.week, phase: pro.phase, bytes: pro.raw.length })); }
     // 3) M7 only: the same pro career in the playoffs, then in the offseason
-    if (tag === 'm7') for (const want of ['playoffs', 'offseason']) {
+    if (tag === 'm7' || tag === 'r2') for (const want of ['playoffs', 'offseason']) {
       const r = await ev(want => { const g = HH.game; const s = g.save.data, c = s.career; let n = 0; if (want === 'playoffs') { const me = c.players[c.meId]; for (const k in me.r) me.r[k] = Math.max(me.r[k], 92); } /* good enough to make the playoffs */ while (c.phase !== want && n++ < 80) { if (c.events) c.events.length = 0; if (!simUserGame(s)) break; } g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), phase: c.phase, season: c.season, week: c.week }; }, want);
       if (r.phase !== want) { console.log(tag, want, 'NOT REACHED: ' + r.phase); continue; } fs.writeFileSync(path.join(OUT, 'save_' + tag + '_pro_' + want + '.json'), r.raw); console.log(tag, want, JSON.stringify({ phase: r.phase, season: r.season, week: r.week, bytes: r.raw.length }));
     }

@@ -3,6 +3,158 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R3 — Career foundation: traits, growth not locked to position, teams as organizations (the R pass, milestone 3)
+
+**The user's change of plan (during R2):** the career is 1v1 only. Every career game is you against one opponent; no
+AI teammates on the court, no team games, no chemistry. Teams stay as your organization and your story: a school, a
+college program or a pro franchise with a name, colors, a uniform, a coach and teammates. The team's record is your 1v1
+record and its titles are your 1v1 titles. The depth-chart ladder and coach trust follow in R4.
+
+**Traits (§3.1)**
+
+- Every career has two: a **Signature**, rolled with your genes and shown on the genes screen, and a **Hidden** one that
+  a story card reveals in the sophomore season (three games in; careers already past high school: at the next game).
+  Rarity: Common 55%, Uncommon 28%, Rare 13%, Legendary 4% (smoke checks 6,000 rolls within ±2.5%). Cards have a
+  colored frame by rarity (grey, green, blue, gold). Traits roll from their own random stream, so a seed's other
+  draws (school, rival, opponents) are what they were.
+- The 1v1 versions (the spec's team-game parts don't exist in a 1v1 career):
+
+| Trait | Rarity | Upside | Downside | Where |
+| --- | --- | --- | --- | --- |
+| Gym Rat | C | +25% practice XP | −10% fatigue recovery (Rest) | week |
+| Streaky | C | +8% makes after two straight makes | −8% after two straight misses | engine |
+| Glue Guy | C | coach trust grows 50% faster (R4) | −8% XP from your stats | XP, R4 |
+| Fast Twitch | C | +0.5 Speed headroom | −0.5 Strength headroom | caps |
+| Quick Study | C | moves unlock a rating point earlier | −20% hype gains | moves, hype |
+| Clutch Gene | U | +10% makes in crunch time and the playoffs | −5% in the first half | engine |
+| Iron Man | U | −40% injury risk, −15% stamina drain | −10% XP through age 19 | week, engine |
+| Floor General | U | −20% steals against you, dribble moves +10% | −10% Shooting XP | engine, XP |
+| Showman | U | +50% hype (and fame) from highlights | +10% steals against you | hype, engine |
+| Paint Protector | U | +15% block chance | +20% goaltend range and reach-in fouls | engine |
+| Late Bloomer | R | +3 cm, about 3″ of growth at 17 (a story card), +0.5 every headroom | starts 5 lower in every rating | creation |
+| Microwave | R | after two straight makes +15% for 20 s | −10% defensive effort (contests, steals, blocks) | engine |
+| Film Junkie | R | Film counts double (+6) | −0.5 Speed and Hops headroom | week, caps |
+| Freak Athlete | R | +1.0 Hops and Speed headroom | −1.0 Shooting headroom | caps |
+| Generational | L | +1.0 every headroom, +20% XP | losses cost double confidence; the spotlight never leaves: a press question after every game, defenses key on you (the opponent's AI +0.2 tier), media distractions (practice XP ×0.85) | caps, XP, media |
+| Unbreakable | L | never injured; the decline comes 3 years later (and retirement) | −10% XP | week, aging |
+| Ice Veins | L | confidence never drops below 0; +8% free throws | −40% hype gains | media, engine |
+
+  (Floor General's pass accuracy and teammate FG%, Glue Guy's chemistry and Showman's team turnovers had no 1v1
+  meaning; their 1v1 versions are above.) Simulated games count the in-game traits as OVR points (`traits.simEdge`).
+  In-game, a Microwave heating up, a Streaky hot hand and Clutch Gene in crunch time get a callout.
+- Stories built on traits: Clutch Gene's playoff buzzer-beater (a playoff win by 3 or fewer), Late Bloomer's summer
+  at 17.
+- **The old stat-milestone traits are gone** (Deadeye, Posterizer, Ankle Snatcher, Glove, Eraser, the old Iron Man:
+  earned from career totals): their engine effects, the config and the player screen's list. Awards already earned
+  ("Earned trait: …") stay in the trophy case.
+- Every pro in the league has traits too (rolled from the player's id), and they play them.
+
+**Growth not locked to position (§3.2)**
+
+- **Skills** (Shooting, Finishing, Handles, Defense) go to 95 for anyone; every step costs more XP than the last (the
+  existing curve). **Physical ratings** (Speed, Hops, Strength) have a genetic base rolled at creation (mean 62, sd
+  7, 45–80; gifted genes +5) and top out 2.0 above it (Strength 3.0). Traits move either. Height moves every rating on
+  top, in every game, as before. **The play style only sets where you start** (and the AI's tendencies); it no longer
+  moves a ceiling.
+- The genes screen has a second page: your body's limits (the scouts' estimate while they are still learning; the
+  bands narrow every season as before, now for the genetic limits only) and your two traits.
+- **Role labels** from your ratings (after height), shown on the hub, the player screen and the team roster:
+  Sharpshooter, Slasher, Stretch Big, 3-and-D, Floor General, Two-Way Star, Rim Runner.
+- **Training screen:** one drill per rating (was six focuses, two of them split): Shooting, Finishing, Handles, Speed,
+  Hops, Defense, Strength. It projects the session (the rating now → after, what the next +5 costs, the limit), marks
+  a rating at its limit (MAX), and draws a physical limit as the bar's end (orange; the rest of the bar hatched).
+- Tuning for the open skills (the career simulator): the young round out their weakest rating until 20 (was 24), and
+  XP at 26–28 is ×0.65 (was 0.8), at 29–31 ×0.4 (was 0.45). Before: peak OVR 82, titles 1.35 a career, Hall of Fame
+  30%. After: peak 77–78, titles 1.2, Hall of Fame 15%.
+
+**Teams as organizations**
+
+- **High school:** your school's team: name and mascot (Westbrook High Ravens), its colors (your uniform), a coach with
+  a personality (fiery, teacher, players' coach, old school, numbers), 7 teammates (names, pixel portraits, ratings,
+  traits, class years) and a rival school (your rival's). Every opponent plays for one of the other schools, in its
+  colors; the standings list each team and the player it sends. Each summer the seniors graduate and freshmen arrive.
+- **College:** the program you commit to becomes your team (its coach, 7 teammates, deeper at bigger programs); the
+  high school team goes to your history.
+- **Pro:** the franchise that drafts you: its coach, its league players and a bench of 4 (who practice with you).
+  Moving clubs moves you to that franchise.
+- The team's record is your 1v1 record (and its titles yours). A **TEAM** link on both hubs opens the team: banner,
+  coach, you (role, traits), teammates, the rival team and the teams you played for before.
+
+**Save migration**
+
+- The amateur career goes from v2 to v3, the pro career from v4 to v5. Traits and genes roll from the career's own
+  stream (a pro career takes them from the amateur career in the same save); ceilings become the new model's but never
+  drop under a rating you have; the old two-rating drills map onto the new ones (Athleticism → Hops); your school or
+  college gets its team; a "NEW: TRAITS" card explains the change. New fixtures from the R2 build (`tests/fixtures/
+  save_r2_*`: a high school career and a pro career mid-season and in the offseason) test it.
+
+**Also**
+
+- The pro hub's links: with TEAM added there are nine, so the rows are 44 px on desktop (the last one used to overlap
+  the bottom edge) and the phone shows six (Trophies is also under Player → Career & awards). "Management" is now
+  "Business": the bitmap font can't shrink below 2×, so the long label was truncated.
+- A comment that swallowed code while I was editing hid the press questions for one build (the career simulator caught
+  it: 0 press questions a career). The build's lint now also flags a `//` comment that contains `const x =`,
+  `=> {` or a `return …;`, which would have caught it.
+
+**New constants** (all with a one-line comment): `CONFIG.traits` (odds, frames, labels, revealAge 15, revealGames 3,
+crunchPts 3, crunchS 30, heatS 20, teenAge 19, clutchMargin 3, spotlightTier 0.2, spotlightPractice 0.85, simEdge, the
+17 traits), `CONFIG.amateur.genes` (mean 62, sd 7, min 45, max 80, gifted 5, room 20, roomStr 30, skillCap 95),
+`CONFIG.amateur.growth.bloomer`, `CONFIG.team` (roster 7/7/4, classOvr, tierOvr 3, sd 4, growOdds 0.35, proBench −8),
+`CONFIG.roles`, `CONFIG.media.highlightHype` 0.08, `CONFIG.career.trainFocus` (7 drills). Changed:
+`career.ageXpMul` 26–28 0.8 → 0.65 and 29–31 0.45 → 0.4, `amateur.roundOutAge` 24 → 20. Removed:
+`career.traits`, `career.trait`, `amateur.capBase/capFocus/capTall*/capShort*`.
+
+**Trait balance (§3.1: 200 careers per trait, the signature forced, no hidden trait)**
+
+Median legacy over all careers: 56. Targets: within ±20% of it (Legendary −20…+40%); 0 stuck careers.
+
+| Trait | Rarity | Median legacy | vs all | Titles | Earned ($M) | Hall of Fame | Target |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Gym Rat | C | 57.5 | +3% | 1.37 | 229.0 | 16% | ±20% ✓ |
+| Streaky | C | 54 | −4% | 1.31 | 229.1 | 18% | ±20% ✓ |
+| Glue Guy | C | 49 | −12% | 1.00 | 203.9 | 14% | ±20% ✓ |
+| Fast Twitch | C | 53.5 | −4% | 1.25 | 222.7 | 16% | ±20% ✓ |
+| Quick Study | C | 54 | −4% | 1.31 | 228.4 | 18% | ±20% ✓ |
+| Clutch Gene | U | 53.5 | −4% | 1.26 | 224.6 | 16% | ±20% ✓ |
+| Iron Man | U | 49 | −12% | 1.14 | 210.7 | 16% | ±20% ✓ |
+| Floor General | U | 54 | −4% | 1.24 | 219.5 | 19% | ±20% ✓ |
+| Showman | U | 53 | −5% | 1.27 | 227.8 | 17% | ±20% ✓ |
+| Paint Protector | U | 63 | +13% | 1.45 | 232.7 | 27% | ±20% ✓ |
+| Late Bloomer | R | 48 | −14% | 1.11 | 188.2 | 10% | ±20% ✓ |
+| Microwave | R | 61 | +9% | 1.50 | 230.9 | 24% | ±20% ✓ |
+| Film Junkie | R | 51 | −9% | 1.24 | 216.7 | 14% | ±20% ✓ |
+| Freak Athlete | R | 61 | +9% | 1.28 | 246.0 | 19% | ±20% ✓ |
+| Generational | L | 73.5 | +31% | 1.82 | 315.9 | 34% | −20…+40% ✓ |
+| Unbreakable | L | 67 | +20% | 1.63 | 259.9 | 29% | −20…+40% ✓ |
+| Ice Veins | L | 63 | +13% | 1.60 | 233.4 | 26% | −20…+40% ✓ |
+
+The strongest common/uncommon (Paint Protector +13%) and the weakest (Late Bloomer −14%, Iron Man and Glue Guy −12%)
+sit inside the band. Generational came out at +92% with only "a press question after every game" as its downside
+(100 careers); the spotlight's other two parts (defenses key on you: the AI +0.2 tier, and in sims −3 OVR; media
+distractions: practice XP ×0.85) brought it to +44%, then +35% (sims −2.5 → −3), and +31% on the 200-career run.
+
+**Tests on the committed build**
+
+- Smoke 105/105 (desktop 1280×720 and phone 844×390). New steps: traits (6,000 rolls within ±2.5% of the rarity
+  odds, every trait has an upside and a catch, the sophomore reveal, each engine hook: streaks, crunch time, heat, free
+  throws, steals, blocks), growth (skills reach 95 for anyone, Speed/Hops/Strength stop at genes + 2.0 / + 3.0, the
+  style only sets the start, role labels, one drill per rating), teams (coach and 7 teammates, opponents from the other
+  schools, the team's record is yours, college and pro teams, the TEAM screen), and the two R2 fixtures.
+- Modes 13/13 · old saves 19/19 (the three R2 fixtures added) · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 70 screens at 844×390 (4 new: the team screens, the trait reveal, the genes' second page): no text
+  overflow, nothing off screen, no errors.
+- Art Lab: 54 shots, no errors (`shots/r3/round-final/`). Screenshots of the new screens: `shots/r3/`.
+- §2 gate (Legends, unchanged): Pro mirror 1.18 PPP, 48% / 52%, Legend beats Pro 83%; harness brute 1.00 ✓, perfect
+  timing 1.72 ✓. The Classic harness: brute 1.24 ✓, perfect timing 2.12 ✓, Legend vs Pro 78% ✓. Identical to R2: the
+  trait hooks only act on players who have traits, and the gate's players have none.
+- The career simulator (40 careers): 0 stuck; OVR 56 / 67 / 74 at 17 / 21 / 25, peak 79; 1.20 titles a career; Hall
+  of Fame 13%; press questions 79.8 a career; every target met.
+- Trait balance: above (200 careers per trait, all 17 in range).
+- Perf, 844×390 @2x in the pro arena (median / p95): guard 0 23.4 / 32.9 ms, guard 1 23.8 / 33.2 ms. The R2 build
+  measured right after it on the same machine: 23.8 / 34.7 and 24.1 / 38.7 ms, so R3 costs nothing measurable (R2's
+  commit measured 22.1 / 30.6 on a quieter machine). The R10 follow-up from R2 stands.
+
 ## R2 — Size and framing: the 15 m compact court, players about 1/7 of it (the R pass, milestone 2)
 
 The problem on L19/R1: a 2 m player was 1/9 of an 18 m court and about 14% of the screen height, so the players read

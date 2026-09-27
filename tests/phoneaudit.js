@@ -1,4 +1,4 @@
-// Phone audit (M9): opens 65 screens at 844×390 with touch and lists every tap target under 64 CSS px (width or height),
+// Phone audit (M9): opens about 70 screens at 844×390 with touch and lists every tap target under 64 CSS px (width or height),
 // widgets off the screen, overlapping widgets, and the smallest text each screen draws. It plays a scripted career to
 // reach the later screens. Usage: node tests/phoneaudit.js [shotsDir] [--desktop]
 const path = require('path'), fs = require('fs');
@@ -37,6 +37,9 @@ const { launch, openPage } = require('./lib');
   await audit('create', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(createPlayerScreen(HH.game)); });
   await audit('customize-face', () => { const g = HH.game; const s = g.ui.screen; const w = (s.widgets || []).find(x => /face|Customize|Edit/i.test(x.label || '')); if (w) w.onPress(); });
   await audit('am-hub', () => { const g = HH.game; g.ui.clearTo(amHub(g)); });
+  await audit('am-team', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(teamScreen(g)); }); // R3
+  await audit('am-genes-2', () => { const g = HH.game, a = g.save.data.c1; a.events.unshift({ kind: 'genes', title: 'YOUR GENES', lines: [] }); g.ui.clearTo(amHub(g)); g.ui.push(amEventScreen(g)); const s = g.ui.screen; s.widgets[0].onPress(); }); // R3: page 2
+  await audit('am-trait-reveal', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; a.events.push({ kind: 'trait', title: 'HIDDEN TRAIT: ' + traitName(a.tr.hidden).toUpperCase(), trait: a.tr.hidden, lines: ['A story line about the trait.', traitDef(a.tr.hidden).up + '.', 'The catch: ' + traitDef(a.tr.hidden).down + '.'] }); g.ui.clearTo(amHub(g)); g.ui.push(amEventScreen(g)); }); // R3
   await audit('am-story-event', () => { const g = HH.game, a = g.save.data.c1; a.events.push({ kind: 'story', from: 'Coach', title: 'FIRST DAY', lines: ['Line one of the story.', 'Line two.'] }); g.ui.clearTo(amHub(g)); });
   await audit('am-growth', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; a.events.push({ kind: 'growth', title: 'GROWTH SPURT!', grow: { from: a.height - 0.03, to: a.height }, lines: ['You grew 1″ this summer.', 'Height changes your game.'] }); g.ui.clearTo(amHub(g)); });
   await audit('am-practice', () => HH.game.ui.push(practiceScreen(HH.game)));
@@ -55,6 +58,7 @@ const { launch, openPage } = require('./lib');
   await audit('combine', () => { const g = HH.game, a = g.save.data.c1; a.decision = null; a.stage = 'combine'; a.events.length = 0; g.ui.clearTo(amHub(g)); g.ui.push(amCombineScreen(g)); });
   await audit('draft', () => { const g = HH.game; const c = testProLeague(12, g.save.data); g.save.data.c1.handedOff = true; c.events.length = 0; g.ui.clearTo(draftScreen(g)); });
   await audit('pro-hub', () => { const g = HH.game; const c = testProLeague(12, g.save.data); g.save.data.c1.handedOff = true; c.events.length = 0; g.save.save(); g.ui.clearTo(careerHub(g)); });
+  await audit('pro-team', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(teamScreen(g)); }); // R3
   await audit('pregame', () => { const g = HH.game, c = g.save.data.career; g.ui.push(pregameScreen(g, userGame(c))); });
   await audit('pro-practice', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(practiceScreen(HH.game)); });
   await audit('league', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(leagueScreen(HH.game)); });

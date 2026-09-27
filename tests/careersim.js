@@ -1,20 +1,21 @@
 // Career simulator: whole careers from a 14-year-old freshman to retirement, played with Sim and sensible choices
-// (headless, in the page). Usage: node tests/careersim.js [careers=40] [seed=1] [engineGames=0] [--each]
-// [--set career.proMean=80 ...] (--set overrides a CONFIG value for a tuning run)
+// (headless, in the page). Usage: node tests/careersim.js [careers=40] [seed=1] [engineGames=0] [--each] [--json]
+// [--set career.proMean=80 ...] (--set overrides a CONFIG value for a tuning run) [--trait=<id>] (R3: every career's
+// signature trait is <id> and it has no hidden one; the trait balance test runs this for each trait)
 // Reports medians at ages 17/21/25, peak OVR, draft picks, titles, the Hall of Fame rate and any stuck states against the
 // spec's targets.
 const { launch, openPage } = require('./lib');
 (async () => {
   const argv = process.argv.slice(2), sets = []; for (let i = 0; i < argv.length; i++) if (argv[i] === '--set') { sets.push(argv[i + 1]); argv.splice(i, 2); i--; }
-  const args = argv.filter(a => !a.startsWith('--')); const N = +(args[0] || 40), seed0 = +(args[1] || 1), engineGames = +(args[2] || 0);
+  const args = argv.filter(a => !a.startsWith('--')); const N = +(args[0] || 40), seed0 = +(args[1] || 1), engineGames = +(args[2] || 0); const forceTrait = ((argv.find(a => a.startsWith('--trait=')) || '').split('=')[1]) || null;
   const browser = await launch(); const P = await openPage(browser); const page = P.page; const errors = P.errors;
   if (sets.length) console.log('overrides: ' + (await page.evaluate(sets => sets.map(kv => { const [path, v] = kv.split('='); const keys = path.split('.'); let o = CONFIG; for (const k of keys.slice(0, -1)) o = o[k]; o[keys[keys.length - 1]] = JSON.parse(v); return path + ' = ' + v; }).join(', '), sets)));
-  const out = await page.evaluate(({ N, seed0, engineGames }) => {
+  const out = await page.evaluate(({ N, seed0, engineGames, forceTrait }) => {
     const styles = Object.keys(AM_STYLES); const results = [];
     const fakeBox = (c, g) => { const rng = careerRng(c); const r = simBox(c, g.h, g.a, rng); const toP = id => { const s = r.box[id]; return Object.assign({ name: c.players[id].name }, makeStats(), { pts: s.pts, fgm: s.fgm, fga: s.fga, tpm: s.tpm, tpa: s.tpa, reb: s.reb, stl: s.stl, blk: s.blk, to: s.to, dunkM: s.dunk, dunkA: s.dunk, layM: Math.max(0, Math.round((s.fgm - s.tpm - s.dunk) * 0.5)), layA: Math.max(0, Math.round((s.fga - s.tpa - s.dunk) * 0.5)), ankles: s.ank, moves: 20 }); }; const meH = g.h === c.meId; const opp = meH ? g.a : g.h; return { teams: [{ score: meH ? r.hs : r.as, players: [toP(c.meId)] }, { score: meH ? r.as : r.hs, players: [toP(opp)] }], overtime: r.ot }; };
     for (let n = 0; n < N; n++) {
       const save = defaultSave(); const style = styles[n % styles.length]; const inv = []; const ages = {}; let guard = 0, engineUsed = 0;
-      const a = amCreate(save, { name: 'Sim Player', look: PRESET_LOOKS[n % 16], number: 7, style, seed: (seed0 * 7919 + n * 104729) >>> 0, seasonLength: 11, gameLength: 120 });
+      const a = amCreate(save, { name: 'Sim Player', look: PRESET_LOOKS[n % 16], number: 7, style, seed: (seed0 * 7919 + n * 104729) >>> 0, seasonLength: 11, gameLength: 120, traits: forceTrait ? [forceTrait] : null });
       const rec = { style, heightFinal: a.heightFinal, bloom: a.bloom, ovr: {}, pick: null, draftAge: null, college: null, tier: null, proSeasons: 0, titles: 0, mvps: 0, legacy: 0, hof: false, peak: 0, peakAge: 0, retireAge: null, amTitles: 0, h14: a.height, stuck: false, injuries: 0, plans: {}, fat: [], press: 0 };
       const note = (age, ovr) => { if (ages[age] == null) ages[age] = ovr; if (ovr > rec.peak) { rec.peak = ovr; rec.peakAge = age; } };
       // amateur years
@@ -48,11 +49,11 @@ const { launch, openPage } = require('./lib');
         } else { inv.push('unknown phase ' + c.phase); break; }
       }
       if (guard >= 4000) { rec.stuck = true; inv.push('guard hit'); }
-      const L = c.legacy || legacyOf(c); rec.L = { titles: L.titles, mvps: L.mvps, allL: L.allL, seasons: L.seasons, pts: Math.round(L.pts / CR.legacy.ptsPer), ppg: +(L.ppg || 0).toFixed(1) }; rec.titles = L.titles; rec.mvps = L.mvps; rec.legacy = L.score; rec.hof = L.hof; rec.ovr = ages; rec.inv = inv.slice(0, 5); rec.hFinal = me.h;
+      const L = c.legacy || legacyOf(c); rec.L = { titles: L.titles, mvps: L.mvps, allL: L.allL, seasons: L.seasons, pts: Math.round(L.pts / CR.legacy.ptsPer), ppg: +(L.ppg || 0).toFixed(1) }; rec.titles = L.titles; rec.mvps = L.mvps; rec.legacy = L.score; rec.hof = L.hof; rec.money = Math.round(c.me.money || 0); rec.earned = Math.round(c.me.earned || 0); rec.ovr = ages; rec.inv = inv.slice(0, 5); rec.hFinal = me.h;
       results.push(rec);
     }
     return results;
-  }, { N, seed0, engineGames });
+  }, { N, seed0, engineGames, forceTrait });
   const med = a => { const s = a.filter(x => x != null).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
   const at = age => med(out.map(r => r.ovr[age]));
   console.log('careers', out.length, '· stuck', out.filter(r => r.stuck || (r.inv && r.inv.length)).length);
@@ -73,5 +74,6 @@ const { launch, openPage } = require('./lib');
   const hof = out.filter(r => r.hof).length / out.length, titles = out.reduce((a, r) => a + r.titles, 0) / out.length, stuck = out.filter(r => r.stuck || (r.inv && r.inv.length)).length;
   const inR = (v, lo, hi) => v != null && v >= lo && v <= hi ? '✓' : '✗';
   console.log('TARGETS: OVR@17 ' + at(17) + ' (55–60) ' + inR(at(17), 55, 60) + ' · OVR@21 ' + at(21) + ' (66–70) ' + inR(at(21), 66, 70) + ' · OVR@25 ' + at(25) + ' (74–78) ' + inR(at(25), 74, 78) + ' · peak ' + med(out.map(r => r.peak)) + ' (76–80) ' + inR(med(out.map(r => r.peak)), 76, 80) + ' · titles/career ' + titles.toFixed(2) + ' (~1) ' + inR(titles, 0.7, 1.3) + ' · HOF ' + pct(hof) + '% (10–20%) ' + inR(pct(hof), 10, 20) + ' · stuck ' + stuck + ' (0) ' + (stuck ? '✗' : '✓'));
+  if (process.argv.includes('--json')) console.log('JSON ' + JSON.stringify({ n: out.length, trait: forceTrait, legacy: out.map(r => r.legacy), titles: out.map(r => r.titles), money: out.map(r => r.earned), hof: out.filter(r => r.hof).length, stuck }));
   console.log('errors', errors.slice(0, 5)); await browser.close(); process.exitCode = errors.length || stuck ? 1 : 0;
 })();
