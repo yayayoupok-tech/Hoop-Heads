@@ -169,7 +169,8 @@ from the ball behind at 0.92 and 0.1 H higher, contact 0.95 m; 60 s Pro vs Pro: 
 no face over 49% hidden, was up to 100%.)* **L17 — Players read against the crowd** *(done: the crowd is 20% less saturated and
 contrasty, a dark band sits behind the players, the LED ribbon and the scorer's table moved above the lowest row, and
 three rows of 1.45 m fans; nothing bright or lettered behind the bodies.)* **L18 — Phone layout** *(done: on a landscape phone every touch control sits in the floor band under the
-70% floor line, 40% opaque when idle; no jumbotron on phones; 390×844 keeps the rotate screen.)* **L19 — Balance the Legends mirror.**
+70% floor line, 40% opaque when idle; no jumbotron on phones; 390×844 keeps the rotate screen.)* **L19 — Balance the Legends mirror** *(done: Pro mirror 1.48 → 1.20 PPP with a 10 s clock, farther and
+stronger contests, tighter closeouts and a 1.3 s finisher recovery; team A 49%, Legend beats Pro 85%, brute force 0.82.)*
 
 ## Testing every milestone
 

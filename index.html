@@ -82,7 +82,18 @@ const CONFIG = {
       checkDist: 7.0,          // street half court: the check ball this far from the hoop (m), a meter past the arc...
       halfLine: 8.0,           // ...and the players stay within this of the hoop (m): the midcourt line is 7.5 m out
       visualScale: 1.0,        // L13: characters are drawn true size (a 2 m player is 1/9 of the court); was 1.3
-      tune: { 'ai.sagMin': 0.85, 'ai.soloSagMax': 0.95, 'ai.pickupDistSolo': 8.0, 'ai.pickupDistSoloBig': 6.5, 'contest.proxNear': 0.95, 'contest.proxRange': 1.45 }, // L13 gate tuning (m) for the 18 m court: the on-ball defender plays a little tighter, picks up 2 m past the arc and contests from farther (untuned, threes ran 1.85 PPP vs Pro)
+      tune: {                  // Legends View only: these replace CONFIG's values (Classic gets its own back)
+        'ai.sagMin': 0.85, 'ai.soloSagMax': 0.95, 'ai.pickupDistSolo': 8.0, 'ai.pickupDistSoloBig': 6.5, // L13 gate tuning (m) for the 18 m court: the on-ball defender plays a little tighter and picks up 2 m past the arc (untuned, threes ran 1.85 PPP vs Pro)
+        'contest.proxNear': 1.05,        // L19: a contest is full inside this gap (m; L13 0.95)...
+        'contest.proxRange': 1.7,        // ...and fades out over this much more (m; L13 1.45)
+        'shot.contestPenalty': 0.7,      // L19: a full contest takes this share off a jumper's make chance (Classic 0.5)
+        'shot.layupContest': 0.8,        // L19: ...and off a layup's (Classic 0.6)
+        'ai.flyCloseout': 2.6,           // L19: the on-ball AI leaves the floor at a jump shot from this far (m; the scaled Classic value was 1.73)...
+        'ai.closeoutFrom': 3.0,          // ...closes out on a gather from within this gap (m, scaled; Classic 2.6)...
+        'ai.closeoutGap': 0.85,          // ...to this gap (m, scaled; Classic 1.0)
+        'rules.shotClock': 10,           // L19: a 10 s shot clock (Classic 12)
+        'rebound.finisherRecoverS': 1.3, // L19: the shooter of a layup, dunk or tip can't grab his own miss for this long (s; Classic 0): rim misses came back to him 72–76% of the time
+      },
     },
   },
   ball: {
@@ -451,6 +462,7 @@ const CONFIG = {
     boxOutBase: 0.55,          // a player in stance with an opponent at his back seals him this often (equal size and Strength)
     boxOutStr: 0.04,           // ...per point of Strength edge
     boxOutReach: 0.25,         // ...when the opponent is within this of body contact (m)
+    finisherRecoverS: 0,       // L19: the shooter of a layup, dunk or tip can't grab his own miss until this long after the release (s); Legends View tunes it
   },
   post: {                      // the post game: at least 3 in. taller than the defender, near the block, holding Down
     minEdge: 0.076,            // height edge needed (m)
@@ -638,6 +650,8 @@ const CONFIG = {
     recoverHoldS: 0.4,         // ...and keeps racing for at least this long before cutting back in (no lane flip-flop)
     cutInLead: 0.6,            // ...cutting back into the handler's lane only a full body ahead of him (m)
     flyCloseout: 2.0,          // an on-ball defender leaves the floor at a jump shot within this distance (m)
+    closeoutFrom: 2.6,         // L19: an on-ball defender closes out on a shooter's gather from within this gap (m, LP)...
+    closeoutGap: 1.0,          // ...to this gap, a hand's length (m, LP)
     contactReaction: 0.12,     // a defender who feels the handler slip past reacts this fast (touch is quicker than sight, s)...
     contactWindow: 0.6,        // ...for this long after the contact (s)
     rimJumpDist: 1.9,          // an on-ball defender leaves the floor for a layup or dunk within this distance of the finisher (m)
@@ -3053,7 +3067,7 @@ const LAYOUT_SCALED = {
   r: ['shot.bankMin', 'shot.bankMax', 'ai.spots.dunker', 'ai.spots.shortMid', 'ai.spots.arc', 'ai.spots.deepTop', 'ai.pickupDist', 'ai.pickupDistSolo', 'ai.pickupDistSoloBig',
     'ai.soloSpotShooter', 'ai.soloSpotOther', 'harness.threeSpot'],
 };
-const _layoutBase = {}; const CONTACT0 = CONFIG.defense.contactDist;
+const _layoutBase = {}, _tuneExtra = new Set(); const CONTACT0 = CONFIG.defense.contactDist;
 function cfgRef(path) { const k = path.split('.'); let o = CONFIG; for (let i = 0; i < k.length - 1; i++) o = o[k[i]]; return [o, k[k.length - 1]]; }
 const layoutPaths = kind => kind === 'fn' ? Object.keys(LAYOUT_SCALED.fn) : LAYOUT_SCALED[kind];
 (function () { for (const kind in LAYOUT_SCALED) for (const path of layoutPaths(kind)) { const [o, k] = cfgRef(path); _layoutBase[path] = o[k]; }
@@ -3080,7 +3094,8 @@ function useLayout(id) {
   if (L.legends) { const z = L.zones, R = L.threeLine; S.zoneThree = R * z[0]; S.zoneDeep = R * z[1]; S.heaveRange = R * z[2]; S.apexBase = L.apexBase; CONFIG.rules.checkDist = L.checkDist; }
   else { S.zoneThree = B['shot.zoneThree']; S.zoneDeep = B['shot.zoneDeep']; S.heaveRange = B['shot.heaveRange']; S.apexBase = B['shot.apexBase']; CONFIG.rules.checkDist = B['rules.checkDist']; }
   CONFIG.defense.contactDist = L.bodyContact || contact; // L16: real contact keeps bodies this far apart; LP still scales gaps from contactDist
-  if (L.legends && L.tune) for (const path in L.tune) { const [o, k] = cfgRef(path); o[k] = L.tune[path]; } // (every tuned path is in the registry above, so Classic restores it)
+  for (const path of _tuneExtra) { const [o, k] = cfgRef(path); o[k] = _layoutBase[path]; } // L19: tuned values outside the registry go back to Classic's...
+  if (L.legends && L.tune) for (const path in L.tune) { const [o, k] = cfgRef(path); if (!(path in _layoutBase)) { _layoutBase[path] = o[k]; _tuneExtra.add(path); } o[k] = L.tune[path]; } // ...captured the first time they are tuned (registry paths were captured at load)
   return LAY;
 }
 function ensureLayout(m) { const id = (m && m.layoutId) || 'classic'; if (LAY.id !== id) useLayout(id); }
@@ -4290,7 +4305,7 @@ function launchPass(p, target, kind) {
 }
 
 // --- catching and interceptions (passes) and loose-ball pickups (rebounds, steals, blocks) ---
-const _contenders = [];
+const _contenders = [], FINISH_SHOTS = { layup: true, dunk: true, tip: true };
 function catchable(m) {
   const b = m.ball; if (b.owner) return false; if (b.mode === 'loose') return true;
   if (b.pass) return true;
@@ -4309,7 +4324,7 @@ function resolveCatches(m, dt) {
   for (let i = 0; i < m.players.length; i++) {
     const p = m.players[i]; if (p.hidden) continue; if (p.inState('stumble', 'knocked', 'rimhang', 'swipe', 'shove', 'pass', 'lob') && !(p.state === 'swipe' && p.sd.phase === 'startup')) continue;
     if (b.pass && b.pass.from === p && b.flightT < 0.2) continue;
-    if (b.shot && b.shot.shooter === p && b.flightT < 0.3 && !b.rimTouched) continue;
+    if (b.shot && b.shot.shooter === p && ((b.flightT < 0.3 && !b.rimTouched) || (b.flightT < RB.finisherRecoverS && FINISH_SHOTS[b.shot.type]))) continue; // (L19: a finisher at the rim is still coming down from the contact)
     if (b.lastTouch === p && m.time - p.lastTouchT < 0.12) continue;
     if (!playerTouchesBall(p, b)) continue;
     _contenders[n++] = p;
@@ -4951,7 +4966,7 @@ class PlayerBrain {
       if (this.freezeT > 0) targetX = p.x;
       if ((this.lungeT = (this.lungeT || 0) - this.interval) > 0) targetX = p.x + this.lungeDir * LX(1.2); // bit on the jab
       const dist = Math.abs(hx - p.x);
-      if ((hq.state === 'gather' || hq.state === 'jumpshot' || hq.state === 'stepback') && hq.gType !== 'layup' && hq.gType !== 'dunk' && dist < LP(2.6) && dist > LP(1.05)) targetX = hx + dir * LP(1.0); // close out to a hand's length, not into the shooter (a step-back is a shot coming)
+      if ((hq.state === 'gather' || hq.state === 'jumpshot' || hq.state === 'stepback') && hq.gType !== 'layup' && hq.gType !== 'dunk' && dist < LP(AI.closeoutFrom) && dist > LP(AI.closeoutGap + 0.05)) targetX = hx + dir * LP(AI.closeoutGap); // close out to a hand's length, not into the shooter (a step-back is a shot coming)
       // beaten: race to the rim in the next lane over (a trailer in the same lane is stuck behind the body) and contest from the side
       const ahead = (p.x - hx) * dir; let beaten = ahead < 0 && hd < LR(9) && dist < LP(6);
       if (beaten) this.recoverUntil = m.time + AI.recoverHoldS; else if (m.time < this.recoverUntil && ahead < AI.cutInLead && hd < LR(9)) beaten = true;

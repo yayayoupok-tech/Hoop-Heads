@@ -3,6 +3,105 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## L19 — Balance: the Legends mirror into 0.95–1.25 PPP (playtest pass, milestone 19)
+
+The playtest: the Pro mirror scored 1.44 points per possession (L10). On the L13 layout with the L11–L12 rules (and
+L16's 0.95 m contact) it scored 1.48, and the mirror's team A won only 44%.
+
+**What drove it** (`l19/diag.js` in the working notes: 150 Pro-vs-Pro Legends games, every shot and rebound logged):
+- Almost no turnovers (0.009 a possession), so nearly every possession ends in a shot.
+- The offense rebounded 44.8% of its misses. A miss at the rim came back to the finisher 64–71% of the time, because he
+  lands under the ball. Jumper misses came back 32–37%. Second chances made 16.8% of the points.
+- Contests alone couldn't fix it. The spec's levers at full strength stalled at 1.33: every extra miss fed the offensive
+  glass, and offensive rebounds rose to 51%.
+
+**What changed** (Legends View only, through the layout's tune table; Classic keeps every value):
+
+| Lever | Before | L19 | Config |
+| --- | --- | --- | --- |
+| contest distance: full inside, fading over | 0.95 m, 1.45 m (L13) | 1.05 m, 1.7 m | `contest.proxNear`, `contest.proxRange` |
+| contest strength on jumpers | 0.5 | 0.7 | `shot.contestPenalty` |
+| the contested-layup rate | 0.6 | 0.8 | `shot.layupContest` |
+| AI closeouts: fly at a jumper from | 1.73 m (Classic 2.0, scaled) | 2.6 m | `ai.flyCloseout` |
+| AI closeouts: close out on a gather from → to | 2.6 → 1.0 (scaled) | 3.0 → 0.85 | `ai.closeoutFrom`, `ai.closeoutGap` (new; Classic keeps 2.6 and 1.0) |
+| shot clock | 12 s | 10 s | `rules.shotClock` |
+| a finisher can't grab his own miss for | 0 s | 1.3 s | `rebound.finisherRecoverS` (new) |
+
+- The finisher's recovery covers a layup, a dunk or a tip. He is still coming down from the contact. The ball stays live
+  for the defender, and the shooter can have it once the 1.3 s are up. This lever is not on the spec's list; see the
+  deviations.
+- The tune table now accepts any config path, not only the scaled registry's. A path is captured the first time Legends
+  View tunes it, and Classic gets it back (`_tuneExtra` in `useLayout`).
+- The gate's target is the spec's 0.95–1.25 (was 0.90–1.25).
+
+**Tuning rounds** (`l19/lgate.js`: the Legends half of the gate with the tune applied; 300 mirror games, 200 Legend vs
+Pro, harness 8 per cell). C7 shipped:
+
+| Run | contest penalty | layup contest | finisher recovery | fly closeout | closeout gap | mirror PPP | team A | Legend beats Pro | brute vs Pro | timing vs Pro | reads vs Pro |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| C1 | 0.65 | 0.80 | 1.0 s | 1.73 m | 1.0 | 1.276 ✗ | 52% | 85% | 0.93 | 1.57 | 1.26 |
+| C2 | 0.65 | 0.80 | 1.2 s | 1.73 m | 1.0 | **1.221** | 49% | 86% | 0.87 | 1.53 | 1.18 |
+| C3 | 0.65 | 0.80 | 1.2 s | 2.6 m | 1.0 | **1.222** | 51% | 86% | 0.87 | 1.53 | 1.20 |
+| C4 | 0.70 | 0.80 | 1.2 s | 1.73 m | 1.0 | **1.207** | 54% | 89% | 0.92 | 1.43 | 1.18 |
+| C5 | 0.65 | 0.80 | 1.2 s | 2.6 m | 0.85 | **1.238** | 48% | 83% | 0.87 | 1.59 | 1.34 |
+| C6 | 0.70 | 0.80 | 1.2 s | 2.6 m | 0.85 | **1.201** | 52% | 88% | 0.92 | 1.38 | 1.20 |
+| C7 (shipped) | 0.70 | 0.80 | 1.3 s | 2.6 m | 0.85 | **1.186** | 53% | 84% | 0.72 | 1.44 | 1.14 |
+| C8 | 0.65 | 0.85 | 1.3 s | 2.6 m | 0.85 | **1.202** | 50% | 79% | 0.66 | 1.65 | 1.26 |
+
+All eight runs use the 10 s shot clock and contests at 1.05 m / 1.7 m. The closeout range (C3, C5) moved nothing on its
+own; the finisher's recovery and the contest strength did the work. C7 has the most room under 1.25 with every other
+target in range.
+
+**The gate** (`node tests/gate.js`: runSims 1v1 Pro mirror 300 games both ways round, Legend vs Pro 200 games, the
+harness 12 games per cell). L18 → L19:
+
+| Legends View | L18 (before) | L19 (after) | Target |
+| --- | --- | --- | --- |
+| Pro mirror PPP | 1.48 ✗ | **1.20** ✓ | 0.95–1.25 |
+| Pro mirror: team A wins | 44% ✗ | **49%** ✓ | 45–55% |
+| (the side attacking right) | 55% | 55% | — |
+| Legend beats Pro | 77% ✓ | **85%** ✓ | 75–95% |
+| PPP Legend / Pro | 1.66 / 1.32 | 1.32 / 0.93 | — |
+
+| Harness PPP (scripted human) | L18 vs Pro / vs Legend | L19 vs Pro / vs Legend |
+| --- | --- | --- |
+| brute force (sprint + Shoot) | 1.00 / 0.59 | **0.82** / 0.54 (≤ 1.30 ✓) |
+| button mash | 0.17 / 0.08 | 0.18 / 0.15 |
+| only drives | 1.08 / 1.11 | 0.68 / 0.46 |
+| only threes | 1.18 / 0.96 | 1.00 / 0.56 |
+| perfect-timing jumpers | 1.95 / 1.45 | **1.47** / 0.95 (beats brute force ✓) |
+| reads the defender | 1.72 / 1.17 | **1.23** / 0.55 (beats brute force ✓) |
+
+Classic is unchanged: mirror PPP 1.64, team A 50%, Legend beats Pro 81%, and the harness is the same (brute force 1.24,
+timing 2.05).
+
+**The Pro mirror, before and after** (`l19/diag.js`, 150 games each):
+
+| | L18 | L19 |
+| --- | --- | --- |
+| PPP | 1.492 | 1.191 |
+| possessions per game (first to 21) | 25.6 | 31.5 |
+| shots per possession | 1.251 | 1.166 |
+| offensive rebounds | 44.8% | 26.7% |
+| a rim miss back to the finisher | 71% (defender in the air) · 64% | 17% · 43% |
+| second-chance points | 16.8% | 8.0% |
+| contested mid-range jumpers: share · FG | 26.7% · 43% | 23.9% · 26% |
+| contested layups: share · FG | 6.5% · 33% | 8.3% · 13% |
+| shot-clock violations per game | 0.08 | 0.29 |
+
+**The career simulator** (`careersim.js 40`) is identical to L18's to the last digit: the career's league games play
+through the ratings model, not the tuned Legends match engine. Median OVR at 14/17/21/25/29/33 is 42 / 57 / 69 / 77 / 79 /
+69, the peak 79, titles 1.02 a career and the Hall of Fame 13% (5 of 40), with 0 careers stuck. Every target passes. The
+Classic balance harness (`balance.js 12 21`) is identical too: brute force 1.24 ✓, timing 2.05 ✓, Legend beats Pro 79%
+✓.
+
+Tests: smoke 100/100, with the new L19 step: Legends View gets the 10 s clock and every tuned value, Classic gets
+each one back, a live match starts its clock at 10 s, and a finisher can't pick up his own missed layup at 0.9 s but
+can at 1.35 s. Also: modes 13/13, old saves 16/16, dev tools OK, phone audit no errors, Art Lab 50 shots with no errors.
+Perf (844×390 @2x, the pro arena) is 22.0 / 36.7 ms median / p95 at guard level 0 and 19.4 / 26.2 ms at level 1; at 4× CPU
+the guard engages by itself. `shots/l19/` has the Legends shot clock before (12 s) and after (10 s), 1.5 s into a
+possession, on desktop and phone.
+
 ## L18 — Phone layout (playtest pass, milestone 18)
 
 The playtest: on a phone the touch buttons sat over the court, and the jumbotron collided with the score bug.

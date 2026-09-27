@@ -1,6 +1,6 @@
 // The §2 Legends View gate: runSims 1v1 (Pro mirror, Legend vs Pro) and the balance harness in a court layout, with the
 // Classic numbers beside them. Usage: node tests/gate.js [mirrorGames=300] [harnessGamesPerCell=12]
-// Targets (Legends): mirror PPP 0.9–1.25 · Legend beats Pro 75–95% · brute force (sprint + Shoot) ≤ 1.3 PPP vs Pro ·
+// Targets (Legends): mirror PPP 0.95–1.25 (L19) · Legend beats Pro 75–95% · brute force (sprint + Shoot) ≤ 1.3 PPP vs Pro ·
 // mirrored matchups 45–55%. The mirror is played both ways round (half the games each side attacks right), because the
 // engine has a small side-and-order bias of its own (about 53–54% in Classic too).
 const { launch, openPage } = require('./lib');
@@ -23,7 +23,7 @@ const { launch, openPage } = require('./lib');
   console.log('§2 gate · 1v1 first to 21 · ' + n + ' mirror games (both ways round), ' + Math.round(n * 2 / 3) + ' Legend-vs-Pro games, harness ' + hn + ' games per cell\n');
   console.log('                              Legends        Classic       Legends target');
   const L = sims.legends, C = sims.classic;
-  console.log('Pro mirror PPP                ' + L.mirrorPPP.toFixed(2).padEnd(15) + C.mirrorPPP.toFixed(2).padEnd(14) + '0.90–1.25' + ok(L.mirrorPPP >= 0.9 && L.mirrorPPP <= 1.25));
+  console.log('Pro mirror PPP                ' + L.mirrorPPP.toFixed(2).padEnd(15) + C.mirrorPPP.toFixed(2).padEnd(14) + '0.95–1.25' + ok(L.mirrorPPP >= 0.95 && L.mirrorPPP <= 1.25));
   console.log('Pro mirror: team A wins       ' + pct(L.mirrorA).padEnd(15) + pct(C.mirrorA).padEnd(14) + '45–55%' + ok(L.mirrorA >= 0.45 && L.mirrorA <= 0.55));
   console.log('  (the side attacking right)  ' + pct(L.rightWins).padEnd(15) + pct(C.rightWins));
   console.log('Legend beats Pro              ' + pct(L.lvpWins).padEnd(15) + pct(C.lvpWins).padEnd(14) + '75–95%' + ok(L.lvpWins >= 0.75 && L.lvpWins <= 0.95));

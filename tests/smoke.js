@@ -134,6 +134,24 @@ const FIX = path.join(__dirname, 'fixtures');
     if (!(ART.lgLedY[0] > ART.lgRowY[0] + 1)) throw new Error('the LED ribbon sits below the lowest crowd row');
     return msg;
   }); console.log(msg); });
+  await step('balance (L19): Legends View plays a 10 s shot clock with its contest, closeout and rebound tuning, a finisher can\'t grab his own miss for 1.3 s, and Classic gets every value back', async () => {
+    const r = await ev(() => {
+      const paths = ['rules.shotClock', 'shot.contestPenalty', 'shot.layupContest', 'contest.proxNear', 'contest.proxRange', 'ai.flyCloseout', 'ai.closeoutFrom', 'ai.closeoutGap', 'rebound.finisherRecoverS'], read = () => paths.map(p => { const [o, k] = cfgRef(p); return o[k]; });
+      useLayout('classic'); const c0 = read(); useLayout('legends'); const lg = read(); useLayout('classic'); const c1 = read();
+      if (JSON.stringify(c0) !== JSON.stringify(c1)) throw new Error('Classic did not come back: ' + JSON.stringify(c0) + ' → ' + JSON.stringify(c1));
+      const T = LAYOUT.legends.tune; paths.forEach((p, i) => { if (Math.abs(lg[i] - T[p]) > 1e-9) throw new Error(p + ' in Legends View is ' + lg[i] + ', tuned ' + T[p]); });
+      // a live Legends match: the clock starts at 10; a missed layup's shooter can't pick it up before 1.3 s, the defender can
+      const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: -1, headless: true, difficulty: 'pro', ruleset: 'arcade', layout: 'legends', format: { type: 'first', target: 21 }, court: 'legends', seed: 5 });
+      let n = 0; while (m.phase !== 'live' && n++ < 120 * 20) simStep(m, STEP); const clock0 = m.shotClock;
+      const sh = m.players[0], b = m.ball; b.setOwner(null); b.mode = 'flight'; b.shot = { shooter: sh, type: 'layup', make: false, id: 999 }; b.rimTouched = true; b.flightT = 0.9; b.x = sh.x; b.y = 1.0; b.vy = -0.5; b.vx = 0; b.z = sh.z; sh.y = 0; sh.grounded = true;
+      const blocked = !(function () { resolveCatches(m, STEP); return b.owner === sh; })(); b.setOwner(null); b.mode = 'flight'; b.flightT = 1.35; b.x = sh.x; b.y = 1.0; resolveCatches(m, STEP); const later = b.owner === sh;
+      useLayout('classic');
+      return { clock0, classic: c0, legends: lg, blocked, later };
+    });
+    console.log('     L19: Legends View · Classic — shot clock ' + r.legends[0] + ' s · ' + r.classic[0] + ' s; contest penalty ' + r.legends[1] + ' · ' + r.classic[1] + ', layups ' + r.legends[2] + ' · ' + r.classic[2] + '; contest ' + r.legends[3] + '/' + r.legends[4] + ' m; closeouts fly ' + r.legends[5] + ' m, from ' + r.legends[6] + ' to ' + r.legends[7] + '; finisher recovery ' + r.legends[8] + ' s · ' + r.classic[8] + ' s; a live match starts the clock at ' + r.clock0 + ' s; the shooter grabs his own missed layup at 0.9 s: ' + (r.blocked ? 'no' : 'yes') + ', at 1.35 s: ' + (r.later ? 'yes' : 'no'));
+    if (!(r.clock0 <= 10 && r.clock0 > 9)) throw new Error('the Legends shot clock starts at ' + r.clock0);
+    if (!r.blocked || !r.later) throw new Error('finisher recovery: blocked ' + r.blocked + ', later ' + r.later);
+  });
   await step('animation (L5): a stray ball on the crown bonks (callout, shocked face, stars) and changes nothing else; posterizers give stars; a high flyer front-flips; every new clip poses', () => ev(() => {
     const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: 3, headless: true, humanTeam: -1 }); m.callouts = []; const p = m.players[1], ball = m.ball, DH = drawHeightOf(p);
     p.x = p.px = (HOOPS[0].x + HOOPS[1].x) / 2; p.y = 0; p.grounded = true; ball.setOwner(null); ball.mode = 'loose'; ball.lastTouch = m.players[0]; ball.x = p.x + 0.05; ball.y = ART.headCenter * DH + 0.2 * DH; ball.z = p.z; ball.vx = 0.5; ball.vy = -5; const before = [ball.x, ball.y, ball.vx, ball.vy].join();
