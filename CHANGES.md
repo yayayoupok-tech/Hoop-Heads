@@ -3,6 +3,133 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## R1 — Retro look: one pixel-art world (the R pass, milestone 1)
+
+The problem on the live build (L19): two styles on one screen. The players were chunky 3-px pixel sprites (the L15
+composite) standing in a smooth, high-resolution arena, crowd and set of hoops, and the pixels were too big.
+
+**What changed**
+
+- **One pixel grid (§1.1).** The whole match draws into a buffer about 360 rows tall, `k = max(2, round(device rows ÷
+  360))`, and is blitted at k× with smoothing off. 1280×720 → k 2, a 640×360 world. 1080p → k 3. The phone test
+  (844×390 at 2 dpr, 780 device rows) → k 2, 844×390 world px; a 3-dpr phone (1170 rows) → k 3, 390 rows. The camera
+  works in world px (`RetroCam`), shake is whole pixels, and every sprite lands on a whole pixel.
+- **pixelize() for every sprite (§1.2).** Painted at 3× (fans 2×), box-filtered, alpha cut at 0.5, mapped to a
+  palette of at most 24 colors built from the look and the kit, edge blends snapped to a neighbouring region, stray
+  pixels cleaned, then a 1-px ink outline. Eyes are stamped as pixel eyes (whites, iris, pupil, a 1-px catchlight).
+  Players, fans, the ball (8 pre-pixelized spins), hoops, nets (1-px strands), banners, the LED ribbon, the jumbotron,
+  shadows (flat ellipses), reflections and markers are all in the grid.
+- **Backgrounds baked once a match.** Four layers at world resolution (far wall at parallax 0.6, stands 0.85, the floor
+  and court 1.0, the rims), 60–160 ms once per match. Gradients become flat steps (3 in the first segment, 2 in each
+  further one: 3–5 per gradient) and a colour covering less than 0.04% of a layer snaps to its neighbours' dominant
+  colour. No dither on large areas; beams and glows use a 2-step checker (0.55 / 0.28).
+- **The crowd.** A pixelized fan atlas, saturation ×0.8 (20% under the players), always outlined.
+- **Retro Ball Font (§1.3).** `028_rbfont.js`: a bitmap font in code, 8×10 cells, capitals, lowercase, digits,
+  punctuation and the game's symbols, 2-px strokes with knocked corners, 1-px letter spacing. Every `fillText`,
+  `strokeText` and `measureText` in the RetroBall family draws through it at a whole scale only (the size ÷ 11,
+  rounded; on the screen never under the UI's k), from an LRU of rendered strings. Titles are 4–6× with a 2-step
+  yellow → orange ramp, a 2-px outline and a 2-px drop shadow; the logo's O is a pixel basketball. Body paragraphs are
+  2× and wrap at 60 characters. The L8 5×7 pixel font and the system-font fallbacks are gone: `fontStr` and `fontBody`
+  only name RetroBall.
+- **Menus use the same pixel characters.** Portraits (`rtPortrait`), the hub, create, draft and title mannequins
+  (`drawPixelFigure`: the in-game sprite renderer with one sprite pixel = the UI's k) and the face editor's big face
+  (`drawFaceUI`, new). While a face slider moves, the editor draws a half-size draft (double pixels) and the full face
+  once the look is still for 0.3 s: 20–30 ms a step instead of 50–135 ms.
+- **Settings → Graphics: Retro (default), Retro sharp (k one step smaller), Smooth.** Saves with the L15 Pixel
+  setting open in Retro. The L15 "pixel players over a smooth scene" composite is deleted (`125_pixel.js`).
+- **Art Lab → Retro check** (six pages, replaces Pixel check): the in-game frame at 1280×720 and on a phone, 4× crops
+  of each character, the fan strip, a hoop, a banner, the HUD and a menu, and the font specimen. It runs the automated
+  §1.5 checks: no scaled draw with smoothing on in Retro, every glyph at a whole scale, no other font, no gap in a
+  character's 1-px outline, ≤ 24 colors a sprite.
+- **In Retro the camera doesn't zoom, punch in or drift** (`camera.retroLock`): a zoom would rescale the pixel world
+  and invalidate the bakes.
+- **The screens reflowed for the wider font.** At 2× the bitmap font is about twice as wide as the old 12 px text, and
+  it can't shrink below 2×. About 40 overflows on some 30 screens were fixed: wrapped paragraphs (`ui.para`;
+  `wrapTextH` returns the real height), labels and headings with a width limit (truncated with …), selects that move
+  their left arrow for a long value, the How to Play tips one at a time (◀ Tip / Tip ▶), shorter copy where a line had to fit (the hub's week
+  buttons show a short sub-label when the long one doesn't fit), and the hub's right column 20 px wider. The phone
+  audit now honours a width limit (a truncated label is not an overflow).
+
+**Round fixes (the three visual rounds, below)**
+
+| Round | Seen | Fix | Config |
+| --- | --- | --- | --- |
+| 1 | the HUD's "1ST HALF" ran into the left score | the period label picks the longest of 1ST HALF / 1ST / H1 that fits the center block | — |
+| 1 | the floor's soft light pools and specular bars quantized into irregular orange smears | Retro: each pool is two flat ellipses; no specular bars | `rtPoolStep` 0.28 (new) |
+| 1 | a player's reflection was a full translucent ghost under him | only the shoes and legs reflect | `rtReflectH` 0.3 (new) |
+| 2 | every venue, Classic 1v1, 3v3, the phone | consistent; no change | — |
+| 3 | 4× crops: some fans had a light-blue blob by the eye (a phone's glow) that read as a tear | the phone is held at the chest, no glow | — |
+
+**The ALSO items**
+
+- **The pump fake picks up the dribble** (`rules.fakePicksUp`, replaces `rules.standstillFake`). Every pump fake ends the
+  dribble: walking after it is a TRAVEL, dribbling is a DOUBLE DRIBBLE. Smoke checks both, in every ruleset.
+- **Short games during development** (`CONFIG.dev.gameSeconds` 24, `otSeconds` 8). Every game you play is 24 s (two
+  12 s halves, 8 s overtime). The simulators, the gate and the career simulator keep their real lengths. R10 sets it
+  back to 0.
+- **Bugs fixed:** the trade screen drew the other player's stat bars twice, one set under the panel title; the team
+  hub's season summary sat over the PLAY button; the management page showed "staff −0" with no staff (now "no staff");
+  the film room's tips were spaced for 20 px lines and ran into each other; the pro result's rating names ran into
+  their numbers; the HUD period label (round 1); the fan phone glow (round 3). A syntax check now runs after every
+  build (`build.js`).
+
+**New constants** (all with a one-line comment in the file): `ART.rb*` (font: `rbPxPerScale` 11, `rbCacheN` 900,
+`rbLineGap` 2, `rbBodyChars` 60, `rbTitleMin` 2, `rbTitleMax` 3, `rbTitleRamp`, `rbTitleInk`, `rbTitleOutline` 2,
+`rbTitleShadow` 2); `ART.rt*` in `126_retro.js` (`rtRows` 360, `rtSuper` 3, `rtSuperFan` 2, `rtAlphaCut` 0.5,
+`rtColors` 24, `rtCrowdSat` 0.8, `rtGradSteps` [3, 2], `rtDominant` 0.0004, `rtDominantMin` 6, `rtEyeW` 0.118,
+`rtReflectA` 0.2, `rtReflectH` 0.3, `rtShadowA` 0.34, `rtBudget` [5, 9] ms, `rtBallFrames` 8, `rtCheckerA`
+[0.55, 0.28], `rtBannerW` 1.75, `rtBlendErr` 420, `rtInner` 0.32, `rtInnerMix` 0.4, `rtFaceSettle` 0.3 s,
+`rtPortraitBig` 160); `ART.rtPoolStep` 0.28 (`124_court.js`); `CONFIG.dev.gameSeconds` 24 and `otSeconds` 8;
+`CONFIG.rules.fakePicksUp` true. Removed: `rules.standstillFake` and the L15 Pixel mode's constants.
+
+**Measured**
+
+| | L19 (before) | R1 |
+| --- | --- | --- |
+| Styles on one screen | pixel players (3 px) over a smooth scene | one pixel world, 2 screen px a pixel at 720p |
+| World grid, 1280×720 | — | k 2, 640×360 world px |
+| World grid, phone 844×390 at 2 dpr | — | k 2, 844×390 world px (390 rows) |
+| Scaled draws with smoothing on (Retro) | — | 0 |
+| Glyph draws off a whole scale | — | 0 of 43 (desktop match), 0 of 52 (phone), 0 of 96 (Art Lab) |
+| Text in any other font | system fonts in menus | 0 |
+| Gaps in a character's 1-px outline | — | 0 (400 sprites scanned in the Art Lab) |
+| Most colors in one sprite (limit 24) | — | 20–23 |
+| Backgrounds baked | — | 79 ms once a match (60–160 ms by venue) |
+| Head width at game size | — | about 32 world px (R2: 45 px for a 2 m player) |
+| Perf, 844×390 @2x, the pro arena, guard 0 | 22.0 / 36.7 ms | 17.8 / 25.9 ms (median / p95) |
+| Perf, guard 1 | 19.4 / 26.2 ms | 17.0 / 22.0 ms |
+| Text overflows (the phone audit, now also run at 1280×720) | — (the old font fit) | 0 and 0, 66 screens each |
+
+**Deviations**
+
+- The spec asks for three visual rounds against the Basketball Bros screenshot in `reference/`. There is none:
+  `reference/` has `README.md` and `face-construction.png`. The rounds were judged against §1's own description (one
+  pixel style everywhere, flat colors, 1-px outlines, 3–5 step gradients, bitmap text, characters original) and are
+  listed above.
+- Heads are about 32 world px wide at game size, not 44–52: the players are still drawn at L13's size (2 m = 1/9 of an
+  18 m court). R2 (next) draws them about 1.3× bigger (a 15 m court, visual scale 1.1): a 2 m player's head is then
+  45 world px on a 720p screen (measured on the R2 build).
+- At the current size the bodies' shading breaks into small clusters (a 30-px body has little room for 3 jersey tones).
+  Revisited in R2 with the bigger players.
+- Menus keep the L8 UI kit's panels and buttons (smooth rounded rectangles). All their text is the bitmap font and all
+  their characters are pixel art; the kit itself is R10's "one consistent Retro UI kit" (§4).
+
+**Tests on the committed build**
+
+- Smoke 100/100, desktop 1280×720 and phone 844×390, including the R1 steps: the retro grid and the §1.5 checks on
+  both, Retro sharp (k 1 at 720p), the Graphics setting and its migration, and the pump fake picking up the dribble.
+- Modes 13/13. The first run on the final build failed once: the test could press PLAY on the high-school hub a frame
+  before the hub put up the "first day" story card. The test now lets a frame pass first; the rerun passed.
+- Old saves 16/16 · dev tools all OK (1,000 balls, 0 tunneled).
+- Phone audit, 66 screens at 844×390 and at 1280×720 (`--desktop`): no text overflow, no errors. (Its "smallest text"
+  column lists requested sizes; the bitmap font never draws under 2 device px per font pixel on the screen.)
+- Art Lab: 54 shots, no errors (`shots/r1/round-final/`; the Retro check pages are `lab-10-retro-p0…p5`).
+- The gate, the balance harness and the career simulator ran on the build before the visual-round fixes (they only
+  change drawing): the gate's Legends mirror 1.21 PPP ✓, team A 49% ✓, Legend beats Pro 86% ✓, brute force vs Pro
+  0.82 ✓, sniper 1.47 (timing beats brute force ✓); the harness (Classic): brute 1.24 ✓, timing 2.12 ✓, Legend vs Pro
+  78% ✓; the career simulator (40 careers): 0 stuck, OVR 57 / 69 / 77 at 17 / 21 / 25, peak 79, 1.02 titles a career,
+  Hall of Fame 13% — every target met.
+
 ## The playtest pass (L11–L19): the report
 
 Nine milestones, one commit each, every one measured before and after with the spec's own test. The final build is the

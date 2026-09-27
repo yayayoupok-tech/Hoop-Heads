@@ -108,7 +108,7 @@ const FIX = path.join(__dirname, 'fixtures');
       const cam = { scale: () => 64, sx: wx => 700 + (wx - COURT_L / 2) * 64, sy: (wy, z) => 600 - wy * 64 + (0.5 - (z == null ? 0.5 : z)) * CONFIG.fx.laneOffsetPx, ppm: 64, zoom: { x: 1 }, W: 1400, H: 800 };
       const ov = [], hid = []; let steps = 0, maxH = 0;
       while (m.time < 30 && !m.ended) { simStep(m, STEP); if (++steps % 2) continue; m._ovT = performance.now() - 1000 / 60; const order = overlapOrder(m, m.players, 1, m.ball, cam); if (order.length < 2) continue;
-        const heads = order.map(p => { let geo = null; drawCharacter(g, cam, p, 1, m.ball, m.teams[p.team], { depth: p._depth || 0, noShadow: true, onPose: (Q, gm) => { geo = [Q, gm]; } }); if (!geo) return null; const [Q, gm] = geo, [hx, hy] = pxBodyPt(gm, Q, Q.head.x, Q.head.y), ky = Math.abs(gm.ky), hb = Q.bigHead || 1; return { p, x: hx, y: hy, rx: 0.27 * hb * ky, ry: 0.31 * hb * ky, chinY: hy + 0.31 * hb * ky, bodyW: 0.2 * ky, bodyBottom: hy + 0.95 * ky }; });
+        const heads = order.map(p => { let geo = null; drawCharacter(g, cam, p, 1, m.ball, m.teams[p.team], { depth: p._depth || 0, noShadow: true, onPose: (Q, gm) => { geo = [Q, gm]; } }); if (!geo) return null; const [Q, gm] = geo, [hx, hy] = rtBodyPt(gm, Q, Q.head.x, Q.head.y), ky = Math.abs(gm.ky), hb = Q.bigHead || 1; return { p, x: hx, y: hy, rx: 0.27 * hb * ky, ry: 0.31 * hb * ky, chinY: hy + 0.31 * hb * ky, bodyW: 0.2 * ky, bodyBottom: hy + 0.95 * ky }; });
         if (heads.some(h => !h)) continue; const [F, N] = heads; const o = Math.abs(F.y - N.y) < F.ry + N.ry ? Math.max(0, F.rx + N.rx - Math.abs(F.x - N.x)) / (2 * Math.min(F.rx, N.rx)) : 0;
         let tot = 0, cov = 0; for (let i = 0; i < 15; i++) for (let j = 0; j < 15; j++) { const u = (i + 0.5) / 15 * 2 - 1, v = (j + 0.5) / 15 * 2 - 1; if (u * u + v * v > 1) continue; const X = F.x + u * F.rx, Y = F.y + v * F.ry; tot++; if (((X - N.x) / N.rx) ** 2 + ((Y - N.y) / N.ry) ** 2 <= 1 || (Math.abs(X - N.x) <= N.bodyW && Y >= N.chinY && Y <= N.bodyBottom)) cov++; }
         if (Math.abs(F.p.x - N.p.x) < 1.5) ov.push(o); hid.push(cov / tot); maxH = Math.max(maxH, cov / tot); }
@@ -172,35 +172,30 @@ const FIX = path.join(__dirname, 'fixtures');
     await ev(() => { const g = HH.game; g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 4, controlMode: 'lock' }, { kind: 'quick' }); });
     await wait(1200); await shot('21-legends-arena'); await ev(() => HH.game.quitToMenu());
   });
-  await step('pixel mode (L15): the default; the characters and the ball are pixel sprites at an integer scale on the pixel grid, the rest is the Smooth frame (Pixel vs Smooth differ < 1% outside the player and ball boxes); Smooth still works', async () => {
-    await ev(() => { const g = HH.game, S = g.save.data.settings; if (S.graphics === 'smooth') throw new Error('Smooth by default'); S.graphics = 'pixel'; S.camera = 'legends';
+  await step('retro look (R1 §1): the default; the world renders into a pixel buffer about 360 rows tall (k = max(2, round(device height / 360))) blitted at k× with smoothing off, sprites on whole world pixels; the §1.5 checks (no scaled smoothing draws, glyphs at whole scales, no other font, no outline gaps, ≤ 24 colors a sprite); Retro sharp is one step finer; Smooth still works', async () => {
+    await ev(() => { const g = HH.game, S = g.save.data.settings; if (S.graphics !== 'retro') throw new Error('Retro by default: ' + S.graphics); S.camera = 'legends';
       g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 6, controlMode: 'lock' }, { kind: 'quick' }); });
     await wait(1500);
-    const r = await ev(() => { const g = HH.game, m = g.match, cam = g.cam, S = g.save.data.settings; if (!g.pixelFrame) throw new Error('no pixel frame'); const k = Math.max(2, Math.round(g.canvas.height / ART.pxRows)); if (PXS.k !== k || PXS.f !== g.dpr / k) throw new Error('sprite scale k ' + PXS.k + ' f ' + PXS.f);
-      if (typeof PX_FONT !== 'undefined' || typeof pxQuantizeRect !== 'undefined' || typeof pxUIDraw !== 'undefined') throw new Error('the pixel font, venue dithering or pixel UI is still there');
-      for (let fr = 0; fr < ART.pxBallFrames; fr++) { const b = pxBallSprite(5, fr, 0); if (!(b.width > 4)) throw new Error('ball frame ' + fr); }
-      g.paused = true; const upd = cam.update, pn = performance.now.bind(performance), t0 = pn(); cam.update = () => {}; performance.now = () => t0; const W = g.canvas.width, H = g.canvas.height; const grab = mode => { S.graphics = mode; g.renderSceneAny(g.ctx, m, 0, 0); g.drawHUD(g.ctx, m, 0, 0); return g.ctx.getImageData(0, 0, W, H).data; };
-      let P, Q, boxes; try { P = grab('pixel'); boxes = m.players.map(p => (PXS.last.get(p) || {}).box).filter(Boolean); if (PXS.ballBox) boxes.push(PXS.ballBox); Q = grab('smooth'); } finally { performance.now = pn; cam.update = upd; S.graphics = 'pixel'; g.paused = false; }
-      if (boxes.length < m.players.length) throw new Error('sprite boxes ' + boxes.length);
-      // the sprites sit on the k-pixel grid at an integer scale
-      for (const b of boxes) if (b.some(v => v % k)) throw new Error('a sprite off the pixel grid: ' + b);
-      const pad = 2 * k, inBox = (x, y) => boxes.some(b => x >= b[0] - pad && x < b[2] + pad && y >= b[1] - pad && y < b[3] + pad); let n = 0, diff = 0, sum = 0;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { if (inBox(x, y)) continue; const o = (y * W + x) * 4, d = Math.abs(P[o] - Q[o]) + Math.abs(P[o + 1] - Q[o + 1]) + Math.abs(P[o + 2] - Q[o + 2]); n++; sum += d; if (d > 24) diff++; }
-      return { k, boxes: boxes.length, share: diff / n, mean: sum / (n * 3 * 255), px: n };
-    });
-    console.log('     L15: Pixel vs Smooth outside ' + r.boxes + ' sprite boxes: ' + (r.share * 100).toFixed(3) + '% of ' + r.px + ' px differ (mean |Δ| ' + (r.mean * 100).toFixed(3) + '%) · k = ' + r.k);
-    if (!(r.share < 0.01)) throw new Error('Pixel and Smooth differ on ' + (r.share * 100).toFixed(2) + '% of the frame outside the sprites');
-    await shot('22-pixel-mode');
-    await ev(() => { const g = HH.game; g.save.data.settings.graphics = 'smooth'; }); await wait(400); await ev(() => { if (HH.game.pixelFrame) throw new Error('Smooth did not turn pixel mode off'); HH.game.save.data.settings.graphics = 'pixel'; HH.game.quitToMenu(); });
+    const r = await ev(() => { const g = HH.game, m = g.match, S = g.save.data.settings; if (!g.retroFrame) throw new Error('no retro frame'); const k = Math.max(2, Math.round(g.canvas.height / 360));
+      if (RT.k !== k || RT.H !== Math.ceil(g.canvas.height / k) || RT.W !== Math.ceil(g.canvas.width / k)) throw new Error('grid ' + RT.k + ' ' + RT.W + '×' + RT.H);
+      if (typeof pxDrawCharacter !== 'undefined' || typeof PXS !== 'undefined') throw new Error('the L15 composite is still there');
+      g.paused = true; const c = retroChecks(g); const recs = m.players.map(p => RT.last.get(p)).filter(Boolean); if (recs.length < m.players.length) throw new Error('sprites ' + recs.length);
+      for (const q of recs) if (q.X % 1 || q.Y % 1) throw new Error('a sprite off the world grid: ' + q.X + ',' + q.Y);
+      S.graphics = 'sharp'; g.renderSceneAny(g.ctx, m, 1, 0); const ks = RT.k; S.graphics = 'smooth'; g.renderSceneAny(g.ctx, m, 1, 0); const sm = g.retroFrame; S.graphics = 'retro'; g.renderSceneAny(g.ctx, m, 1, 0); g.paused = false;
+      const R = g.world.venueFor(m)._rt; return { k, W: RT.W, H: RT.H, checks: c, ks, sm, bakeMs: R ? Math.round(R.ms) : -1 }; });
+    console.log('     R1: k = ' + r.k + ' (' + r.W + '×' + r.H + ' world px) · Retro sharp k = ' + r.ks + ' · backgrounds baked in ' + r.bakeMs + ' ms · checks: ' + r.checks.smooth + ' smoothing draws, ' + r.checks.glyphs + ' of ' + r.checks.glyphN + ' glyph draws off-scale, ' + r.checks.native + ' other-font texts, ' + r.checks.gaps + ' outline gaps in ' + r.checks.sprites + ' sprites, ≤ ' + r.checks.colorsMax + ' colors');
+    const C = r.checks; if (C.smooth || C.glyphs || C.native || C.gaps || C.colorsMax > 24 || !C.sprites || !C.glyphN) throw new Error('§1.5 checks: ' + JSON.stringify(C));
+    if (r.ks !== Math.max(1, r.k - 1)) throw new Error('Retro sharp k ' + r.ks); if (r.sm) throw new Error('Smooth still renders the pixel world');
+    await shot('22-retro'); await ev(() => HH.game.quitToMenu());
   });
-  await step('chunky UI (L8): button press 0.94 → 1.03 → 1, pop-in 0.8 → 1.06 → 1 over 280 ms, grinning portraits, the match wipe (L15: menus and digits are Smooth now)', async () => {
+  await step('chunky UI (L8): button press 0.94 → 1.03 → 1, pop-in 0.8 → 1.06 → 1 over 280 ms, grinning portraits, the match wipe (R1: menus draw pixel portraits and the Retro Ball Font)', async () => {
     await ev(() => { const g = HH.game, P = ART.uiPressMs / 1000, near = (a, b) => Math.abs(a - b) < 0.006;
       if (ART.uiTransMs !== 280) throw new Error('uiTransMs ' + ART.uiTransMs);
       if (!near(btnScale({ _pressT: 0 }, false, 0.3 * P), 0.94) || !near(btnScale({ _pressT: 0 }, false, 0.65 * P), 1.03) || btnScale({ _pressT: 0 }, false, 1.01 * P) !== 1) throw new Error('press curve');
       if (!near(popScale(0), 0.8) || !near(popScale(0.6), 1.06) || popScale(1) !== 1) throw new Error('pop-in curve');
       const def = ROSTER.legends[1], a = portraitOf(def, TEAMS[0].colors, 96), b = portraitOf(def, TEAMS[0].colors, 96, 'hyped'); if (a === b) throw new Error('the grin portrait is the neutral one');
       const c = document.createElement('canvas').getContext('2d'); kitLogo(c, 200, 60, 60); kitTitle(c, 'SETTINGS', 10, 40, 40); kitPanel(c, 0, 0, 200, 100); kitButton(c, { x: 0, y: 0, w: 200, h: 52, primary: true }, true, 0); drawSelectHead(c, { x: 0, y: 0, w: 66, h: 66 }, def, TEAMS[0].colors, true, true, 1);
-      g.save.data.settings.graphics = 'pixel'; g.ui.clearTo(mainMenu(g)); });
+      g.save.data.settings.graphics = 'retro'; g.ui.clearTo(mainMenu(g)); });
     await wait(400);
     await ev(() => { const g = HH.game; g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 11 }, court: 'legends', seed: 6 }, { kind: 'quick' }); if (!g.wipe || g.wipe.c0 !== TEAMS[0].colors[0]) throw new Error('no team-color wipe'); });
     await wait(1500);
@@ -240,7 +235,7 @@ const FIX = path.join(__dirname, 'fixtures');
     if (!(r.wallGap > 0.5)) throw new Error('the handler walked through a set defender in front: gap ' + r.wallGap.toFixed(2));
     console.log('     L11: past at ' + r.past.toFixed(2) + ' s, speed kept ' + (100 * r.kept).toFixed(0) + '%, handler pushed ' + r.pushed.toFixed(2) + ' m; backing out moved ' + r.backedInto.toFixed(2) + ' m; wall gap ' + r.wallGap.toFixed(2) + ' m');
   });
-  await step('ball rules (L12, every ruleset): jumping and landing with the ball is a TRAVEL and the ball changes hands within 0.2 s; a picked-up dribble may not walk (TRAVEL) or dribble (DOUBLE DRIBBLE); 5 s held while guarded is a turnover', async () => {
+  await step('ball rules (L12, every ruleset): jumping and landing with the ball is a TRAVEL and the ball changes hands within 0.2 s; a picked-up dribble (any pump fake, R1) may not walk (TRAVEL) or dribble (DOUBLE DRIBBLE); 5 s held while guarded is a turnover', async () => {
     const r = await ev(() => { const mk = ruleset => { const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: -1, headless: true, difficulty: 'pro', ruleset, layout: 'legends', format: { type: 'first', target: 21 }, court: 'legends', seed: 5 }); let n = 0; while (m.phase !== 'live' && n++ < 120 * 20) simStep(m, STEP); const h = m.players[0], d = m.players[1]; h.controlled = d.controlled = true; const dir = sgn(h.hoop.x - COURT_L / 2) || 1;
         for (const q of [h, d]) { q.y = 0; q.vx = q.vy = 0; q.grounded = true; q.z = q.zTarget = 0.5; q.facing = dir; q.setState('idle', {}); q.input.reset(); } h.x = COURT_L / 2; d.x = h.x + dir * 2.4; m.giveBall(h, true); const log = []; m.bus.on('VIOLATION', e => log.push({ kind: e.kind, t: m.time })); return { m, h, d, dir, log }; };
       const out = {};
@@ -250,11 +245,14 @@ const FIX = path.join(__dirname, 'fixtures');
       { const { m, h, log } = mk('arcade'); for (let s = 0; s < 120 && m.phase === 'live'; s++) { h.input.set('shoot', s < 3); h.input.set('action', s > 60 && s < 64); simStep(m, STEP); } out.dribble = log[0] ? log[0].kind : 'none'; }
       { const { m, h, d, dir, log } = mk('arcade'); d.x = h.x + dir * 1.0; for (let s = 0; s < 120 * 6 && m.phase === 'live'; s++) { h.input.set('shoot', s < 3); simStep(m, STEP); } out.held = log[0] ? log[0].kind : 'none'; }
       { const { m, h, log } = mk('arcade'); for (let s = 0; s < 120 && m.phase === 'live'; s++) { h.input.set('shoot', s < 3); h.input.moveX = s > 60 && s < 70 ? -1 : 0; simStep(m, STEP); } out.pivot = { call: log[0] ? log[0].kind : 'none', facing: h.facing }; }
+      { const { m, h, dir, log } = mk('arcade'); h.x -= dir * 3; for (let s = 0; s < 220 && m.phase === 'live'; s++) { h.input.moveX = s < 60 ? dir : 0; h.input.set('shoot', s >= 60 && s < 63); h.input.set('action', s > 150 && s < 154); simStep(m, STEP); } out.moveFakeDribble = log[0] ? log[0].kind : 'none'; } // R1: a fake on the run picks up the dribble too
+      { const { m, h, dir, log } = mk('arcade'); h.x -= dir * 3; for (let s = 0; s < 260 && m.phase === 'live'; s++) { h.input.moveX = s < 60 || s > 150 ? dir : 0; h.input.set('shoot', s >= 60 && s < 63); simStep(m, STEP); } out.moveFakeWalk = log[0] ? log[0].kind : 'none'; }
       return out; });
     for (const rs of ['arcade', 'sim', 'half']) { const q = r[rs]; if (q.call !== 'travel' || q.after > 0.2 || q.poss !== 1 || q.pend !== 1) throw new Error(rs + ': ' + JSON.stringify(q)); }
     if (r.walk !== 'travel') throw new Error('picked up + walk: ' + r.walk); if (r.dribble !== 'double dribble') throw new Error('picked up + dribble: ' + r.dribble); if (r.held !== 'held ball') throw new Error('5 s held: ' + r.held);
     if (r.pivot.call !== 'none') throw new Error('a pivot was called: ' + r.pivot.call);
-    console.log('     L12: travel ' + r.arcade.after.toFixed(3) + ' s after landing (arcade), ' + r.sim.after.toFixed(3) + ' s (sim), ' + r.half.after.toFixed(3) + ' s (half court); walk → ' + r.walk + '; dribble → ' + r.dribble + '; held → ' + r.held + '; a pivot is legal');
+    if (r.moveFakeDribble !== 'double dribble') throw new Error('fake on the run + dribble: ' + r.moveFakeDribble); if (r.moveFakeWalk !== 'travel') throw new Error('fake on the run + walk: ' + r.moveFakeWalk);
+    console.log('     L12: travel ' + r.arcade.after.toFixed(3) + ' s after landing (arcade), ' + r.sim.after.toFixed(3) + ' s (sim), ' + r.half.after.toFixed(3) + ' s (half court); walk → ' + r.walk + '; dribble → ' + r.dribble + '; held → ' + r.held + '; a pivot is legal; fake on the run → dribble: ' + r.moveFakeDribble + ', walk: ' + r.moveFakeWalk);
   });
   // 1v1 gameplay (M7): walls and charges, rim protection, the post game, box-outs, size, dunk styles, the half court, career difficulty
   await ev(() => { window.mk1v1 = (a, b, extra) => { const tA = Object.assign({}, TEAMS[0], { players: [a] }), tB = Object.assign({}, TEAMS[1], { players: [b] }); return new Match(Object.assign({ mode: '1v1', teams: [tA, tB], humanTeam: -1, headless: true, difficulty: 'pro', format: { type: 'first', target: 21 }, court: 'arena', seed: 5 }, extra || {})); }; }); // a test helper that lives in the page
@@ -506,7 +504,8 @@ const FIX = path.join(__dirname, 'fixtures');
     if (r.jumbo !== 0 || r.desk < 1) throw new Error('jumbotron: phone ' + r.jumbo + ', desktop ' + r.desk);
     if (!(rot.portrait && rot.n > 0)) throw new Error('390×844: no rotate screen ' + JSON.stringify(rot));
   });
-  await pstep('pixel mode on a phone paints characters at a 2× supersample (L10)', async () => { const r = await M.ev(() => ({ px: HH.game.pixelFrame, ss: PXS.ss, want: ART.pxSuperPhone })); if (r.px && r.ss !== r.want) throw new Error('supersample ' + r.ss + ', want ' + r.want); if (!r.px) throw new Error('the phone match is not in Pixel mode'); });
+  await pstep('phone: the retro grid (844×390 at 2×: k = 2, 390 rows) and the §1.5 checks (R1)', async () => { const r = await M.ev(() => { const g = HH.game; if (!g.retroFrame) throw new Error('the phone match is not in Retro'); const c = retroChecks(g); return { k: RT.k, H: RT.H, W: RT.W, dev: g.canvas.height, c }; }); console.log('     R1 phone: device ' + r.dev + ' rows → k = ' + r.k + ', ' + r.W + '×' + r.H + ' world px · ' + JSON.stringify(r.c));
+    if (r.k !== Math.max(2, Math.round(r.dev / 360)) || r.H !== Math.ceil(r.dev / r.k)) throw new Error('grid ' + JSON.stringify(r)); const C = r.c; if (C.smooth || C.glyphs || C.native || C.gaps || C.colorsMax > 24) throw new Error('§1.5 checks: ' + JSON.stringify(C)); });
   // phone: the key screens keep every tap target at least 64 CSS px tall
   const tapCheck = (label) => M.ev(label => { const ui = HH.game.ui, s = ui.screen; const small = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && w.kind !== 'text' && w.kind !== 'custom' && w.h * ui.scale < 63.5).map(w => (w.label || w.kind) + ' ' + Math.round(w.h * ui.scale) + 'px'); if (small.length) throw new Error(label + ': ' + small.join(', ')); return (s.widgets || []).length; }, label);
   await pstep('perf guard level 4: the match renders at 1.25×, menus stay at 2×', async () => { await M.ev(() => { HH.game.guard.force = 4; }); await M.page.waitForTimeout(400); const a = await M.ev(() => ({ dpr: HH.game.dpr, low: CONFIG.perf.lowDpr })); await M.ev(() => { HH.game.guard.force = 0; }); await M.page.waitForTimeout(300); const b = await M.ev(() => HH.game.dpr); await M.ev(() => { HH.game.guard.force = null; HH.game.guard.level = 0; }); if (a.dpr !== a.low || b !== 2) throw new Error('dpr at level 4: ' + a.dpr + ', back at level 0: ' + b); });
