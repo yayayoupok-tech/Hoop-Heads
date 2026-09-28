@@ -3,6 +3,57 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F11 — Your team and its level on every hub (a follow-up to the F pass)
+
+The user, after the F pass: "it should tell you which team you're on or whether you're on varsity or jv (which team is
+better too)". Before, the high school hub's header said only the class and the school: JV showed in the next-game line,
+and a phone didn't show the JV record at all. The college hub never said how good the program was.
+
+- **The hub's header names your team and its level**, as a chip beside the team:
+  - high school: VARSITY · TOP TEAM (gold) or JV · 2ND TEAM (orange), with "varsity is the top team" beside JV where it
+    fits; TRYOUTS before your first tryout;
+  - college: the program's tier (SMALL SCHOOL, MID-MAJOR, POWER CONFERENCE, BLUE BLOOD) and a pip a level (●●○○ is
+    level 2 of 4), with "blue blood is the top" where it fits;
+  - the pros: the franchise's stars, as before, and its rank of the twelve ("#11 of 12 franchises", the order of the
+    League page's Franchises tab).
+
+  The line fits between the season and the week at every window size: short of room the note goes first, then the
+  text steps down a size. Nothing is cut short.
+- **The Team page shows the ladder**: JV → VARSITY, or SMALL → MID-MAJOR → POWER → BLUE BLOOD, yours lit, with a line
+  on which is better ("JV is the school's 2nd team · varsity is the top"). The line under the name starts with your
+  level ("JV · your record here 1-1", "A 1★ franchise, #11 of 12 · …"). On JV the page says how to move up: win 3 of
+  every 4 games and varsity calls you up.
+- **The stats guide** (Team & pro value) starts with Your team (high school) or Your program (college): what each
+  level means, in CONFIG's numbers. JV: opponents about 6 OVR weaker, no playoffs, the call-up, juniors and seniors on
+  varsity. College, a level up: opponents about 2 OVR better, a likelier national tournament bid, bigger NIL deals, +2
+  pro stock; teammates average −6 OVR from you at a small school and +6 at a blue blood. Your franchise adds its rank.
+- **The tryout verdict says it too:** "JV is the school's second team; varsity is the top." The JV card is told by the
+  varsity coach it names; its portrait showed your new JV coach.
+- Your card on the hub reads "Westbrook High JV" on JV.
+- **Fixed along the way**, three texts cut short with "…" that the new audit screens (a JV Team page, a college Team
+  page, a league rebuilt for the call-up) turned up:
+  - a long rival name on the Team page ("Granite Valley State Pant…") drops its mascot when the whole name doesn't fit
+    (the pixel font can't draw smaller than its 1× size, so shrinking didn't help);
+  - the numbers coach's line took four lines where three fit: "Keeps a shot chart on everyone. Trusts the numbers.";
+  - on the standings page a tournament game against a long name ("STATE · ROUND OF 16 vs Viktor Waverly") wraps to a
+    second line.
+
+No new tuning numbers: the guide reads the ones it cites from CONFIG (`hs.jvGap`, `hs.promoteWin`, `hs.promoteAfter`,
+`amateur.stageMean.collegePerTier`, `team.tierGap`, `amateur.draft.tier`).
+
+| Test | Result |
+| --- | --- |
+| Smoke | 135 of 135. The F11 step: TRYOUTS, then JV · 2ND TEAM (a poor tryout) and VARSITY · TOP TEAM on the hub; the JV card says which team is better and is told by the varsity coach; the Team page's ladder and line; every college tier and where it stands; a franchise's stars and rank (the Franchises tab's order); the guide's entries. |
+| Modes | 13 of 13 |
+| Old saves | 34 of 34 |
+| Dev tools | all OK |
+| Screen audit | phone 135 screens and 1280×720, 1024×768, 1440×900, 1920×1080, 1000×1000 and 800×1000 137 each: nothing flagged (new: the JV hub, the JV and college Team pages, the guide's two entries, the varsity hub); phone at 1.25× text, nothing flagged; desktop at 1.25× text, the 3 press screens (the known limit) |
+| A whole career through the screens | desktop 973 actions, phone 947: both passed |
+| Art Lab | 55 screenshots, no errors |
+| Gate, balance | ✓, the same as F10 (Pro mirror 1.18 PPP, Legend beats Pro 83%; the harness: brute force vs Pro 1.24, Legend beats Pro 78%) |
+| Career simulator | seed 1: every target met (OVR 55 / 66 / 72 at 17 / 21 / 25, peak 77, 0.90 titles, Hall of Fame 15%), 0 stuck |
+| Trait balance | every trait in range |
+
 ## The F pass (F1–F10): the report
 
 The user's playtest notes on the R10 build, in their words, and what each one became. Ten milestones in eight commits

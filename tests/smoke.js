@@ -117,7 +117,7 @@ const FIX = path.join(__dirname, 'fixtures');
       // a pro: the live values and the rules' numbers
       const sv = defaultSave(); const c = testProLeague(21, sv); sv.career = c; g.save.data = sv; c.events.length = 0; c.me.hype = 64; c.me.fame = 38; c.me.fatigue = 58; c.me.confidence = 1.5; c.me.gear = { sleeve: 2 };
       const all = GUIDE_TOPICS.map(t => texts(t[0])).join(' || ');
-      for (const want of ['Hype [64 / 100]', 'Fame [38 / 100]', 'Confidence [+1.5]', 'Fatigue [58 / 100]', 'now: −8%', 'Shooting +1', 'fame / ' + FRN.fameDiv, '5★ ' + FRN.bar[4], 'Your franchise [' + frMine(c) + '★]', CR.hofScore + ' gets you into the Hall of Fame', 'Coach trust', 'Depth chart', 'Money [']) if (all.indexOf(want) < 0) throw new Error('the pro guide lacks "' + want + '"');
+      for (const want of ['Hype [64 / 100]', 'Fame [38 / 100]', 'Confidence [+1.5]', 'Fatigue [58 / 100]', 'now: −8%', 'Shooting +1', 'fame / ' + FRN.fameDiv, '5★ ' + FRN.bar[4], 'Your franchise [' + frMine(c) + '★ · #', CR.hofScore + ' gets you into the Hall of Fame', 'Coach trust', 'Depth chart', 'Money [']) if (all.indexOf(want) < 0) throw new Error('the pro guide lacks "' + want + '"');
       if (mdBuzzLines(c).some(([l]) => all.indexOf(l) < 0)) throw new Error('the hype entry shows every BUZZ line');
       for (const t of GUIDE_TOPICS) draw(statsGuideScreen(g, t[0])); draw(careerMenuScreen(g)); if (!careerMenuScreen(g).widgets.some(w => w.label === 'Stats guide')) throw new Error('the Career menu links it');
       // an amateur: cash, GPA and the pro stock instead of money and value
@@ -126,6 +126,31 @@ const FIX = path.join(__dirname, 'fixtures');
       if (am.indexOf('Your value') >= 0) throw new Error('no pro value for an amateur'); draw(statsGuideScreen(g, 'buzz')); if (!amHistoryScreen(g).widgets.some(w => w.label === 'Stats guide')) throw new Error('the Stats screen links it');
       // no career: the rules without values
       g.save.data = defaultSave(); const none = guideEntries(g, 'buzz'); if (!none.length || none.some(e => e.value)) throw new Error('no career: no values'); draw(statsGuideScreen(g, 'you')); if (!howToScreen(g).widgets.some(w => w.label === 'Stats guide')) throw new Error('How to play links it');
+    } finally { g.save.data = keep; }
+  }));
+  await step('F11: your team and its level (the user: "it should tell you which team you\'re on, or whether you\'re on varsity or JV, and which team is better"): the hub says TRYOUTS, JV · 2ND TEAM or VARSITY · TOP TEAM; the Team page shows JV → VARSITY with yours lit; a college tier and where it stands; a franchise\'s stars and its rank of the twelve; the guide explains each', () => ev(() => {
+    const g = HH.game, keep = g.save.data; const cv = document.createElement('canvas'); cv.width = 1280; cv.height = 720; const ctx = cv.getContext('2d');
+    const said = scr => { const out = [], F = ctx.fillText; ctx.fillText = function (t) { out.push(String(t)); return F.apply(this, arguments); }; try { ctx.save(); scr.draw(ctx, g.ui); ctx.restore(); } finally { delete ctx.fillText; } return out.join(' | '); };
+    const guide = () => guideEntries(g, 'team').map(e => e.title + ' [' + e.value + '] ' + e.lines.map(l => l[0]).join(' ')).join(' | ');
+    try {
+      // high school: before the first tryout, then JV (a poor tryout), then varsity
+      const sv = defaultSave(), a = amCreate(sv, { name: 'Level Test', look: PRESET_LOOKS[2], number: 7, style: 'slasher', seed: 7171 }); a.events.length = 0; g.save.data = sv;
+      let lv = teamLevel(a); if (!lv || lv.chip !== 'TRYOUTS' || lv.at !== -1) throw new Error('before the tryout: ' + JSON.stringify(lv));
+      hsTryoutDrill(a, 0); hsTryoutGame(a, false, 0, 7); const card = a.events.find(e => e.title === 'JUNIOR VARSITY'); a.events.length = 0; lv = teamLevel(a);
+      if (a.squad !== 'jv' || lv.chip !== 'JV · 2ND TEAM' || lv.at !== 0 || lv.rungs.join() !== 'JV,VARSITY') throw new Error('JV: ' + JSON.stringify(lv));
+      if (!card || !card.lines.some(l => /second team; varsity is the top/.test(l)) || !card.who || card.who.name !== (a.varsity && a.varsity.coach.name)) throw new Error('the JV card: which team is better, told by the varsity coach');
+      let t = said(amHub(g)); if (t.indexOf('JV · 2ND TEAM') < 0) throw new Error('the JV hub: ' + t.slice(0, 160));
+      t = said(teamScreen(g)); for (const w of ['JV · your record here', 'VARSITY', 'varsity is the top']) if (t.indexOf(w) < 0) throw new Error('the JV Team page lacks "' + w + '"');
+      t = guide(); for (const w of ['Your team [JV]', 'Varsity is the school\'s top team', HS.jvGap + ' OVR weaker', 'no playoffs']) if (t.indexOf(w) < 0) throw new Error('the guide lacks "' + w + '"');
+      hsToVarsity(a, 'audit'); hsBuildLeague(a, amRng(a)); a.events.length = 0; lv = teamLevel(a); if (lv.chip !== 'VARSITY · TOP TEAM' || lv.at !== 1) throw new Error('varsity: ' + JSON.stringify(lv));
+      if (said(amHub(g)).indexOf('VARSITY · TOP TEAM') < 0 || guide().indexOf('Your team [Varsity]') < 0) throw new Error('the varsity hub and guide');
+      // college: every tier, where it stands, and the guide's program entry
+      a.stage = 'college'; a.stageYear = 1; const n = AMC.tiers.length; for (let k = 0; k < n; k++) { a.collegeTier = k; lv = teamLevel(a); if (lv.chip !== AMC.tiers[k].toUpperCase() || lv.at !== k || lv.rungs.length !== n || (k === n - 1) !== (lv.note === 'the top level')) throw new Error('tier ' + k + ': ' + JSON.stringify(lv)); }
+      if (guide().indexOf('Your program [' + AMC.tiers[n - 1] + ']') < 0) throw new Error('the guide\'s program entry');
+      // the pros: stars and the rank of the twelve (the Franchises tab's order)
+      const sv2 = defaultSave(), c = testProLeague(21, sv2); sv2.career = c; g.save.data = sv2; c.events.length = 0; lv = teamLevel(c);
+      if (lv.stars !== frMine(c) || frRank(frTable(c))[lv.rank - 1] !== meOf(c).club || lv.note !== '#' + lv.rank + ' of ' + TEAMS.length + ' franchises') throw new Error('pro: ' + JSON.stringify(lv));
+      if (said(careerHub(g)).indexOf('★'.repeat(lv.stars)) < 0) throw new Error('the pro hub\'s stars'); if (guide().indexOf('Your franchise [' + lv.stars + '★ · #' + lv.rank + ' of ' + TEAMS.length + ']') < 0) throw new Error('the guide\'s franchise rank');
     } finally { g.save.data = keep; }
   }));
   await step('F8: gear: six pieces, three levels (Basic, Pro, Elite); a rating piece adds CONFIG.gear.rating a level in games (wkEff: played, simmed and practice challenges), braces cut the injury chance, the kit cuts fatigue; cash or money pays; it comes along to the pros and shows on your player; OVR and value do not move', () => ev(() => {

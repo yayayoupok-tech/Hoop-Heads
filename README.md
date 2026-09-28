@@ -14,7 +14,9 @@ On a phone every button is at least 64 px, and long screens (settings, Quick 1v1
 
 One life, from a 14-year-old freshman to the Hall of Fame vote. Every game of it is one-on-one: your school, your
 college program and your pro franchise are your team (its name, colors, uniform, coach and teammates, who show up in
-practice and in the story), your 1v1 record is the team's record and your titles are the team's titles.
+practice and in the story), your 1v1 record is the team's record and your titles are the team's titles. The hub's
+header always says which team you're on and how good it is: varsity (the school's top team) or JV (the second), the
+program's tier from small school to blue blood, the franchise's stars and its rank of the twelve.
 
 1. **Create your player.** Pick a face, a jersey number and a play style (Sharpshooter, Playmaker, Slasher, Lockdown, Post Scorer or Rim Protector), a pro season length (11 or 22 games) and a game length (1, 2 or 3 minutes; 1 by default). There is no height slider and there are no rating sliders.
 2. **Your genes and your traits.** Adult height, growth pattern (early, normal or late bloomer) and wingspan are rolled once; a doctor projects your adult height, give or take an inch, and you find out the rest as you grow. You also get two traits out of 17 (common to legendary): a Signature one on the genes card and a Hidden one that shows itself in your sophomore season. Every trait has an upside and a cost (Gym Rat: +25% practice XP, but you recover slower).

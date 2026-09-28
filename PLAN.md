@@ -241,6 +241,9 @@ less fatigue; cash or money pays and gear comes along to the pros; +1 a level wa
 it, from the Career menu, the amateur Stats screen and How to play.
 **F10 — QA and release** *(done)* — the suite, every screen at every size, a whole career through the screens on a
 desktop and a phone, the frame times, the report (CHANGES.md), the artifact republished.
+**F11 — Your team on every hub** *(done)* — the user, after the F pass: "it should tell you which team you're on or
+whether you're on varsity or jv (which team is better too)". The hub's header, the Team page and the stats guide say
+your team, its level and which level is better.
 
 ## Testing every milestone
 
