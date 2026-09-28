@@ -3,6 +3,36 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## F12 — The beard you pick shows (a follow-up to the F pass)
+
+The user: "the beards don't show when I select them so fix that".
+
+Facial hair grew in with age (L3): none under 16, stubble at 16–17, the style you picked from 18. Every career starts
+at 14. So a beard picked in the creator showed on the Beard row's icons (drawn at 24) but not on your player: not on
+the creator's preview (drawn at 15), not in the face editor, not on the hub, the cards or in games, for four seasons.
+
+- **Your player's look is marked as yours** (`look.own`), and the facial hair you pick shows at every age: the
+  creator's preview, the face editor, the hub, cards and portraits, and games. Generated players still grow theirs in.
+- **The mark goes wherever the look goes:** the creator (its presets included), a new career, the face editor, the pros.
+  The face and sprite caches key on it.
+- **Older saves** mark your player's look (high school, college or pro) when they load. Nothing else in them changes.
+- The creator's hair icons preview your own face, so they show your beard now too.
+
+No new tuning numbers.
+
+| Test | Result |
+| --- | --- |
+| Smoke | 136 of 136. The F12 step: everyone else's age rule (none at 14, stubble at 17, the style at 18); your beard at 14, 16, 17 and 30; the flag through normLook, cloneLook and the cache key; the creator and a picked preset; a new career and the pros; an older save marked when it loads, a league player not. |
+| Modes | 13 of 13 |
+| Old saves | 34 of 34 (each marks your look when it loads) |
+| Dev tools | all OK |
+| Screen audit | phone 135, 1280×720 and 1000×1000 137 each: nothing flagged; phone at 1.25× text, nothing flagged; desktop at 1.25× text, the 3 press screens (the known limit) |
+| A whole career through the screens | desktop 925 actions, phone 989: both passed |
+| Art Lab | 55 screenshots, no errors; its aging row still grows a full beard in (stubble at 16) |
+| Gate, balance | ✓, the same as F11 (Pro mirror 1.18 PPP, Legend beats Pro 83%; the harness: brute force vs Pro 1.24, Legend beats Pro 78%) |
+| Career simulator | seed 1: every target met (OVR 55 / 66 / 72 at 17 / 21 / 25, peak 77, 0.90 titles, Hall of Fame 15%), 0 stuck |
+| Trait balance | every trait in range |
+
 ## F11 — Your team and its level on every hub (a follow-up to the F pass)
 
 The user, after the F pass: "it should tell you which team you're on or whether you're on varsity or jv (which team is

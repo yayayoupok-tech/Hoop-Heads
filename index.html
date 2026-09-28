@@ -1515,10 +1515,10 @@ function normLook(look, seedName) {
     const f = l.face && typeof l.face === 'object' ? l.face : faceParamsFromSeed(seed); const face = {};
     for (const k in FACE_RANGES) { const [a, b] = FACE_RANGES[k]; face[k] = _num(f[k], a, b, (a + b) / 2); }
     const fs = Number(f.shape), fn = Number(f.nose); face.shape = isFinite(fs) ? clamp(Math.round(fs), 0, FACE_SHAPES.length - 1) : seed % FACE_SHAPES.length; face.nose = isFinite(fn) ? clamp(Math.round(fn), 0, NOSE_TYPES.length - 1) : (seed >>> 4) % NOSE_TYPES.length; // older faces get a shape and a nose from their name
-    return { v: 2, skin: _lookIx(l.skin, 12), face, hair: _lookIx(l.hair, 14), hairColor: _lookIx(l.hairColor, 14), facialHair: _lookIx(l.facialHair, 6), iris: _lookIx(l.iris, 6), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100) }; // F8: the flags on top (the Office's looks, gear) count too: before, a v2 look dropped them
+    return { v: 2, skin: _lookIx(l.skin, 12), face, hair: _lookIx(l.hair, 14), hairColor: _lookIx(l.hairColor, 14), facialHair: _lookIx(l.facialHair, 6), iris: _lookIx(l.iris, 6), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100), own: !!l.own }; // F8: the flags on top (the Office's looks, gear) count too: before, a v2 look dropped them; F12: own (your player's look)
   }
   const M = OLD_LOOK_MAP, ix = (a, v) => a[_lookIx(v, a.length)];
-  return { v: 2, skin: ix(M.skin, l.skin), face: faceParamsFromSeed(seed), hair: ix(M.hair, l.hair), hairColor: ix(M.hairColor, l.hairColor), facialHair: ix(M.beard, l.beard), iris: ix(M.eyes, l.eyes), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100) };
+  return { v: 2, skin: ix(M.skin, l.skin), face: faceParamsFromSeed(seed), hair: ix(M.hair, l.hair), hairColor: ix(M.hairColor, l.hairColor), facialHair: ix(M.beard, l.beard), iris: ix(M.eyes, l.eyes), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100), own: !!l.own };
 }
 // A fresh random look (bots, generated league players). 'teen' limits facial hair.
 function randomLook(rng, opts) {
@@ -1531,7 +1531,7 @@ function randomLook(rng, opts) {
   const iris = dark ? [0, 0, 1, 1, 2][Math.floor(R() * 5)] : Math.floor(R() * 6);
   return { v: 2, skin, face: faceParamsFromSeed(Math.floor(R() * 4294967295)), hair, hairColor, facialHair, iris, acc: { headband: R() < 0.18, sleeve: R() < 0.12, wristband: R() < 0.2, earring: R() < 0.1 }, shoes: null, number: Math.floor(R() * 100) };
 }
-function lookKey(L) { const f = L.face; let s = L.skin + '.' + L.hair + '.' + L.hairColor + '.' + L.facialHair + '.' + L.iris + '.' + (L.acc.headband ? 1 : 0) + (L.acc.earring ? 1 : 0); for (const k in FACE_RANGES) s += '.' + Math.round(f[k] * 100); return s + '.' + (f.shape | 0) + '.' + (f.nose | 0); }
+function lookKey(L) { const f = L.face; let s = L.skin + '.' + L.hair + '.' + L.hairColor + '.' + L.facialHair + '.' + L.iris + '.' + (L.acc.headband ? 1 : 0) + (L.acc.earring ? 1 : 0); for (const k in FACE_RANGES) s += '.' + Math.round(f[k] * 100); return s + '.' + (f.shape | 0) + '.' + (f.nose | 0) + (L.own ? '.o' : ''); } // F12: your own look paints its facial hair at every age
 function skinToneOf(L) {
   const t = ART.skin[_lookIx(L.skin, 12)], u = clamp(L.face.tone || 0, -1, 1) * ART.undertone; const shift = c => u >= 0 ? mixHex(c, '#E09A62', u) : mixHex(c, '#8C86A8', -u);
   return { base: shift(t[0]), light: shift(t[1]), shadow: shift(t[2]), warm: t[3] };
@@ -1778,7 +1778,7 @@ function paintGrin(g, P, M, lf, lip, lipD, laugh) {
   g.strokeStyle = rgba(INK, 0.55); g.lineWidth = 0.018; g.beginPath(); g.moveTo(WR - 0.01, -0.13); g.quadraticCurveTo(WR + 0.06, -0.05, WR + 0.02, 0.05); g.moveTo(-W + 0.01, -0.12); g.quadraticCurveTo(-W - 0.07, -0.04, -W - 0.02, 0.05); g.stroke(); // deep smile folds
 }
 // Facial hair grows in with age: nothing before 16, only stubble at 16–17.
-function facialStyleAt(L, age) { const f = _lookIx(L.facialHair, 6); age = Number(age) || 24; if (age < 16) return 0; if (age < 18) return f ? 1 : 0; return f; }
+function facialStyleAt(L, age) { const f = _lookIx(L.facialHair, 6); if (L.own) return f; age = Number(age) || 24; if (age < 16) return 0; if (age < 18) return f ? 1 : 0; return f; } // F12 (the user: "the beards don't show when I select them"): the facial hair you choose shows at every age; everyone else grows theirs in (none under 16, stubble at 16–17)
 // §3.8 facial hair. Regions follow the head archetype's own outline and the mouth. Every solid piece gets a 3-tone cel
 // treatment (base, a far-side shadow band, a top highlight band), tufted edges along its growth direction, flow strokes
 // and the bold outline. Stubble is a dot tile, densest along the jaw line.
@@ -9854,7 +9854,7 @@ function titleScreen(game) {
 // ---------------- create your player: the live model turns, looks are picked from swatches ----------------
 function createPlayerScreen(game) {
   const s = game.save.data, legacy = s._legacyCareer, ui = game.ui, P = ui.phone;
-  const st = game.newCareer || (game.newCareer = { name: legacy && legacy.name ? legacy.name : 'Rookie', look: cloneLook(legacy && legacy.look ? legacy.look : PRESET_LOOKS[3], legacy && legacy.name), preset: legacy && legacy.look ? -1 : 3, number: 7, seasonLen: 0, gameLen: 1, style: 2, tab: 0 });
+  const st = game.newCareer || (game.newCareer = { name: legacy && legacy.name ? legacy.name : 'Rookie', look: Object.assign(cloneLook(legacy && legacy.look ? legacy.look : PRESET_LOOKS[3], legacy && legacy.name), { own: true }), preset: legacy && legacy.look ? -1 : 3, number: 7, seasonLen: 0, gameLen: 1, style: 2, tab: 0 });
   const styleKeys = Object.keys(AM_STYLES); let t = 0; const L = () => st.look; const setLook = (k, v) => { st.look[k] = v; st.preset = -1; };
   const looks = [
     sel('Skin', 0, 0, 0, 0, ART.skinNames, () => L().skin, i => setLook('skin', i), { swatch: swatchColor(i => ART.skin[i][0]) }),
@@ -9874,7 +9874,7 @@ function createPlayerScreen(game) {
   const start = btn('START HIGH SCHOOL', 0, 0, 0, 0, () => { const a = amCreate(s, { name: st.name, look: st.look, number: st.number, style: styleKeys[st.style] || 'slasher', seasonLength: CR.seasonLengths[st.seasonLen], gameLength: CR.gameLengths[st.gameLen], seed: st.seed /* a test can fix the career's dice (R10: tests/fullcareer.js); a player never sets it */ }); game.newCareer = null; s._legacyCareer = undefined; game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: true });
   const items = [];
   if (!P) {
-    PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 44 + (i % 4) * 74, y: 122 + Math.floor(i / 4) * 71, w: 66, h: 66, enabled: true, onPress() { st.preset = i; st.look = cloneLook(lk); }, draw(ctx, focused, ui) { drawSelectHead(ctx, this, { name: 'p' + i, look: lk }, NEUTRAL_KIT.colors, focused, st.preset === i, ui ? ui.t : 0); } }); });
+    PRESET_LOOKS.forEach((lk, i) => { items.push({ kind: 'custom', x: 44 + (i % 4) * 74, y: 122 + Math.floor(i / 4) * 71, w: 66, h: 66, enabled: true, onPress() { st.preset = i; st.look = Object.assign(cloneLook(lk), { own: true }); }, draw(ctx, focused, ui) { drawSelectHead(ctx, this, { name: 'p' + i, look: lk }, NEUTRAL_KIT.colors, focused, st.preset === i, ui ? ui.t : 0); } }); });
     column(looks, 860, 90, 380, 44, 6); looks.forEach(w => { w.labelW = 104; });
     column(details, 860, 372, 380, 38, 6); column([start], 860, 640, 380, 54, 0); items.push(...looks, ...details, start);
   } else { // phone: three tabs of big rows beside the model (LOOK · PLAYER · SEASON), START under the model
@@ -10759,6 +10759,7 @@ function migrateSave(obj) {
   if (merged.career && (merged.career.v === 4 || merged.career.v === 5)) { merged.career = repairCareer(merged.career); if (merged.career) { try { proUpgrade5(merged.career, merged.c1); } catch (e) { console.warn('R3 upgrade failed', e); } try { frUpgrade(merged.career); } catch (e) { console.warn('F7 upgrade failed', e); } } }
   if (merged.career && merged.c1) merged.c1.handedOff = true;
   if (v < 5) for (const k of ['c1', 'career', 'teamCareer', '_legacyCareer']) migrateLooks(merged[k], 0); // v5: looks move to the painted-face model
+  { const own = L => { if (L && typeof L === 'object') L.own = true; }; if (merged.c1) own(merged.c1.look); const pc = merged.career; if (pc && pc.players) { const me = pc.players[pc.meId || 'me']; if (me) own(me.look); } } // F12: your player's look shows the facial hair you chose at every age
   merged.version = CONFIG.save.version; return merged;
 }
 // Converts every stored look to the v2 look model (faces are seeded from the owner's name, so they never change).
@@ -11332,7 +11333,7 @@ function amMakeOpp(c, rng, stage, ovr, id) {
 }
 function amCreate(save, form) {
   const style = AM_STYLES[form.style] ? form.style : 'slasher';
-  const c = { v: 5, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number }), number: form.number, style, age: AMC.startAge,
+  const c = { v: 5, seed: form.seed != null ? (form.seed >>> 0) : ((hashString(String(form.name)) * 31 + (form.number || 0) * 977) ^ (Date.now() & 0x7fffffff)) >>> 0, rs: 0, name: String(form.name || 'Rookie').slice(0, 18), look: Object.assign({}, form.look, { number: form.number, own: true }), number: form.number, style, age: AMC.startAge,
     bloom: 'normal', heightFinal: AMC.heightMean, wing: AMC.wingMean, gifted: false, height: 0, r: amStartRatings(style, AMC.startPoints), xp: {}, caps: null, stage: 'hs', stageYear: 1, season: 1, focus: amStyle(style).train,
     school: '', college: '', collegeTier: 0, colors: AM_COLORS[0].slice(), log: [], totals: { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }, awards: [], titles: 0, mvps: 0, events: [], decision: null, draft: null, rival: null, league: null, seasonStats: null,
     seasonLength: CR.seasonLengths.includes(form.seasonLength) ? form.seasonLength : CR.seasonLengths[0], gameLength: form.gameLength || 120, growthLog: [], fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, hype: 0, hypeScale: 100, confidence: 0, grudge: {}, boast: false, news: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, story: {}, timeline: [] };

@@ -244,6 +244,8 @@ desktop and a phone, the frame times, the report (CHANGES.md), the artifact repu
 **F11 — Your team on every hub** *(done)* — the user, after the F pass: "it should tell you which team you're on or
 whether you're on varsity or jv (which team is better too)". The hub's header, the Team page and the stats guide say
 your team, its level and which level is better.
+**F12 — The beard you pick shows** *(done)* — the user: "the beards don't show when I select them". Your player's
+facial hair shows at every age (it grew in at 16 to 18, and careers start at 14); generated players still grow theirs.
 
 ## Testing every milestone
 

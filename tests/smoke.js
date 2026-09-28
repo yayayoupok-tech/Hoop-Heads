@@ -153,6 +153,24 @@ const FIX = path.join(__dirname, 'fixtures');
       if (said(careerHub(g)).indexOf('★'.repeat(lv.stars)) < 0) throw new Error('the pro hub\'s stars'); if (guide().indexOf('Your franchise [' + lv.stars + '★ · #' + lv.rank + ' of ' + TEAMS.length + ']') < 0) throw new Error('the guide\'s franchise rank');
     } finally { g.save.data = keep; }
   }));
+  await step('F12: the facial hair you pick shows on your player at every age (the user: "the beards don\'t show when I select them"); generated players still grow theirs in (none under 16, stubble at 16–17); the creator, the face editor, a new career, the pros and older saves carry it', () => ev(() => {
+    const g = HH.game, keep = g.save.data, keepNC = g.newCareer; try {
+      const base = normLook(PRESET_LOOKS[3]); base.facialHair = 5; const mine = Object.assign({}, base, { own: true });
+      if (facialStyleAt(base, 14) !== 0 || facialStyleAt(base, 17) !== 1 || facialStyleAt(base, 18) !== 5) throw new Error('the age rule for everyone else: ' + [14, 17, 18].map(a => facialStyleAt(base, a)).join(','));
+      for (const a of [14, 16, 17, 30]) if (facialStyleAt(mine, a) !== 5) throw new Error('your beard at ' + a + ': ' + facialStyleAt(mine, a));
+      if (!normLook(mine).own || normLook(base).own || lookKey(normLook(mine)) === lookKey(normLook(base)) || !cloneLook(mine).own) throw new Error('the flag survives normLook and cloneLook and keys the caches');
+      // the creator: its look is yours from the first frame, and a picked preset too
+      g.newCareer = null; g.save.data = defaultSave(); const scr = createPlayerScreen(g); if (!g.newCareer.look.own) throw new Error('the creator\'s look');
+      const pre = scr.widgets.find(w => w.kind === 'custom' && w.onPress); pre.onPress(); if (!g.newCareer.look.own) throw new Error('a picked preset');
+      // a new career, then the pros
+      const sv = defaultSave(), a = amCreate(sv, { name: 'Beard Test', look: g.newCareer.look, number: 3, style: 'slasher', seed: 8181 }); if (!a.look.own || a.age >= 16) throw new Error('a new career\'s look: ' + JSON.stringify({ own: a.look.own, age: a.age }));
+      let guard = 0; while (a.stage !== 'combine' && guard++ < 600) { a.events.length = 0; if (a.decision) { const k = a.decision.kind; if (k === 'declare') amDeclare(a, true); else if (k === 'portal') colPortalChoose(a, null); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; } /* the portal: stay */
+      if (a.stage !== 'combine') throw new Error('no combine: ' + a.stage); createCareerFromAmateur(sv, a, proEntryOffers(a).offers[0]); if (!meOf(sv.career).look.own) throw new Error('the pro look');
+      // an older save: your look is marked when it loads; a teammate's isn't
+      const old = JSON.parse(JSON.stringify(sv)); delete old.c1.look.own; delete meOf(old.career).look.own; const m = migrateSave(old); if (!m.c1.look.own || !m.career.players[m.career.meId || 'me'].look.own) throw new Error('an older save\'s look');
+      const mate = Object.values(m.career.players).find(p => p.id !== (m.career.meId || 'me') && p.look); if (mate && mate.look.own) throw new Error('a league player got the flag');
+    } finally { g.save.data = keep; g.newCareer = keepNC; }
+  }));
   await step('F8: gear: six pieces, three levels (Basic, Pro, Elite); a rating piece adds CONFIG.gear.rating a level in games (wkEff: played, simmed and practice challenges), braces cut the injury chance, the kit cuts fatigue; cash or money pays; it comes along to the pros and shows on your player; OVR and value do not move', () => ev(() => {
     const g = HH.game, sv = defaultSave(), a = amCreate(sv, { name: 'Gear Test', look: PRESET_LOOKS[3], number: 4, style: 'shooter', seed: 5151 }); a.events.length = 0; a.fatigue = 0; a.injury = null;
     // buying: the price of the next level, from cash; no money, no gear; three levels at most
