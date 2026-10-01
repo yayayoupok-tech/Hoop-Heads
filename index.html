@@ -1365,6 +1365,45 @@ const CONFIG = {
     socialMax: 60,             // posts kept in the social feed
     likesBase: 40,             // a post's likes: this × (1 + hype/40) × (1 + fame/50) × a random 0.5–1.5
   },
+  saga: {                      // V7 (Part 2 §2): the saga's arcs (179_saga.js, 179_saga_arcs.js): beats with choices, a cast with meters, flags
+    perCareer: [6, 8],         // arcs a career opens (Part 2 §2.3: 6–8; the arcs that exist cap it: five in V7)
+    actShare: [0.35, 0.25, 0.4], // the career's arcs by act (I high school, II college, III the pros): an act stops opening arcs once its share is used
+    familyStart: 10,           // the family's meter at the start (everyone else starts at 0; meters run −100 to 100)
+    m: { small: 5, mid: 10, big: 20 }, // the meter steps choices move
+    warmAt: 20,                // a family meter at least this: the warm version of an ending
+    gap: 3,                    // games between two beats of an arc at least (a beat that must happen now is told anyway)
+    pressMeter: { team: 2, confident: 1, trash: -3, nocomment: -2 }, // the journalist's meter after each press answer (they cover you all career)
+    chance: { bills: 0.6, friend: 0.6, booster: 0.55, injury: 0.9, mentor: 0.65 }, // the share of careers an arc can open in (its condition must hold too), so none plays in every career
+    billsJob: 400,             // Family Bills: a weekend job pays this ($)...
+    billsXpCut: 0.2,           // ...and costs this much practice XP...
+    billsXpUp: 0.1,            // ...(basketball first: + this)...
+    billsWeeks: 3,             // ...for this many weeks
+    favorFatigue: 12,          // the coach's favor (the youth camp): this much fatigue
+    shiftsCash: 300,           // more shifts: this much more ($), for shiftsFatigue fatigue
+    shiftsFatigue: 10,
+    lightsCash: 150,           // the lights go out: a shift after all pays this ($)
+    followAt: 25,              // Best Friend: a meter this high and they follow you (a walk-on at your school)...
+    quitAt: -10,               // ...this low and they quit (between: a rival program)
+    agentAt: 30,               // ...in the pros a friend who quit, at this meter, comes back as an agent
+    friendProBy: 4,            // ...by this pro season at the latest
+    boosterCash: 2000,         // The Booster: the envelope ($)...
+    boosterOdds: 0.25,         // ...and the chance each college season after that it comes out...
+    boosterSit: 2,             // ...a suspension of this many games (owning it; no comment: one more)...
+    boosterHype: 8,            // ...and hype − this (no comment: twice)
+    boosterPieceHype: 8,       // handing it back: the journalist's story is worth this much hype (half if you skip the interview)
+    injuryGames: 3,            // The Injury: an injury this long opens it (once a career)
+    rushGames: 2,              // ...rushing back saves this many games...
+    rushRe: 0.4,               // ...but it flares up this often (two more games out)...
+    rushLoss: 2,               // ...and then costs this much Speed for good
+    rehabXp: 0.15,             // ...a full rehab: practice XP + this...
+    rehabWeeks: 3,             // ...for this many weeks after
+    mentorSeasons: 12,         // The Mentor: their seasons in the PBL when you meet them
+    mentorXp: 0.15,            // ...listening at camp: practice XP + this for 3 weeks
+    mentorLastAt: 20,          // ...a meter this high and they come back for one last season with your club...
+    mentorBy: 6,               // ...in your pro seasons 2 to this
+    mentorClutch: 0.05,        // ...win them a playoff game: your make chance in a game's last 15 s × (1 + this), for good...
+    mentorClutchSim: 0.4,      // ...worth this many OVR points in a simulated game
+  },
   polish: {                    // R10 (§4): the boot splash and the first-time tips
     splashS: 1.8,              // the boot splash's length (s; any key or tap skips it)
     splashReduceS: 0.8,        // ...with Reduce Motion (the ball doesn't bounce)
@@ -3633,6 +3672,10 @@ class AudioSys {
     else if (kind === 'ankle') { this.tone(200, 'sawtooth', 0.3, 0.15, { freqEnd: 60 }); this.tone(1200, 'square', 0.08, 0.1, { at: t + 0.1 }); }
     else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 'square', 0.25, 0.12, { at: t + i * 0.06 })); this.tone(784, 'square', 0.14, 0.1, { at: t + 0.34 }); this.tone(1047, 'square', 0.5, 0.12, { at: t + 0.44 }); } // R10: the final whistle, won: up and up
     else if (kind === 'loss') { [392, 349, 311].forEach((f, i) => this.tone(f, 'triangle', 0.3, 0.13, { at: t + i * 0.2 })); this.tone(262, 'triangle', 0.8, 0.12, { at: t + 0.6, freqEnd: 247 }); } // ...lost: three steps down and a long low note
+    else if (kind === 'saga-warm') { [392, 494, 587, 784].forEach((f, i) => this.tone(f, 'triangle', 0.5, 0.09, { at: t + i * 0.11 })); } // V7: the saga's moods: warm (a slow major arpeggio)...
+    else if (kind === 'saga-tense') { this.tone(147, 'sawtooth', 0.6, 0.07); this.tone(156, 'sawtooth', 0.6, 0.06); this.tone(98, 'triangle', 0.9, 0.1, { at: t + 0.1 }); } // ...tense (a low rub)...
+    else if (kind === 'saga-sad') { [440, 392, 349].forEach((f, i) => this.tone(f, 'triangle', 0.45, 0.09, { at: t + i * 0.22 })); } // ...sad (three steps down)...
+    else if (kind === 'saga-story') { this.tone(523, 'triangle', 0.3, 0.08); this.tone(659, 'triangle', 0.4, 0.07, { at: t + 0.12 }); } // ...and the rest
     else if (kind === 'buzzerbeater') { [659, 784, 1047, 1319, 1568].forEach((f, i) => this.tone(f, 'square', 0.3, 0.12, { at: t + i * 0.07 })); }
     else { this.tone(660, 'triangle', 0.12, 0.12); }
   }
@@ -3984,7 +4027,7 @@ let _pid = 0;
 class Player {
   constructor(def, team, match) {
     this.id = _pid++; this.def = def; this.name = def.name; this.nick = def.nick || def.name.split(' ')[0]; this.arch = def.arch; this.team = team; this.match = match;
-    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
+    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.sagaClutch = def.sagaClutch || 0; /* V7: the mentor's lasting edge in the last 15 s */ this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
     this.moves = def.moves || Object.assign({ crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true }, sigMovesOfAttrs(def.attrs)); // a roster player without a move list: every move, and the V4 signature moves its attributes earn
     this.pers = def.pers || null; this.tend = Array.isArray(def.tend) ? def.tend.slice() : []; // V4 (2.0 §3): a personality and tendencies the brain plays to (career opponents; Quick Play bots)
     this.x = 12; this.y = 0; this.z = 0.5; this.zTarget = 0.5; this.lane = 1; this.vx = 0; this.vy = 0; this.facing = 1; this.grounded = true; this.laneT = -9; this.lastBeatT = -9;
@@ -11802,7 +11845,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
     rec.caps = capsAbove(rec.r, age, rng); used.add(rv.name); c.players[id] = rec; c.active.push(id); rookies.push(rec); c.rivalId = id; }
   while (c.active.length < CR.leagueSize - 1) { const id = 'p' + c.nextId++; const rec = genProspect(c, rng, used, id); c.players[id] = rec; c.active.push(id); rookies.push(rec); }
   const me = { id: 'me', name: a.name, nick: a.name.split(' ')[0], arch: a.style, h: a.height, wing: a.wing, age: a.age, r: Object.assign({}, a.r), caps: Object.assign({}, a.caps), look: Object.assign({}, a.look, { number: a.number }), club: null, contract: { years: CR.rookieYears, salary: 0 }, since: 1, isMe: true, rookie: true, hFinal: a.heightFinal, bloom: a.bloom, combine: amCombine(a) };
-  c.players.me = me; c.active.push('me'); rookies.push(me); c.me.xp = Object.assign({}, a.xp); c.me.pot = Object.assign({}, a.pot || potRoll(a.seed, a.r)); /* V6: your potential comes along */ c.me.hype = a.hype || 0; c.me.hypeScale = a.hypeScale; /* R8: the amateur's scale (a save from before R8 migrates on the next fill) */ c.me.confidence = a.confidence || 0; c.events = []; c.story = { h2h: Object.assign({ w: 0, l: 0 }, a.story && a.story.h2h) }; c.timeline = []; c.amateur.timeline = (a.timeline || []).slice(); c.amateur.records = Object.assign({}, a.records || {}); c.me.focus = CR.trainFocus[a.focus] && a.focus !== 'recovery' ? a.focus : 'shooting';
+  c.players.me = me; c.active.push('me'); rookies.push(me); c.me.xp = Object.assign({}, a.xp); c.me.pot = Object.assign({}, a.pot || potRoll(a.seed, a.r)); /* V6: your potential comes along */ if (a.saga) c.me.saga = JSON.parse(JSON.stringify(a.saga)); /* V7: the saga too */ c.me.hype = a.hype || 0; c.me.hypeScale = a.hypeScale; /* R8: the amateur's scale (a save from before R8 migrates on the next fill) */ c.me.confidence = a.confidence || 0; c.events = []; c.story = { h2h: Object.assign({ w: 0, l: 0 }, a.story && a.story.h2h) }; c.timeline = []; c.amateur.timeline = (a.timeline || []).slice(); c.amateur.records = Object.assign({}, a.records || {}); c.me.focus = CR.trainFocus[a.focus] && a.focus !== 'recovery' ? a.focus : 'shooting';
   // F7: no draft for you (the offer you took); the other rookies' order still sets their rookie pay
   me.draftPick = null; me.signed = { club: offer.club, stars: offer.stars, kind: offer.kind };
   for (const p of rookies) if (!p.isMe) p.draftPick = amPickFrom(recOvr(p) * D.ovr + (D.ageRef - p.age) * D.age + D.wing * p.h * (p.wing - 1) + D.aiResume + D.noise * rng.gauss());
@@ -11845,7 +11888,7 @@ function engineDef(c, id, opts) {
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
     look = proLook(c, look); // the Office's looks and your gear (F8)
   }
-  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
+  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), sagaClutch: p.isMe ? sagaClutchOf(c.me) : 0, /* V7 */ id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
 }
 function clubKit(clubId, away) { const t = clubOf(clubId); const kit = Object.assign({}, t); if (away) { kit.colors = [t.colors[1], t.colors[0]]; if (luminance(kit.colors[0]) < 0.25 && luminance(t.colors[0]) < 0.25) kit.colors = ['#F3F0FF', t.colors[0]]; } return kit; }
 function matchTeamDef(c, id, away, opts) { const p = c.players[id]; const kit = clubKit(p.club, away); return Object.assign({}, kit, { name: p.name, abbr: p.nick.toUpperCase().slice(0, 4), personality: archPersonality(p.arch), players: [engineDef(c, id, opts)] }); }
@@ -12448,7 +12491,7 @@ function amCombine(c) {
 }
 
 // ---------------- the match: you against one opponent ----------------
-function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c), traitLv: trLevels(c) }; } // F8: in your gear
+function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c), traitLv: trLevels(c), sagaClutch: sagaClutchOf(c) }; } // F8: in your gear; V7: the mentor's clutch edge
 // fire: an opponent you trash-talked or a fired-up rival plays you this much better (every rating; R8)
 function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return Object.assign({ name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff), traits: traitIdsFor(o), traitLv: trLevels(o) }, scoutDef(o)); } // V4: and their personality and tendencies // V3: an opponent's trait plays (it showed on previews since V1)
 function amAbbr(name, other) { const parts = String(name).split(' '); const last = (parts[parts.length - 1] || String(name)).toUpperCase(); let a = last.slice(0, 3); if (other && other === a) a = ((parts[0] || 'X')[0] + last.slice(0, 2)).toUpperCase(); return a; }
@@ -12938,7 +12981,7 @@ function pressAnswer(c, P, kind) {
   else { B.quiet = true; out.hype = -Math.min(B.hype, MD.nocommentHype); out.boring = true; }
   { const h0 = B.hype; B.hype = Math.round(clamp(B.hype + out.hype, 0, MD.hypeMax) * 10) / 10; out.hype = Math.round((B.hype - h0) * 10) / 10; } out.conf = Math.round(out.conf * 10) / 10;
   out.headline = kind === 'team' ? (x.won ? me + ' shares the credit: “' : me + ' takes the blame: “') + quote + '”' : kind === 'confident' ? '“' + quote + '” ' + (x.won ? me + ' is feeling it.' : me + ' promises a bounce-back.') : kind === 'trash' ? (x.won ? me + ' talks trash: “' : me + ' won\'t give an inch: “') + quote + '”' : 'Reporters call ' + me + ' boring: two words and out.';
-  storyNews(c, out.headline, 'media'); try { socialPress(c, P, out); } catch (e) { /* decoration */ } if (out.grudge) storyNews(c, out.grudge + ' heard that. They will be ready next time.', 'rival');
+  storyNews(c, out.headline, 'media'); try { socialPress(c, P, out); sagaMeterAdd(c, 'journalist', SG.pressMeter[kind] || 0); } catch (e) { /* decoration */ } /* V7: the journalist's tone follows your answers */ if (out.grudge) storyNews(c, out.grudge + ' heard that. They will be ready next time.', 'rival');
   if (out.fine != null) storyNews(c, me + ' is fined' + (out.fine > 0 ? ' ' + fmtMoney(out.fine) : '') + ' for the trash talk, and a sponsor pulls back.', 'money');
   return out;
 }
@@ -13334,7 +13377,7 @@ function trEdgeOf(id, L, playoff) {
     default: return 0;
   }
 }
-function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) e += trEdgeOf(id, trLvOf(o, id), playoff); return e; }
+function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) e += trEdgeOf(id, trLvOf(o, id), playoff); return e + (sagaClutchOf(o) ? SG.mentorClutchSim : 0); } // V7: + the mentor's clutch edge
 // The hidden trait's story moment (R3): during the sophomore season, a few games in.
 function traitRevealDue(c) { const T = traitsOf(c), L = c.league, wk = L && Array.isArray(L.games) ? L.games.length : (c.seasonStats ? c.seasonStats.g : 0); return !!T && !T.found && T.hidden && ((c.stage === 'hs' && c.age >= TR.revealAge && wk >= TR.revealGames) || c.stage !== 'hs'); } // F5: the team's games count, bench weeks too (a benched sophomore used to wait a year)
 function traitRevealCard(c) {
@@ -13363,13 +13406,14 @@ function trFirstHalf(m) { const F = m.format || {}; if (F.type === 'timed') retu
 function trState(p) { return p.trs || (p.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }); }
 // The make chance's trait multiplier; trs.muls keeps each trait's part of it for the tally at release (trShotTally).
 function trShotMul(p, type) {
-  const T = p.traits; if (!T) return 1; const m = p.match; if (!m) return 1; const s = trState(p), M = s.muls || (s.muls = []); M.length = 0; let mul = 1;
+  const T = p.traits || {}; if (!p.traits && !p.sagaClutch) return 1; const m = p.match; if (!m) return 1; const s = trState(p), M = s.muls || (s.muls = []); M.length = 0; let mul = 1;
   const add = (id, v) => { if (!v) return; M.push(id, 1 + v); mul *= 1 + v; };
   if (T.streaky) { if (s.streak >= 2) add('streaky', trE(p, 'streaky', 'hot')); else if (s.streak <= -2) add('streaky', trE(p, 'streaky', 'cold')); }
   if (T.clutch) { if (m.playoff || trCrunch(m)) add('clutch', trE(p, 'clutch', 'clutch')); else if (trFirstHalf(m)) add('clutch', trE(p, 'clutch', 'early')); }
   if (T.microwave && s.heatUntil > m.time) add('microwave', trE(p, 'microwave', 'heat'));
   if (T.generational && s.takeUntil > m.time) add('generational', trE(p, 'generational', 'takeShot'));
   if (T.iceveins && (m.playoff || trLast(m))) add('iceveins', trE(p, 'iceveins', 'last'));
+  if (p.sagaClutch && trLast(m)) add('mentor', p.sagaClutch); // V7: the mentor's last lesson
   return mul;
 }
 // A real shot's release: each trait's share of its make chance P is an expected make it added (or cost).
@@ -14576,6 +14620,7 @@ function hsSummerChoose(c, kind) {
   S.pending = false; S.kind = kind; c.summers.push({ season: S.season, year: S.year, kind }); const r = hsUpdateRank(c, 'summer');
   lines.push('Recruiting: ' + hsStarText(r.stars) + ' · ' + hsRankText(r) + '.');
   c.events.push({ kind: 'story', title: 'SUMMER: ' + HS_SUMMER_INFO[kind].title, lines }); tlAdd(c, 'summer', 'Summer: ' + HS_SUMMER_INFO[kind].title.toLowerCase());
+  sagaTick(c, 'summer', { kind }); // V7: the saga (the mentor at a camp or on the AAU circuit)
   return { kind, lines };
 }
 
@@ -15153,10 +15198,11 @@ function stChoose(c, ev, i) {
   if (fx.injury && B.injury) { B.injury.games = Math.max(1, B.injury.games + fx.injury); out.push('Back in ' + B.injury.games + ' game' + (B.injury.games > 1 ? 's' : '')); }
   if (fx.fragile) { B.fragile = fx.fragile; out.push('Injury risk ×' + SY.rushInjury + ' for ' + fx.fragile + ' weeks'); }
   if (fx.tour) { B.tour = c.season; out.push('The farewell tour: you retire after this season'); }
+  if (ev.saga) for (const l of sagaChoose(c, ev, i)) out.push(l); /* V7: the saga's meters and flags */
   ev.outcome = out; return out;
 }
 // The practice week's story bonus (a choice's extra work, or a day at home), spent by the next game.
-function stPracticeMul(B) { return 1 + (B && B.storyXp ? B.storyXp : 0); }
+function stPracticeMul(B) { return (1 + (B && B.storyXp ? B.storyXp : 0)) * sagaXpMul(B); } // V7: a saga choice's practice weeks
 function stInjuryMul(B) { return B && B.fragile > 0 ? SY.rushInjury : 1; }
 // The simulator's answer (and a card you skip): the choice marked def.
 function stAutoChoose(c, ev) { if (!ev || !ev.choice) return null; const i = Math.max(0, ev.choice.findIndex(x => x.def)); return stChoose(c, ev, i); }
@@ -15198,8 +15244,9 @@ function stSpotlight(c) {
 // upsetWin, first) plus injury (a new injury), healed (you came back this game), home.
 function stAfterGame(c, x) {
   const A = stFill(c), B = holderOf(c), me = stFirst(stMeName(c)), wk = stWeek(c), n = stWeeks(c), fam = stFirst(B.family.name); A.streak = x.won ? Math.max(1, A.streak + 1) : Math.min(-1, A.streak - 1);
-  if (B.storyXp) B.storyXp = 0; if (B.fragile > 0) B.fragile--; // this week's practice bonus is spent; a rushed return heals
-  if (x.injury && x.injury.games >= SY.injuryGames) { A.injured = true; const tr = stWho(c, 'trainer'); stBeat(c, 'injury', 'trainer', 'THE TRAINING ROOM', ['A ' + x.injury.name.toLowerCase() + ': ' + x.injury.games + ' games, if you let it heal.', tr.name + ': "I can get you back a week early. Your call. Push it and it can flare up."'], { arc: 'injury', crit: true, choice: [{ label: 'Push to come back early', note: 'One game sooner · injury risk ×' + SY.rushInjury + ' for ' + SY.rushWeeks + ' weeks', fx: { injury: -1, fragile: SY.rushWeeks } }, { label: 'Take all the time', note: 'Every game it takes · fatigue −' + SY.rehabFatigue, fx: { fatigue: -SY.rehabFatigue }, def: true }] }); return; }
+  if (B.storyXp) B.storyXp = 0; if (B.fragile > 0) B.fragile--; sagaWeekSpent(B); // this week's practice bonus is spent; a rushed return heals
+  sagaTick(c, 'game', x); // V7: a saga beat first (R9's next beat waits for the gap; the crit ones are still told)
+  if (x.injury && x.injury.games >= SY.injuryGames && !sagaInjuryNow(c)) { /* V7: the saga's injury arc tells this one */ A.injured = true; const tr = stWho(c, 'trainer'); stBeat(c, 'injury', 'trainer', 'THE TRAINING ROOM', ['A ' + x.injury.name.toLowerCase() + ': ' + x.injury.games + ' games, if you let it heal.', tr.name + ': "I can get you back a week early. Your call. Push it and it can flare up."'], { arc: 'injury', crit: true, choice: [{ label: 'Push to come back early', note: 'One game sooner · injury risk ×' + SY.rushInjury + ' for ' + SY.rushWeeks + ' weeks', fx: { injury: -1, fragile: SY.rushWeeks } }, { label: 'Take all the time', note: 'Every game it takes · fatigue −' + SY.rehabFatigue, fx: { fatigue: -SY.rehabFatigue }, def: true }] }); return; }
   if (x.healed && A.injured) { A.injured = false; stBeat(c, 'comeback', 'family', x.won ? 'THE COMEBACK' : 'BACK ON THE FLOOR', x.won ? [fam + ' is on their feet before the final buzzer: "I knew it. I knew it the whole time."', 'First game back, and a win. The trainer is already telling everyone it was the rehab.'] : [fam + ': "You\'re back on the floor. That\'s the part that matters tonight."', 'The legs will come. They always do.'], { arc: 'injury' }); return; }
   if (x.champ) { stBeat(c, 'title', 'family', 'CHAMPIONS', [fam + ' finds you on the floor in the confetti. Neither of you says anything for a while.', '"All those early mornings. Every single one of them was for this."'], { arc: 'title', crit: true }); A.done['title' + c.season] = true; return; }
   if (x.eliminated && x.final) { stBeat(c, 'final-loss', 'mentor', 'SO CLOSE', [(stMentor(c) ? stFirst(stMentor(c).name) : 'Your coach') + ' sits next to you in the quiet locker room.', '"Remember how this feels. Next year it\'s what gets you up in the morning."'], { arc: 'title' }); return; }
@@ -15214,9 +15261,9 @@ function stAfterGame(c, x) {
   if (!x.playoff && ((wk >= Math.ceil(n * SY.fillAt) && A.beats < SY.beatsMin - 1) || (wk >= n - 1 && A.beats < SY.beatsMin))) stFiller(c);
 }
 // A week on the bench: no game of yours, but the season's story keeps its pace.
-function stBenchWeek(c) { const A = stFill(c), wk = stWeek(c) + (A.benchN = (A.benchN || 0) + 1), n = stWeeks(c); if (A.beats < SY.beatsMin && (wk >= n - 1 || (wk >= Math.ceil(n * SY.fillAt) && A.beats < SY.beatsMin - 1))) stFiller(c); }
+function stBenchWeek(c) { sagaWeekSpent(holderOf(c)); if (sagaTick(c, 'game', { bench: true })) return; /* V7 */ const A = stFill(c), wk = stWeek(c) + (A.benchN = (A.benchN || 0) + 1), n = stWeeks(c); if (A.beats < SY.beatsMin && (wk >= n - 1 || (wk >= Math.ceil(n * SY.fillAt) && A.beats < SY.beatsMin - 1))) stFiller(c); }
 // The season is over: a quiet one gets its last check-ins (the coach's season review).
-function stSeasonEnd(c) { const A = stFill(c), B = holderOf(c); if (A.ended === c.season) return; A.ended = c.season; for (let i = 0; i < 3 && A.beats < SY.beatsMin; i++) if (!stFiller(c)) break; if (A.beats < SY.beatsMin && c.team && c.team.coach && !A.fired['review']) stBeat(c, 'review', 'coach', 'THE SEASON REVIEW', [(c.team.coach.name) + ': "Sit down. Here\'s what I saw this year, the good and the rest of it."', '"Take a week off. Then come back hungrier than you left."'], { arc: 'coach', fill: true }); if (!Array.isArray(B.arcLog)) B.arcLog = []; B.arcLog.push({ s: c.season, st: isPro(c) ? 'pro' : c.stage, n: A.beats }); if (B.arcLog.length > 40) B.arcLog.shift(); }
+function stSeasonEnd(c) { const A = stFill(c), B = holderOf(c); if (A.ended === c.season) return; A.ended = c.season; sagaTick(c, 'end'); /* V7 */ for (let i = 0; i < 3 && A.beats < SY.beatsMin; i++) if (!stFiller(c)) break; if (A.beats < SY.beatsMin && c.team && c.team.coach && !A.fired['review']) stBeat(c, 'review', 'coach', 'THE SEASON REVIEW', [(c.team.coach.name) + ': "Sit down. Here\'s what I saw this year, the good and the rest of it."', '"Take a week off. Then come back hungrier than you left."'], { arc: 'coach', fill: true }); if (!Array.isArray(B.arcLog)) B.arcLog = []; B.arcLog.push({ s: c.season, st: isPro(c) ? 'pro' : c.stage, n: A.beats }); if (B.arcLog.length > 40) B.arcLog.shift(); }
 // A season behind on beats: a check-in (the coach, your mentor or home).
 function stFiller(c) {
   const B = holderOf(c), A = stFill(c), fam = stFirst(B.family.name), m = stMentor(c), coach = c.team && c.team.coach ? c.team.coach.name : 'Coach', pick = stRng(c, 'filler' + A.beats).int(3);
@@ -15354,7 +15401,7 @@ function gearScreen(game) {
 // numbers (read from CONFIG, so the guide never drifts from the rules) and how to move it. From the Career menu, the
 // amateur Stats screen and How to play (general, when there is no career).
 // ============================================================================
-const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['moves', 'Moves'], ['season', 'The season'], ['buzz', 'Hype, fame, confidence'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']]; // (V4: the move list; V5: the season)
+const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['moves', 'Moves'], ['season', 'The season'], ['buzz', 'Hype, fame, confidence'], ['story', 'The story'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']]; // (V4: the move list; V5: the season)
 function guidePct(x, d) { let s = (x * 100).toFixed(d == null ? 1 : d); if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s + '%'; } // 0.0004 → 0.04%, 0.008 → 0.8%
 function guidePts(p) { return p[0] === p[1] ? p[0] + ' point' + (p[0] === 1 ? '' : 's') : p[0] + '–' + p[1] + ' points'; } // V6: an injury's lasting cost, [min, max]
 // The entries of one topic for career c (or none): { title, value, lines: [[text, color]] }.
@@ -15383,6 +15430,12 @@ function guideEntries(game, topic) {
     add('Sim to next big moment', '', ['Sims your weeks (your auto plan, then the game) and stops before a big game (your rival, the Boss, the playoffs, a spot start) or after a big moment: an injury, an offer or a decision, a level-up, a story beat, a milestone, the season\'s end.', 'Sim the rest of the season stops only for injuries, offers and decisions, and the playoffs. Quick results (Settings → Gameplay) turns a routine SIM into one line on the hub.']);
     add('Playing time', c && c.team ? '#' + ladderRank(c) + ' on the depth chart' : '', ['Only the top rung plays. Benched, you can challenge the starter once a week (your practice): win a game to ' + TM.challengeTarget + ' and you start.', TM.spotAfter + ' bench weeks in a row and the next game is a spot start; an A or B in it moves you up a rung. A pro may ask for a trade after ' + TM.tradeBenchWeeks + ' bench weeks in a season.', 'Teammates challenge you less: never in a season\'s first ' + TM.chalFirstWeeks + ' weeks, at most once every ' + TM.chalGap + ', and only from within ' + TM.chalWithin + ' OVR of you.']);
     add('Press conferences', '', ['Only after big games: your rival, the playoffs, a big scoring night (' + Math.round(MD.bigPts * gameScale('pro')) + '+ and half again your average), an upset (' + MD.upset + '+ OVR either way) or a points record. At most one every ' + MD.pressGap + ' games, except the rival and the finals.']);
+  }
+  if (topic === 'story') { // V7 (Part 2 §2): the saga
+    const Sg = c ? sagaOf(c) : null, arcs = Sg ? sagaSummary(c) : [];
+    add('The saga', c ? arcs.length + ' of ' + Sg.quota + ' arcs' : '', ['Your career is told in arcs of 3–6 beats across three acts: high school, college, the pros. A career sees ' + SG.perCareer[0] + '–' + SG.perCareer[1] + ' of them, and never the same one twice.', 'Every choice trades something for something else, and says both. What you choose sets flags that later beats remember.'].concat(arcs.length ? [['This career: ' + arcs.map(a => a.title.charAt(0) + a.title.slice(1).toLowerCase() + (a.st === 'done' ? '' : ' (going on)')).join(' · ') + '.', UI_CYAN]] : []));
+    const met = Sg ? SAGA_CAST.filter(r => Sg.cast[r] && (Sg.cast[r].name || Sg.cast[r].m) && r !== 'rival') : [];
+    add('Your people', '', ['Family, your high school coach, a best friend, your rival, a mentor, your agent, a journalist and, in the pros, an owner. Each has a meter from −100 to 100; choices move it ' + SG.m.small + ', ' + SG.m.mid + ' or ' + SG.m.big + '.', 'A family at +' + SG.warmAt + ' or more gets the warm version of an ending. A friend who is close follows you; one you pushed away goes their own way.'].concat(met.length ? [[met.map(r => { const w = sagaWho(c, r); return SAGA_ROLE[r] + ' ' + stFirst(w.name) + ' ' + (w.meter > 0 ? '+' : '') + w.meter; }).join(' · '), UI_CYAN]] : []));
   }
   if (topic === 'buzz') {
     const hy = B ? B.hype || 0 : 0;
@@ -15459,6 +15512,243 @@ function statsGuideScreen(game, topic) {
 function guideEntryH(ctx, ui, e, w) { const split = guideSplit(ctx, e, w); ctx.font = fontStr(13, false); const lh = Math.max(13 * 1.35, rbLineH(ctx)); let h = 26 + (split ? 24 : 0); for (const [l] of e.lines) h += Math.min(6, rbWrap(ctx, l, w).length) * lh + 2; return h + 10; }
 
 // ============================================================================
+// SECTION: SAVE / PROGRESSION (part 15) — V7 (Part 2 §2): the saga. Story arcs with 3–6 beats each, a cast of eight
+// with relationship meters (−100 to 100), flags that later beats remember, and choices that each trade one thing for
+// another. Three acts: I high school, II college, III the pros. Each career opens CONFIG.saga.perCareer arcs (6–8; the
+// arcs that exist cap it) and never plays an arc twice. A beat is told as a cutscene: a pixel background, two
+// portraits, the typewriter, a stinger (179_ui_dialog.js).
+// State: B.saga on the holder (the amateur career, then the pro c.me; the handoff copies it). Like R9's beats, the
+// saga never rolls the career's own dice: its variety comes from hashes, so a story beat never changes a simulated
+// result before you answer it.
+// ============================================================================
+const SG = CONFIG.saga;
+const SAGA_CAST = ['family', 'coach', 'friend', 'rival', 'mentor', 'agent', 'journalist', 'owner'];
+const SAGA_ROLE = { family: 'Family', coach: 'Your coach', friend: 'Best friend', rival: 'Rival', mentor: 'Mentor', agent: 'Agent', journalist: 'Journalist', owner: 'Owner' };
+const SAGA_ARCS = {}; // id → the arc (179_saga_arcs.js fills it)
+function sagaRng(c, salt) { return new RNG((hashString(String(c.seed || 1) + ':saga:' + salt) >>> 0) || 7); }
+function sagaAct(c) { return isPro(c) ? 3 : c.stage === 'college' ? 2 : c.stage === 'hs' ? 1 : 0; }
+function sagaStageKey(c) { return isPro(c) ? 'pro' : c.stage || 'hs'; }
+// The saga's state, filled in (an old save gets an empty one: its arcs start from where the career is now).
+function sagaOf(c) {
+  const B = holderOf(c); let S = B.saga; if (!S || typeof S !== 'object') S = B.saga = {};
+  if (!S.cast || typeof S.cast !== 'object') S.cast = {}; if (!S.flags || typeof S.flags !== 'object') S.flags = {}; if (!S.arcs || typeof S.arcs !== 'object') S.arcs = {};
+  if (!Array.isArray(S.order)) S.order = []; if (!Array.isArray(S.log)) S.log = []; if (!S.v) S.v = 1;
+  for (const r of SAGA_CAST) { const m = S.cast[r] || (S.cast[r] = { m: r === 'family' ? SG.familyStart : 0 }); if (!(m.m >= -100 && m.m <= 100)) m.m = clamp(Number(m.m) || 0, -100, 100); }
+  if (!(S.quota > 0)) { const [lo, hi] = SG.perCareer; S.quota = lo + sagaRng(c, 'quota').int(hi - lo + 1); } // this career's arc count (6–8)
+  return S;
+}
+function sagaMeter(c, role) { return (sagaOf(c).cast[role] || {}).m || 0; }
+function sagaMeterAdd(c, role, d) { const C = sagaOf(c).cast[role]; if (!C || !d) return 0; const m0 = C.m; C.m = clamp(Math.round(m0 + d), -100, 100); return C.m - m0; }
+function sagaFlag(c, k) { return sagaOf(c).flags[k]; }
+function sagaSet(c, k, v) { sagaOf(c).flags[k] = v === undefined ? true : v; }
+// A cast member as a speaker: { role, name, look, colors, meter, cast } (the friend, the mentor, the journalist and the
+// owner are made when the story first needs them; the rest are the career's own people).
+function sagaWho(c, role) {
+  const S = sagaOf(c), C = S.cast[role] || {}, base = role === 'family' || role === 'rival' || role === 'agent' ? stWho(c, role) : null;
+  if (role === 'coach') { if (!C.name && c.team && c.team.coach && !isPro(c) && c.stage === 'hs') { C.name = c.team.coach.name; C.look = c.team.coach.look; C.colors = (c.team.colors || []).slice(); } if (C.name) return { role: 'Coach', name: C.name, look: C.look, colors: C.colors && C.colors.length ? C.colors : ['#2E6FD8', '#FFFFFF'], meter: C.m, cast: role }; const w = stWho(c, 'coach'); return Object.assign({}, w, { meter: C.m, cast: role }); }
+  if (base) return Object.assign({}, base, { meter: C.m, cast: role });
+  if (!C.name) { const rng = sagaRng(c, 'who:' + role), used = new Set([stMeName(c)]); C.name = genName(rng, used, new Set()); C.look = stLookFor('saga:' + role + ':' + (c.seed || 1)); C.colors = role === 'mentor' ? ['#3A2E6B', '#FFD23F'] : role === 'journalist' ? ['#2B2F45', '#9AD1FF'] : role === 'owner' ? ['#1E3A2E', '#E9C46A'] : ['#34405E', '#C9D3E8']; }
+  return { role: SAGA_ROLE[role] || role, name: C.name, look: C.look, colors: C.colors || ['#34405E', '#C9D3E8'], meter: C.m, cast: role };
+}
+function sagaFirst(c, role) { return stFirst(sagaWho(c, role).name); }
+// --- the scheduler ---
+// Arcs open at a hook when their act is now, their condition holds, they haven't played, and the career's quota for
+// the act has room (the quota splits over the acts by SG.actShare). Each arc also has a chance (its weight in the
+// draw), so no arc plays in every career.
+function sagaOpen(c, hook, x) {
+  const S = sagaOf(c), act = sagaAct(c); if (!act) return null; const opened = S.order.length; if (opened >= S.quota) return null;
+  const share = SG.actShare, upTo = Math.round(S.quota * share.slice(0, act).reduce((a, b) => a + b, 0)), inAct = S.order.filter(id => (SAGA_ARCS[id] || {}).act === act).length;
+  const cands = Object.keys(SAGA_ARCS).filter(id => { const A = SAGA_ARCS[id]; if (S.arcs[id]) return false; if (A.act && A.act !== act) return false; if (A.hook && A.hook !== hook) return false; try { return !A.open || A.open(c, S, x); } catch (e) { return false; } });
+  for (const id of cands) { const A = SAGA_ARCS[id]; const any = !A.act; if (!any && opened >= upTo && inAct >= 1) continue; /* the act's share is used (one arc an act always fits) */ if (sagaRng(c, 'open:' + id).next() >= (A.chance == null ? 1 : A.chance)) { S.arcs[id] = { st: 'skip', s0: c.season, stage: sagaStageKey(c) }; continue; } /* not this career */
+    S.arcs[id] = { st: 'on', b: 0, s0: c.season, stage: sagaStageKey(c), picks: [], at: stWeek(c) }; S.order.push(id); if (A.start) try { A.start(c, S, x); } catch (e) { /* decoration */ } return id; }
+  return null;
+}
+// One hook: open what can open, then tell at most one beat (the oldest arc's next beat whose time has come).
+// hook: 'game' (after a game you played or a bench week; x: the press context), 'summer' (x: { kind }), 'stage' (a new
+// level starts), 'end' (the season is over).
+function sagaTick(c, hook, x) {
+  try {
+    const S = sagaOf(c), stg = sagaStageKey(c); x = x || {};
+    if (S.stage !== stg) { const was = S.stage; S.stage = stg; if (was) sagaTick(c, 'stage', { from: was }); }
+    sagaOpen(c, hook, x);
+    for (const id of S.order) { const R = S.arcs[id], A = SAGA_ARCS[id]; if (!R || R.st !== 'on' || !A) continue;
+      for (let guard = 0; guard < 8 && R.st === 'on'; guard++) { const b = A.beats[R.b]; if (!b) { R.st = 'done'; break; }
+        if (b.hook && b.hook !== hook && !(Array.isArray(b.hook) && b.hook.includes(hook))) break;
+        let w = true; try { w = b.when ? b.when(c, S, R, x) : true; } catch (e) { w = false; } if (w === 'skip') { R.b++; continue; } if (!w) break;
+        if (sagaTell(c, id, R.b, x)) { R.b++; R.tw = stWeek(c); R.ts = c.season; R.tstage = stg; if (!A.beats[R.b]) R.st = 'done'; return true; } break; }
+    }
+  } catch (e) { /* the story is decoration */ }
+  return false;
+}
+// A beat as a dialogue card: R9's stBeat (the season's beat budget; crit beats are always told), with the saga's
+// cutscene (bg, mood) and its choices.
+function sagaTell(c, id, bi, x) {
+  const A = SAGA_ARCS[id], b = A.beats[bi], S = sagaOf(c), R = S.arcs[id]; const who = typeof b.who === 'function' ? b.who(c, S, R, x) : sagaWho(c, b.who || 'family');
+  const lines = (typeof b.lines === 'function' ? b.lines(c, S, R, x) : b.lines || []).filter(Boolean); const choice = typeof b.choice === 'function' ? b.choice(c, S, R, x) : b.choice || null;
+  const title = typeof b.title === 'function' ? b.title(c, S, R, x) : b.title || A.title;
+  const ev = stBeat(c, 'saga-' + id + '-' + (b.id || bi), 'me', title, lines, { arc: 'saga:' + id, crit: !!b.crit || !!A.crit, choice: choice && choice.length ? choice.map(ch => Object.assign({ fx: {} }, ch)) : null });
+  if (!ev) return null; ev.who = who; ev.saga = { arc: id, beat: bi }; ev.bg = typeof b.bg === 'function' ? b.bg(c, S, R, x) : b.bg || 'gym'; ev.mood = (typeof b.mood === 'function' ? b.mood(c, S, R, x) : b.mood) || 'story';
+  if (!ev.choice) { sagaApply(c, b.fx || null, ev); try { if (b.after) b.after(c, S, R, x); } catch (e) { /* decoration */ } }
+  S.log.push({ arc: id, beat: b.id || String(bi), title, s: c.season, stage: sagaStageKey(c), age: isPro(c) ? meOf(c).age : c.age, pick: null });
+  return ev;
+}
+// A choice's saga effects: { meter: { role: d }, flag: { k: v }, cash (+$, either career), xpWeeks: [mul, weeks], inelig
+// (games you sit), hype, conf }. Returns the outcome lines (added to R9's).
+function sagaApply(c, fx, ev) {
+  const out = []; if (!fx) return out; const B = mdFill(holderOf(c));
+  for (const r in fx.meter || {}) { const d = sagaMeterAdd(c, r, fx.meter[r]); if (d) out.push((r === 'family' ? stFirst(sagaWho(c, r).name) : sagaWho(c, r).name) + ' ' + (d > 0 ? '+' : '−') + Math.abs(d)); }
+  for (const k in fx.flag || {}) sagaSet(c, k, fx.flag[k]);
+  if (fx.cash) { if (isPro(c)) { c.me.money = (c.me.money || 0) + fx.cash; } else c.cash = (c.cash || 0) + fx.cash; out.push((fx.cash > 0 ? '+' : '−') + (isPro(c) ? fmtMoney(Math.abs(fx.cash)) : '$' + Math.abs(fx.cash).toLocaleString())); }
+  if (fx.xpWeeks) { B.sagaXp = { mul: fx.xpWeeks[0], weeks: fx.xpWeeks[1] }; out.push('Practice XP ' + (fx.xpWeeks[0] > 0 ? '+' : '−') + Math.round(Math.abs(fx.xpWeeks[0]) * 100) + '% for ' + fx.xpWeeks[1] + ' weeks'); }
+  if (fx.inelig && !isPro(c)) { c.ineligible = Math.max(c.ineligible || 0, fx.inelig); out.push('Suspended ' + fx.inelig + ' games'); }
+  if (fx.hype) { const h0 = B.hype || 0; B.hype = clamp(h0 + fx.hype, 0, MD.hypeMax); if (B.hype !== h0) out.push('Hype ' + (B.hype > h0 ? '+' : '−') + Math.round(Math.abs(B.hype - h0))); }
+  if (fx.conf) { const v = trConf(B, clamp((B.confidence || 0) + fx.conf, -MD.confMax, MD.confMax)) - (B.confidence || 0); B.confidence = (B.confidence || 0) + v; if (v) out.push('Confidence ' + (v > 0 ? '+' : '−') + Math.abs(v)); }
+  if (ev) ev.sagaOut = out; return out;
+}
+// Called by stChoose for a saga card: the picked choice's saga effects, its after(), the log.
+function sagaChoose(c, ev, i) {
+  const S = sagaOf(c), s = ev.saga, A = SAGA_ARCS[s.arc], R = S.arcs[s.arc], ch = ev.choice[i]; if (!A || !R || !ch) return [];
+  const out = sagaApply(c, ch.saga || null, ev); if (R.picks) R.picks.push(i); const L = S.log.slice().reverse().find(l => l.arc === s.arc && l.pick == null); if (L) L.pick = ch.label;
+  const b = A.beats[s.beat]; try { if (ch.after) ch.after(c, S, R); if (b && b.after) b.after(c, S, R, null, i); } catch (e) { /* decoration */ } return out;
+}
+// The saga's injury arc told its first beat this game (R9's training-room card stands down).
+function sagaInjuryNow(c) { const R = sagaOf(c).arcs.injury; return !!R && R.st !== 'skip' && R.ts === c.season && R.tw === stWeek(c); }
+// The practice weeks a saga choice changed (×(1 + mul) for its weeks; spent by the games).
+function sagaXpMul(B) { const X = B && B.sagaXp; return X && X.weeks > 0 ? Math.max(0.1, 1 + X.mul) : 1; }
+function sagaWeekSpent(B) { const X = B && B.sagaXp; if (X && X.weeks > 0) { X.weeks--; if (X.weeks <= 0) delete B.sagaXp; } }
+// For the Codex and the Story so far: the arcs this career has opened, in order, with their picks.
+function sagaSummary(c) { const S = sagaOf(c); return S.order.map(id => { const R = S.arcs[id], A = SAGA_ARCS[id] || {}; return { id, title: A.title || id, act: A.act || 0, st: R.st, picks: S.log.filter(l => l.arc === id) }; }); }
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 16) — V7 (Part 2 §2.3): the first five arcs. Family Bills (act I), Best Friend
+// (acts I–III), The Booster (act II), The Injury (any act) and The Mentor (a summer camp in act I, the last season in
+// act III). Every choice trades one thing for another and says both in its note; flags steer the later beats.
+// ============================================================================
+const sgPct = x => Math.round(x * 100) + '%';
+function sgSince(c, R) { return R && R.ts === c.season && R.tstage === sagaStageKey(c) ? stWeek(c) - (R.tw || 0) : 99; } // games since the arc's last beat (99: another season)
+function sgCash(c, n) { return isPro(c) ? fmtMoney(n) : '$' + Math.round(n).toLocaleString(); }
+function sgTrainer(c) { return stWho(c, 'trainer'); }
+
+// 1. FAMILY BILLS (act I): the family needs money. A weekend job (cash, less practice), basketball first (more
+// practice, the family hurt), or the coach's help (a favor comes due).
+SAGA_ARCS.bills = { act: 1, title: 'FAMILY BILLS', chance: SG.chance.bills,
+  open: c => c.stage === 'hs' && c.stageYear <= 3 && stWeek(c) >= 2,
+  beats: [
+    { id: 'ask', hook: 'game', bg: 'kitchen', who: 'family', mood: 'tense',
+      lines: c => [sagaFirst(c, 'family') + ' has the bills spread across the kitchen table and tries to smile about it.', '"The car needs work, and the rent went up again. It\'s not your problem. I just wanted you to hear it from me."'],
+      choice: () => [
+        { label: 'Take a weekend job', note: '+$' + SG.billsJob + ' · practice XP −' + sgPct(SG.billsXpCut) + ' for ' + SG.billsWeeks + ' weeks · family +' + SG.m.big, saga: { cash: SG.billsJob, xpWeeks: [-SG.billsXpCut, SG.billsWeeks], meter: { family: SG.m.big }, flag: { billsPath: 'job' } } },
+        { label: 'Basketball first', note: 'Practice XP +' + sgPct(SG.billsXpUp) + ' for ' + SG.billsWeeks + ' weeks · family −' + SG.m.big, saga: { xpWeeks: [SG.billsXpUp, SG.billsWeeks], meter: { family: -SG.m.big }, flag: { billsPath: 'skip' } }, def: true },
+        { label: 'Ask Coach for help', note: 'Coach +' + SG.m.mid + ' · family +' + SG.m.small + ' · Coach will want a favor back', saga: { meter: { coach: SG.m.mid, family: SG.m.small }, flag: { billsPath: 'coach' } } }] },
+    { id: 'favor', hook: 'game', bg: 'gym', who: 'coach', mood: 'tense', when: (c, S, R) => S.flags.billsPath !== 'coach' ? 'skip' : sgSince(c, R) >= SG.gap,
+      lines: c => [sagaWho(c, 'coach').name + ' waves you into the office: "Remember the help with the bills? I need one back."', '"The youth camp is Saturday morning and I\'m a counselor short. That\'s the day before we play our rival."'],
+      choice: () => [{ label: 'Run the camp', note: 'Fatigue +' + SG.favorFatigue + ' · coach +' + SG.m.big, fx: { fatigue: SG.favorFatigue }, saga: { meter: { coach: SG.m.big }, flag: { favor: 'repaid' } }, def: true }, { label: 'Say no', note: 'Fresh legs · coach −' + SG.m.big, saga: { meter: { coach: -SG.m.big }, flag: { favor: 'refused' } } }] },
+    { id: 'shifts', hook: 'game', bg: 'kitchen', who: 'family', mood: 'story', when: (c, S, R) => S.flags.billsPath !== 'job' ? 'skip' : sgSince(c, R) >= SG.gap,
+      lines: c => ['The store manager wants you for more shifts: the holiday rush, and the money is good.', sagaFirst(c, 'family') + ': "We\'re all right now. Don\'t you dare wear yourself out for us."'],
+      choice: () => [{ label: 'Take the shifts', note: '+$' + SG.shiftsCash + ' · fatigue +' + SG.shiftsFatigue + ' · family +' + SG.m.small, fx: { fatigue: SG.shiftsFatigue }, saga: { cash: SG.shiftsCash, meter: { family: SG.m.small } } }, { label: 'Quit the job', note: 'Practice XP +' + sgPct(SG.billsXpUp) + ' for 2 weeks · family −' + SG.m.small, saga: { xpWeeks: [SG.billsXpUp, 2], meter: { family: -SG.m.small } }, def: true }] },
+    { id: 'lights', hook: 'game', bg: 'kitchen', who: 'family', mood: 'sad', when: (c, S, R) => S.flags.billsPath !== 'skip' ? 'skip' : sgSince(c, R) >= SG.gap,
+      lines: c => ['You come home from practice and the lights are out. ' + sagaFirst(c, 'family') + ' is reading by a camping lantern.', '"Just until Friday. It\'s fine. Really. How was practice?"'],
+      choice: () => [{ label: 'Pick up a shift after all', note: '+$' + SG.lightsCash + ' · fatigue +' + SG.shiftsFatigue + ' · family +' + SG.m.mid, fx: { fatigue: SG.shiftsFatigue }, saga: { cash: SG.lightsCash, meter: { family: SG.m.mid } } }, { label: 'Stay the course', note: 'Confidence +1 · family −' + SG.m.mid, saga: { conf: 1, meter: { family: -SG.m.mid } }, def: true }] },
+    { id: 'end', hook: 'end', bg: 'kitchen', who: 'family', crit: true, mood: c => sagaMeter(c, 'family') >= SG.warmAt ? 'warm' : 'sad',
+      lines: (c, S) => { const f = sagaFirst(c, 'family'), m = sagaMeter(c, 'family'); return m >= SG.warmAt ? ['The season is over and the bills are paid. ' + f + ' frames the last receipt as a joke and hangs it on the fridge.', '"We did that. All of us."'] : ['The season is over. The bills got paid, mostly. ' + f + ' doesn\'t bring it up, and neither do you.', S.flags.favor === 'refused' ? 'Coach hasn\'t brought up the camp either. It sits there between you.' : '"Next year will be easier. It has to be."']; } },
+  ] };
+
+// 2. BEST FRIEND (acts I–III): a teammate from your first season. Your choices decide whether they follow you, play for
+// a rival, or quit; in the pros they turn up again.
+SAGA_ARCS.friend = { act: 1, title: 'BEST FRIEND', chance: SG.chance.friend,
+  open: c => c.stage === 'hs' && c.stageYear <= 2 && stWeek(c) >= 3 && !!(c.team && (c.team.mates || []).length),
+  start: (c, S) => { const T = c.team, mates = T.mates.slice().sort((a, b) => tmMateOvr(a) - tmMateOvr(b)), m = mates[sagaRng(c, 'friend').int(Math.min(3, mates.length))]; Object.assign(S.cast.friend, { name: m.name, look: m.look, colors: (T.colors || []).slice(), mate: m.id }); },
+  beats: [
+    { id: 'help', hook: 'game', bg: 'locker', who: 'friend', mood: 'warm',
+      lines: c => [sagaFirst(c, 'friend') + ' is still in the locker room long after everyone left: "Coach cut my minutes again. Maybe I\'m just not good enough."', '"Could you stay after and shoot with me this week? Just this week."'],
+      choice: () => [{ label: 'Stay and help', note: 'Best friend +' + SG.m.big + ' · practice XP −10% this week', fx: { xp: -0.1 }, saga: { meter: { friend: SG.m.big } } }, { label: 'Work on your own game', note: 'Practice XP +10% this week · best friend −' + SG.m.mid, fx: { xp: 0.1 }, saga: { meter: { friend: -SG.m.mid } }, def: true }] },
+    { id: 'choice', hook: 'game', bg: 'quad', who: 'friend', mood: 'story', when: c => isPro(c) ? 'skip' : (c.stage === 'hs' && c.stageYear >= 4 && stWeek(c) >= 3) || c.stage === 'college',
+      title: c => sagaMeter(c, 'friend') <= SG.quitAt ? 'DONE WITH IT' : 'THE NEXT STEP',
+      lines: c => { const f = sagaFirst(c, 'friend'), m = sagaMeter(c, 'friend'); return m >= SG.followAt ? [f + ' slides a letter across the table: a walk-on spot, at the school you\'re thinking about.', '"If you go there, I go there. That\'s the plan. Unless you hate the plan."'] : m <= SG.quitAt ? [f + ' isn\'t at practice. Later, a text: "I\'m done with basketball. Got a job at the hardware store."', '"Don\'t make it a thing. You\'ve got enough going on."'] : [f + ' signed with another program, two hours away.', '"Guess we\'ll see each other across the court. Don\'t go easy on me."']; },
+      choice: c => { const m = sagaMeter(c, 'friend'); return m >= SG.followAt ? [{ label: 'Walk on with me', note: 'Best friend +' + SG.m.mid + ' · they sit on your bench', saga: { meter: { friend: SG.m.mid }, flag: { friendPath: 'team' } }, def: true }, { label: 'Take a scholarship elsewhere', note: 'They play for a rival program · best friend −' + SG.m.mid, saga: { meter: { friend: -SG.m.mid }, flag: { friendPath: 'rival' } } }]
+        : m <= SG.quitAt ? [{ label: 'Call them every week', note: 'Best friend +' + SG.m.mid + ' · confidence −1', saga: { meter: { friend: SG.m.mid }, conf: -1, flag: { friendPath: 'quit' } } }, { label: 'Let them go', note: 'Best friend −' + SG.m.mid, saga: { meter: { friend: -SG.m.mid }, flag: { friendPath: 'quit' } }, def: true }]
+        : [{ label: 'Promise to keep in touch', note: 'Best friend +' + SG.m.mid + ' · practice XP −5% this week', fx: { xp: -0.05 }, saga: { meter: { friend: SG.m.mid }, flag: { friendPath: 'rival' } } }, { label: 'Wish them luck', note: 'Confidence +1 · best friend −' + SG.m.small, saga: { conf: 1, meter: { friend: -SG.m.small }, flag: { friendPath: 'rival' } }, def: true }]; } },
+    { id: 'college', hook: 'game', mood: 'story', when: (c, S, R) => isPro(c) ? 'skip' : c.stage === 'college' && stWeek(c) >= 2 && sgSince(c, R) >= SG.gap,
+      bg: (c, S) => S.flags.friendPath === 'team' ? 'locker' : S.flags.friendPath === 'rival' ? 'gym' : 'kitchen', who: 'friend',
+      title: (c, S) => S.flags.friendPath === 'team' ? 'OLD FRIENDS' : S.flags.friendPath === 'rival' ? 'ACROSS THE COURT' : 'A CALL FROM HOME',
+      lines: (c, S) => { const f = sagaFirst(c, 'friend'); return S.flags.friendPath === 'team' ? [f + ' is the last one on the bench and the loudest one on it.', '"Push me in practice. Seriously. I didn\'t walk on to sit."'] : S.flags.friendPath === 'rival' ? [f + '\'s team is on the schedule this week. They find you at the scorer\'s table before tip-off.', '"Whatever happens tonight, dinner after. Loser pays."'] : [f + ' calls from the store\'s back room: "I watch every one of your games on my phone. The manager pretends not to see."', '"You ever get back here, the first slice is on me."']; },
+      choice: (c, S) => S.flags.friendPath === 'team' ? [{ label: 'Push them in practice', note: 'Best friend +' + SG.m.mid + ' · practice XP −5% this week', fx: { xp: -0.05 }, saga: { meter: { friend: SG.m.mid } } }, { label: 'Let them find their own way', note: 'Confidence +1 · best friend −' + SG.m.small, saga: { conf: 1, meter: { friend: -SG.m.small } }, def: true }]
+        : S.flags.friendPath === 'rival' ? [{ label: 'Talk trash before tip', note: 'Hype +5 · best friend −' + SG.m.big, saga: { hype: 5, meter: { friend: -SG.m.big } } }, { label: 'Hug it out at center court', note: 'Best friend +' + SG.m.mid + ' · hype −3', saga: { hype: -3, meter: { friend: SG.m.mid } }, def: true }]
+        : [{ label: 'Send them tickets', note: '−$100 · best friend +' + SG.m.mid, saga: { cash: -100, meter: { friend: SG.m.mid } } }, { label: 'Keep it short', note: 'Practice XP +5% this week · best friend −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { friend: -SG.m.small } }, def: true }] },
+    { id: 'pro', hook: 'game', bg: 'tunnel', who: 'friend', mood: 'warm', when: (c, S) => !isPro(c) ? false : c.season > SG.friendProBy ? 'skip' : stWeek(c) >= 2,
+      title: (c, S) => S.flags.friendPath === 'quit' && sagaMeter(c, 'friend') >= SG.agentAt ? 'THE NEW AGENT' : S.flags.friendPath === 'team' ? 'STILL HERE' : 'ON THE MIC',
+      lines: (c, S) => { const f = sagaFirst(c, 'friend'), m = sagaMeter(c, 'friend'); return S.flags.friendPath === 'quit' && m >= SG.agentAt ? [f + ' is waiting in the tunnel in a suit that still has the tag on it.', '"I got my agent license. Every client I have is you. Let me take your next deal."'] : S.flags.friendPath === 'team' ? [f + ' never made the league, but your club just hired them to break down film.', '"Turns out I\'m better at watching you than guarding you."'] : [f + ' calls games on the radio now, and doesn\'t pretend to be neutral about you.', '"Come on the show this week. People want to hear the old stories."']; },
+      choice: (c, S) => S.flags.friendPath === 'quit' && sagaMeter(c, 'friend') >= SG.agentAt ? [{ label: 'Sign with your friend', note: 'Best friend +' + SG.m.big + ' · a new agent learning on your deal', saga: { meter: { friend: SG.m.big }, flag: { friendAgent: 1 } } }, { label: 'Keep your agent', note: 'Confidence +1 · best friend −' + SG.m.big, saga: { conf: 1, meter: { friend: -SG.m.big } }, def: true }]
+        : S.flags.friendPath === 'team' ? [{ label: 'Study the tape together', note: 'Best friend +' + SG.m.mid + ' · fatigue +5', fx: { fatigue: 5 }, saga: { meter: { friend: SG.m.mid } } }, { label: 'Keep it business', note: 'Coach trust +3 · best friend −' + SG.m.small, fx: { trust: 3 }, saga: { meter: { friend: -SG.m.small } }, def: true }]
+        : [{ label: 'Go on the show', note: 'Hype +5 · practice XP −5% this week', fx: { xp: -0.05 }, saga: { hype: 5, meter: { friend: SG.m.small } } }, { label: 'Pass this time', note: 'Practice XP +5% this week · best friend −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { friend: -SG.m.small } }, def: true }] },
+  ] };
+
+// 3. THE BOOSTER (act II): an envelope of cash. Keep it (money, and a chance each season that it comes out: a
+// suspension and a press storm) or hand it back (your coach's respect, and the journalist's story).
+SAGA_ARCS.booster = { act: 2, title: 'THE BOOSTER', chance: SG.chance.booster,
+  open: c => c.stage === 'college' && stWeek(c) >= 2,
+  beats: [
+    { id: 'envelope', hook: 'game', bg: 'quad', mood: 'tense', who: c => ({ role: 'Booster', name: 'A booster', look: stLookFor('booster:' + (c.seed || 1)), colors: ['#5B2A2A', '#E9C46A'] }),
+      lines: () => ['Someone in a team jacket catches you outside the gym and presses a thick envelope into your hand.', '"For your family. A thank-you from people who love this program. Nobody has to know."'],
+      choice: c => [{ label: 'Keep the envelope', note: '+' + sgCash(c, SG.boosterCash) + ' · a ' + sgPct(SG.boosterOdds) + ' chance each season it comes out', saga: { cash: SG.boosterCash, flag: { booster: 'took' } } }, { label: 'Hand it back', note: 'Coach +' + SG.m.mid + ' · the journalist hears about it', saga: { meter: { coach: SG.m.mid, journalist: SG.m.small }, flag: { booster: 'refused' } }, def: true }] },
+    { id: 'surfaces', hook: 'game', bg: 'press', who: 'journalist', mood: 'tense',
+      when: (c, S, R) => S.flags.booster !== 'took' || isPro(c) ? 'skip' : c.stage === 'college' && R.ts !== c.season && sagaRng(c, 'booster:' + c.season + ':' + c.stageYear).next() < SG.boosterOdds,
+      lines: c => [sagaWho(c, 'journalist').name + ' calls before practice: "Somebody talked. I have a photo of the envelope. So does the school."', '"They\'re sitting you while they look into it. What do you want to say?"'],
+      choice: () => [{ label: 'Own it in public', note: 'Sit ' + SG.boosterSit + ' games · hype −' + SG.boosterHype + ' · journalist +' + SG.m.mid + ' · coach −' + SG.m.mid, saga: { inelig: SG.boosterSit, hype: -SG.boosterHype, meter: { journalist: SG.m.mid, coach: -SG.m.mid }, flag: { boosterOut: 'owned' } } }, { label: 'No comment', note: 'Sit ' + (SG.boosterSit + 1) + ' games · hype −' + 2 * SG.boosterHype + ' · journalist −' + SG.m.big, saga: { inelig: SG.boosterSit + 1, hype: -2 * SG.boosterHype, meter: { journalist: -SG.m.big, coach: -SG.m.mid }, flag: { boosterOut: 'silent' } }, def: true }] },
+    { id: 'piece', hook: 'game', bg: 'press', who: 'journalist', mood: 'warm', when: (c, S, R) => S.flags.booster !== 'refused' || isPro(c) ? 'skip' : sgSince(c, R) >= SG.gap,
+      lines: c => [sagaWho(c, 'journalist').name + ' runs the story on Sunday: a college star who handed an envelope back.', '"People are reading it. Want to sit down for a longer interview?"'],
+      choice: () => [{ label: 'Sit down for it', note: 'Hype +' + SG.boosterPieceHype + ' · journalist +' + SG.m.mid + ' · practice XP −10% this week', fx: { xp: -0.1 }, saga: { hype: SG.boosterPieceHype, meter: { journalist: SG.m.mid } } }, { label: 'Let the story speak', note: 'Hype +' + Math.round(SG.boosterPieceHype / 2) + ' · journalist −' + SG.m.small, saga: { hype: Math.round(SG.boosterPieceHype / 2), meter: { journalist: -SG.m.small } }, def: true }] },
+    { id: 'after', hook: ['stage', 'game'], bg: 'kitchen', who: 'family', crit: true, mood: (c, S) => S.flags.booster === 'refused' ? 'warm' : 'sad', when: c => isPro(c), /* waits for the pros */
+      title: 'THE ENVELOPE',
+      lines: (c, S) => { const f = sagaFirst(c, 'family'); return S.flags.booster === 'refused' ? ['Your old college coach still tells recruits the story of the envelope you handed back.', f + ': "That\'s the part I tell people about. Not the points."'] : S.flags.boosterOut ? ['Every profile of you mentions the suspension, somewhere around the third paragraph.', f + ': "You owned it. That\'s the part they should write about."'] : ['Nobody ever found out about the envelope. You think about it more than you would ever admit.', f + ' never asked where the money came from.']; },
+      after: (c, S) => { if (S.flags.booster === 'took' && !S.flags.boosterOut) sagaApply(c, { conf: -1 }); } },
+  ] };
+
+// 4. THE INJURY (any act; an injury of SG.injuryGames+ games): rush back (sooner, and it may flare up and cost
+// rating points for good) or a full rehab (all the games, a physio bonus). Once a career; later injuries get R9's card.
+SAGA_ARCS.injury = { act: 0, title: 'THE INJURY', chance: SG.chance.injury,
+  open: (c, S, x) => !!(x && x.injury && x.injury.games >= SG.injuryGames),
+  start: (c, S, x) => { const R = S.arcs.injury; R.inj = { name: x.injury.name, games: x.injury.games }; },
+  beats: [
+    { id: 'call', hook: 'game', bg: 'locker', mood: 'tense', crit: true, who: c => sgTrainer(c), /* told at the injury */
+      lines: (c, S, R) => ['A ' + String(R.inj.name).toLowerCase() + ': ' + R.inj.games + ' games if you let it heal properly.', sgTrainer(c).name + ': "I can get you back early. But it\'s a gamble with your body, and it\'s your body."'],
+      choice: (c, S, R) => [{ label: 'Rush back', note: 'Back ' + SG.rushGames + ' games sooner · ' + sgPct(SG.rushRe) + ' chance it flares up (−' + SG.rushLoss + ' Speed for good)', fx: { injury: -SG.rushGames }, saga: { flag: { injury: 'rush' } } }, { label: 'Full rehab', note: 'All ' + R.inj.games + ' games · fatigue gone · practice XP +' + sgPct(SG.rehabXp) + ' for ' + SG.rehabWeeks + ' weeks', fx: { fatigue: -100 }, saga: { xpWeeks: [SG.rehabXp, SG.rehabWeeks], flag: { injury: 'rehab' } }, def: true }] },
+    { id: 'visit', hook: 'game', bg: 'kitchen', who: 'family', mood: 'warm', when: c => holderOf(c).injury ? true : 'skip',
+      lines: c => [sagaFirst(c, 'family') + ' drives up with groceries and a stack of your old game tapes.', '"Come home for a few days. The team will still be there when you get back."'],
+      choice: () => [{ label: 'Go home for a few days', note: 'Family +' + SG.m.mid + ' · coach trust −3', fx: { trust: -3 }, saga: { meter: { family: SG.m.mid } } }, { label: 'Stay with the team', note: 'Coach trust +3 · family −' + SG.m.small, fx: { trust: 3 }, saga: { meter: { family: -SG.m.small } }, def: true }] },
+    { id: 'back', hook: 'game', bg: 'gym', mood: (c, S) => S.flags.injuryFlare ? 'sad' : 'warm', who: c => sgTrainer(c), when: c => !holderOf(c).injury,
+      title: (c, S) => S.flags.injury === 'rush' && sgFlare(c) ? 'IT FLARED UP' : 'BACK ON THE FLOOR',
+      lines: (c, S) => S.flags.injury === 'rush' ? (sgFlare(c) ? ['It flares up in your first game back. Two more games out, and the burst isn\'t all the way there anymore.', sgTrainer(c).name + ': "That\'s the gamble. It doesn\'t always pay."'] : ['Back ' + SG.rushGames + ' games early, and it holds. You don\'t tell anyone how much it hurt.', sgTrainer(c).name + ': "Lucky. Don\'t make a habit of it."']) : ['Back after every single game of the rehab, and you feel it: lighter, quicker, stronger.', sgTrainer(c).name + ': "That\'s what doing it right looks like."'],
+      after: (c, S) => { if (S.flags.injury === 'rush' && sgFlare(c)) { S.flags.injuryFlare = 1; const B = holderOf(c), r = isPro(c) ? meOf(c).r : c.r; B.injury = { name: 'Re-aggravated injury', games: 2 }; r.spd = Math.max(CR.ratingMin, r.spd - SG.rushLoss); } else sagaApply(c, { conf: 1 }); } },
+  ] };
+function sgFlare(c) { const R = sagaOf(c).arcs.injury; return !!R && sagaRng(c, 'flare:' + R.s0 + ':' + R.stage).next() < SG.rushRe; }
+
+// 5. THE MENTOR (act I summer → act III): a veteran pro at your summer camp. Listen, and in the pros they come back
+// for one last season: win them a playoff game for a lasting clutch edge, or watch them retire.
+SAGA_ARCS.mentor = { act: 1, title: 'THE MENTOR', chance: SG.chance.mentor, hook: 'summer',
+  open: (c, S, x) => !!(x && (x.kind === 'camp' || x.kind === 'aau')),
+  beats: [
+    { id: 'camp', hook: 'summer', bg: 'gym', who: 'mentor', mood: 'warm', crit: true,
+      lines: (c, S, R, x) => [sagaWho(c, 'mentor').name + ', ' + SG.mentorSeasons + ' seasons in the PBL, ' + (x && x.kind === 'aau' ? 'coaches your AAU team for a week' : 'runs the camp this summer') + ', and watches you more than anyone.', '"You have a gift. Want to know what nobody told me at your age?"'],
+      choice: () => [{ label: 'Listen, and do the work', note: 'Mentor +' + SG.m.big + ' · practice XP +' + sgPct(SG.mentorXp) + ' for 3 weeks · fatigue +5', fx: { fatigue: 5 }, saga: { meter: { mentor: SG.m.big }, xpWeeks: [SG.mentorXp, 3] } }, { label: 'Show off for the scouts', note: 'Hype +5 · mentor −' + SG.m.mid, saga: { hype: 5, meter: { mentor: -SG.m.mid } }, def: true }] },
+    { id: 'text', hook: 'game', bg: 'quad', who: 'mentor', mood: 'story', when: (c, S, R) => isPro(c) ? 'skip' : sagaMeter(c, 'mentor') < 0 ? 'skip' : (c.stage === 'college' || (c.stage === 'hs' && c.stageYear >= 3)) && stWeek(c) >= 3 && sgSince(c, R) >= SG.gap,
+      lines: c => ['A text from ' + sagaFirst(c, 'mentor') + ' after your game: "Watched the stream. You drift on defense when you\'re tired."', '"Call me tonight if you want the rest of it."'],
+      choice: () => [{ label: 'Call tonight', note: 'Mentor +' + SG.m.mid + ' · practice XP −5% this week', fx: { xp: -0.05 }, saga: { meter: { mentor: SG.m.mid } } }, { label: 'Reply "thanks"', note: 'Practice XP +5% this week · mentor −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { mentor: -SG.m.small } }, def: true }] },
+    { id: 'last', hook: 'game', bg: 'tunnel', who: 'mentor', mood: 'warm', when: c => !isPro(c) ? false : c.season > SG.mentorBy ? 'skip' : c.season >= 2 && sagaMeter(c, 'mentor') >= SG.mentorLastAt && stWeek(c) >= 1,
+      title: 'ONE LAST SEASON',
+      lines: c => [sagaWho(c, 'mentor').name + ' signs with your club for one last season.', '"Win me one playoff game. That\'s all I want before I hang it up."'],
+      after: (c, S) => { S.flags.mentorLast = c.season; } },
+    { id: 'end', hook: 'end', who: 'mentor', crit: true, when: (c, S) => !S.flags.mentorLast ? 'skip' : c.season === S.flags.mentorLast,
+      bg: c => sgMentorWon(c) ? 'finals' : 'locker', mood: c => sgMentorWon(c) ? 'triumph' : 'sad', title: c => sgMentorWon(c) ? 'ONE LAST WIN' : 'THE LAST GAME',
+      lines: c => sgMentorWon(c) ? [sagaFirst(c, 'mentor') + ' is the last one off the floor after the playoff win, holding the game ball like it might get away.', '"Here\'s what nobody told me: the last minute is the same as the first one. Remember that and it\'s yours." (Your clutch shots: +' + sgPct(SG.mentorClutch) + ' for good.)'] : [sagaFirst(c, 'mentor') + ' cleans out the locker without a word, then stops at yours.', '"No playoff win. That\'s on both of us. Go get the ones I didn\'t."'],
+      after: c => { if (sgMentorWon(c)) sagaSet(c, 'mentorClutch', 1); } },
+  ] };
+// You won a playoff game in the mentor's last season.
+function sgMentorWon(c) { const S = sagaOf(c), s = S.flags.mentorLast; if (!s || !isPro(c)) return false; return (c.me.log || []).some(g => g && g.s === s && g.p && g.win && !g.dnp) || !!(c.me.poWins && c.me.poWins[s] > 0); }
+// The mentor's lasting clutch edge: the make chance in the last 15 s (a simulated game: SG.mentorClutchSim OVR).
+function sagaClutchOf(B) { return B && B.saga && B.saga.flags && B.saga.flags.mentorClutch ? SG.mentorClutch : 0; }
+
+// ============================================================================
 // SECTION: UI (part 13) — R9 §3.10: the RPG dialogue box every story card is told in. A speaker's pixel portrait and
 // name plate, the card's title, two or three lines at a time (the text types itself out; a tap finishes it, a ▼ turns
 // the page), and at the end either CONTINUE or a choice where both answers cost something (each says what).
@@ -15470,13 +15760,15 @@ function dialogScreen(game, c, ev, done, opts) {
   opts = opts || {}; const ui0 = game.ui, P = ui0.phone, S = game.save.data.settings || {}; let t = 0, page = 0, shown = 0;
   const who = typeof ev.who === 'object' && ev.who ? ev.who : c ? stWho(c, ev.who || 'me') : { role: '', name: '', look: {}, colors: ['#333', '#999'] };
   const box = P ? { x: 30, y: 196, w: 1220, h: 520, ps: 220, fs: 27, lh: 36, tw: 900 } : { x: 40, y: 380, w: 1200, h: 320, ps: 196, fs: 20, lh: 28, tw: 900 };
-  const tx = box.x + box.ps + 64;
+  const scene = !!ev.bg, meB = scene && c ? stWho(c, 'me') : null, ms = scene ? (P ? 150 : 128) : 0; /* V7 (Part 2 §2.4): a saga card is a cutscene: its background, your portrait opposite the speaker's */
+  if (scene) box.tw -= ms + 30; const tx = box.x + box.ps + 64; if (scene) sagaStinger(game, ev.mood);
   // pages: the card's lines, two or three wrapped lines at a time
   const pages = (() => { const cv = document.createElement('canvas').getContext('2d'); cv.font = fontStr(box.fs, false); const out = []; let cur = [], n = 0; for (const l of (ev.lines || []).filter(Boolean)) { const k = Math.max(1, wrapCount(cv, l, box.tw)); if (cur.length && n + k > 3) { out.push(cur); cur = []; n = 0; } cur.push(l); n += k; } if (cur.length || !out.length) out.push(cur); return out; })();
-  const chars = p => pages[p].join(' ').length, reduce = !!S.reduceMotion;
+  const choiceP = P && !opts.options && (ev.choice || []).length >= 3; /* V7: three answers on a phone get a page of their own (stacked, they would cover the text) */ const nPages = pages.length + (choiceP ? 1 : 0);
+  const chars = p => pages[p] ? pages[p].join(' ').length : 0, reduce = !!S.reduceMotion;
   let laidTyping = null; const typing = () => shown < chars(page);
   const finish = () => { shown = 1e9; if (laidTyping) relayout(); }; // a choice only shows once its page is fully typed (a tap meant to skip the text can't pick one)
-  const last = () => page >= pages.length - 1;
+  const last = () => page >= nPages - 1;
   const next = btn('▼', 0, 0, 0, 0, () => { page++; shown = reduce ? 1e9 : 0; relayout(); }); // the buttons always act; a tap anywhere else finishes the typing
   const cont = btn('CONTINUE', 0, 0, 0, 0, () => done(), { primary: true });
   const choices = (opts.options || (ev.choice || []).map((ch, i) => ({ label: ch.label, note: ch.note, pick: () => { stChoose(c, ev, i); game.save.save(); } }))).map(o => Object.assign(btn(o.label, 0, 0, 0, 0, () => { finish(); o.pick(); if (opts.options) { game.save.save(); done(); return; } relayout(); }), { note: o.note, kind: 'custom', draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); ui.label(ctx, this.label, this.x + 22, this.y + (this.note ? (P ? 30 : 22) : this.h / 2), P ? 24 : 16, UI_TEXT, 'left', this.w - 44); if (this.note) ui.para(ctx, this.note, this.x + 22, this.y + (P ? 56 : 42), this.w - 44, P ? 19 : 12, UI_GOLD, 'left', P ? 2 : 3); } }));
@@ -15485,7 +15777,7 @@ function dialogScreen(game, c, ev, done, opts) {
     const lastP = last(), ask = lastP && choices.length && !answered(); scr.asks = !!ask && !opts.options; laidTyping = typing(); next.hidden = lastP; cont.hidden = !lastP || ask; for (const b of choices) b.hidden = !ask || laidTyping;
     const bh = P ? tapH(ui0, 44) : 60, by = box.y + box.h - bh - 16;
     if (ask && P) { const w = box.x + box.w - 24 - tx; choices.forEach((b, i) => Object.assign(b, { x: tx, y: box.y + box.h - 16 - (choices.length - i) * (bh + 10) + 10, w, h: bh })); } // a phone stacks them full width (the note on one line)
-    else if (ask) { const w = (box.x + box.w - 24 - tx - 12) / 2, ch = 100; choices.forEach((b, i) => Object.assign(b, { x: tx + i * (w + 12), y: box.y + box.h - ch - 16, w, h: ch })); }
+    else if (ask) { const n = choices.length, w = (box.x + box.w - 24 - tx - 12 * (n - 1)) / n, ch = n >= 3 ? 124 : 100; choices.forEach((b, i) => Object.assign(b, { x: tx + i * (w + 12), y: box.y + box.h - ch - 16, w, h: ch })); } /* V7: a saga beat can offer three */
     Object.assign(cont, { x: box.x + box.w - 24 - (P ? 440 : 300), y: by, w: P ? 440 : 300, h: bh }); Object.assign(next, { x: box.x + box.w - 24 - (P ? 200 : 120), y: by, w: P ? 200 : 120, h: bh });
     scr.focus = ask ? items.indexOf(choices[Math.max(0, choices.findIndex(b => b.primary))]) : items.indexOf(lastP ? cont : next); if (scr.focus < 0) scr.focus = 0;
   }
@@ -15495,15 +15787,17 @@ function dialogScreen(game, c, ev, done, opts) {
     update(dt, ev) { t += dt; if (ev && ev.confirm && typing()) { ev.confirm = 0; finish(); return; } /* Enter or A while the text types finishes it first */ shown += dt * (reduce ? 1e9 : 90); if (laidTyping && !typing()) relayout(); },
     onTap() { if (typing()) finish(); },
     draw(ctx, ui) {
-      ctx.fillStyle = 'rgba(4,6,18,0.62)'; ctx.fillRect(0, 0, UI_W, UI_H);
+      if (scene) { drawSagaBg(ctx, ev.bg, t); ctx.fillStyle = 'rgba(4,6,18,0.22)'; ctx.fillRect(0, 0, UI_W, UI_H); } else { ctx.fillStyle = 'rgba(4,6,18,0.62)'; ctx.fillRect(0, 0, UI_W, UI_H); }
       kitPanel(ctx, box.x, box.y, box.w, box.h, 'rgba(10,14,40,0.96)');
       // the speaker: a pixel portrait in a frame, a name plate under it
       const px = box.x + 26, py = box.y + 24, ps = box.ps; ctx.fillStyle = shadeHex((who.colors || ['#2E6FD8'])[0], -0.45); ctx.fillRect(px - 6, py - 6, ps + 12, ps + 12); ctx.fillStyle = (who.colors || ['#2E6FD8'])[0]; ctx.fillRect(px - 2, py - 2, ps + 4, ps + 4); ctx.fillStyle = '#0B0F24'; ctx.fillRect(px, py, ps, ps);
       try { drawPortrait(ctx, { name: who.name, look: who.look || {}, age: 40 }, who.colors || ['#2E6FD8', '#FFFFFF'], px + 4, py + 4, ps - 8, who.me ? 'focused' : 'neutral'); } catch (e) { /* decoration */ }
       ctx.fillStyle = '#EDE6D2'; ctx.fillRect(px - 6, py + ps + 12, ps + 12, P ? 58 : 50); const titled = /^(Coach|Trainer|Scout) (.+)$/.exec(who.name || ''), plate = /^Your /.test(who.name || '') ? who.name : titled ? titled[2] : stFirst(who.name), role = titled ? titled[1] : /^Your /.test(who.name || '') ? '' : who.role; ui.label(ctx, String(plate).toUpperCase(), px + ps / 2, py + ps + (P ? 30 : 28), P ? 18 : 16, UI_INK, 'center', ps - 8); if (role) ui.label(ctx, role.toUpperCase(), px + ps / 2, py + ps + (P ? 54 : 48), 11, 'rgba(27,27,34,0.7)', 'center', ps);
+      if (scene && meB && !(P && scr.asks)) { const mx = box.x + box.w - 26 - ms, my = box.y + 24; ctx.fillStyle = shadeHex((meB.colors || ['#2E6FD8'])[0], -0.45); ctx.fillRect(mx - 6, my - 6, ms + 12, ms + 12); ctx.fillStyle = (meB.colors || ['#2E6FD8'])[0]; ctx.fillRect(mx - 2, my - 2, ms + 4, ms + 4); ctx.fillStyle = '#0B0F24'; ctx.fillRect(mx, my, ms, ms); try { drawPortrait(ctx, { name: meB.name, look: meB.look || {}, age: 20 }, meB.colors || ['#2E6FD8', '#FFFFFF'], mx + 4, my + 4, ms - 8, 'focused'); } catch (e) { /* decoration */ } ui.label(ctx, 'YOU', mx + ms / 2, my + ms + 18, 13, UI_DIM, 'center', ms); } /* V7: you, opposite */
+      if (scene && who.meter != null) { const bw = ps + 12, bx = px - 6, by = py + ps + (P ? 74 : 66), v = clamp(who.meter / 100, -1, 1); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(bx, by, bw, 8); ctx.fillStyle = v >= 0 ? UI_GREEN : UI_RED; ctx.fillRect(v >= 0 ? bx + bw / 2 : bx + bw / 2 + v * bw / 2, by, Math.abs(v) * bw / 2, 8); ctx.fillStyle = '#EDE6D2'; ctx.fillRect(bx + bw / 2 - 1, by - 2, 2, 12); } /* the relationship meter (−100 to 100) */
       // the title, then this page's lines, typed out
       ui.label(ctx, (ev.title || '').toUpperCase(), tx, box.y + 32, P ? 17 : 15, UI_GOLD, 'left', box.tw);
-      const all = pages[page]; let left = Math.floor(shown), y = box.y + 62; ctx.font = fontStr(box.fs, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      const all = pages[page] || []; let left = Math.floor(shown), y = box.y + 62; ctx.font = fontStr(box.fs, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
       all.forEach((l, i) => { if (left <= 0) return; const s = l.length <= left ? l : l.slice(0, left); left -= l.length + 1; ctx.fillStyle = i === 0 && page === 0 ? UI_TEXT : '#C9D3E8'; y += wrapTextH(ctx, s, tx, y, box.tw, box.lh) + 6; });
       if (last() && answered() && ev.outcome && ev.outcome.length) ui.para(ctx, ev.outcome.join(' · '), tx, box.y + box.h - (P ? 158 : 110), box.tw, P ? 16 : 14, UI_GREEN, 'left', 2);
       if (!last() && shown >= chars(page) && Math.floor(t * 2) % 2 === 0) ui.label(ctx, '▼', tx + box.tw - 10, box.y + box.h - 100, 16, UI_GOLD);
@@ -15512,6 +15806,60 @@ function dialogScreen(game, c, ev, done, opts) {
 }
 // Story cards and the new beats: the ones without a speaker are told by you.
 function storyDialog(game, c, ev, done) { return dialogScreen(game, c, ev, () => { if (ev.choice && ev.answered == null) stAutoChoose(c, ev); done(); }); }
+
+// ============================================================================
+// SECTION: UI (part 14) — V7 (Part 2 §2.4): the saga's cutscene backgrounds. Seven pixel scenes painted on a 320×180
+// grid and scaled up without smoothing: the gym, the locker room, the kitchen table, the campus quad, the press room,
+// the arena tunnel and the Finals court. Each is painted once and cached; only the Finals' confetti moves.
+// ============================================================================
+const SAGA_BG = {};
+const SAGA_BG_KINDS = ['gym', 'locker', 'kitchen', 'quad', 'press', 'tunnel', 'finals'];
+function sagaBgCanvas(kind) {
+  if (SAGA_BG[kind]) return SAGA_BG[kind]; const cv = document.createElement('canvas'); cv.width = 320; cv.height = 180; const g = cv.getContext('2d');
+  const R = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(x, y, w, h); }, rng = new RNG((hashString('bg:' + kind) >>> 0) || 3);
+  if (kind === 'gym') {
+    R('#2A3150', 0, 0, 320, 110); for (let r = 0; r < 6; r++) R(r % 2 ? '#4A3A2E' : '#5B4636', 0, 30 + r * 12, 320, 7); // the bleachers
+    for (let i = 0; i < 70; i++) R(['#C9A98A', '#8E6E58', '#E0C2A0', '#6B4F3C'][rng.int(4)], rng.int(320), 31 + rng.int(6) * 12 - 3, 3, 4); // a few fans
+    R('#B8322D', 24, 8, 70, 16); R('#FFD23F', 28, 12, 62, 2); R('#FFD23F', 28, 18, 40, 2); // a banner
+    R('#C98B4A', 0, 110, 320, 70); for (let x = 0; x < 320; x += 16) R('#B07838', x, 110, 1, 70); for (let y = 118; y < 180; y += 9) R('#D59A58', 0, y, 320, 1); R('#F0E6D0', 0, 128, 320, 2); // the floor and a line
+    R('#EDEDED', 252, 46, 44, 30); R('#C0C0C0', 252, 46, 44, 2); R('#B8322D', 264, 60, 20, 12); R('#E86A1C', 262, 76, 24, 3); for (let i = 0; i < 5; i++) R('#F4F4F4', 264 + i * 5, 79, 1, 12); R('#9AA0B8', 272, 76, 4, 50); // the hoop
+  } else if (kind === 'locker') {
+    R('#2F4A52', 0, 0, 320, 140); for (let i = 0; i < 12; i++) { const x = 8 + i * 26; R(i % 2 ? '#3E6B78' : '#467887', x, 18, 22, 104); R('#2A4C56', x + 9, 30, 4, 2); R('#2A4C56', x + 9, 34, 4, 2); R('#2A4C56', x + 9, 38, 4, 2); R('#C9D3E8', x + 18, 64, 2, 8); } // the lockers
+    R('#6B4F3C', 20, 126, 280, 8); R('#4A3A2E', 30, 134, 6, 12); R('#4A3A2E', 284, 134, 6, 12); R('#F4F4F4', 120, 122, 26, 5); R('#E86A1C', 200, 118, 12, 9); // the bench, a towel, a ball
+    R('#55606E', 0, 140, 320, 40); for (let x = 0; x < 320; x += 20) R('#4A5462', x, 140, 1, 40); for (let y = 150; y < 180; y += 10) R('#4A5462', 0, y, 320, 1);
+  } else if (kind === 'kitchen') {
+    R('#D8C3A0', 0, 0, 320, 132); R('#C4AC86', 0, 120, 320, 12); R('#7FB7E0', 26, 22, 70, 50); R('#F4F0E6', 24, 20, 74, 3); R('#F4F0E6', 24, 71, 74, 3); R('#F4F0E6', 24, 20, 3, 54); R('#F4F0E6', 95, 20, 3, 54); R('#F4F0E6', 59, 20, 3, 54); R('#F4F0E6', 24, 45, 74, 2); // the window
+    R('#8E5B34', 200, 14, 110, 44); R('#7A4C2A', 254, 14, 2, 44); R('#C9A98A', 226, 34, 6, 2); R('#C9A98A', 280, 34, 6, 2); // the cabinets
+    R('#3A3A44', 158, 0, 2, 40); R('#FFD23F', 146, 40, 26, 8); g.fillStyle = 'rgba(255,220,120,0.18)'; g.beginPath(); g.moveTo(146, 48); g.lineTo(172, 48); g.lineTo(230, 132); g.lineTo(88, 132); g.closePath(); g.fill(); // the lamp
+    R('#7A4C2A', 70, 112, 180, 10); R('#5E3A20', 82, 122, 8, 30); R('#5E3A20', 230, 122, 8, 30); R('#F4F4F4', 100, 106, 22, 6); R('#F4F4F4', 128, 105, 18, 7); R('#FFF5D8', 150, 107, 20, 5); R('#B8322D', 178, 104, 10, 8); // the table, the bills, a mug
+    R('#8C7A64', 0, 132, 320, 48); for (let x = 0; x < 320; x += 16) for (let y = 132; y < 180; y += 16) if (((x + y) / 16) % 2) R('#7C6A56', x, y, 16, 16); // the floor
+  } else if (kind === 'quad') {
+    for (let y = 0; y < 90; y++) R(y < 30 ? '#7EC8F0' : y < 60 ? '#9AD6F4' : '#B8E2F6', 0, y, 320, 1);
+    R('#A4483A', 96, 30, 128, 64); R('#F0E6D0', 90, 24, 140, 8); g.fillStyle = '#F0E6D0'; g.beginPath(); g.moveTo(92, 24); g.lineTo(160, 6); g.lineTo(228, 24); g.closePath(); g.fill(); for (let i = 0; i < 6; i++) R('#F4F0E6', 104 + i * 22, 34, 5, 60); for (let i = 0; i < 5; i++) R('#3A4A6B', 114 + i * 22, 40, 8, 12); // the hall
+    R('#5E9E3A', 0, 90, 320, 90); R('#D8C8A0', 140, 90, 40, 90); g.fillStyle = '#D8C8A0'; g.beginPath(); g.moveTo(140, 180); g.lineTo(110, 180); g.lineTo(150, 90); g.lineTo(170, 90); g.lineTo(210, 180); g.lineTo(180, 180); g.closePath(); g.fill(); // the lawn, the path
+    for (const [x, s] of [[30, 1], [64, 0.8], [262, 1], [292, 0.7]]) { R('#5E3A20', x - 3, 70, 6, 36); g.fillStyle = '#3E7A2A'; g.beginPath(); g.arc(x, 62, 22 * s, 0, Math.PI * 2); g.fill(); g.fillStyle = '#4E8E34'; g.beginPath(); g.arc(x - 5, 56, 14 * s, 0, Math.PI * 2); g.fill(); } // the trees
+  } else if (kind === 'press') {
+    R('#1B2140', 0, 0, 320, 180); for (let x = 0; x < 320; x += 32) for (let y = 0; y < 120; y += 24) { R('#2A3360', x + ((y / 24) % 2) * 16 + 4, y + 6, 22, 10); R('#FFD23F', x + ((y / 24) % 2) * 16 + 12, y + 9, 6, 4); } // the backdrop
+    R('#0E1228', 0, 124, 320, 56); R('#3A2E2E', 30, 120, 260, 10); for (const x of [90, 140, 180, 230]) { R('#22222A', x, 100, 3, 22); R('#44444E', x - 3, 96, 9, 6); } // the table and the microphones
+    for (let i = 0; i < 6; i++) { const x = 20 + rng.int(280), y = 140 + rng.int(30); g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(x, y, 2, 2); } // the cameras' flashes
+  } else if (kind === 'tunnel') {
+    R('#141826', 0, 0, 320, 180); for (let i = 0; i < 8; i++) { const k = i / 8, x0 = 160 - (160 - 40) * (1 - k) - 40 * k, w = 320 - 2 * x0; g.fillStyle = 'rgb(' + Math.round(26 + 30 * k) + ',' + Math.round(30 + 34 * k) + ',' + Math.round(44 + 40 * k) + ')'; g.fillRect(x0, 20 + 70 * k, w, 140 - 120 * k); } // the tunnel's frames
+    const gr = g.createRadialGradient(160, 92, 4, 160, 92, 70); gr.addColorStop(0, 'rgba(255,245,210,1)'); gr.addColorStop(0.35, 'rgba(255,230,160,0.7)'); gr.addColorStop(1, 'rgba(255,220,120,0)'); g.fillStyle = gr; g.fillRect(90, 40, 140, 110); R('#FFF5D8', 140, 70, 40, 40); // the arena's light
+    R('#232838', 0, 150, 320, 30); R('#FFD23F', 158, 150, 4, 30);
+  } else { // finals
+    R('#0B1024', 0, 0, 320, 180); for (let r = 0; r < 5; r++) R(r % 2 ? '#1A2244' : '#20294F', 0, 20 + r * 14, 320, 10); for (let i = 0; i < 120; i++) R(['#3A3F66', '#5B5F86', '#2A2E50'][rng.int(3)], rng.int(320), 22 + rng.int(5) * 14, 2, 3); // the crowd
+    for (let i = 0; i < 4; i++) { const x = 30 + i * 80; R('#B8322D', x, 0, 26, 30); R('#FFD23F', x + 4, 6, 18, 3); R('#FFD23F', x + 8, 12, 10, 10); } // the banners
+    R('#C98B4A', 0, 96, 320, 84); for (let x = 0; x < 320; x += 16) R('#B07838', x, 96, 1, 84); R('#F0E6D0', 0, 110, 320, 2); R('#F0E6D0', 158, 96, 2, 84); g.strokeStyle = '#F0E6D0'; g.lineWidth = 2; g.beginPath(); g.arc(160, 140, 26, 0, Math.PI * 2); g.stroke(); R('#FFD23F', 150, 130, 20, 20); // the court, the logo
+  }
+  return (SAGA_BG[kind] = cv);
+}
+// The scene behind a saga card (1280×720), and the Finals' confetti.
+function drawSagaBg(ctx, kind, t) {
+  if (!SAGA_BG_KINDS.includes(kind)) kind = 'gym'; const cv = sagaBgCanvas(kind); ctx.save(); ctx.imageSmoothingEnabled = false; ctx.drawImage(cv, 0, 0, UI_W, UI_H); ctx.restore();
+  if (kind === 'finals') { for (let i = 0; i < 40; i++) { const x = (i * 97 + 31) % UI_W, y = ((i * 53 + t * (60 + (i % 5) * 18)) % (UI_H + 40)) - 20; ctx.fillStyle = ['#FFD23F', '#B8322D', '#5EE0FF', '#F4F4F4'][i % 4]; ctx.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, 8, 8); } }
+}
+// A story stinger by mood (warm, tense, sad, triumph; anything else: a single soft note).
+function sagaStinger(game, mood) { try { const au = game && game.audio; if (!au || !au.ok) return; if (mood === 'triumph') return au.stinger('win'); au.stinger('saga-' + (mood || 'story')); } catch (e) { /* sound is decoration */ } }
 
 // ============================================================================
 // SECTION: BOOT / MAIN LOOP — fixed-step 120 Hz simulation with an accumulator, interpolated rendering,

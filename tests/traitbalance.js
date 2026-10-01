@@ -6,13 +6,15 @@
 // V6: the careers run the career simulator's great policy (--policy=typical for the other). Under Part 2's harder climb a
 // typical career's legacy is its seasons and points (half of all careers score 29–36, whatever the trait), so its median
 // can't see a trait; the great policy's careers spread over titles, MVPs and All-League teams, as V5's did.
-// Usage: node tests/traitbalance.js [careers per trait=200] [seed=1] [parallel=4] [--policy=great|typical]
+// Usage: node tests/traitbalance.js [careers per trait=200] [seed=1] [parallel=4] [--policy=great|typical] [--seeds=1]
 const { spawn } = require('child_process'); const path = require('path');
-const ARGS = process.argv.slice(2).filter(a => !a.startsWith('--')), N = +(ARGS[0] || 200), SEED = +(ARGS[1] || 1), PAR = +(ARGS[2] || 4), POLICY = ((process.argv.find(a => a.startsWith('--policy=')) || '').split('=')[1]) || 'great';
+const ARGS = process.argv.slice(2).filter(a => !a.startsWith('--')), N = +(ARGS[0] || 200), SEED = +(ARGS[1] || 1), PAR = +(ARGS[2] || 4), POLICY = ((process.argv.find(a => a.startsWith('--policy=')) || '').split('=')[1]) || 'great', SEEDS = Math.max(1, +(((process.argv.find(a => a.startsWith('--seeds=')) || '').split('=')[1]) || 1));
 const TRAITS = ['gymrat', 'streaky', 'glueguy', 'fasttwitch', 'quickstudy', 'clutch', 'ironman', 'floorgeneral', 'showman', 'paintprotector', 'latebloomer', 'microwave', 'filmjunkie', 'freak', 'generational', 'unbreakable', 'iceveins'];
 const RAR = { gymrat: 'C', streaky: 'C', glueguy: 'C', fasttwitch: 'C', quickstudy: 'C', clutch: 'U', ironman: 'U', floorgeneral: 'U', showman: 'U', paintprotector: 'U', latebloomer: 'R', microwave: 'R', filmjunkie: 'R', freak: 'R', generational: 'L', unbreakable: 'L', iceveins: 'L' };
 const BAND = { C: [0, 0.08], U: [0.06, 0.15], R: [0.15, 0.30], L: [0.35, 0.60] }, NAME = { C: 'Common', U: 'Uncommon', R: 'Rare', L: 'Legendary' };
-const run = id => new Promise(res => { const p = spawn('node', [path.join(__dirname, 'careersim.js'), String(N), String(SEED), '0', '--trait=' + id, '--policy=' + POLICY, '--json', '--set', 'traits.thirdAt=1e12']); let out = ''; p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d); p.on('close', () => { const line = out.split('\n').find(l => l.startsWith('JSON ')); if (!line) return res({ error: out.split('\n').slice(-5).join(' | ') }); res(JSON.parse(line.slice(5))); }); });
+const runOne = (id, seed) => new Promise(res => { const p = spawn('node', [path.join(__dirname, 'careersim.js'), String(N), String(seed), '0', '--trait=' + id, '--policy=' + POLICY, '--json', '--set', 'traits.thirdAt=1e12']); let out = ''; p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d); p.on('close', () => { const line = out.split('\n').find(l => l.startsWith('JSON ')); if (!line) return res({ error: out.split('\n').slice(-5).join(' | ') }); res(JSON.parse(line.slice(5))); }); });
+// V7: --seeds=K pools seeds SEED … SEED+K−1 (K × N careers a trait): one seed's 600 careers left a rarity's median ±3% from noise
+const run = async id => { const parts = []; for (let k = 0; k < SEEDS; k++) parts.push(await runOne(id, SEED + k)); const bad = parts.find(r => r.error); if (bad) return bad; const cat = key => [].concat(...parts.map(r => r[key] || [])); return { n: parts.reduce((a, r) => a + r.n, 0), legacy: cat('legacy'), titles: cat('titles'), lv: cat('lv'), ageS: cat('ageS'), ageG: cat('ageG'), deedTot: cat('deedTot'), hof: parts.reduce((a, r) => a + r.hof, 0), stuck: parts.reduce((a, r) => a + (r.stuck || 0), 0) }; };
 (async () => {
   const t0 = Date.now(); const queue = ['none'].concat(TRAITS), results = {};
   await Promise.all(Array.from({ length: PAR }, async () => { while (queue.length) { const id = queue.shift(); results[id] = await run(id); } }));
@@ -20,7 +22,7 @@ const run = id => new Promise(res => { const p = spawn('node', [path.join(__dirn
   const base = results.none; if (!base || base.error) { console.log('baseline ERROR ' + (base && base.error)); process.exit(1); }
   const ageOf = a => { const v = (a || []).filter(x => x != null); return v.length ? String(med(v)) : '–'; }; // the median age at the level, among the careers that got there
   const M0 = med(base.legacy), pct = d => ((d >= 0 ? '+' : '') + Math.round(100 * d) + '%');
-  console.log('Trait balance · ' + N + ' careers per trait (signature forced, no hidden or third trait) · seed ' + SEED + ' · the ' + POLICY + ' policy · baseline (no trait) median legacy ' + M0);
+  console.log('Trait balance · ' + N + ' careers per trait (signature forced, no hidden or third trait) · seed' + (SEEDS > 1 ? 's ' + SEED + '–' + (SEED + SEEDS - 1) + ' (' + N * SEEDS + ' careers a trait)' : ' ' + SEED) + ' · the ' + POLICY + ' policy · baseline (no trait) median legacy ' + M0);
   console.log('trait            rarity  median  vs none  titles  HOF   Silver (age)  Gold (age)  deeds   stuck');
   let fails = 0;
   for (const id of TRAITS) { const r = results[id]; if (!r || r.error) { fails++; console.log(id.padEnd(16) + ' ERROR ' + (r && r.error)); continue; }

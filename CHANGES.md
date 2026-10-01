@@ -3,6 +3,145 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V7 — Part 2: the story engine and the first five arcs (Part 2 §2)
+
+The second milestone of Part 2. The career is still 1v1 only. Old saves load with an empty saga, and their arcs start
+from wherever the career is.
+
+**The saga.** The career is told in arcs: 3–6 beats each, across three acts.
+
+| Act | Stage | Theme |
+| --- | --- | --- |
+| I: Nobody | High school | Underdog with something to prove |
+| II: The Rise | College | Temptation and pressure |
+| III: Legacy | The pros | Chasing a ring |
+
+- **How a career's arcs are picked.** Each career draws how many arcs it will see (`saga.perCareer`, 6–8). The count
+  splits over the acts (`saga.actShare` 0.35 / 0.25 / 0.4), and an arc never opens twice.
+  - Each arc also has a share of careers it can open in (`saga.chance`), so no arc is in every career.
+  - V7 has five arcs; V8 brings the rest, and the 6–8.
+- **Every choice trades one thing for another**, and its note says both. Choices set flags, and later beats read them:
+  the coach's favor comes due, a friend follows you or doesn't, the envelope comes out.
+- **The beats share R9's season budget** of 3–5 dialogue cards. A saga beat goes first. One that must happen now (an
+  injury's decision, a season's or a stage's closing beat) is always told.
+- **The state** lives on the career (`saga`): the cast and their meters, the flags, each arc's progress, and a log of
+  every beat and pick. It survives a save and a reload, and the handoff to the pros.
+
+**The cast.** Eight people, each with a pixel portrait and a meter from −100 to 100.
+
+| Person | Who they are |
+| --- | --- |
+| Family | Your parent or guardian |
+| Your high school coach | They follow you all career |
+| A best friend | From your first team |
+| Your rival | — |
+| A mentor | A veteran pro you meet at a summer camp |
+| Your agent | — |
+| A journalist | Covers you all career |
+| An owner | In the pros |
+
+- Choices move a meter 5, 10 or 20 (`saga.m`). The family starts at +10 (`saga.familyStart`).
+- The journalist's meter follows your press answers (`saga.pressMeter`): Team first +2, Confident +1, Trash talk −3, No
+  comment −2.
+- A family at +20 or more gets the warm version of an ending (`saga.warmAt`).
+
+**The first five arcs.**
+
+1. **Family Bills** (act I). The family needs money.
+   - A weekend job: +$400, practice XP −20% for 3 weeks, family +20.
+   - Basketball first: practice XP +10% for 3 weeks, family −20.
+   - Ask your coach: coach +10, family +5. A favor comes due later: run the youth camp the day before the rival game
+     (fatigue +12, coach +20) or say no (coach −20).
+   - The job path is offered more shifts. On the basketball path the lights go out one evening.
+   - The season ends at the kitchen table, warm or not.
+2. **Best Friend** (acts I–III). A teammate from your first season asks for help (friend +20, or your own work).
+   - **Senior year.** Your meter decides what they do: follow you as a walk-on (+25), quit (−10), or sign with a rival
+     program.
+   - **College.** They sit on your bench, play across the court from you, or call from the store.
+   - **The pros.** They come back as your agent (if they quit and you stayed close, +30), as your club's film
+     analyst, or on the radio.
+3. **The Booster** (act II). An envelope.
+   - **Keep it:** +$2,000, and each college season after that a 25% chance it comes out. Then you sit 2 games (owning
+     it) or 3 (no comment), with a press storm.
+   - **Hand it back:** coach +10, and the journalist's story (hype +8).
+   - A closing beat in the pros remembers what you did.
+4. **The Injury** (any act; an injury of 3+ games, once a career). It replaces R9's training-room card that time.
+   - **Rush back:** 2 games sooner. It flares up 40% of the time: two more games out and −2 Speed for good.
+   - **Full rehab:** all the games, fatigue gone, practice XP +15% for 3 weeks.
+   - The family visits while you're out: go home (family +10, coach trust −3) or stay with the team.
+5. **The Mentor** (a summer camp or the AAU circuit in act I → act III). A veteran with 12 PBL seasons.
+   - **Camp:** listen and work (mentor +20, practice XP +15% for 3 weeks, fatigue +5) or show off for the scouts
+     (hype +5, mentor −10).
+   - **College:** a text about your defense.
+   - **The pros.** At +20 or more they sign with your club for one last season, between your pro seasons 2 and 6.
+     Win them a playoff game and their last lesson stays with you: your make chance in a game's last 15 s ×1.05 for
+     good (+0.4 OVR in simulated games). Otherwise they retire.
+
+**Cutscenes (§2.4).** A saga beat is a cutscene.
+
+- **Seven pixel backgrounds**, painted on a 320×180 grid: the gym, the locker room, the kitchen table, the campus quad,
+  the press room, the arena tunnel and the Finals court (with confetti).
+- **Two portraits:** the speaker's, with their meter under the name plate, and yours opposite.
+- **The typewriter, and a stinger by mood:** warm, tense, sad or triumphant.
+- **Three answers** fit in a row on a desktop. A phone gives them a page of their own after the text.
+
+**The Codex** has a new page, The story: how the saga works, this career's arcs, and the people you've met with their
+meters.
+
+**The numbers.** The career simulator, 600 careers per policy (seeds 1–3, 200 each):
+
+| | Typical | Great |
+| --- | --- | --- |
+| Arcs per career | 2.64 | 2.70 |
+| Beats per career | 7.3 | 7.4 |
+| Family Bills | 61% | 61% |
+| Best Friend | 61% | 62% |
+| The Booster | 60% | 60% |
+| The Mentor | 45% | 44% |
+| The Injury | 38% | 45% |
+
+- With five arcs a career sees 2.6 of them (0 to 5). The spec's 6–8 comes with V8's six arcs.
+- Nearly every arc that opens also finishes. The few that don't were still open at retirement.
+- An arc's `saga.chance` is its share of careers before its own condition. The booster's roll passes 55.3% over 4,000
+  seeds; these 600 careers happened to draw 60%.
+- The §1.1 table still passes with the saga in. Typical: a 5★ team 17.8%, 0.37 titles, Hall of Fame 3.3%. Great: 63.5%,
+  1.93 titles, 38.2%.
+
+**Tests.**
+
+- `tests/story.js` is new, with 7 steps:
+  - the cast and meters;
+  - every arc's beats and choices (each says what it costs and what it gains; one default each);
+  - no arc twice;
+  - beats gated by flags;
+  - a choice's effects and the log;
+  - save, reload and the handoff to the pros; old saves;
+  - the arcs' effects (the suspension, the flare-up, the mentor's edge);
+  - the cutscene.
+- The career simulator reports arcs per career, beats and each arc's share of careers.
+- The phone audit has three cutscenes (three answers, the press room, the Finals) and the Codex's story page.
+
+**Suite.** Everything passed on the commit's build:
+
+- smoke (desktop and phone), every mode, old saves, the dev tools, the phone audit and the Art Lab;
+- story, climb, difficulty (the §1.1 table still passes), flow, gameplay, traits, steals, fixes, the HUD audit and the
+  style mix;
+- the full career (768 actions), and the desktop and 1.25× text audits (no flags, the cutscenes included);
+- the balance gate, the balance run, the career simulator (40 careers, none stuck) and the trait balance.
+
+Three tests were fixed during the run, and each passed on a rerun on the same build:
+
+- **Smoke's R9 story step** expected R9's training-room card on a first long injury. The saga's injury arc tells that
+  injury now, on purpose. The step sets the saga's arcs aside, since it checks R9's own beats (`tests/story.js` has the
+  saga's).
+- **The phone audit's three cutscenes** passed a closure into the page, where its variables don't exist. They now pass
+  their arguments in, and start from a fresh beat budget.
+- **The trait balance** read Uncommon at +5% at seed 1, against a band of +6–15%. The saga raised the baseline from 56
+  to 58. Seeds 2 and 3 read +8.6% and +10.2%, so one seed's 600 careers leave a rarity's median about 3% from noise.
+  The test now takes `--seeds=K` and pools them, and the suite runs 400 careers × 3 seeds (1,200 a trait): Common +2%, Uncommon +10%, Rare +22%, Legendary +49%, every rarity in its band.
+
+Still open from V4: the style mix's Slashers drive on 46% of possessions against a 60% target (V14).
+
 ## V6 — Part 2: a climb that's actually hard: the XP curve, hidden potential, setbacks, scarcity (Part 2 §1)
 
 The first milestone of Part 2 ("Hoop Heads 2.0, Part 2"). The career is still 1v1 only, and old saves load as they
