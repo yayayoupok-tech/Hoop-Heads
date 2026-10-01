@@ -3,6 +3,177 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V8 — Part 2: the rest of the story, six endings and the Story so far; 2.0: ceremonies and the record book
+
+The third milestone of Part 2 (§2.3–2.4), with 2.0's §4.9. The career is still 1v1 only. Old saves keep their saga and
+pick up the new arcs from wherever the career is. Their record book starts from the career highs they already kept.
+
+**Nine more arcs (§2.3).** Fourteen in all. Every choice trades one thing for another and says both, and flags carry
+it forward.
+
+| Arc | Act | What happens |
+| --- | --- | --- |
+| The Rival | I–III | After the buzzer of your first meeting, on another program in college, and in the PBL. At +25 (`saga.respectAt`) the rivalry turns to respect. |
+| The Cameras | II | Hype against focus. A streaming crew wants your season: sign (+$1,500, hype +8, practice XP −10% for 3 weeks) or no cameras (coach trust +5, practice XP +5% for 2 weeks). Then episode three, or nobody filmed it, and the finale at home. |
+| The Journalist | II–III | The long interview. The column's tone follows the meter: a feature at +25, a hit piece at −25 (answer it, or let it go for hype −6). The last column at retirement. |
+| The Owner | III | Win-now, patient or cheap. Promise a playoff run or the work. Mid-season: play through it, pay the recovery staff yourself ($50,000), or talk about the future. The verdict: a promise kept (owner +20) or broken (−20). |
+| The Trade Demand | III | Told when you're unhappy (R7's trade check: the bench, the coach's trust, the losing). Demand it publicly (traded, hype +5, owner −30), quietly (traded, owner −10) or stay and fight (coach trust +5, owner +10, confidence −1). It replaces R7's UNHAPPY card that time. |
+| Contract Year | III | The last season of a deal. Play for the bag (game XP +15% that season, coach trust −5, your next market value +10%) or team first (coach trust +5, owner +10, your club's next offer +5%). |
+| Finals Rematch | III | The final against your rival: a pregame cutscene on the Finals court, and an ending the story locks (the handshake, the last word, next year). It stands in for R9's finals card. |
+| Passing the Torch | III, from 32 | A kid at your clinic. Take them under your wing (practice XP −10% for 3 weeks) and at retirement they carry it on: your next career gets a Legacy Start (every ceiling +3; a youth academy still gives +5). |
+| Father Time | III, from 31 | The first step goes. Change your game (Speed −2, Shooting +2, for good) or fight it (fatigue +15, practice XP −10% for 3 weeks). Then the new kid who wants your minutes, and "how many more?" at dinner. |
+
+- **The result screen** shows the contract year's bonus next to the grade's ("Game XP: grade B ×1.2 · contract year ×1.15").
+- **Two new hooks.** 'unhappy' runs from R7's trade check, and 'retire' at retirement.
+
+**How a career's arcs land.** The career simulator, 600 careers each (seeds 1–3, 200 each):
+
+| | Typical | Great | Typical, random answers |
+| --- | --- | --- | --- |
+| Arcs per career | 6.38 | 6.39 | 6.37 |
+| Careers with 6–8 | 84% | 85% | 84% |
+| Beats per career | 18.5 | 18.5 | 19.2 |
+
+- **Most and least common.** Family Bills is the most common (61%). The Finals Rematch is the least (3% typical, 7%
+  great): it needs your rival in the final.
+- **None above 70%.** The Trade Demand's chance went from 0.7 to 0.6: at 0.7 it played in 71% of typical careers. Now
+  it's 57%.
+- **Under 6.** The careers with fewer arcs are mostly short ones; a career that retires early has fewer act III seasons.
+
+**Six endings (§2.3).** At retirement the story ends the first way that fits:
+
+| Ending | When | The scene |
+| --- | --- | --- |
+| Passing the Torch | you took the kid under your wing | your old high school gym |
+| The Legend | the Hall of Fame and a title | the Finals court |
+| Two Old Rivals | your rival at +25, peace made | the gym where you met |
+| Home | your family at +20 | the kitchen table |
+| The Long Road | three clubs or more (`saga.roadClubs`) | the tunnel |
+| The Work | everyone else | the gym, Saturday morning |
+
+- **When retirement comes**, the 'retire' beats play first (the journalist's last column, the kid). Then the ending, as
+  a cutscene, before the epilogue's money screen. The legacy screen names it, and the saga keeps it.
+- **Every ending is reachable.** `tests/story.js` reaches each one. The simulator's new `--story=random` answers every
+  card at random (seeded). Over 600 typical careers it reaches all six:
+
+  | Ending | Share |
+  | --- | --- |
+  | The Long Road | 37% |
+  | The Work | 21% |
+  | Passing the Torch | 16% |
+  | Home | 16% |
+  | Two Old Rivals | 7% |
+  | The Legend | 3% |
+
+  With the default answers, The Long Road 63%, The Work 34%, The Legend 4%. The great policy reaches The Legend in 39%.
+
+**THE STORY SO FAR (§2.4).** On the ME tab, next to a new Records button:
+
+- **The timeline.** Each arc under its act (I Nobody, II The Rise, III Legacy), GOING ON or DONE. Under it, each scene
+  with your age and what you chose, and at the end the story's ending.
+- **Your people.** Everyone you've met, each with a portrait and a meter from −100 to 100.
+- **On a phone** the two are separate views, with a button to switch.
+
+**Ceremonies (2.0 §4.9).**
+
+- **Awards night** closes a season you won something in. In the pros it reads the league's awards (MVP, Defensive Player,
+  Rookie, Most Improved, Scoring, Finals MVP, All-League) with yours in gold, and your player on the podium. In school,
+  your season's awards, before the recap.
+- **The All-Stars**: when you're picked, the four cards are revealed one at a time, yours stamped ALL-STAR, before the
+  weekend.
+- **The Hall of Fame induction**: a Hall of Fame career is inducted before the legacy screen. Your pixel player stands on
+  a stage under the lights, with the career's highlights rolling up beside them.
+- **Each one** reveals a line at a time. A tap shows the rest, and Reduce Motion shows everything at once.
+
+**The record book (2.0 §4.9).** It's on the ME tab.
+
+- **Your best game at each level**: points, rebounds, steals, blocks and threes, for high school, college and the PBL.
+- **The levels' records**: the state's, the college game's and the PBL's, held by invented names from before your time
+  (`records.levels`).
+  - Breaking one puts your name in the book, the news and the timeline.
+  - A simulated amateur game tops out at 20 points (`career.simWinPts` × 1.25), so the points records take a game you
+    play. The rest fall in 1–5% of simulated careers: 5.5% of typical careers break one, 8.7% of great ones.
+- **A gold toast** says when a record falls, or a career high (from 3 up, `records.minToast`). They queue, one at a
+  time, and wait out a game in play.
+
+**60+ story templates (2.0 §4.9).** There are 93 now: R9's 22 cards, 17 trait beats, 48 saga beats and 6 endings.
+
+- **Two new cards react to your team's stars.** The Big Stage: your club gained stars over the summer. Own the spotlight
+  (hype +5, practice XP −5% this week) or stay in your lane. The Rebuild: it lost them. Lead the young guys (coach trust
+  +5, confidence −1) or keep your options open.
+- **The rest already reacted.** Your traits (their beats), your rival (The Rival, the Finals Rematch, R9's moments) and
+  your hype (the spotlight, the cameras).
+
+**The Hall of Fame line: 92 → 95.** The fourteen arcs' safe answers add a little coach trust and practice over a career.
+That lifted the great policy's Hall of Fame rate past its band. At 92 the rates were typical 4.3% and great 41.0%; with
+the saga switched off, great was 37.8%. At 95, typical 3.8% and great 39.3%, and the §1.1 table passes again:
+
+| Milestone | Typical | Great |
+| --- | --- | --- |
+| Reaches a 5★ team | 16.5% | 64.7% |
+| Championships per career | 0.39 | 2.02 |
+| Hall of Fame | 3.8% | 39.3% |
+
+**Tuning numbers** (all in CONFIG, each with its comment):
+
+- `saga.chance`:
+  - rival 0.65;
+  - cameras 0.55;
+  - journalist 0.6;
+  - owner 0.6;
+  - trade 0.6;
+  - contract 0.6;
+  - finals 0.9;
+  - torch 0.6;
+  - aging 0.6.
+- `saga`, the rival and the cameras:
+  - `respectAt` 25 and `rivalProBy` 3;
+  - `camCash` 1,500 and `camHype` 8.
+- `saga`, the journalist and the owner:
+  - `toneAt` 25 and `pieceHype` 6;
+  - `staffCost` 50,000 and `ownerFondAt` 25.
+- `saga`, Contract Year: `bagXp` 0.15, `bagRaise` 0.1 and `teamRaise` 0.05.
+- `saga`, Passing the Torch and Father Time: `torchAge` 32, `torchCaps` 3, `agingAge` 31 and `agingSwap` 2.
+- `saga.roadClubs` 3.
+- `records`: `minToast` 3, and the `levels` table (value, holder, year).
+- `story.starsHype` 5, and `career.hofScore` 95.
+
+**Tests.**
+
+- `tests/story.js` has 13 steps; 6 are new:
+  - the arcs' effects (the trade demand in R7's place, the bag and the raise, the swap, the finals card);
+  - every ending reachable, the retirement cutscene, the ending kept through a save and a reload, the torch's Legacy
+    Start;
+  - the Story so far;
+  - the ceremonies;
+  - the record book and its toasts;
+  - the template count and the team-stars cards.
+- The career simulator reports arcs per career with the share in 6–8, every arc from most to least common, and the
+  endings. `--story=random` reaches every ending.
+- The phone audit has 15 new cases: the Story so far (both views), the record book (both views), awards night (school
+  and pros), the All-Star reveal, the Trade Demand's three answers, an ending and the Hall of Fame induction.
+  - A toast is an overlay, so the audit clears it before measuring a screen. A record broken in its scripted career
+    would otherwise cover the next screens.
+- The smoke, old-save and full-career drivers know the new screens. The full UI career goes through awards night and
+  the All-Star reveal.
+- The trait balance now pools 3 seeds in the suite (400 careers each).
+
+**Suite.** Everything passed on the commit's build:
+
+- smoke (desktop and phone, 137 steps), every mode, old saves (34), the dev tools, the phone audit and the Art Lab;
+- story (13 steps), climb, difficulty (the §1.1 table above), flow, gameplay, traits, steals, fixes, the HUD audit and
+  the style mix;
+- the full career (804 actions, through awards night and the All-Star reveal, retiring at 35 after 13 pro seasons), and
+  the desktop and 1.25× text audits (no flags);
+- the balance gate, the balance run, the career simulator (40 careers, none stuck) and the trait balance (400 careers ×
+  3 seeds: Common +4%, Uncommon +14%, Rare +28%, Legendary +56%, every rarity in its band).
+
+Before the run, three drivers learned the new screens: the full career, the old saves and smoke didn't know awards night,
+the All-Star reveal or the induction, and stopped at them. The Hall of Fame line moved to 95 (above) after the first
+difficulty run read great careers at 41.0%.
+
+Still open from V4: the style mix's Slashers drive on 46% of possessions against a 60% target (V14).
+
 ## V7 — Part 2: the story engine and the first five arcs (Part 2 §2)
 
 The second milestone of Part 2. The career is still 1v1 only. Old saves load with an empty saga, and their arcs start

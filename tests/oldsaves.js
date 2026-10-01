@@ -52,6 +52,8 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'negotiate': pr(by(/^SIGN$/)); break; // R7: the negotiation (the offer's own years and role)
       case 'epilogue': pr(by(/^FINISH$/)); break; // R7
       case 'moneybuilt': case 'networth': pr(by(/^Back$/)); break; // R7
+      case 'ceremony': case 'allstarpick': case 'hofinduction': pr(by(/^CONTINUE$/)); break; // V8: the ceremonies
+      case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

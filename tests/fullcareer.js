@@ -64,6 +64,8 @@ const { launch, openPage, runner } = require('./lib');
       case 'colchoice': pr(W[i % 2] || W[0]); break;
       case 'negotiate': pr(by(/^SIGN$/)); break;
       case 'epilogue': { const opt = W.find(w => /^(Foundation|Academy|A stake|Coach|Broadcast|Walk away)/i.test(w.label || '')); if (opt && !g._epi) { g._epi = true; opt.onPress(); return { name: s.name }; } pr(by(/^FINISH$/)); break; }
+      case 'ceremony': case 'allstarpick': case 'hofinduction': pr(by(/^CONTINUE$/)); break; // V8: awards night, the All-Star reveal, the Hall of Fame induction
+      case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8 (only if a press lands on them)
       case 'legacy': case 'halloffame': return { name: s.name, done: !!(c && c.phase === 'retired') };
       default: throw new Error('the driver does not know screen ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']');
     }
