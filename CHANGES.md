@@ -3,6 +3,194 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V3 — 2.0 traits: rarer is stronger, levels, and everything explained (§2)
+
+The third milestone of Hoop Heads 2.0. Every trait got new numbers by rarity, levels that grow by doing the trait's
+thing, a third trait at a milestone, and one card layout used everywhere, with the Codex's Traits page.
+
+**The numbers (§2.1).** The Bronze upside follows the rarity: Common about +5–8% at one thing, Uncommon +10–12%, Rare
++18–20% or a mechanic of its own, Legendary about +30% or game-changing. Downsides are small and never grow: Common 2–3%,
+Uncommon 3%, Rare 3–5%. A Legendary trait's drawback is flavor only. Every number on a card is written from CONFIG
+(`traitUpText`, `traitDownText`), so a card can't drift from the rules.
+
+| Trait | Rarity | Upside (Bronze; a Legendary: Gold) | Silver | Gold | Downside |
+| --- | --- | --- | --- | --- | --- |
+| Gym Rat | Common | +8% practice XP | +12% practice XP | — (top: Silver) | −3% fatigue recovery in Rest weeks |
+| Streaky | Common | +6% make chance after 2 straight makes | +9% make chance after 2 straight makes | — (top: Silver) | −3% make chance after 2 straight misses |
+| Glue Guy | Common | +8% coach trust gains; +8 coach trust on every new team | +12%, +12 trust | — (top: Silver) | −3% hype gains |
+| Fast Twitch | Common | +8% Speed XP; +5 Speed cap | +12%, +7.5 Speed | — (top: Silver) | −2 Strength cap |
+| Quick Study | Common | +6% XP from games; moves unlock 1 rating point earlier | +9%, 1.5 pt early | — (top: Silver) | −3% hype gains |
+| Clutch Gene | Uncommon | +10% make chance in crunch time and the playoffs | +15% make chance in crunch time and the playoffs | +20% make chance in crunch time and the playoffs | −3% make chance in the first half |
+| Iron Man | Uncommon | −12% injury risk; −12% stamina drain in games; −12% fatigue from games and practice; you age 1 year slower | −18%, −18%, −18%, 1.5 yrs | −24%, −24%, −24%, 2 yrs | −3% XP through age 19 |
+| Floor General | Uncommon | −12% steals against you; +12% bite on your dribble moves; +12% Handles XP | −18%, +18%, +18% | −24%, +24%, +24% | −3% Shooting XP |
+| Showman | Uncommon | +12% hype and fame from highlights; +12% Finishing XP | +18%, +18% | +24%, +24% | +3% steals against you |
+| Paint Protector | Uncommon | +10% block chance; +10% Defense XP | +15%, +15% | +20%, +20% | +3% goaltend range and reach-in fouls |
+| Late Bloomer | Rare | +3 cm adult height (a growth spurt at 17); +18% XP from age 17; +5 to every rating cap | +27%, +7.5 caps | +36%, +10 caps | Starts 4 lower in every rating |
+| Microwave | Rare | +18% make chance while hot (20 s after 2 straight makes); +18% Shooting XP | +27%, +27% | +36%, +36% | −4% defensive effort (contests, steals, blocks) |
+| Film Junkie | Rare | Film study counts ×2; a Film week also pays 50% of a Practice week's XP | ×2.5, +75% | ×3, +100% | −3 Speed, −3 Hops caps |
+| Freak Athlete | Rare | +18% Speed, Hops and Strength XP; +15 Hops, +15 Speed caps | +27%, +22.5 Hops, +22.5 Speed | +36%, +30 Hops, +30 Speed | −5 Shooting cap |
+| Generational | Legendary | +30% XP from everything; +10 to every rating cap; Takeover: +15% make chance, +10% speed for 10 s after 3 straight makes, and you glow | — | always | The media spotlight: cameras at every practice and your name in every headline (no effect on your numbers). |
+| Unbreakable | Legendary | Never injured; −40% fatigue from games and practice; you age 4 years slower | — | always | A rival who hates you: they say you're a machine, and they mean it as an insult (no effect on your numbers). |
+| Ice Veins | Legendary | +25% make chance in the last 15 s and in the playoffs; your confidence never drops | — | always | The media calls you cold: robotic, they say (no effect on your numbers). |
+
+The Legendary abilities:
+
+- **Generational**: +30% XP from everything, +10 to every rating cap, and Takeover. After 3 straight makes, it adds +15%
+  make chance and +10% speed for 10 s. The player glows gold, and a TAKEOVER! callout and a banner show. Its drawback is
+  the media spotlight (flavor). The R3 costs are gone: the AI's +0.2 tier, practice XP ×0.85, double confidence losses and
+  a press question after every game.
+- **Unbreakable**: never injured; fatigue builds 40% slower, in games and practice; you age 4 years slower. Its
+  drawback is a rival who hates you (flavor). The −10% XP is gone.
+- **Ice Veins**: +25% make chance in the last 15 s of a game (overtime included) and all through the playoffs. Your
+  confidence never drops: no loss, no fade back toward zero, no cost from a boast. Its drawback is the media calling you
+  cold (flavor). It replaces the R3 version (+8% free throws, confidence floored at 0, −40% hype gains).
+
+Why the career levers: a cap alone barely mattered, since ratings rarely reach their caps. A trait that only works in
+games barely moved a simulated career either. So each Uncommon and Rare trait now also has a career lever that fits
+it:
+
+- Floor General: +12% Handles XP.
+- Showman: +12% Finishing XP.
+- Paint Protector: +10% Defense XP.
+- Microwave: +18% Shooting XP.
+- Freak Athlete: +18% XP for Speed, Hops and Strength.
+- Fast Twitch: +8% Speed XP.
+- Iron Man: a durable body that ages a year slower (two at Gold).
+- Late Bloomer: +18% XP from age 17. Its old +10 caps (which did nothing) are +5 now, and it levels at 65 and 75
+  overall.
+- Film Junkie: a Film week also pays half a Practice week's XP, so a Film Junkie films every week. The career
+  simulator does the same.
+- Glue Guy: starts every new team with +8 coach trust, and its downside is now −3% hype gains (−2% stat XP made it a
+  loss).
+
+Amateur opponents' traits now play, in played and simulated games. They have shown on previews since V1.
+
+**Levels (§2.2).** Every trait is Bronze, Silver or Gold. Each level adds half the Bronze upside (Silver ×1.5, Gold ×2);
+the downside stays. Rarity sets the top level: Common tops out at Silver, Uncommon and Rare at Gold, and a Legendary is
+Gold from the start. A trait levels up by doing its thing (its deed):
+
+| Trait | Levels up with | Silver | Gold |
+| --- | --- | --- | --- |
+| Gym Rat | Practice weeks | 20 | — (Common: Silver is the top) |
+| Streaky | hot games (4+ makes) | 10 | — (Common: Silver is the top) |
+| Glue Guy | wins | 15 | — (Common: Silver is the top) |
+| Fast Twitch | games played | 30 | — (Common: Silver is the top) |
+| Quick Study | moves learned | 2 | — (Common: Silver is the top) |
+| Clutch Gene | clutch makes | 5 | 15 |
+| Iron Man | games played healthy | 40 | 100 |
+| Floor General | games without a turnover | 15 | 50 |
+| Showman | highlights (dunks, posters, ankle breakers) | 10 | 30 |
+| Paint Protector | blocks | 6 | 20 |
+| Late Bloomer | your overall | 65 | 75 |
+| Microwave | heat-check games (5+ makes) | 10 | 30 |
+| Film Junkie | Film weeks | 8 | 24 |
+| Freak Athlete | dunks | 20 | 60 |
+
+Your games count their deeds from the box line, simulated or played; a played game counts the engine's own clutch
+makes. Weeks count Practice and Film; OVR counts its best. A level-up is a celebration card: the trait's card pops in at
+its new level with a burst in the level's color, a big level stamp, and every number shown before → after ("Block
+chance: +10% → +15%"). The hidden trait counts its deeds while hidden, and its levels show once it is found.
+
+**The third trait (§2.2).** At 1,000 career points (high school, college and the pros together) you pick one of three
+Common or Uncommon traits you don't have (seeded by your traits, so a reload offers the same three). It starts at Bronze
+and levels up like the others.
+
+**Explained everywhere (§2.3).**
+
+- **The card.** It has one layout: the trait's pixel icon in a rarity-colored frame, its name, its level pips and level,
+  one plain sentence, "When it kicks in", the exact numbers, the next level's numbers, the downside, and a bar toward the
+  next level ("Clutch makes: 9 / 15 → Gold"). Sections that don't fit drop out, least important first.
+- **Icons.** 17 pixel icons (12×12) in the rarity's colors.
+- **Chips.** A chip shows the icon, the name and level pips. It drops its pips and shrinks before it would cut its name.
+  Tapping or clicking any chip or card opens its card as a popup; a mouse resting on a chip shows the card beside it.
+  Chips are on the hub, the Team screen and its rosters, the player screen, the opponent's trading card on the hub, both
+  players on the pro tale of the tape, the genes reveal, and the results screens.
+- **The Codex.** The stats guide is now THE CODEX (2.0 §5.1; the "Codex" button where "Stats guide" was). Its first page
+  is Traits: all 17 by rarity with each rarity's share and top level. Yours are highlighted with their level. Your hidden
+  trait, before its story moment, shows as ??? with its rarity and a hint. On a phone, the page is in two parts.
+- **The banner.** In games, a trait kicking in shows its icon, name and level under the HUD for 1.2 s: a hot hand, a
+  Microwave heating up, Clutch Gene in crunch time, Ice Veins late, Takeover. The same trait shows at most once in 8 s.
+- **"Traits that helped".** It is on both results screens. A played game counts each trait's share of every shot's make
+  chance as expected makes ("Clutch Gene: +0.7 makes in the playoffs"), plus Paint Protector's blocks and Floor General's
+  steals saved. A simulated game shows what each trait was worth in it, in OVR.
+
+**Simulated games** count a trait's in-game numbers as OVR points (`traits.sim`), from its numbers and level:
+
+Streaky 0.17 / 0.27; Clutch Gene 0.10 (playoffs 1.00) / 0.23 (playoffs 1.50) / 0.35 (playoffs 2.00); Iron Man 0.15 / 0.23 / 0.30; Floor General 0.11 / 0.16 / 0.22; Showman -0.01 / -0.01 / -0.01; Paint Protector 0.05 / 0.08 / 0.11; Microwave 0.24 / 0.41 / 0.57; Generational 0.08; Ice Veins 0.33 (playoffs 2.50) (Bronze / Silver / Gold; the other traits work outside games). +1% make chance on every shot is worth 0.1 OVR (+10% → 1.03 OVR over 1,200 paired engine games), and each condition's share of a game's shots was measured at 6,329 releases.
+
+**Old saves** keep their traits. Levels start at Bronze, and the deeds start from what the save knows (games, wins and
+points, the amateur years and the pros together), so a veteran past 1,000 points gets the third-trait pick at once. The
+new numbers move some ceilings; a ceiling never drops under a rating you already have.
+
+**Balance (§2.1's test).** `tests/traitbalance.js` runs the career simulator with every career's signature forced to one
+trait (no hidden trait, no third), 200 careers per trait. It also runs the same 200 careers with no trait at all, as the
+baseline. A rarity's careers together must beat the baseline's median legacy by its band, rising with rarity. ("The
+overall median" is the no-trait careers. Measured against a pool of the traits themselves, a Common trait could not be
+over the median while the stronger ones pull it up.)
+
+Measured by `tests/traitbalance.js 600 1 4`: 600 careers per trait, seed 1. The no-trait baseline median legacy is 47.
+
+| Rarity | Median legacy | vs no trait | Band |
+| --- | --- | --- | --- |
+| Common | 49 | +4% | +0%…8% ✓ |
+| Uncommon | 51 | +9% | +6%…15% ✓ |
+| Rare | 57 | +21% | +15%…30% ✓ |
+| Legendary | 71 | +51% | +35%…60% ✓ |
+
+| Trait | Rarity | Median | vs none | Titles | HOF | Silver (age) | Gold (age) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| gymrat | C | 48 | +2% | 0.87 | 14% | 100% (17) | — |
+| streaky | C | 50 | +6% | 0.89 | 14% | 100% (16) | — |
+| glueguy | C | 48 | +2% | 0.80 | 13% | 100% (17) | — |
+| fasttwitch | C | 48 | +2% | 0.78 | 11% | 100% (17) | — |
+| quickstudy | C | 56 | +19% | 1.08 | 20% | 51% (19) | — |
+| clutch | U | 52 | +11% | 1.06 | 18% | 100% (15) | 100% (17) |
+| ironman | U | 56 | +19% | 1.11 | 24% | 100% (18) | 100% (24) |
+| floorgeneral | U | 49 | +4% | 0.92 | 14% | 100% (15) | 100% (19) |
+| showman | U | 49 | +4% | 0.91 | 15% | 100% (20) | 100% (22) |
+| paintprotector | U | 48 | +2% | 0.89 | 14% | 100% (17) | 83% (26) |
+| latebloomer | R | 57 | +21% | 1.31 | 26% | 100% (20) | 78% (25) |
+| microwave | R | 60 | +28% | 1.31 | 27% | 100% (21) | 99% (26) |
+| filmjunkie | R | 56 | +19% | 1.20 | 21% | 100% (15) | 100% (17) |
+| freak | R | 56 | +19% | 1.04 | 22% | 100% (22) | 100% (27) |
+| generational | L | 95.5 | +103% | 2.31 | 59% | 100% (14) | 100% (14) |
+| unbreakable | L | 68.5 | +46% | 1.33 | 33% | 100% (14) | 100% (14) |
+| iceveins | L | 56.5 | +20% | 1.26 | 23% | 100% (14) | 100% (14) |
+
+Known, for V6: the career simulator (40 careers, every career with two traits and a third at 1,000 points) now shows titles 1.48 a career and the Hall of Fame at 30%, above F6's bands (0.4–1.0, 3–15%; V2 had 0.90 and 13%). Stronger traits lift careers. V6 retunes the whole climb to Part 2's harder targets (5★ in 15–25% of careers, the Hall of Fame 3–8%), so this release does not chase the old bands.
+
+**Tests.**
+
+- `tests/traits.js` is new. It prints the numbers table and checks the rarity bands, the level scaling and top levels,
+  the deeds and level-up cards, the third trait, Takeover, Ice Veins, Unbreakable and Generational in the engine, the
+  banner, Traits that helped after a real playoff game, a tap and a hover on a hub chip, the Codex page and an old save.
+- `tests/traitbalance.js` now uses the bands above against the no-trait baseline, and prints how far each trait
+  leveled up.
+- `tests/careersim.js` takes `--trait=none` and auto-picks a third trait.
+- The text audits cover the new screens: the trait card, the Codex's Traits page (both phone parts), the pick and a
+  level-up.
+- `tests/smoke.js`: the older trait checks (R3's engine hooks, R4's Glue Guy, R8's Generational spotlight, F8's recovery
+  kit with an Iron Man) now read the V3 numbers from the traits. `tests/oldsaves.js` and `tests/fullcareer.js` take the
+  third trait's pick when an old save is past 1,000 points.
+
+New tuning numbers:
+
+| Constant | Value | Why |
+| --- | --- | --- |
+| `traits.levels`, `levelColor` | Bronze, Silver, Gold | §2.2's levels and their pip colors |
+| `traits.levelUp` | 0.5 | each level adds half the Bronze upside |
+| `traits.top` | C 2, U 3, R 3, L 3 | the top level by rarity (a Legendary starts there) |
+| `traits.thirdAt`, `thirdOffer` | 1000, 3 | the third trait's milestone (career points) and the offer |
+| `traits.bannerS`, `bannerGap` | 1.2, 8 | the banner's time on screen, and one trait's least gap between two (s of game time) |
+| `traits.lastS` | 15 | Ice Veins' last seconds |
+| `traits.lateAge` | 17 | Late Bloomer's extra XP counts from this age |
+| `traits.takeover` | 3 makes, 10 s | Generational's Takeover (its +15% and +10% are in the trait) |
+| `traits.hotMakes`, `heatMakes` | 4, 5 | a hot game (Streaky's deed) and a heat-check game (Microwave's) |
+| `traits.sim` | perPct 0.1; shares: hot 0.34, cold 0.12, crunch 0.25, first half 0.5, heat 0.18, Takeover 0.04, last 15 s 0.13 | simulated games: a trait's in-game numbers in OVR points (measured; above) |
+| `traits.list` | (the table above) | the numbers, words, icons and deeds of all 17 |
+
+Removed: `traits.spotlightTier`, `spotlightPractice`, `simEdge` (simulated games now read the numbers).
+
 ## V2 — 2.0 performance at 4× CPU (§1, item 2)
 
 The second milestone of Hoop Heads 2.0: the lag on slower devices. The targets, with Chrome's CPU throttled 4× (about a

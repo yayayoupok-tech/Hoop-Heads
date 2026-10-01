@@ -44,6 +44,7 @@ const { launch, openPage, runner } = require('./lib');
       case 'press': pr(by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break;
       case 'dialog': pr(by(/^▼$/) || by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break;
       case 'tip': pr(by(/^GOT IT$/)); break;
+      case 'traitpick': pr(W.find(w => /^Take /.test(w.label || ''))); break; // V3: the third trait (1,000 career points): take the first offer
       case 'amevent': case 'rivalmoment': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres': case 'postgame':
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;

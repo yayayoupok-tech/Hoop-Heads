@@ -1016,39 +1016,50 @@ const CONFIG = {
     gamesPerCell: 12,          // default games per strategy and difficulty
     maxSteps: 120 * 60 * 25,   // safety cap on a harness game (steps; 25 minutes of game time)
   },
-  traits: {                    // R3 §3.1: every career has two traits, a Signature rolled with your genes (shown) and a Hidden one a high school story moment reveals. Each has a real upside and a real downside (1v1 versions: no chemistry, no passing)
+  traits: {                    // R3 §3.1: every career has two traits, a Signature rolled with your genes (shown) and a Hidden one a high school story moment reveals. V3 (2.0 §2): rarer is stronger, every trait levels up Bronze → Silver → Gold by doing its thing, and a third trait comes at a milestone
     odds: { C: 0.55, U: 0.28, R: 0.13, L: 0.04 }, // rarity odds (§3.1)
     frame: { C: '#A9B1C6', U: '#4CE07A', R: '#5EB7FF', L: '#FFD23F' }, // trait card frame color by rarity
     label: { C: 'Common', U: 'Uncommon', R: 'Rare', L: 'Legendary' }, // rarity names
+    levels: ['Bronze', 'Silver', 'Gold'], // V3 (§2.2): the levels
+    levelColor: ['#D9925A', '#D5DDEB', '#FFD23F'], // V3: each level's pip color
+    levelUp: 0.5,              // V3 (§2.2): each level adds this share of the Bronze upside (Silver 1.5×, Gold 2×); downsides don't grow
+    top: { C: 2, U: 3, R: 3, L: 3 }, // V3 (§2.2): the top level by rarity: Common → Silver; Uncommon and Rare → Gold; Legendary starts at Gold (its numbers are its Gold numbers)
+    thirdAt: 1000,             // V3 (§2.2): a third trait at this many career points (high school, college and the pros together)...
+    thirdOffer: 3,             // ...picked from this many Common or Uncommon traits you don't have (it starts at Bronze)
+    bannerS: 1.2,              // V3 (§2.3): the in-game banner (icon + name) under the HUD when a trait kicks in (s)...
+    bannerGap: 8,              // ...and the same trait's banner at most once in this many seconds of game time
     revealAge: 15,             // the hidden trait shows itself during the season you are this age (sophomore year)...
     revealGames: 3,            // ...after this many games
     crunchPts: 3,              // crunch time in a first-to game: either side this close to the target (a timed game: its last crunchS seconds)
     crunchS: 30,               // ...(s)
     crunchShare: 0.25,         // F5: in a one-period game crunch time is its last quarter (at most crunchS)
+    lastS: 15,                 // V3: Ice Veins' "last 15 s": the last this-many seconds of a timed game's last period, and overtime (a first-to game: crunch time)
     heatS: 20,                 // Microwave: the heat lasts this long after two straight makes (s)
+    takeover: { makes: 3, s: 10 }, // V3: Generational's Takeover: this many straight makes, then this many seconds (its numbers are in the trait)
     teenAge: 19,               // Iron Man's teen XP cost applies through this age
+    lateAge: 17,               // V3: Late Bloomer's XP counts from this age
     clutchMargin: 3,           // Clutch Gene's story beat: a playoff win by this many points or fewer
-    spotlightTier: 0.2,        // Generational's spotlight (§3.8's high-hype costs, always on): defenses key on you, the opponent's AI +0.2 tier in every career game...
-    spotlightPractice: 0.85,   // ...and media distractions: practice XP ×0.85
-    simEdge: { clutch: [1.5, -0.5], microwave: 0.4, streaky: 0, paintprotector: 0.6, showman: -0.6, floorgeneral: 0.6, iceveins: 0.4, generational: -3 }, // simulated games: OVR points a trait's in-game effects are worth ([playoff, regular] where they differ; Generational: the spotlight, 0.2 AI tier = 3 OVR at 15 OVR a tier)
-    list: {                    // the §3.1 traits; multipliers apply to your own numbers, `head` moves a rating's ceiling (rating points: 5 = 0.5 engine points)
-      gymrat: { name: 'Gym Rat', r: 'C', up: '+25% practice XP', down: '−10% fatigue recovery', practiceXp: 1.25, recovery: 0.9 },
-      streaky: { name: 'Streaky', r: 'C', up: '+8% makes after two straight makes', down: '−8% after two straight misses', hot: 0.08, cold: 0.08 },
-      glueguy: { name: 'Glue Guy', r: 'C', up: 'Coach trust grows 50% faster', down: '−8% XP from your stats', trust: 1.5, statXp: 0.92 },
-      fasttwitch: { name: 'Fast Twitch', r: 'C', up: '+0.5 Speed headroom', down: '−0.5 Strength headroom', head: { spd: 5, str: -5 } },
-      quickstudy: { name: 'Quick Study', r: 'C', up: 'Moves unlock a rating point earlier', down: '−20% hype gains', moveEarly: 10, hype: 0.8 },
-      clutch: { name: 'Clutch Gene', r: 'U', up: '+10% makes in crunch time and the playoffs', down: '−5% makes in the first half', clutch: 0.1, early: 0.05 },
-      ironman: { name: 'Iron Man', r: 'U', up: '−40% injury risk, −15% stamina drain', down: '−10% XP as a teen', injury: 0.6, stamina: 0.85, teenXp: 0.9 },
-      floorgeneral: { name: 'Floor General', r: 'U', up: 'Ball security: −20% steals against you, and your moves bite more', down: '−10% Shooting XP', stolen: 0.8, moveBite: 0.1, shoXp: 0.9 },
-      showman: { name: 'Showman', r: 'U', up: '+50% hype from highlights', down: '+10% turnovers', highlight: 1.5, turnovers: 1.1 },
-      paintprotector: { name: 'Paint Protector', r: 'U', up: '+15% block chance', down: '+20% goaltends and fouls', block: 0.15, fouls: 1.2 },
-      latebloomer: { name: 'Late Bloomer', r: 'R', up: '+3 cm adult height, +0.5 every headroom', down: 'Starts 4 overall lower', height: 0.03, head: { all: 5 }, start: -4 }, // F5: start −5 → −4 (its median legacy was −24% of all traits' with one-minute games; −16% before)
-      microwave: { name: 'Microwave', r: 'R', up: 'After two straight makes: +15% for 20 s', down: '−10% defensive effort', heat: 0.15, effort: 0.9 },
-      filmjunkie: { name: 'Film Junkie', r: 'R', up: 'Film study counts double', down: '−0.5 Speed and Hops headroom', film: 2, head: { spd: -5, jmp: -5 } },
-      freak: { name: 'Freak Athlete', r: 'R', up: '+1.0 Hops and Speed headroom', down: '−1.0 Shooting headroom', head: { jmp: 10, spd: 10, sho: -10 } },
-      generational: { name: 'Generational', r: 'L', up: '+1.0 every headroom, +20% XP', down: 'Losses cost double confidence; the spotlight never leaves: defenses key on you, the media eats practice time', head: { all: 10 }, xp: 1.2, lossConf: 2, spotlight: true },
-      unbreakable: { name: 'Unbreakable', r: 'L', up: 'Never injured; ages 3 years slower', down: '−10% XP', injury: 0, ageShift: 3, xp: 0.9 },
-      iceveins: { name: 'Ice Veins', r: 'L', up: 'Confidence never drops below 0; +8% free throws', down: '−40% hype gains', confFloor: 0, ft: 0.08, hype: 0.6 },
+    hotMakes: 4,               // V3: a game with this many made shots is a hot game (Streaky levels up on them)...
+    heatMakes: 5,              // ...and this many a heat-check game (Microwave)
+    sim: { perPct: 0.1, hot: 0.34, cold: 0.12, crunch: 0.25, early: 0.5, heat: 0.18, takeover: 0.04, last: 0.13, block: 0.006, steal: 0.004, bite: 0.005, effort: 0.02, turnover: 0.004, speed: 0.05 }, // V3: simulated games count a trait's in-game numbers as OVR points. perPct: +1% make chance on every shot of a one-minute game is worth 0.1 OVR (measured: +10% → 1.03 OVR, 1,200 paired engine games). The shares of a game's shots each condition touches (measured at 6,329 releases): after 2 straight makes 0.34, after 2 misses 0.12, crunch time 0.25, the first half 0.5, a Microwave heat 0.18, a Takeover 0.04, the last 15 s 0.13. OVR per 1% of blocks, steals against you, move bite, defensive effort, turnovers and speed: estimated from their points a game
+    list: {                    // V3 (§2.1): up = the Bronze upside (× 1.5 Silver, × 2 Gold), down = the downside (fixed). Multipliers are signed shares (+0.08 = +8%); head moves a rating's ceiling in rating points (10 = +1.0); what/when/deed explain it (deed: [what counts, the counts for Silver (and Gold)])
+      gymrat: { name: 'Gym Rat', r: 'C', icon: 'dumbbell', what: 'You live in the gym, and your practice sticks.', when: 'Every Practice week and drill', up: { practiceXp: 0.08 }, down: { recovery: -0.03 }, deed: ['practice', [20]] }, // (§2.2's "20 and 60 practice weeks": a Common trait tops out at Silver, so 20)
+      streaky: { name: 'Streaky', r: 'C', icon: 'flame', what: 'Two in a row and you can feel it.', when: 'After 2 straight makes (and 2 straight misses)', up: { hot: 0.06 }, down: { cold: -0.03 }, deed: ['hotGames', [10]] },
+      glueguy: { name: 'Glue Guy', r: 'C', icon: 'link', what: 'Coaches trust you sooner.', when: 'Every time your coach\'s trust goes up, and on a new team', up: { trust: 0.08, trustStart: 8 }, down: { hype: -0.03 }, deed: ['wins', [15]] },
+      fasttwitch: { name: 'Fast Twitch', r: 'C', icon: 'bolt', what: 'Your first step is a gift.', when: 'Speed reps, and your Speed cap', up: { spdXp: 0.08, head: { spd: 5 } }, down: { head: { str: -2 } }, deed: ['games', [30]] },
+      quickstudy: { name: 'Quick Study', r: 'C', icon: 'book', what: 'You pick things up fast.', when: 'Every game, and every new move', up: { gameXp: 0.06, moveEarly: 10 }, down: { hype: -0.03 }, deed: ['moves', [2]] },
+      clutch: { name: 'Clutch Gene', r: 'U', icon: 'clock', what: 'The bigger the moment, the better you shoot.', when: 'Crunch time and the playoffs', up: { clutch: 0.1 }, down: { early: -0.03 }, deed: ['clutch', [5, 15]] },
+      ironman: { name: 'Iron Man', r: 'U', icon: 'shield', what: 'Your body takes the pounding, year after year.', when: 'Every game, and every birthday', up: { injury: -0.12, stamina: -0.12, fatigue: -0.12, ageShift: 1 }, down: { teenXp: -0.03 }, deed: ['healthy', [40, 100]] },
+      floorgeneral: { name: 'Floor General', r: 'U', icon: 'chevron', what: 'The ball is safe with you, and your moves bite.', when: 'Steal tries, dribble moves, Handles reps', up: { stolen: -0.12, moveBite: 0.12, hanXp: 0.12 }, down: { shoXp: -0.03 }, deed: ['cleanGames', [15, 50]] },
+      showman: { name: 'Showman', r: 'U', icon: 'star', what: 'The crowd loves your highlights.', when: 'Dunks, posters, ankle breakers; Finishing reps', up: { highlight: 0.12, finXp: 0.12 }, down: { turnovers: 0.03 }, deed: ['highlights', [10, 30]] },
+      paintprotector: { name: 'Paint Protector', r: 'U', icon: 'hand', what: 'Nobody gets an easy one at the rim.', when: 'Block tries, and Defense reps', up: { block: 0.1, defXp: 0.1 }, down: { fouls: 0.03 }, deed: ['blocks', [6, 20]] },
+      latebloomer: { name: 'Late Bloomer', r: 'R', icon: 'sprout', what: 'You grow late: from 17 on, everything comes faster.', when: 'From age 17: every XP; a growth spurt at 17', up: { lateXp: 0.18, head: { all: 5 } }, down: { start: -4 }, height: 0.03, deed: ['ovr', [65, 75]] }, // height: +3 cm adult height (once, at creation)
+      microwave: { name: 'Microwave', r: 'R', icon: 'wave', what: 'Once you heat up, you stay hot.', when: '20 s after 2 straight makes; Shooting reps', up: { heat: 0.18, shoXp: 0.18 }, down: { effort: -0.04 }, deed: ['heatGames', [10, 30]] },
+      filmjunkie: { name: 'Film Junkie', r: 'R', icon: 'film', what: 'You study every opponent, and it shows.', when: 'Every Film week', up: { film: 1, filmXp: 0.5 }, down: { head: { spd: -3, jmp: -3 } }, deed: ['film', [8, 24]] }, // film: film's bonus × (1 + this); filmXp: a film week also pays this share of a practice week's XP
+      freak: { name: 'Freak Athlete', r: 'R', icon: 'spring', what: 'You jump out of the gym, and run like it too.', when: 'Speed, Hops and Strength reps, and their caps', up: { physXp: 0.18, head: { jmp: 15, spd: 15 } }, down: { head: { sho: -5 } }, deed: ['dunks', [20, 60]] },
+      generational: { name: 'Generational', r: 'L', icon: 'crown', what: 'Once a generation, a player like you comes along.', when: 'Always, and Takeover after 3 straight makes', up: { xp: 0.3, head: { all: 10 }, takeShot: 0.15, takeSpeed: 0.1 }, flavor: 'The media spotlight: cameras at every practice and your name in every headline (no effect on your numbers).' },
+      unbreakable: { name: 'Unbreakable', r: 'L', icon: 'gem', what: 'Nothing slows you down. Not even time.', when: 'Always', up: { injury: -1, fatigue: -0.4, ageShift: 4 }, flavor: 'A rival who hates you: they say you\'re a machine, and they mean it as an insult (no effect on your numbers).' },
+      iceveins: { name: 'Ice Veins', r: 'L', icon: 'snow', what: 'The last shot is the one you want.', when: 'The last 15 s of every game, and the playoffs', up: { last: 0.25, confHold: 1 }, flavor: 'The media calls you cold: robotic, they say (no effect on your numbers).' },
     },
   },
   team: {                      // R3: teams are organizations (the career is 1v1): a school, a college program, a pro franchise
@@ -3851,7 +3862,7 @@ let _pid = 0;
 class Player {
   constructor(def, team, match) {
     this.id = _pid++; this.def = def; this.name = def.name; this.nick = def.nick || def.name.split(' ')[0]; this.arch = def.arch; this.team = team; this.match = match;
-    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits); this.trs = { streak: 0, heatUntil: -1 }; this.look = Object.assign({}, def.look);
+    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
     this.moves = def.moves || { crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true };
     this.x = 12; this.y = 0; this.z = 0.5; this.zTarget = 0.5; this.lane = 1; this.vx = 0; this.vy = 0; this.facing = 1; this.grounded = true; this.laneT = -9; this.lastBeatT = -9;
     this.px = this.x; this.py = this.y; this.pz = this.z;
@@ -3989,6 +4000,7 @@ function maxSpeedOf(p, sprint) {
   let s = (sprint ? PC.sprintSpeed : PC.runSpeed) * speedOf(p) * heightMul(p, HT.speedPerM);
   if (p.tired) s *= PC.stamina.lowSpeedMul; if (p.onFire > 0) s *= CONFIG.arcade.heat.fireSpeedMul;
   if (p.screenFightT > 0) s *= 0.4; if (p.passSlowUntil > p.match.time) s *= DF.passThroughSpeedMul; /* L11: passing through a body */ if (p.ex && p.ex.speedT > 0) s *= CONFIG.extras.speedMul; // L9 speed shoes
+  if (p.trs && p.trs.takeUntil > p.match.time) s *= 1 + trE(p, 'generational', 'takeSpeed'); // V3: Generational's Takeover
   if (p.boxedOutBy) s *= (1 - CONFIG.rebound.boxOutSlow);
   if (Math.abs(p.z - p.zTarget) > 0.04) s *= W.laneChangeSpeedMul;
   if (p.hasBall && p.grounded && !p.pickedUp) s *= PC.dribbleSpeedMul;
@@ -4048,7 +4060,7 @@ function updatePlayer(p, dt) {
   p.stateT += dt; if (!p.grounded) p.airT += dt;
   // stamina
   const sprinting = I.sprint && Math.abs(p.vx) > LX(2) && p.grounded && !(m.practice && m.practice.infiniteStamina);
-  if (sprinting) p.stamina = Math.max(0, p.stamina - S.sprintCost * (p.traits.ironman ? TR.list.ironman.stamina : 1) * dt); else p.stamina = Math.min(S.max, p.stamina + S.regen * dt);
+  if (sprinting) p.stamina = Math.max(0, p.stamina - S.sprintCost * (1 + trE(p, 'ironman', 'stamina')) * dt); else p.stamina = Math.min(S.max, p.stamina + S.regen * dt);
   if (m.practice && m.practice.infiniteStamina) p.stamina = S.max;
   // lanes: the human (or a bot) asks for a lane; z eases toward it
   if (I.laneUpP && canChangeLane(p) && !p.controlled) setLane(p, laneOf(p.zTarget) - 1);
@@ -4432,7 +4444,7 @@ function resolveSwipe(p) {
   if (p.sd.rolled) return false; p.sd.rolled = true;
   if (h.ex && h.ex.stickyT > 0) return false; // L9 sticky ball: the swipe finds nothing to strip
   const e = stealExposure(h, p);
-  const chance = clamp(S.base + S.ratingSlope * (p.attrs.def - h.attrs.han) + e, S.min, S.max) * trStealMul(p, h);
+  const chance = clamp(S.base + S.ratingSlope * (p.attrs.def - h.attrs.han) + e, S.min, S.max) * trStealMul(p, h); trStealTally(p, h, chance); // V3: what Floor General saved
   if (m.rng.next() < chance) { // V1 (§1.1): the poke; STEAL, TURNOVER and both stats wait for the defense to secure the ball (completeCatch)
     const dir = sgn(p.x - h.x) || p.facing; h.anim.expr = 'shocked'; h.anim.exprT = 1;
     m.poke = { by: p, victim: h, team: p.team, t: m.time, shown: false }; m.bus.emit('POKE', { player: p, victim: h });
@@ -4445,7 +4457,7 @@ function resolveSwipe(p) {
 }
 function onWhiff(p) {
   const m = p.match; p.offBalanceT = FR.swipe.recovery / 1000;
-  if (!m.arcade && p.sd.hitBody && m.rng.next() < CONFIG.steal.reachInFoulChance * (p.traits.paintprotector ? TR.list.paintprotector.fouls : 1)) { callFoul(m, p, 'reach-in', m.ball.owner, false); }
+  if (!m.arcade && p.sd.hitBody && m.rng.next() < CONFIG.steal.reachInFoulChance * (1 + trE(p, 'paintprotector', 'fouls'))) { callFoul(m, p, 'reach-in', m.ball.owner, false); }
 }
 function resolveShove(p) {
   const m = p.match, A = CONFIG.arcade.shove, ops = m.opponentsOf(p); let best = null, bd = A.range;
@@ -4569,13 +4581,13 @@ function releaseShot(p, err, forced) {
   else if (type === 'layup') { x0 = p.x + dir * 0.4; y0 = p.y + p.reach - 0.15; }
   else if (type === 'tip') { x0 = b.x; y0 = b.y; }
   const d = Math.abs(x0 - hoop.x); const zone = zoneOf(d);
-  const ct = computeContest(p, y0); let contest = ct.value * (ct.by && ct.by.traits && ct.by.traits.microwave ? TR.list.microwave.effort : 1); if (sd.euro) contest *= SH.euroContestMul; if (sd.fade) contest *= SH.fadeContestMul; if (type === 'hook') contest *= SH.hookContestMul; if (type === 'ft') contest = 0;
+  const ct = computeContest(p, y0); let contest = ct.value * (1 + trE(ct.by, 'microwave', 'effort')); if (sd.euro) contest *= SH.euroContestMul; if (sd.fade) contest *= SH.fadeContestMul; if (type === 'hook') contest *= SH.hookContestMul; if (type === 'ft') contest = 0;
   const timed = type === 'jumper' || type === 'ft' || type === 'floater';
   let w = 0, grade = -1;
   if (timed) { if (p.arch === 'sharpshooter') err += SH.quickReleaseEarlyMs / 1000; w = perfectWindow(p, contest, d) * (sd.fade ? SH.fadeWindowMul : 1); grade = forced ? 3 : gradeOf(err, w); }
   const fire = !!(p.ex && p.ex.fireball); if (fire) { p.ex.fireball = false; if (timed) { grade = 0; err = 0; } } // L9 Fireball: a perfect release (the contest still counts)
   const mp = makeProbability(p, type === 'ft' ? 'ft' : type, zone, grade < 0 ? 0 : grade, contest, { stepback: sd.stepback, fade: sd.fade });
-  const P = mp.P, green = mp.green;
+  const P = mp.P, green = mp.green; if (!green) trShotTally(p, P); // V3: what each trait added to this shot (Traits that helped)
   const roll = m.rng.next(); const make = roll < P;
   const flavor = pickFlavor(m, make, type, d, grade, contest, err);
   b.setOwner(null); b.mode = 'flight'; b.x = x0; b.y = y0; b.z = p.z; b.zTarget = 0.5; b.flightZ0 = p.z; b.armed = false; b.fromBelow = false; b.rimTouched = false; b.boardTouched = false; b.flightT = 0; b.touchedAfterShot = false; b.lastTouch = p; b.lastTouchTeam = p.team;
@@ -4603,7 +4615,7 @@ function rimProtect(m, p, shot) {
     const tried = shot.blockTried || (shot.blockTried = {}); if (tried[d.id]) continue; tried[d.id] = true;
     const inFront = (q.x - p.x) * (hoop.x - p.x) > 0 || Math.abs(q.x - p.x) < C.posNear;
     const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height), 0, BK.rimMax) * trBlockMul(d);
-    const ch = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * typeMul; shot.rimBlockP = Math.max(shot.rimBlockP || 0, ch);
+    const ch = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * typeMul; shot.rimBlockP = Math.max(shot.rimBlockP || 0, ch); trBlockTally(d, ch); // V3: Paint Protector's share
     if (m.rng.next() < ch) { doBlock(m, d, p); return; }
     m.bus.emit('ALTERED', { player: d, shooter: p });
   }
@@ -4686,8 +4698,8 @@ function resolveShotTouches(m, dt) {
     if (p.hasBall) continue;
     handPos(p, _hp); const rr = BK.handRadius + BALL.radius; const dx = b.x - _hp.x, dy = b.y - _hp.y; if (dx * dx + dy * dy > rr * rr) continue;
     const defender = p.team !== shooter.team;
-    if (rising && !b.rimTouched && !b.boardTouched) { if (defender && _hp.y >= b.y - 0.1) { const tried = shot.blockTried || (shot.blockTried = {}); if (tried[p.id]) continue; tried[p.id] = true; const base = shot.type === 'layup' || shot.type === 'tip' ? BK.layupBase : BK.jumperBase; const ch = clamp(base + BK.defSlope * (p.attrs.def - 5) + HT.blockPerM * (p.height - shooter.height), BK.chanceMin, BK.chanceMax) * trBlockMul(p); if (m.rng.next() < ch) { doBlock(m, p, shooter); return; } m.bus.emit('ALTERED', { player: p, shooter }); } continue; }
-    if (!b.rimTouched && !b.boardTouched && aboveRim && (nearHoop || (p.traits.paintprotector && Math.abs(b.x - hoop.x) < CONFIG.goaltend.range * TR.list.paintprotector.fouls)) && b.vy < 0) {
+    if (rising && !b.rimTouched && !b.boardTouched) { if (defender && _hp.y >= b.y - 0.1) { const tried = shot.blockTried || (shot.blockTried = {}); if (tried[p.id]) continue; tried[p.id] = true; const base = shot.type === 'layup' || shot.type === 'tip' ? BK.layupBase : BK.jumperBase; const ch = clamp(base + BK.defSlope * (p.attrs.def - 5) + HT.blockPerM * (p.height - shooter.height), BK.chanceMin, BK.chanceMax) * trBlockMul(p); trBlockTally(p, ch); if (m.rng.next() < ch) { doBlock(m, p, shooter); return; } m.bus.emit('ALTERED', { player: p, shooter }); } continue; }
+    if (!b.rimTouched && !b.boardTouched && aboveRim && (nearHoop || (p.traits.paintprotector && Math.abs(b.x - hoop.x) < CONFIG.goaltend.range * (1 + trE(p, 'paintprotector', 'fouls')))) && b.vy < 0) {
       if (defender) { m.bus.emit('GOALTEND', { player: p, shooter }); forceScore(m, hoop, shot, 'goaltend'); return; }
       else if (Math.abs(b.x - hoop.x) < CONFIG.goaltend.cylinder) { m.bus.emit('INTERFERENCE', { player: p, shooter }); resolveShotOutcome(m, false, 'interference'); turnoverTo(m, 1 - p.team, p, 'interference'); return; }
     }
@@ -4696,6 +4708,7 @@ function resolveShotTouches(m, dt) {
   }
 }
 function doBlock(m, d, shooter) {
+  if (d.traits && d.traits.paintprotector && m.bus) trBanner(m, d, 'paintprotector'); // V3: the banner
   const b = m.ball, BK = CONFIG.block, shot = b.shot; shot.touched = true; b.touchedAfterShot = true;
   d.stats.blk++; if (d.attrs.def >= BK.catchBlockMinDef && m.rng.next() < BK.catchBlockChance) {
     resolveShotOutcome(m, false, 'block'); b.setOwner(d); d.setState('catch', { wasAir: true }); m.bus.emit('BLOCK', { player: d, shooter, caught: true });
@@ -4728,6 +4741,7 @@ function checkRimDuel(p) {
   }
 }
 function stuffDunk(m, p, d) {
+  if (d.traits && d.traits.paintprotector && m.bus) trBanner(m, d, 'paintprotector'); // V3: the banner
   const b = m.ball; handPos(d, _hp); p.sd.blocked = true; b.setOwner(null); b.mode = 'loose'; b.x = _hp.x; b.y = _hp.y; b.vx = -p.facing * CONFIG.block.swatSpeed; b.vy = 1.5; b.z = d.z; b.lastTouch = d; b.lastTouchTeam = d.team; b.shot = null;
   d.stats.blk++; p.stats.dunkA++; p.stats.fga++; m.bus.emit('BLOCK', { player: d, shooter: p, caught: false, rim: true }); m.bus.emit('MISS', { shooter: p, type: 'dunk', reason: 'block' });
   p.anim.expr = 'shocked'; p.anim.exprT = 1; d.anim.expr = 'hyped'; d.anim.exprT = 1;
@@ -4742,7 +4756,7 @@ function dunkProtect(p) {
     const dx = Math.abs(_hp.x - b.x) + Math.abs(q.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
     const inFront = (q.x - p.x) * (p.hoop.x - p.x) > 0 || Math.abs(q.x - p.x) < C.posNear;
     const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height), 0, BK.rimMax) * trBlockMul(d);
-    if (m.rng.next() < base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * BK.rimDunkMul) { stuffDunk(m, p, d); return true; }
+    const chD = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * BK.rimDunkMul; trBlockTally(d, chD); if (m.rng.next() < chD) { stuffDunk(m, p, d); return true; }
   }
   return false;
 }
@@ -7765,6 +7779,8 @@ function rtRenderMatch(game, ctx, m, alpha, env) {
 }
 
 // --- the match scene in pixels, back to front (the same layers as drawMatchScene) ---
+// V3: Generational's Takeover: a pulsing gold glow behind the player and a few rising sparks (whole world pixels).
+function rtTakeoverGlow(g, X, Y, w, h, t) { const cx = X + w / 2, cy = Y + h * 0.55, a = 0.28 + 0.12 * Math.sin(t * 9); g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a; g.fillStyle = '#FFD23F'; g.beginPath(); g.ellipse(cx, cy, w * 0.62, h * 0.6, 0, 0, TAU); g.fill(); g.globalAlpha = Math.min(1, a * 2); for (let i = 0; i < 5; i++) { const ph = (t * 1.4 + i * 0.23) % 1; g.fillRect(Math.round(X + w * (0.15 + 0.17 * i)), Math.round(Y + h * (0.9 - ph * 1.0)), 1, 1); } g.restore(); }
 function drawMatchSceneRetro(g, env, m, alpha) {
   ensureLayout(m); const cam = env.cam, world = env.world, court = COURTS[m.courtId] || COURTS.blacktop, rp = env.rp, guard = env.guard || 0; const V = world.venueFor(m);
   const players = rp ? m.replay.ghosts : m.players, ball = rp ? m.replay.ghostBall : m.ball; updateBallView(ball);
@@ -7781,7 +7797,7 @@ function drawMatchSceneRetro(g, env, m, alpha) {
   if (!rp) drawPowerup(g, cam, m);
   if (env.racks) env.racks(g, cam, true); // V1 (§1.3): the 3-point racks stand on the floor behind the players (they used to be drawn over them)
   let ballDrawn = false;
-  for (const [p, r] of spr) { if (!ballDrawn && !ball.owner && ball.z < p.z - 0.01) { rtDrawBall(g, cam, ball, alpha, m.ball.skin, false); ballDrawn = true; } if (r) { g.drawImage(r.spr, r.X, r.Y); RT.last.set(p, { spr: r.spr, X: r.X, Y: r.Y, frame: RT.frame, box: [r.X, r.Y, r.spr.width, r.spr.height] }); } }
+  for (const [p, r] of spr) { if (!ballDrawn && !ball.owner && ball.z < p.z - 0.01) { rtDrawBall(g, cam, ball, alpha, m.ball.skin, false); ballDrawn = true; } if (r) { if (p.trs && p.trs.takeUntil > m.time) rtTakeoverGlow(g, r.X, r.Y, r.spr.width, r.spr.height, m.time); g.drawImage(r.spr, r.X, r.Y); RT.last.set(p, { spr: r.spr, X: r.X, Y: r.Y, frame: RT.frame, box: [r.X, r.Y, r.spr.width, r.spr.height] }); } }
   if (!ballDrawn && !ballInHand) rtDrawBall(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && ((m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0) || m.ball.shot.fireball)));
   HOOPS.forEach((h, i) => rtHoopFront(g, cam, h, V, i, m, world.nets[i]));
   if (!rp) { drawExtrasOverlays(g, cam, m, alpha); rtMarkers(g, cam, spr, m, alpha); }
@@ -8184,7 +8200,7 @@ function attachPresentation(m, game) {
   bus.on('POKED', e => { au.noise(0.05, 0.12, { filter: 'lowpass', freq: 900 }); pushCallout(m, 'POKED', '#9BA3C7', false, true); }); // V1 (§1.1): a small callout and no stat
   bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
   bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
-  bus.on('TRAIT_FX', e => { const txt = TRAIT_FX_TEXT[e.id]; if (txt) pushCallout(m, txt, traitFrame(e.id)); }); // R3: a trait kicking in (Microwave heat, a Streaky hot hand, Clutch Gene in crunch time)
+  bus.on('TRAIT_FX', e => { trBannerPush(m, e); const txt = e.big && TRAIT_FX_TEXT[e.id]; if (txt) pushCallout(m, txt, traitFrame(e.id)); }); // R3: a trait kicking in; V3 (§2.3): a banner under the HUD (Takeover gets a callout too)
   bus.on('HEAT_ON', e => { pushCallout(m, 'ON FIRE', CALLOUT.make, true); au.stinger('fire'); fx.spawn('flame', e.player.x, e.player.y + 1, e.player.z, 16, ['#FF8A2A', '#FFD23F', '#FF4FA3'], { spread: 0.6, spreadY: 1 }); });
   bus.on('SHOVE', e => { au.shove(); cam.addTrauma(0.2); fx.spawn('dust', e.victim.x, 0.3, e.victim.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('KNOCKDOWN', e => { au.stumble(); fx.spawn('star', e.player.x, e.player.y + drawHeightOf(e.player) + 0.1, e.player.z, 3, '#FFD23F'); });
@@ -8755,6 +8771,7 @@ function drawTradingCard(ctx, x, y, w, h, P, opts) {
   rbArtBox(ctx, 'card', x, y, w, h); /* F10: the audit's box */ opts = opts || {}; try {
     if (uiRetro() && ctx.canvas === RBF.mainCanvas) { const M = ctx.getTransform(), T = Math.abs(M.d) || 1, c = cardBake(P, w, h, T, uiPixK(ctx.canvas)); const X0 = M.a * x + M.c * y + M.e, Y0 = M.b * x + M.d * y + M.f, X1 = M.a * (x + w) + M.c * (y + h) + M.e, Y1 = M.b * (x + w) + M.d * (y + h) + M.f; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, Math.round(Math.min(X0, X1)), Math.round(Math.min(Y0, Y1)), Math.max(1, Math.round(Math.abs(X1 - X0))), Math.max(1, Math.round(Math.abs(Y1 - Y0)))); ctx.restore(); return; } // R1: on the device grid, 1:1 (squashed only mid-flip); no foil sheen
     const c = cardBake(P, w, h, opts.res || 2); ctx.drawImage(c, x, y, w, h);
+    if (P.trait && TR.list[P.trait] && !opts.noTrait) { const s = Math.round(Math.min(w, h) * 0.2), bx = x + w - s - Math.round(w * 0.06), by = y + h - s - Math.round(h * 0.2), col = traitFrame(P.trait); ctx.fillStyle = 'rgba(8,12,36,0.9)'; ctx.fillRect(bx - 3, by - 3, s + 6, s + 6); ctx.fillStyle = col; ctx.fillRect(bx - 3, by - 3, s + 6, 2); ctx.fillRect(bx - 3, by + s + 1, s + 6, 2); ctx.fillRect(bx - 3, by - 3, 2, s + 6); ctx.fillRect(bx + s + 1, by - 3, 2, s + 6); drawTraitIcon(ctx, P.trait, bx, by, s); uiHot(bx - 3, by - 3, s + 6, s + 6, { trait: P.trait, T: P.trT }); } // V3 (§2.3): the player's trait, tap for its card
     const tier = P.tier || cardTierOf(P.ovr); if ((tier === 'gold' || tier === 'diamond') && !opts.noFoil) {
       const t = (opts.t || 0) / ART.foilPeriod, p = (t - Math.floor(t)) * 1.8 - 0.4; ctx.save(); ctx.beginPath(); roundRectPath(ctx, x, y, w, h, w * 0.075); ctx.clip(); ctx.globalCompositeOperation = 'lighter';
       const bx = x + p * (w + h); const fg = ctx.createLinearGradient(bx - w * 0.3, y, bx + w * 0.3, y + h * 0.4); fg.addColorStop(0, 'rgba(255,255,255,0)'); fg.addColorStop(0.5, tier === 'diamond' ? 'rgba(200,240,255,0.32)' : 'rgba(255,240,190,0.3)'); fg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = fg; ctx.fillRect(x, y, w, h); ctx.restore();
@@ -8881,8 +8898,10 @@ class UI {
     if (ev.back) { this.game.audio.ui('back'); if (s.onBack) s.onBack(); else if (this.stack.length > 1) this.pop(); }
     const mouse = input.mouse; const tap = input.touch.consumeTap(); let px = -1, py = -1;
     if (tap) { px = input.touch.lastTapX; py = input.touch.lastTapY; } else if (mouse.clicked) { px = mouse.x; py = mouse.y; }
-    if (mouse.moved) { mouse.moved = false; const [lx, ly] = this.toLocal(mouse.x, mouse.y); const hit = this.hitTest(s, lx, ly); if (hit >= 0 && hit !== s.focus) { s.focus = hit; this.game.audio.ui('move'); } } // R10 §4: a hover sound
-    if (px >= 0 && this.screen === s) { mouse.clicked = false; const [lx, ly] = this.toLocal(px, py); const hit = this.hitTest(s, lx, ly, !!tap); if (hit >= 0) { s.focus = hit; const wd = wds[hit]; if (wd.kind === 'select') { const n = wd.options.length; const pick = wd.swatch ? swatchPick(wd, lx, ly) : -1; if (pick >= 0) wd.set(pick); else { const right = lx > wd.x + wd.w * (tallRow(this, wd) ? 0.5 : 0.62); wd.set((wd.get() + (right ? 1 : -1) + n) % n); } this.game.audio.ui('move'); } else if (wd.kind === 'slider') { const sb = tallRow(this, wd) ? tallSliderBar(wd) : null; const t = sb ? clamp01((lx - sb.x) / sb.w) : clamp01((lx - (wd.x + wd.w * 0.5)) / (wd.w * 0.45)); wd.set(clamp(Math.round((wd.min + t * (wd.max - wd.min)) / wd.step) * wd.step, wd.min, wd.max)); } else if (wd.kind === 'toggle') { wd.set(!wd.get()); this.game.audio.ui('move'); } else this.activate(wd, s, input); } else if (s.onTap) s.onTap(lx, ly); }
+    if (mouse.moved) { mouse.moved = false; const [lx, ly] = this.toLocal(mouse.x, mouse.y); { const hot = s.noHots ? null : uiHotAt(s._hots, lx, ly, 0); s._hover = hot && hot.info && hot.info.trait && !hot.info.card ? hot : null; } /* V3: hover a trait chip: its card */ const hit = this.hitTest(s, lx, ly); if (hit >= 0 && hit !== s.focus) { s.focus = hit; this.game.audio.ui('move'); } } // R10 §4: a hover sound
+    if (px >= 0 && this.screen === s) { mouse.clicked = false; const [lx, ly] = this.toLocal(px, py);
+      if (!s.noHots) { let hot = uiHotAt(s._hots, lx, ly, 0); if (!hot && tap && this.hitTest(s, lx, ly, true) < 0) hot = uiHotAt(s._hots, lx, ly, CONFIG.ui.touchMinPx / Math.max(0.1, this.scale)); if (hot && hot.info && hot.info.trait) { s._hover = null; this.game.audio.ui('confirm'); this.push(traitCardScreen(this.game, hot.info.trait, hot.info.B || (hot.info.T ? { tr: hot.info.T } : null), hot.info.level)); return; } } // V3 (§2.3): tap or click any trait chip or card: its card
+      const hit = this.hitTest(s, lx, ly, !!tap); if (hit >= 0) { s.focus = hit; const wd = wds[hit]; if (wd.kind === 'select') { const n = wd.options.length; const pick = wd.swatch ? swatchPick(wd, lx, ly) : -1; if (pick >= 0) wd.set(pick); else { const right = lx > wd.x + wd.w * (tallRow(this, wd) ? 0.5 : 0.62); wd.set((wd.get() + (right ? 1 : -1) + n) % n); } this.game.audio.ui('move'); } else if (wd.kind === 'slider') { const sb = tallRow(this, wd) ? tallSliderBar(wd) : null; const t = sb ? clamp01((lx - sb.x) / sb.w) : clamp01((lx - (wd.x + wd.w * 0.5)) / (wd.w * 0.45)); wd.set(clamp(Math.round((wd.min + t * (wd.max - wd.min)) / wd.step) * wd.step, wd.min, wd.max)); } else if (wd.kind === 'toggle') { wd.set(!wd.get()); this.game.audio.ui('move'); } else this.activate(wd, s, input); } else if (s.onTap) s.onTap(lx, ly); }
   }
   activate(w, s, input) { w._pressT = this.t; if (w.kind === 'button' && w.onPress) { this.game.audio.ui(/^(Back|No)$/.test(w.label || '') ? 'back' : 'confirm'); w.onPress(); } /* R10: Back sounds like back */ else if (w.kind === 'toggle') { w.set(!w.get()); this.game.audio.ui('move'); } else if (w.kind === 'select') { const n = w.options.length; w.set((w.get() + 1) % n); this.game.audio.ui('move'); } else if (w.onPress) { this.game.audio.ui('confirm'); w.onPress(); } }
   // Taps on a touch screen also count just outside a widget, so every target is at least ART's 64 CSS px where the layout
@@ -8933,7 +8952,7 @@ class UI {
   }
   drawToast(ctx) { if (this.toastT <= 0) return; ctx.globalAlpha = clamp01(this.toastT / 0.4); kitPanel(ctx, UI_W / 2 - 250, UI_H - 76, 500, 46, 'rgba(20,28,80,0.95)', { radius: 23, accent: UI_GOLD }); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.toast, UI_W / 2, UI_H - 52); ctx.globalAlpha = 1; }
   // One screen's content in design space (no background).
-  drawScreen(ctx, s, noFocus) { this.begin(ctx); try { if (s.draw) s.draw(ctx, this); this.drawWidgets(ctx, s, noFocus); } finally { this.end(ctx); } }
+  drawScreen(ctx, s, noFocus) { this.begin(ctx); const top = s === this.screen && !s.noHots; if (top) UI_HOTS = s._hots = []; try { if (s.draw) s.draw(ctx, this); this.drawWidgets(ctx, s, noFocus); if (top && s._hover && !(this.game.input && this.game.input.hasTouch)) { UI_HOTS = null; drawTraitHover(ctx, this, s._hover); } } finally { UI_HOTS = null; this.end(ctx); } } // V3: trait chips and cards register their boxes (UI_HOTS); a resting mouse shows the card
   // F4: menus draw in the letterboxed 1280×720 area, so their text keeps the pixel size of that area (RBF.kUI): a window
   // taller than 16:9 used to size every string from the whole window's height, up to 1.8× too big for its layout.
   draw(ctx, W_, H_) { const k0 = RBF.minMain; RBF.minMain = RBF.kUI || k0; try { this.drawInner(ctx, W_, H_); } finally { RBF.minMain = k0; } }
@@ -9076,7 +9095,7 @@ function practiceHubScreen(game) {
 function confirmScreen(game, text, onYes) { const items = [btn('Yes', 0, 0, 0, 0, () => { game.ui.pop(); onYes(); }), btn('No', 0, 0, 0, 0, () => game.ui.pop())]; column(items, UI_W / 2 - 150, 340, 300, 46, 10); const pb = phoneGrid(game.ui, items, UI_W / 2 - 260, 340, 520, 2, 0, 12); return { widgets: items, overlay: true, name: 'confirm', draw(ctx, ui) { ui.panel(ctx, UI_W / 2 - 280, 230, 560, pb ? pb - 200 : 240, UI_PANEL2); ctx.font = fontStr(20, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, text, UI_W / 2, 262, 500, 26); } }; }
 // (R10: the settings screen lives in 148_ui_polish.js: five tabs)
 function howToScreen(game) {
-  const items = [btn('Tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Stats guide', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)))]; for (const w of items) { w.y = 640; w.h = 46; } Object.assign(items[0], { x: 60, w: 300 }); Object.assign(items[2], { x: 372, w: 240 }); Object.assign(items[1], { x: 624, w: 190 }); // side by side under the tips, before ◀ Tip / Tip ▶ (F9: the stats guide)
+  const items = [btn('Tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)))]; for (const w of items) { w.y = 640; w.h = 46; } Object.assign(items[0], { x: 60, w: 300 }); Object.assign(items[2], { x: 372, w: 240 }); Object.assign(items[1], { x: 624, w: 190 }); // side by side under the tips, before ◀ Tip / Tip ▶ (F9: the stats guide)
   const P = game.ui.phone; let tip = 0;
   const rows = [['Action', 'Keys A', 'Keys B', 'Gamepad', 'Touch'], ['Move', 'A / D', '← / →', 'Stick', 'Stick'], ['Jump · block · rebound', 'W, Space', '↑, Space', 'A', 'JUMP'], ['Stance · post up (hold)', 'S', '↓', 'LT', 'Stick down'], ['Shoot · tap: pump fake', 'J', 'Z', 'X', 'SHOOT'], ['Fadeaway jumper', 'K', 'X', 'B', 'FADE'], ['Dribble move · steal', 'L', 'C', 'Y', 'MOVE'], ['Sprint · tap: hesitation', 'Shift', 'Shift', 'RT', 'Stick past 85%'], ['Pause', 'Esc, P', 'Esc, P', 'Start', 'Pause']];
   const tips = ['Shots: hold Shoot and release at the top of the jump; the meter shows the window. A tap is a pump fake: it picks up your dribble. Fadeaway: the same with Fade.', 'Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.', 'Violations: once a pump fake picks up your dribble you can pivot, shoot or fade, but a dribble move is a double dribble and walking with the ball is a travel. Jump with it and land with it: a travel. Hold it 5 seconds while guarded: a held ball. Each one gives the ball away.'];
@@ -9198,6 +9217,7 @@ function pregameScreen(game, g) {
       drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 250, floor, sz, 'focused', 1, t, 'stance'); drawMannequin(ctx, drawDefOf(opp), clubOf(opp.club), 1030, floor, sz, 'focused', -1, t + 1, 'stance');
       ui.heading(ctx, me.name.toUpperCase(), 250, 100, 24, UI_GOLD, 'center'); ui.heading(ctx, opp.name.toUpperCase(), 1030, 100, 24, UI_TEXT, 'center');
       weekChips(ctx, c.me, 250, 134, c.rivalId === opp.id);
+      { const T = traitsOf(c.me); if (T) { let tx = 250; const ids = trActive(c.me).filter(id => id !== T.hidden || T.found); ctx.font = fontStr(12, true); const ws = ids.map(id => traitChip(ctx, id, 0, 0, { B: c.me, size: 12, measure: true })); tx -= (ws.reduce((a, b) => a + b, 0) + 6 * (ws.length - 1)) / 2; ids.forEach((id, i) => { traitChip(ctx, id, tx, 164, { B: c.me, size: 12 }); tx += ws[i] + 6; }); } if (opp.tr) traitChip(ctx, opp.tr.sig, 1030, 134, { T: opp.tr, size: 12, align: 'center' }); } // V3 (§2.3): traits on the tale of the tape (the opponent's too)
       const rows = [['OVR', recOvr(me), recOvr(opp)], ['AGE', me.age, opp.age, true], ['HEIGHT', fmtHeight(me.h), fmtHeight(opp.h), false, me.h, opp.h], ['WINGSPAN', fmtHeight(me.h * me.wing), fmtHeight(opp.h * opp.wing), false, me.h * me.wing, opp.h * opp.wing], ['RECORD', c.standings[me.id].w + '-' + c.standings[me.id].l, c.standings[opp.id].w + '-' + c.standings[opp.id].l], ['PPG', (c.stats[me.id].pts / Math.max(1, c.stats[me.id].g)).toFixed(1), (c.stats[opp.id].pts / Math.max(1, c.stats[opp.id].g)).toFixed(1)]];
       ctx.fillStyle = 'rgba(8,14,48,0.8)'; ctx.beginPath(); roundRectPath(ctx, 456, 90, 368, 500, 12); ctx.fill();
       rows.forEach((r, i) => { const y = 118 + i * 32; const a = r[4] != null ? r[4] : parseFloat(r[1]), b = r[5] != null ? r[5] : parseFloat(r[2]); const better = r[3] ? 0 : (a > b ? 1 : b > a ? -1 : 0); ui.label(ctx, r[0], 640, y, 13, UI_DIM, 'center'); ui.heading(ctx, String(r[1]), 540, y, 20, better > 0 ? UI_GREEN : UI_TEXT, 'center'); ui.heading(ctx, String(r[2]), 740, y, 20, better < 0 ? UI_GREEN : UI_TEXT, 'center'); });
@@ -9233,6 +9253,7 @@ function careerResultScreen(game, rec, m) {
       // money and fame
       ui.heading(ctx, 'PAYDAY', 60, 470, 14, UI_CYAN); ui.label(ctx, (rec.playoff ? 'Playoff game ' : 'Game check ') + fmtMoney(rec.pay) + (rec.endorse ? ' · sponsors ' + fmtMoney(rec.endorse) : '') + (rec.staffCost ? ' · staff −' + fmtMoney(rec.staffCost).slice(1) : ''), 60, 494, 15, UI_TEXT);
       ui.heading(ctx, 'FAME', 60, 530, 14, UI_CYAN); ui.label(ctx, Math.round(c.me.fame) + ' (' + (rec.fameGain >= 0 ? '+' : '') + rec.fameGain + ')', 60, 554, 15, UI_TEXT);
+      drawTraitsHelped(ctx, ui, traitsHelpedFor(m, rec), 300, 530, 460, 2, c.me); // V3 (§2.3)
       { const W_ = rec.wk || {}; ui.para(ctx, 'Fatigue now ' + Math.round(c.me.fatigue || 0) + ' (+' + WK.fatiguePerGame + ' a game)' + (W_.practiceXp ? ' · practice paid ' + W_.practiceXp + ' XP' : '') + '. Past ' + WK.fatigueFreeAt + ' every rating drops: rest before then.', 60, 596, 700, 13, (c.me.fatigue || 0) > WK.fatigueFreeAt ? UI_ORANGE : UI_DIM); }
       // progression
       ui.panel(ctx, 780, 100, 440, 400); ui.heading(ctx, 'PROGRESSION', 800, 128, 18, UI_GOLD); ui.label(ctx, 'OVR ' + rec.ovrBefore + ' → ' + rec.ovrAfter, 1200, 128, 16, rec.ovrAfter > rec.ovrBefore ? UI_GREEN : UI_TEXT, 'right');
@@ -9591,7 +9612,7 @@ function amStandingsScreen(game) {
   } };
 }
 function amHistoryScreen(game) {
-  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop()), btn('Stats guide', 280, 640, 260, 48, () => game.ui.push(statsGuideScreen(game)), { primary: true })]; const P = phoneBar(game.ui, items, null, 40, 700); // phones: a 64 px Back and the stats guide (F9), bottom left
+  const c = game.save.data.c1; const items = [btn('Back', 60, 640, 200, 48, () => game.ui.pop()), btn('Codex', 280, 640, 260, 48, () => game.ui.push(statsGuideScreen(game)), { primary: true })]; const P = phoneBar(game.ui, items, null, 40, 700); // phones: a 64 px Back and the stats guide (F9), bottom left
   return { widgets: items, name: 'amhistory', draw(ctx, ui) {
     ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'YOUR STORY SO FAR', 60, 70, 40);
     const S = c.seasonStats || { g: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0 }, T = c.totals; const per = (x, g) => g ? (x / g).toFixed(1) : '0.0'; const pct = (m, a) => a ? Math.round(100 * m / a) + '%' : '–';
@@ -9615,6 +9636,7 @@ function amResultScreen(game, rec, m) {
       ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); const g = Array.isArray(rec.gains) ? rec.gains : []; /* (a bench week's gains are a map: never drawn here) */ if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
       g.slice(0, 8).forEach((x, i) => pill(ctx, RATING_LONG[x.k] + ' ' + x.from + ' → ' + x.to, 60 + (i % 3) * 260, 322 + Math.floor(i / 3) * 36, 'rgba(76,224,122,0.3)', UI_GREEN, 15));
       hexBadge(ctx, 96, 470, 32, rec.ovrAfter, {}); ui.heading(ctx, rec.ovrAfter > rec.ovrBefore ? '▲ ' + (rec.ovrAfter - rec.ovrBefore) + ' OVR' : 'OVR ' + rec.ovrAfter, 144, 470, 22, rec.ovrAfter > rec.ovrBefore ? UI_GREEN : UI_TEXT);
+      drawTraitsHelped(ctx, ui, traitsHelpedFor(m, rec), 330, 446, 470, 2, c); // V3 (§2.3)
       { const W_ = rec.wk || {}; let y = 530; const f = Math.round(c.fatigue || 0);
         ui.heading(ctx, 'THE WEEK', 60, y, 15, UI_CYAN); y += 26; /* V1 (§1.7): the plan and the fatigue on their own lines (one line cut the fatigue warning short on phones) */
         if (W_.plan) { ui.label(ctx, WEEK_PLAN_LABEL[W_.plan].charAt(0) + WEEK_PLAN_LABEL[W_.plan].slice(1).toLowerCase() + (W_.plan === 'practice' ? ' (+' + (W_.practiceXp || 0) + ' XP, focus XP ×' + WK.practiceFocusMul + ')' : W_.plan === 'film' ? ' (+' + trFilmBonus(c) + ' DEF and SHO)' : ''), 60, y, 15, UI_TEXT, 'left', 740); y += 26; }
@@ -10303,7 +10325,7 @@ function drawHub(ctx, ui, H, t) {
   hexBadge(ctx, 76, 548, 34, M.ovr, {}); if (M.delta) { kitChip(ctx, (M.delta > 0 ? '▲ ' : '▼ ') + Math.abs(M.delta), 76, 596, { size: 13, align: 'center', fill: M.delta > 0 ? 'rgba(76,224,122,0.25)' : 'rgba(255,90,90,0.25)', stroke: false, color: M.delta > 0 ? UI_GREEN : UI_RED }); }
   let nm = String(M.def.name || '').toUpperCase(); const ns = fitFont(ctx, nm, 250, 22, true); ctx.font = fontStr(ns, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(nm, 124, M.tr ? 524 : 532);
   let cx = 124; for (const ch of [('AGE ' + M.age), M.style ? String(M.style).toUpperCase() : null].filter(Boolean)) cx += kitChip(ctx, ch, cx, M.tr ? 550 : 562, { size: 12 }) + 6;
-  if (M.tr) { let tx = 124; tx += traitChip(ctx, M.tr.sig, tx, 576) + 6; if (tx < 330) traitChip(ctx, M.tr.found ? M.tr.hidden : null, tx, 576); } /* R3: your traits (the hidden one ??? until its story moment) */
+  if (M.tr) { let tx = 124; tx += traitChip(ctx, M.tr.sig, tx, 576, { T: M.tr, maxW: 236 }) + 6; if (tx < 300) traitChip(ctx, M.tr.found ? M.tr.hidden : null, tx, 576, { T: M.tr, maxW: 372 - tx }); } /* (V3: a chip that doesn't fit drops its pips, then shrinks; the card opens on a tap) */ /* R3: your traits (the hidden one ??? until its story moment) */
   if (M.info) ui.label(ctx, M.info, 124, M.tr ? 601 : 590, 12, UI_DIM, 'left', 250);
   hubRatingBars(ctx, M.r, 40, 616, 328, 80);
   // center: the next game
@@ -10377,7 +10399,7 @@ function amHub(game) {
         last5: L ? L.games.slice(-5).map(g => g.won) : [], weekY: 198, statusY: items.statusY, B: c };
       if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: L.format ? hsNextLabel(c, nx) : nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · FIRST TO ' + stg.target }; /* R5: district, JV and state labels */
         H.myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school + (c.squad === 'jv' ? ' JV' : '') }; /* F11: JV on your card */
-        H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' };
+        H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '', trait: o.tr ? o.tr.sig : null, trT: o.tr || null }; /* V3: their trait, tap for its card */
         H.scout = scoutLine(myR, effRatings(o.r, o.height), c.height, o.height, o.rival ? 'Your rival will' : 'They'); if (o.rival) H.scout = H.scout.replace('Your rival will own', 'Your rival owns').replace('Your rival will want', 'Your rival wants');
         const inel = c.ineligible > 0, sm = ladderStarterMate(c) || (inel ? hsSlotMate(c) : null); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = inel ? 'INELIGIBLE · ' + c.ineligible + ' GAME' + (c.ineligible > 1 ? 'S' : '') + ' · ' + sm.nick.toUpperCase() + ' PLAYS' : 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: inel ? 'plays for you' : 'starts this week' }; H.scout = inel ? 'Study weeks raise your GPA; you are eligible again after these games.' : 'Win a challenge in practice to take the spot back.'; } } // R4: benched (R5: or ineligible)
       else if (c.summer && c.summer.pending) { H.idleTitle = 'YOUR SUMMER'; H.idleText = 'Pick one: the AAU circuit (exposure), a skills camp ($' + HS.campCost + ', XP), rest, or a summer job ($' + HS.jobPay + ').'; }
@@ -10406,7 +10428,7 @@ function careerHub(game) {
         me: { def: drawDefOf(me, c), kit: club, ovr: recOvr(me), delta: prev ? recOvr(me) - prev.ovr : 0, h: me.h, hLast: null, age: me.age, style: roleLabel(me.r, me.h), r: me.r, tr: traitsOf(c.me), info: fmtMoney(c.me.money) + ' · hype ' + Math.round(c.me.hype || 0) }, // R8: hype on the card (fame is in Business)
         last5: c.me.log.slice(0, 5).reverse().map(l => l.win), weekY: 198, statusY: items.statusY, B: c.me };
       if (g && opp) { const meHome = g.h === c.meId; const oc = clubOf(opp.club), os = c.standings[opp.id]; H.opp = { def: drawDefOf(opp), h: opp.h, rival, playoff: !!g.playoff, where: meHome ? 'HOME' : 'AWAY', label: c.phase === 'playoffs' ? nextEventLabel(c) : 'NEXT · WEEK ' + (c.week + 1) + ' · ' + os.w + '-' + os.l };
-        H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = cardOfRec(opp, { sub: oc.name });
+        H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = Object.assign(cardOfRec(opp, { sub: oc.name }), { trait: opp.tr ? opp.tr.sig : null, trT: opp.tr || null }); /* V3: their trait */
         H.scout = rival ? RIVAL_LINES[Math.min(2, c.me.rivalGames || 0)][(c.week + c.season) % 3] : scoutLine(effRatings(me.r, me.h), effRatings(opp.r, opp.h), me.h, opp.h, 'They');
         const sm = ladderStarterMate(c); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'pm-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: club.colors, ovr: tmMateOvr(sm), style: ARCHETYPES[sm.style] ? ARCHETYPES[sm.style].label : '', sub: 'starts this week' }; H.scout = 'Win a challenge in practice to take the spot back.'; } } // R4: benched
       else { H.idleTitle = c.phase === 'playoffs' ? 'PLAYOFFS' : 'NO GAME THIS WEEK'; }
@@ -10705,7 +10727,7 @@ function proEventScreen(game) {
   const done = () => { if (c && c.events && c.events.length) c.events.shift(); game.save.save(); game.ui.pop(); };
   return storyEventScreen(game, c, ev, done) || textEventScreen(game, ev, done);
 }
-function storyEventScreen(game, c, ev, done) { if (!c) return null; if (ev.kind === 'trait' || ev.kind === 'traitnew') return traitEventScreen(game, c, ev, done); if (ev.kind === 'ladder') return ladderEventScreen(game, c, ev, done); if (ev.kind === 'press') return pressScreen(game, c, ev, done); if (ev.kind === 'rival') return rivalMomentScreen(game, c, ev, done); if (ev.kind === 'allstar' && isPro(c)) return allStarWeekendScreen(game, c, ev, done); if (ev.kind === 'nil') return nilEventScreen(game, c, ev, done); if (ev.kind === 'agent') return agentEventScreen(game, c, ev, done); if (ev.kind === 'trade') return dialogScreen(game, c, Object.assign({ who: 'agent' }, ev), done, { options: [{ label: 'REQUEST A TRADE', note: 'A club that starts you · hype −' + Math.round(PR.tradeHype * MD.hypeMax), pick: () => proTradeAnswer(c, ev, true) }, { label: 'STAY AND FIGHT', note: 'Win the spot back on the depth chart', pick: () => proTradeAnswer(c, ev, false) }] }); if (ev.kind === 'shoe') return dialogScreen(game, c, Object.assign({ who: 'agent' }, ev), done, { options: [{ label: 'LAUNCH IT · ' + fmtMoney(PR.shoeCost), note: 'Royalties every week, more with fame and hype', pick: () => proShoeAnswer(c, ev, true) }, { label: 'NOT NOW', note: 'It stays open in Business', pick: () => proShoeAnswer(c, ev, false) }] }); if (ev.kind === 'dialog' || ev.kind === 'story') return storyDialog(game, c, ev, done); return null; } // R6: NIL offers; R9: dialogue cards, the agent's call; R7: a trade request, a shoe of your own
+function storyEventScreen(game, c, ev, done) { if (!c) return null; if (ev.kind === 'trait' || ev.kind === 'traitnew' || ev.kind === 'traitlevel') return traitEventScreen(game, c, ev, done); if (ev.kind === 'traitpick') return traitPickScreen(game, c, ev, done); /* V3: a level-up's card; the third trait's pick */ if (ev.kind === 'ladder') return ladderEventScreen(game, c, ev, done); if (ev.kind === 'press') return pressScreen(game, c, ev, done); if (ev.kind === 'rival') return rivalMomentScreen(game, c, ev, done); if (ev.kind === 'allstar' && isPro(c)) return allStarWeekendScreen(game, c, ev, done); if (ev.kind === 'nil') return nilEventScreen(game, c, ev, done); if (ev.kind === 'agent') return agentEventScreen(game, c, ev, done); if (ev.kind === 'trade') return dialogScreen(game, c, Object.assign({ who: 'agent' }, ev), done, { options: [{ label: 'REQUEST A TRADE', note: 'A club that starts you · hype −' + Math.round(PR.tradeHype * MD.hypeMax), pick: () => proTradeAnswer(c, ev, true) }, { label: 'STAY AND FIGHT', note: 'Win the spot back on the depth chart', pick: () => proTradeAnswer(c, ev, false) }] }); if (ev.kind === 'shoe') return dialogScreen(game, c, Object.assign({ who: 'agent' }, ev), done, { options: [{ label: 'LAUNCH IT · ' + fmtMoney(PR.shoeCost), note: 'Royalties every week, more with fame and hype', pick: () => proShoeAnswer(c, ev, true) }, { label: 'NOT NOW', note: 'It stays open in Business', pick: () => proShoeAnswer(c, ev, false) }] }); if (ev.kind === 'dialog' || ev.kind === 'story') return storyDialog(game, c, ev, done); return null; } // R6: NIL offers; R9: dialogue cards, the agent's call; R7: a trade request, a shoe of your own
 // A plain card: a title and lines of text.
 function textEventScreen(game, ev, done) {
   { const c = careerOf(game) || amateurOf(game); if (c && ev && (ev.lines || []).length) return storyDialog(game, c, ev, done); } // R9: every card is a dialogue box
@@ -10750,7 +10772,7 @@ function pressScreen(game, c, ev, done) {
         ctx.fillStyle = '#EDE6D2'; ctx.beginPath(); roundRectPath(ctx, 684, 262, 552, 300, 10); ctx.fill(); ctx.fillStyle = '#1B1B22'; ctx.fillRect(700, 292, 520, 3); ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('THE DAILY DRIBBLE', 700, 280);
         ctx.font = fontStr(21, true); ctx.textBaseline = 'top'; const hh = wrapTextH(ctx, answered.headline, 700, 306, 520, 26);
         const fx = pressEffectLines(c, x, answered, B); let fy = Math.max(410, 306 + hh + 14); fx.forEach(f => { fy += ui.para(ctx, f[0], 700, fy, 520, 14, f[1] ? '#B8322D' : '#3D6EA8', 'left', 2) + 2; });
-      } else if (footer) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (hasTrait(B, 'generational') ? ' · the spotlight never leaves' : ''), 690, 672, 13, UI_DIM, 'left', 540); /* F4: under the taller answers, above the key hints */ // (phones: the BUZZ line in the headlines)
+      } else if (footer) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', ''), 690, 672, 13, UI_DIM, 'left', 540); /* F4: under the taller answers, above the key hints */ // (phones: the BUZZ line in the headlines)
     } };
   return scr;
 }
@@ -11064,6 +11086,7 @@ function migrateSave(obj) {
   if (v < 5) for (const k of ['c1', 'career', 'teamCareer', '_legacyCareer']) migrateLooks(merged[k], 0); // v5: looks move to the painted-face model
   { const own = L => { if (L && typeof L === 'object') L.own = true; }; if (merged.c1) own(merged.c1.look); const pc = merged.career; if (pc && pc.players) { const me = pc.players[pc.meId || 'me']; if (me) own(me.look); } } // F12: your player's look shows the facial hair you chose at every age
   try { genTraitsMigrate(merged); } catch (e) { console.warn('[save] trait migration skipped', e && e.message); } // V1 (§1.5)
+  try { trMigrateSave(merged); } catch (e) { console.warn('[save] trait levels skipped', e && e.message); } // V3 (§2.2)
   merged.version = CONFIG.save.version; return merged;
 }
 // Converts every stored look to the v2 look model (faces are seeded from the owner's name, so they never change).
@@ -11071,6 +11094,14 @@ function migrateLooks(o, depth) { if (!o || typeof o !== 'object' || depth > 7) 
 // R3: every pro in the league has a trait too (known: the league has seen them play); it rolls from the player's id.
 // V1 (§1.5): generated players carry one trait at the standard odds; older saves drop the second one theirs rolled (a
 // hidden trait is yours alone) and opponents and rivals from before get theirs.
+// V3 (§2.2): trait levels and deeds for a career from before them. The deeds start from what the save knows (games,
+// wins, points: the amateur years and the pros together); the new numbers move some ceilings, which never drop under a
+// rating you have. A level or a third trait it has already earned shows at once.
+function trMigrateSave(save) {
+  const a = save.c1, c = save.career, aT = a && a.totals ? a.totals : {}; let ovr = 0;
+  if (a && traitsOf(a) && !a.tr.deeds) { try { ovr = amOvr(a); } catch (e) { ovr = 0; } trMigrate(a, { games: aT.g, wins: aT.w, pts: aT.pts, healthy: aT.g, ovr }); if (a.genes && a.r) a.caps = capsFrom(a.genes, a, a.r); if (!a.handedOff) trFlush(a); else a.tr.pend = []; }
+  const M = c && c.me; if (M && traitsOf(M) && !M.tr.deeds) { const cs = M.careerStats || {}, me = meOf(c); trMigrate(M, { games: (cs.g || 0) + (aT.g || 0), wins: (cs.w || 0) + (aT.w || 0), pts: (cs.pts || 0) + (aT.pts || 0), healthy: (cs.g || 0) + (aT.g || 0), ovr: me ? recOvr(me) : 0 }); if (me && M.genes) me.caps = capsFrom(M.genes, M, me.r); trFlush(c); }
+}
 function genTraitsMigrate(save) {
   const one = p => { if (p && !p.isMe && p.tr && p.tr.hidden) { p.tr.hidden = null; p.tr.found = true; } }, give = (c, o) => { if (o && typeof o === 'object' && !traitsOf(o)) o.tr = traitsGen((c.seed >>> 0) + '|' + o.id + '|' + o.name); };
   const a = save.c1; if (a && typeof a === 'object') { if (a.team && Array.isArray(a.team.mates)) a.team.mates.forEach(one); if (a.league && Array.isArray(a.league.opps)) for (const o of a.league.opps) { if (o && o.id === 'me') continue; give(a, o); one(o); } if (a.rival) { give(a, a.rival); one(a.rival); } }
@@ -11087,7 +11118,7 @@ function proUpgrade5(c, a) {
   delete M.traits; proEnsureTraits(c); if (me) me.caps = capsFrom(M.genes, M, me.r); if (!CR.trainFocus[M.focus]) M.focus = FOCUS_R3[M.focus] || 'shooting';
   if (!Array.isArray(c.pastTeams)) c.pastTeams = []; try { tmSyncPro(c); } catch (e) { c.team = null; }
   if (!Array.isArray(c.events)) c.events = []; M.tr.found = false; const d = traitDef(M.tr.sig);
-  c.events.push({ kind: 'traitnew', title: 'NEW: TRAITS', sig: M.tr.sig, lines: ['Every player now has two traits. Yours is ' + d.name + ' (' + traitRarity(M.tr.sig) + '): ' + d.up.toLowerCase() + ', but ' + d.down.charAt(0).toLowerCase() + d.down.slice(1) + '.', 'A second, hidden trait will show itself in your next game.', 'Ceilings changed too: skills are open to anyone up to ' + AMC.genes.skillCap + '; Speed, Hops and Strength top out at your genes.'] });
+  c.events.push({ kind: 'traitnew', title: 'NEW: TRAITS', sig: M.tr.sig, lines: ['Every player now has two traits. Yours is ' + d.name + ' (' + traitRarity(M.tr.sig) + '): ' + traitUpText(M.tr.sig, 1).replace(/^./, ch => ch.toLowerCase()) + '; ' + (d.flavor ? 'and ' : 'but ') + traitDownText(M.tr.sig).replace(/^./, ch => ch.toLowerCase()).replace(/\.$/, '') + '.', 'A second, hidden trait will show itself in your next game.', 'Ceilings changed too: skills are open to anyone up to ' + AMC.genes.skillCap + '; Speed, Hops and Strength top out at your genes.'] });
   c.v = 5; return c;
 }
 // Defensive repair of a loaded v3 career: fill any missing fields so an old or partial save never crashes.
@@ -11243,7 +11274,7 @@ function engineDef(c, id, opts) {
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
     look = proLook(c, look); // the Office's looks and your gear (F8)
   }
-  return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }; // R8: crowd: your hype's home crowd (make chance +)
+  return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }; // R8: crowd: your hype's home crowd (make chance +)
 }
 function clubKit(clubId, away) { const t = clubOf(clubId); const kit = Object.assign({}, t); if (away) { kit.colors = [t.colors[1], t.colors[0]]; if (luminance(kit.colors[0]) < 0.25 && luminance(t.colors[0]) < 0.25) kit.colors = ['#F3F0FF', t.colors[0]]; } return kit; }
 function matchTeamDef(c, id, away, opts) { const p = c.players[id]; const kit = clubKit(p.club, away); return Object.assign({}, kit, { name: p.name, abbr: p.nick.toUpperCase().slice(0, 4), personality: archPersonality(p.arch), players: [engineDef(c, id, opts)] }); }
@@ -11342,12 +11373,12 @@ function spendXp(r, xp, caps, add) {
 function developFromGame(r, xp, caps, split, age, st, won, simmed, focusMul, poolMul, B, len) { // B: the trait holder (R3: XP traits); len (F5): the game length over the old format's
   const X = CR.xpGame, U = CR.usage; st = st || {};
   const perf = Math.min(X.perfCap, ((st.pts || 0) * X.pts + (st.reb || 0) * X.reb + ((st.stl || 0) + (st.blk || 0)) * X.stops) / (len || 1)); // F5: a line from a one-minute game counts per the old length
-  const pool = (X.base + (won ? X.win : 0) + perf) * ageXpMul(age) * (simmed ? X.simmed : 1) * (poolMul || 1) * trXpMul(B, age) * CR.xpEarn; // F6
+  const pool = (X.base + (won ? X.win : 0) + perf) * ageXpMul(age) * (simmed ? X.simmed : 1) * (poolMul || 1) * trXpMul(B, age) * trMul(B, 'gameXp') * CR.xpEarn; // F6; V3: Quick Study's game XP
   const rim = (st.dunkM || 0) + (st.layM || 0) + (st.hookM || 0) + (st.tipM || 0);
   const use = { sho: (st.tpm || 0) * U.sho3 + Math.max(0, (st.fgm || 0) - (st.tpm || 0) - rim) * U.shoMid + U.floor, fin: rim * U.rim + U.floor, han: U.move, spd: U.move, jmp: (st.reb || 0) * U.reb + (st.blk || 0) * U.blk + U.body, def: ((st.stl || 0) + (st.blk || 0)) * U.stops + U.floor, str: (st.reb || 0) * U.reb + U.body };
   const tot = RATING_KEYS.reduce((a, k) => a + use[k], 0); split = split || {}; const sw = RATING_KEYS.reduce((a, k) => a + (split[k] || 0), 0);
   const statMul = trMul(B, 'statXp'); const add = {}; for (const k of RATING_KEYS) add[k] = pool * (sw > 0 ? 1 - X.focusShare : 1) * use[k] / tot * statMul + (sw > 0 ? pool * X.focusShare * (focusMul || 1) * (split[k] || 0) / sw : 0); // Glue Guy: −8% of the stat share
-  add.sho *= trMul(B, 'shoXp'); // Floor General: −10% Shooting XP
+  for (const k of RATING_KEYS) add[k] *= trRatingXpMul(B, k); // V3: a trait's rating XP (Floor General's −3% Shooting, Microwave's +18%, ...)
   const gains = spendXp(r, xp, caps, add); gains.add = add; gains.pool = pool; return gains;
 }
 function gainsMap(list) { const m = {}; for (const g of list || []) m[g.k] = (m[g.k] || 0) + (g.to - g.from); return m; }
@@ -11375,11 +11406,11 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const sOp = { pts: their.pts, fgm: their.fgm, fga: their.fga, tpm: their.tpm, tpa: their.tpa, reb: their.reb, stl: their.stl, blk: their.blk, to: their.to, dunk: their.dunkM, ank: their.ankles };
   const r = { h: g.h, a: g.a, hs: g.h === c.meId ? us : them, as: g.h === c.meId ? them : us, ot: box.overtime || 0, box: {} }; r.box[c.meId] = sMe; r.box[opp] = sOp;
   const me = meOf(c), movesBefore = learnedMoves(me, c.me), ovrBefore = recOvr(me), len = gameScale('pro'); const grade = gradeFor(sMe, win, len); // F5
-  const dev = developFromGame(me.r, c.me.xp, me.caps, (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, proXpMul(c), c.me, len); /* R7: the personal trainer */ const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me));
+  const dev = developFromGame(me.r, c.me.xp, me.caps, (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, proXpMul(c), c.me, len); /* R7: the personal trainer */ const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me)); trDeed(c.me, 'moves', learned.length);
   // money, fame, then the week: fatigue and injuries
   const M = c.me; let pay = 0; if (!g.playoff) pay += salaryWeek(c); else pay += LG.playoffGamePay;
   const fameGain = (win ? CR.fame.win : CR.fame.loss) + CR.fame.perPt * Math.max(0, my.pts / len - 20) + CR.fame.highlight * trMul(M, 'highlight') * ((my.dunkM || 0) * 0.3 + (my.posters || 0) + (my.ankles || 0)) / len + (g.playoff ? CR.fame.playoff : 0);
-  M.fame = clamp(M.fame + fameGain * (fameGain > 0 ? FRN.fameByStars[frMine(c) - 1] : 1), 0, 100); earn(c, pay); /* F7: a bigger stage by stars (R7: a big market) */
+  M.fame = clamp(M.fame + fameGain * (fameGain > 0 ? FRN.fameByStars[frMine(c) - 1] * trMul(M, 'fame') : 1), 0, 100); /* V3: Showman */ earn(c, pay); /* F7: a bigger stage by stars (R7: a big market) */
   const wk = wkAfterGame(M, careerRng(c), { ot: r.ot, nutrition: proNutrition(c) }); const injury = wk.injury; trustAfterGame(c, win, us, them); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   if (injury) pushNews(c, me.name + ' is playing through a ' + injury.name.toLowerCase() + ' (' + injury.games + ' game' + (injury.games > 1 ? 's' : '') + ').', 'injury'); else if (wk.healed) pushNews(c, me.name + ' is back to full health.', 'injury');
   // career totals and records
@@ -11407,6 +11438,7 @@ function careerAfterGame(save, box, meTeam, simmed) {
   if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, careerRng(c)); // R4: the teammate below you may want your spot
   frCheckGoals(c, 'game'); // F7: starting for a 5★ team
   proTradeCheck(c); // R7: unhappy? (a losing season, a coach who doesn't trust you)
+  trAfterGame(c, my, { won: win, playoff: !!g.playoff, us, them, injured: !!injury, ovr: recOvr(me), eng: box.eng ? { clutch: my.trClutch || 0 } : null }); rec.helped = box.eng ? null : traitsHelpedSim(M, !!g.playoff); // V3: the traits' deeds; a simulated game's "Traits that helped"
   return rec;
 }
 // The rest of the league plays, the week advances, weekly money comes in.
@@ -11458,6 +11490,7 @@ function proSimBenchGame(c) {
   const rec = { bench: true, starter: m.name, starterId: m.id, win, won: win, us, them, my: us, their: them, opp, oppName: O.name, playoff: !!g.playoff, home: g.h === c.meId, gains: {}, learned: [], xp: {}, ovrBefore: recOvr(me), ovrAfter: recOvr(me) };
   if (g.playoff) { recordResult(c, r, true, c.meId); advancePlayoffGame(c, g.series, win ? c.meId : opp, rec); } else { recordResult(c, r, false, c.meId); finishWeek(c, rec); }
   const bd = benchDevelop(c); rec.gains = bd.gains; rec.benchXp = bd.xp; rec.ovrAfter = recOvr(me); const wk = wkBenchWeek(M); rec.wk = wk; trustAfterWeek(c, wk.plan, wk.fatigueBefore); ladderBenchStory(c); if (c.phase === 'regular' || c.phase === 'playoffs') ladderMaybeChallenge(c, rng); rec.rank = ladderRank(c); M.benchSeason = (M.benchSeason || 0) + 1; proTradeCheck(c); /* R7: unhappy on the bench? */ rec.hype = mdHypeWeek(M, M.hype, false, false); /* R8: no big performance from the bench */ try { stBenchWeek(c); } catch (e) { /* the story is decoration */ } // R9
+  trFlush(c); // V3: a practice week's level-up
   return rec;
 }
 // ---------------- practice, rest and film: the career week (part 4) ----------------
@@ -11665,7 +11698,7 @@ function amCreate(save, form) {
   for (const k of RATING_KEYS) c.xp[k] = 0;
   const grng = amGenesRng(c); c.tr = traitsNew(grng); c.genes = amRollGenes(grng, c.gifted);
   if (Array.isArray(form.traits) && TR.list[form.traits[0]]) c.tr = { sig: form.traits[0], hidden: TR.list[form.traits[1]] ? form.traits[1] : null, found: !TR.list[form.traits[1]] }; // tests: forced traits (the trait balance test)
-  if (hasTrait(c, 'latebloomer')) { const LB = TR.list.latebloomer; c.bloom = 'late'; c.heightFinal = Math.round(Math.min(AMC.heightMax + LB.height, c.heightFinal + LB.height) * 100) / 100; for (const k of RATING_KEYS) c.r[k] = Math.max(CR.ratingMin, c.r[k] + LB.start); } // Late Bloomer: +3 cm, grows late, starts 5 lower
+  if (hasTrait(c, 'latebloomer')) { const LB = TR.list.latebloomer; c.bloom = 'late'; c.heightFinal = Math.round(Math.min(AMC.heightMax + LB.height, c.heightFinal + LB.height) * 100) / 100; for (const k of RATING_KEYS) c.r[k] = Math.max(CR.ratingMin, c.r[k] + LB.down.start); } // Late Bloomer: +3 cm, grows late, starts 4 lower
   c.height = amHeightAt(c, AMC.startAge); c.caps = capsFrom(c.genes, c); c.growthLog.push({ age: c.age, h: c.height }); proLegacyStart(save, c, grng); /* R7: a youth academy from the last career */
   const rv = amMakeOpp(c, rng, 'hs', amOvr(c) + 2, 'rival'); rv.rival = true; rv.age = AMC.startAge; c.rival = rv;
   { const pool = AM_SCHOOLS.filter(n => n !== c.school); rv.school = pool[tmHash(c.seed + ':rival') % pool.length]; } // R3: the rival plays for a rival school
@@ -11726,7 +11759,7 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
   const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c) * colXpMul(c), c, gameScale(c.stage)); // F5: a one-minute line counts per the old length
   if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add)) gains.push(g2); } // the college coach's specialty
-  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
+  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trDeed(c, 'moves', learned.length); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
   storyFill(c); const md = mdAfterGame(c, won, my, their); { const hv = mdHighlights(c, st, gameScale(c.stage)); if (tag === 'rivalry' && hv > 0) c.hype = Math.min(MD.hypeMax, c.hype + hv * (HS.rivalryHype - 1)); } /* R5: the rivalry game's highlights count half again */ const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
   if (opp.rival) h2hAdd(c, won); mdGrudgeDone(c, opp.id); // R8: a trash-talked opponent has had their shot
@@ -11741,11 +11774,12 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   amRivalMoments(c);
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // R3: the hidden trait's story moment
   if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
-  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw };
+  trAfterGame(c, st, { won, playoff: !!po, us: my, them: their, injured: !!wk.injury, ovr: amOvr(c), eng: simmed ? null : { clutch: st.trClutch || 0 } }); // V3: the traits' deeds (level-ups, the third trait)
+  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw, helped: simmed ? traitsHelpedSim(c, !!po) : null };
 }
 function amSimGame(c) {
   hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c) || c.ineligible > 0) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id); const G = mdGame(c, g.opp.id, !!g.opp.rival, amHome(c, !!g.playoff)); // R8: hype, a trash-talked opponent, a fired-up rival
-  const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff) + G.simMe, ovrOf(g.opp.r, g.opp.height) + G.simOpp); const a = sc[0], b = sc[1], f = gameScale(c.stage); // traits: what their in-game effects are worth; f (F5): the game length over the old format's
+  const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff) + G.simMe, ovrOf(g.opp.r, g.opp.height) + G.simOpp + trSimEdge(g.opp, !!g.playoff)); const a = sc[0], b = sc[1], f = gameScale(c.stage); // traits: what their in-game effects are worth; f (F5): the game length over the old format's
   const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62), sl = simShotLine(a, a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3, 0.36, pct); const tpm = sl.tpm, twos = sl.fgm - sl.tpm; // V1 (§1.6): a line that adds up (3PA first, FGA ≥ 3PA + 2PA)
   const st = { pts: sl.pts, fgm: sl.fgm, fga: sl.fga, tpm, tpa: sl.tpa, ftm: sl.ftm, fta: sl.fta, reb: Math.round((2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12) * f), stl: Math.floor(rng.next() * 3 * f + 0.3 * rng.next()), blk: Math.floor((rng.next() * 2 + Math.max(0, c.height - 1.95) * 6) * f + 0.3 * rng.next()), dunkM: 0, layM: Math.round(twos * 0.5) };
   st.dunkM = Math.min(st.layM, Math.round(twos * clamp((eff.jmp / 10 - 5) * 0.07 + (c.height - 1.9) * 0.6, 0, 0.45))); st.layM -= st.dunkM; st.ankles = Math.floor(rng.next() * clamp(eff.han / 10 - 3, 0, 6) * 0.45 * f + 0.3 * rng.next()); // highlights of a simmed game (R3: hype)
@@ -11755,14 +11789,14 @@ function amSimGame(c) {
 function amSimBenchGame(c) {
   const g = amNext(c); const inel = c.ineligible > 0; if (!g || !g.opp || (isStarter(c) && !inel)) return null; const m = ladderStarterMate(c) || hsSlotMate(c); if (!m) return null; // R5: ineligible (grades): the next rung plays
   const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, poRound = po ? po.round : 0, stg = AMC.stages[c.stage] || AMC.stages.hs;
-  const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height)); const my = sc[0], their = sc[1], won = my > their; storyFill(c); mdHypeWeek(c, c.hype, false, false); if (c.sponsorCut > 0) c.sponsorCut--; /* R8: the teammate plays (your grudges wait for you); no big performance from the bench */ try { stBenchWeek(c); } catch (e) { /* the story is decoration */ } // R9
+  const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + trSimEdge(opp, !!g.playoff)); const my = sc[0], their = sc[1], won = my > their; storyFill(c); mdHypeWeek(c, c.hype, false, false); if (c.sponsorCut > 0) c.sponsorCut--; /* R8: the teammate plays (your grudges wait for you); no big performance from the bench */ try { stBenchWeek(c); } catch (e) { /* the story is decoration */ } // R9
   if (c.team) { if (won) c.team.w++; else c.team.l++; }
   if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); if (L.format === 'conf') L.benchWeeks = (L.benchWeeks || 0) + 1; // R6: marquee games count overall; the portal counts bench weeks
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: poRound, bench: m.name, ineligible: inel, marquee: !!opp.marquee });
   storyNews(c, (po ? 'Playoffs: ' : '') + teamShort(c.team.name) + ' (' + m.name + ') ' + (won ? 'beat ' : 'lost to ') + (opp.team ? teamShort(opp.team) + ' (' + opp.name + ')' : opp.name) + ' ' + Math.max(my, their) + '–' + Math.min(my, their) + '. ' + c.name + ' did not play' + (inel ? ' (academically ineligible).' : '.'), opp.rival ? 'rival' : 'result');
   const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); hsGradeWeek(c); colAfterWeek(c, rng, opp, false, null, null); /* R6: NIL appearances */ if (inel) c.ineligible--; trustAfterWeek(c, wk.plan, wk.fatigueBefore); if (!inel) ladderBenchStory(c);
   let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng); else note = hsAfterWeek(c, rng) || '';
-  if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); amRivalMoments(c);
+  if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); amRivalMoments(c); trFlush(c); // V3: a practice week's level-up
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // F5: the hidden trait shows itself in a bench season too
   return { bench: true, ineligible: inel, starter: m.name, starterId: m.id, won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains: bd.gains, benchXp: bd.xp, learned: [], note, ovrBefore: ovr0, ovrAfter: amOvr(c), line: {}, playoff: poRound, simmed: true, wk, recs: [], md: {}, press: false, rank: ladderRank(c) };
 }
@@ -11826,9 +11860,9 @@ function amCombine(c) {
 }
 
 // ---------------- the match: you against one opponent ----------------
-function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c) }; } // F8: in your gear
+function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c), traitLv: trLevels(c) }; } // F8: in your gear
 // fire: an opponent you trash-talked or a fired-up rival plays you this much better (every rating; R8)
-function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff) }; }
+function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff), traits: traitIdsFor(o), traitLv: trLevels(o) }; } // V3: an opponent's trait plays (it showed on previews since V1)
 function amAbbr(name, other) { const parts = String(name).split(' '); const last = (parts[parts.length - 1] || String(name)).toUpperCase(); let a = last.slice(0, 3); if (other && other === a) a = ((parts[0] || 'X')[0] + last.slice(0, 2)).toUpperCase(); return a; }
 function amMatchOpts(game, c, opp, playoff) {
   const S = game.save.data.settings; const stg = AMC.stages[c.stage]; const mine = c.colors.slice(); let oc = opp.colors.slice(); if (oc[0] === mine[0]) oc = [oc[1], oc[0]];
@@ -11866,7 +11900,7 @@ function amUpgrade3(c) {
   c.caps = capsFrom(c.genes, c, c.r); if (!CR.trainFocus[c.focus]) c.focus = FOCUS_R3[c.focus] || 'shooting';
   if (c.stage === 'hs' || c.stage === 'college') { try { amEnsureTeam(c); } catch (e) { c.team = null; } }
   if (!Array.isArray(c.pastTeams)) c.pastTeams = [];
-  if (!Array.isArray(c.events)) c.events = []; if (c.tr && !c.handedOff) c.events.push({ kind: 'traitnew', title: 'NEW: TRAITS', sig: c.tr.sig, lines: ['Every player now has two traits. Yours is ' + traitName(c.tr.sig) + ' (' + traitRarity(c.tr.sig) + '): ' + traitDef(c.tr.sig).up.toLowerCase() + ', but ' + traitDef(c.tr.sig).down.charAt(0).toLowerCase() + traitDef(c.tr.sig).down.slice(1) + '.', 'A second, hidden trait will show itself in a story moment.', 'Ceilings changed too: skills are open to anyone up to ' + AMC.genes.skillCap + '; Speed, Hops and Strength top out at your genes.'] });
+  if (!Array.isArray(c.events)) c.events = []; if (c.tr && !c.handedOff) c.events.push({ kind: 'traitnew', title: 'NEW: TRAITS', sig: c.tr.sig, lines: ['Every player now has two traits. Yours is ' + traitName(c.tr.sig) + ' (' + traitRarity(c.tr.sig) + '): ' + traitUpText(c.tr.sig, 1).replace(/^./, ch => ch.toLowerCase()) + '; ' + (traitDef(c.tr.sig).flavor ? 'and ' : 'but ') + traitDownText(c.tr.sig).replace(/^./, ch => ch.toLowerCase()).replace(/\.$/, '') + '.', 'A second, hidden trait will show itself in a story moment.', 'Ceilings changed too: skills are open to anyone up to ' + AMC.genes.skillCap + '; Speed, Hops and Strength top out at your genes.'] });
   c.v = 3; return c;
 }
 // R5: a career from before the high school rework: grades, savings and the national rank start now; the season in
@@ -12011,7 +12045,7 @@ function drawGoalBanner(ctx, ui, B, x, y, w) {
 // The Career menu (F7): your player, the news, the trophy case, the timeline.
 function careerMenuScreen(game) {
   const c = careerOf(game); if (!c) return mainMenu(game);
-  const items = [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game)), { sub: 'ratings · moves' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: 'headlines · the feed' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { sub: 'every award you won' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { sub: 'your career by age' }), btn('Stats guide', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)), { sub: 'what each stat does' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; /* F9: the stats guide */
+  const items = [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game)), { sub: 'ratings · moves' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: 'headlines · the feed' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { sub: 'every award you won' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { sub: 'your career by age' }), btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)), { sub: 'what each stat does' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; /* F9: the stats guide */
   const tiles = items.slice(0, -1), back = items[items.length - 1]; tiles.forEach((b, i) => Object.assign(b, { x: UI_W / 2 - 290 + (i % 2) * 300, y: 222 + Math.floor(i / 2) * 112, w: 280, h: 100 })); Object.assign(back, { x: UI_W / 2 - 290, y: 222 + Math.ceil(tiles.length / 2) * 112 + 6, w: 580, h: 50 }); /* F7: tiles tall enough for their sub-labels, the goal on top */
   const pb = phoneGrid(game.ui, items, UI_W / 2 - 420, 100, 840, 2, 0, 12); const G = frGoalBanner(c); /* phones: two columns */
   return { widgets: items, name: 'careermenu', draw(ctx, ui) { if (pb) { ui.panel(ctx, UI_W / 2 - 450, 12, 900, pb + 8); ui.title(ctx, 'CAREER', UI_W / 2 - 420, 50, 36); return; } ui.panel(ctx, UI_W / 2 - 320, 60, 640, back.y + back.h + 30 - 60); ui.title(ctx, 'CAREER', UI_W / 2 - 290, 108, 40); drawGoalBanner(ctx, ui, G, UI_W / 2 - 290, 136, 580); } };
@@ -12074,14 +12108,14 @@ function wkRest(B, extra) {
   if (B.injury) { B.injury.games--; if (B.injury.games <= 0) { B.injury = null; healed = true; } }
   w.done = 'rest'; B.plan = 'rest'; return { before, after: B.fatigue, healed };
 }
-function wkFilm(B, oppId) { const w = wkOf(B); if (w.done) return false; w.done = 'film'; w.filmOpp = oppId == null ? null : oppId; B.plan = 'film'; return true; }
+function wkFilm(B, oppId) { const w = wkOf(B); if (w.done) return false; w.done = 'film'; w.filmOpp = oppId == null ? null : oppId; B.plan = 'film'; trDeed(B, 'film', 1); return true; } // V3: Film Junkie's deed
 // Practice: xpIn goes into the focus ratings now; the week's game will pay its focus XP × 1.4. Hard sessions tire you
 // and can hurt you.
 function wkPractice(B, r, xpBank, caps, focus, xpIn, intensity, rng) {
   const w = wkOf(B); if (w.done) return null; const F = CR.trainFocus[focus] || CR.trainFocus.shooting, I = WK.intensity[intensity] || WK.intensity.normal;
-  const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k];
+  const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k] * trRatingXpMul(B, k); // V3: a trait's rating XP
   const gains = gainsMap(spendXp(r, xpBank, caps, add));
-  w.done = 'practice'; w.xp = Math.round(xpIn); B.plan = 'practice'; B.fatigue = clamp((B.fatigue || 0) + I.fatigue, 0, 100);
+  w.done = 'practice'; w.xp = Math.round(xpIn); B.plan = 'practice'; B.fatigue = clamp((B.fatigue || 0) + I.fatigue * trMul(B, 'fatigue'), 0, 100); trDeed(B, 'practice', 1); // V3: Iron Man and Unbreakable tire slower; Gym Rat's deed
   let injury = null; if (I.risk && injuriesOn() && !B.injury && rng.next() < I.risk * trMul(B, 'injury')) injury = wkInjure(B, rng); // Iron Man ×0.6, Unbreakable never
   return { gains, xp: Math.round(xpIn), injury };
 }
@@ -12094,7 +12128,7 @@ function wkAfterGame(B, rng, opts) {
   opts = opts || {}; const out = { healed: false, injury: null, fatigueBefore: B.fatigue || 0, plan: (B.wk && B.wk.done) || null, practiceXp: (B.wk && B.wk.xp) || 0 };
   if (B.injury) { B.injury.games--; if (B.injury.games <= 0) { B.injury = null; out.healed = true; } }
   else if (injuriesOn()) { const ch = Math.max(0, WK.injuryBase + WK.injuryPerFatigue * (B.fatigue || 0)) * trMul(B, 'injury') * (opts.nutrition ? PR.nutritionInjury : 1) * stInjuryMul(B) * gearInjuryMul(B); /* R7: nutrition & physio (the old physio stars are gone); R9: a rushed comeback; F8: ankle braces */ if (rng.next() < ch) out.injury = Object.assign({}, wkInjure(B, rng)); } // Iron Man ×0.6, Unbreakable never
-  B.fatigue = clamp((B.fatigue || 0) + WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0) - (opts.nutrition ? PR.nutritionRegen : 0) - gearRegen(B), 0, 100); out.fatigue = B.fatigue; /* R7: nutrition & physio recover faster; F8: the recovery kit */
+  B.fatigue = clamp((B.fatigue || 0) + (WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0)) * trMul(B, 'fatigue') - (opts.nutrition ? PR.nutritionRegen : 0) - gearRegen(B), 0, 100); out.fatigue = B.fatigue; /* R7: nutrition & physio recover faster; F8: the recovery kit */
   wkNew(B); return out;
 }
 // R4: a week on the bench: you practiced but didn't play, so no game fatigue; an injury heals a game.
@@ -12108,10 +12142,10 @@ function amDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * dri
 function amPractice(c, focus, intensity, xpIn) {
   if (CR.trainFocus[focus]) c.focus = focus; c.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = amOvr(c), movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c));
   const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, xpIn, c.intensity, amRng(c)); if (!res) return null;
-  res.ovrBefore = ovrBefore; res.ovrAfter = amOvr(c); res.learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); return res;
+  res.ovrBefore = ovrBefore; res.ovrAfter = amOvr(c); res.learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trDeed(c, 'moves', res.learned.length); trDeed(c, 'ovr', res.ovrAfter, true); return res;
 }
 function amRest(c) { return wkRest(c); }
-function amFilm(c) { const g = amNext(c); return wkFilm(c, g && g.opp ? g.opp.id : null); }
+function amFilm(c) { const g = amNext(c); const ok = wkFilm(c, g && g.opp ? g.opp.id : null); if (ok) trFilmXp(c); return ok; }
 // Nobody skips a week: if you play without choosing, your standing plan runs (Practice is a simmed session).
 function amStartGame(c) { wkFill(c); ladderSettlePending(c); if (c.wk.done) return null; if (c.stage === 'hs' && hsFill(c).gpa < HS.autoStudyAt) return wkStudy(c); /* R5: grades first (the coach's rule) */ const p = c.plan === 'study' ? 'practice' : c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
 
@@ -12123,10 +12157,12 @@ function proPractice(c, focus, intensity, xpIn) {
   const M = c.me, me = meOf(c); if (CR.trainFocus[focus]) M.focus = focus; M.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = recOvr(me), movesBefore = learnedMoves(me, M);
   const res = wkPractice(M, me.r, M.xp, me.caps, M.focus, xpIn, M.intensity, careerRng(c)); if (!res) return null;
   M.xpSeason = (M.xpSeason || 0) + res.xp; if (res.injury) pushNews(c, me.name + ' got hurt in practice: ' + res.injury.name.toLowerCase() + ' (' + res.injury.games + ' game' + (res.injury.games > 1 ? 's' : '') + ').', 'injury');
-  res.ovrBefore = ovrBefore; res.ovrAfter = recOvr(me); res.learned = newMovesSince(movesBefore, learnedMoves(me, M)); return res;
+  res.ovrBefore = ovrBefore; res.ovrAfter = recOvr(me); res.learned = newMovesSince(movesBefore, learnedMoves(me, M)); trDeed(M, 'moves', res.learned.length); trDeed(M, 'ovr', res.ovrAfter, true); return res;
 }
 function proRest(c) { const M = c.me; return wkRest(M, WK.restPhysio * (proNutrition(c) ? 2 : 0) + WK.restGym * (M.gym || 0)); } // R7: nutrition & physio count as the old two physio stars
-function proFilm(c) { const g = userGame(c); return wkFilm(c.me, g ? opponentOf(c, g) : null); }
+function proFilm(c) { const g = userGame(c); const ok = wkFilm(c.me, g ? opponentOf(c, g) : null); if (ok) trFilmXp(c); return ok; }
+// V3: Film Junkie: a Film week also pays a share of a Practice week's XP (into your focus).
+function trFilmXp(c) { const B = holderOf(c), f = trMul(B, 'filmXp') - 1; if (!(f > 0)) return 0; const pro = isPro(c), me = pro ? meOf(c) : null, focus = pro ? c.me.focus : c.focus, F = CR.trainFocus[focus] || CR.trainFocus.shooting; const xp = f * (pro ? proSessionXp(c, focus, 'normal') : amSessionXp(c, 'normal')), add = {}; for (const k in F.split) add[k] = xp * F.split[k]; spendXp(pro ? me.r : c.r, pro ? c.me.xp : c.xp, pro ? me.caps : c.caps, add); const w = wkOf(B); w.xp = Math.round(xp); return xp; }
 function proStartGame(c) { const M = wkFill(c.me); ladderSettlePending(c); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
 
 // ============================================================================
@@ -12164,11 +12200,11 @@ function checkRecords(R, line, gamesBefore) { const out = []; for (const k in RE
 // After every game: a confident answer that ended in a loss costs hype and confidence; every loss costs confidence (a
 // blowout more), × (1 + hype/100); confidence drifts back toward zero. out.hype0: hype before this week (the decay).
 function mdAfterGame(B, won, us, them) {
-  mdFill(B); const out = { hype0: B.hype };
+  mdFill(B); const out = { hype0: B.hype }, c0 = B.confidence, held = trConfHold(B); // V3: Ice Veins: confidence never drops (no loss, no fade, no boast's cost)
   if (B.boast) { B.boast = false; if (!won) { B.hype = Math.max(0, B.hype - MD.boastLoss); B.confidence = Math.max(-MD.confMax, B.confidence - MD.boastConf); out.boastCost = MD.boastLoss; } }
   B.confidence = B.confidence > 0 ? Math.max(0, B.confidence - MD.confFade) : Math.min(0, B.confidence + MD.confFade);
-  if (!won) { const blow = them > 0 && them - us > MD.blowoutFrac * them && them - us >= MD.blowoutMinPts; /* F5: and by two baskets */ const d = (MD.lossConf + (blow ? MD.confBlowout : 0)) * (1 + MD.lossConfMul * B.hype / MD.hypeMax) * (trVal(B, 'lossConf') || 1); B.confidence = Math.max(-MD.confMax, B.confidence - d); out.confLoss = Math.round(d * 10) / 10; if (blow) out.shaken = true; } // Generational: losses cost double
-  B.confidence = Math.max(trConfFloor(B), B.confidence); // Ice Veins: never below 0
+  if (!won) { const blow = them > 0 && them - us > MD.blowoutFrac * them && them - us >= MD.blowoutMinPts; /* F5: and by two baskets */ const d = (MD.lossConf + (blow ? MD.confBlowout : 0)) * (1 + MD.lossConfMul * B.hype / MD.hypeMax); B.confidence = Math.max(-MD.confMax, B.confidence - d); out.confLoss = held ? 0 : Math.round(d * 10) / 10; if (blow && !held) out.shaken = true; }
+  if (held && B.confidence < c0) { B.confidence = c0; out.confHeld = true; }
   B.pressGap = Math.max(0, (B.pressGap || 0) - 1); B.quiet = false; /* No comment's quiet week is over */ return out;
 }
 // Highlights (dunks, posters, ankle-breakers) build hype; a Showman's count half again.
@@ -12179,34 +12215,33 @@ function mdBigPerf(x) { return !!(x && x.won && (x.big || x.bigNight || x.upsetW
 // started with (h0). A week on the bench is a week without one.
 function mdHypeWeek(B, h0, won, big) { mdFill(B); const decay = big ? 0 : Math.round((h0 != null ? h0 : B.hype) * MD.hypeDecay * 10) / 10, gain = trHype(B, (won ? MD.winHype : 0) + (big ? MD.bigHype : 0)); B.hype = Math.round(clamp(B.hype - decay + gain, 0, MD.hypeMax) * 10) / 10; return { decay, gain }; }
 function mdSeasonEnd(B) { mdFill(B); B.hype = Math.round(B.hype * MD.hypeKeep * 10) / 10; B.boast = false; B.quiet = false; B.grudge = {}; } // grudges last until you meet them, the playoffs start or the season ends
-// What your hype does to a game. Played: the opponent's AI tier (keyed from keyedAt: Generational's spotlight is the
-// same thing, never both; a trash-talked opponent's trashTier) and ratings (your rival from rivalAt), and your make
-// chance at home. Simulated: all of it in OVR (a tier is tierOvr OVR, measured in engine games; Generational's is in its simEdge).
+// What your hype does to a game. Played: the opponent's AI tier (keyed from keyedAt; a trash-talked opponent's trashTier) and ratings (your rival from rivalAt), and your make
+// chance at home. Simulated: all of it in OVR (a tier is tierOvr OVR, measured in engine games).
 function mdGame(B, oppId, rival, home, pro) {
-  mdFill(B); const h = B.hype, grudge = !!(oppId && B.grudge[oppId]), keyed = h >= MD.keyedAt ? MD.keyedTier : 0, spot = trSpotlightTier(B), perTier = MD.tierOvr;
-  const ovr = rival && h >= MD.rivalAt ? MD.rivalFire : 0, tier = (grudge ? MD.trashTier : 0) + Math.max(keyed, spot), crowd = home ? MD.hypeHome * h / MD.hypeMax : 0;
-  return { ovr, tier, crowd, grudge, keyed: keyed > 0 || spot > 0, simOpp: ovr + (grudge ? MD.trashOvr : 0) + (spot ? 0 : keyed) * perTier, simMe: home ? MD.hypeHomeOvr * h / MD.hypeMax : 0 };
+  mdFill(B); const h = B.hype, grudge = !!(oppId && B.grudge[oppId]), keyed = h >= MD.keyedAt ? MD.keyedTier : 0, perTier = MD.tierOvr;
+  const ovr = rival && h >= MD.rivalAt ? MD.rivalFire : 0, tier = (grudge ? MD.trashTier : 0) + keyed, crowd = home ? MD.hypeHome * h / MD.hypeMax : 0;
+  return { ovr, tier, crowd, grudge, keyed: keyed > 0, simOpp: ovr + (grudge ? MD.trashOvr : 0) + keyed * perTier, simMe: home ? MD.hypeHomeOvr * h / MD.hypeMax : 0 }; // (V3: Generational's spotlight is flavor now)
 }
 function mdPostseason(B) { mdFill(B); B.grudge = {}; } // the playoffs start clean: a grudge from the season doesn't follow you in (one made in a series lasts that series)
 function mdGrudgeDone(B, oppId) { if (B && B.grudge && oppId) delete B.grudge[oppId]; } // you played them: it's settled
-// Practice XP this week: media distractions from distractAt (Generational: always), No comment's quiet week.
-function mdPracticeMul(B) { const dis = hasTrait(B, 'generational') ? 1 - TR.spotlightPractice : (B.hype || 0) >= MD.distractAt ? MD.distractXp : 0; return (1 - dis) * (B.quiet ? 1 + MD.nocommentXp : 1); }
+// Practice XP this week: media distractions from distractAt, No comment's quiet week.
+function mdPracticeMul(B) { const dis = (B.hype || 0) >= MD.distractAt ? MD.distractXp : 0; return (1 - dis) * (B.quiet ? 1 + MD.nocommentXp : 1); }
 function mdSponsorMul(B) { return B && B.sponsorCut > 0 ? 1 - MD.sponsorCut : 1; } // a sponsor pulling back after a fine
 function mdHypeText(B) { return Math.round(B.hype || 0) + ' / ' + MD.hypeMax; }
 // The BUZZ panel: what your hype does right now ([text, 'good' | 'bad' | null]).
 function mdBuzzLines(c) {
-  const B = mdFill(holderOf(c)), h = B.hype || 0, f = h / MD.hypeMax, pro = isPro(c), out = [], pct = v => Math.round(v * 100), gen = hasTrait(B, 'generational');
+  const B = mdFill(holderOf(c)), h = B.hype || 0, f = h / MD.hypeMax, pro = isPro(c), out = [], pct = v => Math.round(v * 100);
   if (pro) out.push(['Sponsors ×' + (1 + MD.hypeEndorse * f).toFixed(2) + ' · contract +' + fmtMoney(h * MD.hypeSalary * 1e6) + ' · All-Star votes +' + Math.round(MD.hypeVote * h), 'good']); else out.push(['Pro score +' + (MD.hypeDraft * f).toFixed(1) + (c.stage === 'college' ? ' · NIL ×' + (1 + MD.hypeEndorse * f).toFixed(2) : ' · offers +' + (MD.hypeRecruit * h).toFixed(1)), 'good']);
   out.push(['Home crowd +' + (MD.hypeHome * f * 100).toFixed(1) + '% on shots', 'good']);
   out.push(['Losses shake you ×' + (1 + MD.lossConfMul * f).toFixed(2), h >= 20 ? 'bad' : null]);
-  if (h >= MD.keyedAt || gen) out.push(['Defenses key on you: AI +' + Math.max(h >= MD.keyedAt ? MD.keyedTier : 0, trSpotlightTier(B)) + ' tier', 'bad']);
-  if (h >= MD.distractAt || gen) out.push(['Media: practice XP −' + pct(gen ? 1 - TR.spotlightPractice : MD.distractXp) + '%', 'bad']);
+  if (h >= MD.keyedAt) out.push(['Defenses key on you: AI +' + MD.keyedTier + ' tier', 'bad']);
+  if (h >= MD.distractAt) out.push(['Media: practice XP −' + pct(MD.distractXp) + '%', 'bad']);
   if (h >= MD.rivalAt && rivalIdOf(c)) out.push(['Your rival is fired up: +' + MD.rivalFire + ' OVR', 'bad']);
   const names = Object.keys(B.grudge).map(id => pro ? (c.players[id] || {}).name : ((typeof amOppById === 'function' && amOppById(c, id)) || {}).name).filter(Boolean).map(n => n.split(' ')[0]);
   if (names.length) out.push(['Coming for you: ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : '') + ' (AI +' + MD.trashTier + ')', 'bad']);
   if (B.sponsorCut > 0) out.push(['Sponsor pulled back: ' + B.sponsorCut + ' more week' + (B.sponsorCut > 1 ? 's' : ''), 'bad']);
   if (B.quiet) out.push(['Quiet week: practice XP +' + pct(MD.nocommentXp) + '%', 'good']);
-  if (h < MD.keyedAt && !gen) out.push(['At ' + MD.keyedAt + ' defenses key on you; at ' + MD.distractAt + ' the media eats practice.', null]);
+  if (h < MD.keyedAt) out.push(['At ' + MD.keyedAt + ' defenses key on you; at ' + MD.distractAt + ' the media eats practice.', null]);
   return out;
 }
 
@@ -12216,7 +12251,7 @@ function mdBuzzLines(c) {
 // first game at a level always get a question (a pro final's comes with its clincher: a title or an elimination); upsets and big nights do when there wasn't one in the last few games.
 function pressFor(B, x) {
   mdFill(B); const ptsRec = (x.recs || []).some(r => r.k === 'pts'); const must = x.rival || x.final || x.champ || x.eliminated || ptsRec || x.first, big = x.upsetWin || x.upsetLoss || x.big;
-  if (!must && !hasTrait(B, 'generational') && (!big || B.pressGap > 0)) return null; B.pressGap = MD.pressGap; /* Generational: the spotlight never leaves (a question after every game) */ return { kind: 'press', title: 'THE PRESS ROOM', q: pressQuestion(x), x };
+  if (!must && (!big || B.pressGap > 0)) return null; B.pressGap = MD.pressGap; return { kind: 'press', title: 'THE PRESS ROOM', q: pressQuestion(x), x };
 }
 function pressQuestion(x) {
   const o = String(x.opp || 'them').split(' ')[0], R = x.recs && x.recs[0];
@@ -12405,11 +12440,14 @@ function ovrByAge(c) {
 }
 
 // ============================================================================
-// SECTION: TRAITS (R3 §3.1) — two traits a career: the Signature, rolled with your genes and shown on the genes card,
-// and the Hidden one, rolled at the same time and revealed by a story moment in your sophomore season. Rarity: Common
-// 55%, Uncommon 28%, Rare 13%, Legendary 4%, each with its own card frame color. Every trait has a real upside and a
-// real downside. The holder is whoever carries the career: the amateur career itself, or the pro career's player
-// record (meOf(c)); both keep { sig, hidden, found } in .tr. The engine reads a player def's .traits (an id list).
+// SECTION: TRAITS (R3 §3.1; V3: 2.0 §2) — two traits a career: the Signature, rolled with your genes and shown on the
+// genes card, and the Hidden one, rolled at the same time and revealed by a story moment in your sophomore season.
+// Rarity: Common 55%, Uncommon 28%, Rare 13%, Legendary 4%, each with its own card frame color. V3: rarer is stronger
+// (CONFIG.traits.list: the Bronze upside by rarity, a small fixed downside, a flavor drawback only on a Legendary),
+// every trait levels up Bronze → Silver → Gold by doing its thing (its deed), each level adds half the Bronze upside,
+// and 1,000 career points bring a third trait (a pick of three Common or Uncommon ones). The holder is whoever carries
+// the career: the amateur career itself, or the pro career's player record (meOf(c)); both keep { sig, hidden, found,
+// third, lv, deeds, offer, pend } in .tr. The engine reads a player def's .traits (an id list) and .traitLv (levels).
 // ============================================================================
 const TR = CONFIG.traits;
 const TRAIT_IDS = Object.keys(TR.list);
@@ -12421,75 +12459,212 @@ function rollTrait(rng, avoid) {
   const pool = TRAIT_IDS.filter(id => TR.list[id].r === rar && id !== avoid); return rng.pick(pool.length ? pool : TRAIT_IDS.filter(id => id !== avoid));
 }
 function traitsOf(o) { return o && o.tr && TR.list[o.tr.sig] ? o.tr : null; }
-function trActive(o) { const T = traitsOf(o); return T ? [T.sig, T.hidden].filter(id => TR.list[id]) : []; }
+function trActive(o) { const T = traitsOf(o); if (!T) return []; const out = []; for (const id of [T.sig, T.hidden, T.third]) if (TR.list[id] && !out.includes(id)) out.push(id); return out; } // V3: the third trait too
 function hasTrait(o, id) { return trActive(o).includes(id); }
-// The product of the traits' multiplier for key (1 when none has one).
-function trMul(o, key) { let m = 1; for (const id of trActive(o)) { const v = TR.list[id][key]; if (typeof v === 'number') m *= v; } return m; }
-// The largest value of key among the traits (0 when none has it).
-function trVal(o, key) { let m = 0; for (const id of trActive(o)) { const v = TR.list[id][key]; if (typeof v === 'number' && v > m) m = v; } return m; }
-// Headroom: how far the traits move a rating's ceiling (rating points).
-function trHead(o, k) { let v = 0; for (const id of trActive(o)) { const h = TR.list[id].head; if (h) v += (h[k] || 0) + (h.all || 0); } return v; }
+
+// --- V3 (§2.2): levels. A trait's level is kept in .tr.lv (Bronze 1 by default; a Legendary is always Gold) ---
+function trTop(id) { const d = TR.list[id]; return d ? TR.top[d.r] || 1 : 1; }
+function trLvOf(o, id) { const d = TR.list[id]; if (!d) return 0; if (d.r === 'L') return trTop(id); const T = traitsOf(o), v = T && T.lv ? T.lv[id] : 0; return clamp(v || 1, 1, trTop(id)); }
+function trScale(id, L) { const d = TR.list[id]; return !d || d.r === 'L' ? 1 : 1 + TR.levelUp * (clamp(L || 1, 1, trTop(id)) - 1); } // Bronze 1, Silver 1.5, Gold 2
+// One key of trait id at level L: an upside grows with the level, a downside stays (0 when the trait has no such key).
+function trKey(id, key, L) { const d = TR.list[id]; if (!d) return 0; const u = d.up && d.up[key]; if (typeof u === 'number') return u * trScale(id, L); const w = d.down && d.down[key]; return typeof w === 'number' ? w : 0; }
+// The product of the traits' multipliers for key (1 + each signed share; 1 when none has it).
+function trMul(o, key) { let m = 1; for (const id of trActive(o)) { const v = trKey(id, key, trLvOf(o, id)); if (v) m *= 1 + v; } return Math.max(0, m); }
+// The largest value of key among the traits (0 when none has it): additive ones (moves early, ageing, trust on a new team).
+function trVal(o, key) { let m = 0; for (const id of trActive(o)) { const v = trKey(id, key, trLvOf(o, id)); if (v > m) m = v; } return m; }
+// Headroom: how far the traits move a rating's ceiling (rating points; an upside's grows with the level).
+function trHead(o, k) { let v = 0; for (const id of trActive(o)) { const d = TR.list[id], s = trScale(id, trLvOf(o, id)), u = d.up && d.up.head, w = d.down && d.down.head; if (u) v += ((u[k] || 0) + (u.all || 0)) * s; if (w) v += (w[k] || 0) + (w.all || 0); } return v; }
+function trLevels(o) { const out = {}; for (const id of trActive(o)) out[id] = trLvOf(o, id); return out; }
+function trLevelName(L) { return TR.levels[clamp((L || 1) - 1, 0, TR.levels.length - 1)]; }
+function trLevelColor(L) { return TR.levelColor[clamp((L || 1) - 1, 0, TR.levelColor.length - 1)]; }
+
 // V1 (§1.5): a generated player (teammate, opponent, rival, pro) carries one trait, shown from the start, rolled with the
-// same rarity odds as yours (55/28/13/4). The roll is seeded by a key, so it never shifts any other random draw.
+// same rarity odds as yours (55/28/13/4). The roll is seeded by a key, so it never shifts any other random draw. (Bronze;
+// a Legendary one is Gold.)
 function traitsGen(key) { return { sig: rollTrait(new RNG(hashString('tr|' + key) || 5)), hidden: null, found: true }; }
 // A new career's traits: the signature is shown at once; the hidden one waits for its story moment.
-function traitsNew(rng) { const sig = rollTrait(rng); return { sig, hidden: rollTrait(rng, sig), found: false }; }
-// The ids a match player def carries (the engine's trait hooks).
+function traitsNew(rng) { const sig = rollTrait(rng); return { sig, hidden: rollTrait(rng, sig), found: false, lv: {}, deeds: {} }; }
+// The ids a match player def carries (the engine's trait hooks), and their levels (def.traitLv).
 function traitIdsFor(o) { return trActive(o).slice(); }
-// Simulated games: what the traits' in-game effects are worth in OVR points (the engine's effects, averaged).
-function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) { const v = TR.simEdge[id]; if (v == null) continue; e += Array.isArray(v) ? v[playoff ? 0 : 1] : v; } return e; }
+
+// --- V3: the words. Every number on a card comes from CONFIG through these ---
+function trPct(v) { const p = Math.round(Math.abs(v) * 1000) / 10; return (v < 0 ? '−' : '+') + (p % 1 ? p.toFixed(1) : String(p)) + '%'; }
+function trNum(v) { const r = Math.round(v * 10) / 10; return r % 1 ? r.toFixed(1) : String(r); }
+const TR_RATING_WORD = { spd: 'Speed', jmp: 'Hops', str: 'Strength', sho: 'Shooting', fin: 'Finishing', han: 'Handles', def: 'Defense' };
+function trHeadText(h, s) { const keys = Object.keys(h); if (h.all != null) return (h.all * s > 0 ? '+' : '−') + trNum(Math.abs(h.all * s)) + ' to every rating cap'; return keys.map(k => (h[k] * s > 0 ? '+' : '−') + trNum(Math.abs(h[k] * s)) + ' ' + TR_RATING_WORD[k]).join(', ') + ' cap' + (keys.length > 1 ? 's' : ''); }
+const TR_TEXT = {
+  practiceXp: v => trPct(v) + ' practice XP', recovery: v => trPct(v) + ' fatigue recovery in Rest weeks',
+  hot: v => trPct(v) + ' make chance after 2 straight makes', cold: v => trPct(v) + ' make chance after 2 straight misses',
+  trust: v => trPct(v) + ' coach trust gains', trustStart: v => '+' + trNum(v) + ' coach trust on every new team', statXp: v => trPct(v) + ' XP from your stats',
+  gameXp: v => trPct(v) + ' XP from games', moveEarly: v => 'moves unlock ' + trNum(v / 10) + ' rating point' + (v === 10 ? '' : 's') + ' earlier', hype: v => trPct(v) + ' hype gains',
+  clutch: v => trPct(v) + ' make chance in crunch time and the playoffs', early: v => trPct(v) + ' make chance in the first half',
+  injury: v => v <= -1 ? 'never injured' : trPct(v) + ' injury risk', stamina: v => trPct(v) + ' stamina drain in games', fatigue: v => trPct(v) + ' fatigue from games and practice', teenXp: v => trPct(v) + ' XP through age ' + TR.teenAge,
+  stolen: v => trPct(v) + ' steals against you', moveBite: v => trPct(v) + ' bite on your dribble moves', shoXp: v => trPct(v) + ' Shooting XP',
+  highlight: v => trPct(v) + ' hype and fame from highlights', turnovers: v => trPct(v) + ' steals against you',
+  block: v => trPct(v) + ' block chance', fouls: v => trPct(v) + ' goaltend range and reach-in fouls',
+  start: v => 'starts ' + Math.abs(v) + ' lower in every rating', heat: v => trPct(v) + ' make chance while hot (' + TR.heatS + ' s after 2 straight makes)', effort: v => trPct(v) + ' defensive effort (contests, steals, blocks)',
+  film: v => 'Film study counts ×' + trNum(1 + v), filmXp: v => 'a Film week also pays ' + Math.round(v * 100) + '% of a Practice week\'s XP',
+  xp: v => trPct(v) + ' XP from everything', takeShot: v => 'Takeover: ' + trPct(v) + ' make chance', takeSpeed: v => trPct(v) + ' speed for ' + TR.takeover.s + ' s after ' + TR.takeover.makes + ' straight makes, and you glow',
+  ageShift: v => 'you age ' + trNum(v) + ' year' + (v === 1 ? '' : 's') + ' slower', spdXp: v => trPct(v) + ' Speed XP', hanXp: v => trPct(v) + ' Handles XP', finXp: v => trPct(v) + ' Finishing XP', defXp: v => trPct(v) + ' Defense XP', physXp: v => trPct(v) + ' Speed, Hops and Strength XP', lateXp: v => trPct(v) + ' XP from age ' + TR.lateAge, fame: v => trPct(v) + ' fame from everything', last: v => trPct(v) + ' make chance in the last ' + TR.lastS + ' s and in the playoffs', confHold: () => 'your confidence never drops',
+};
+// The upside's lines at level L (each key its own line; Takeover's two make one), and the downside's (fixed).
+function traitUpLines(id, L) {
+  const d = TR.list[id]; if (!d || !d.up) return []; const s = trScale(id, L), out = [];
+  for (const k in d.up) { if (k === 'head') { out.push(trHeadText(d.up.head, s)); continue; } if (k === 'takeSpeed') continue; const f = TR_TEXT[k]; if (!f) continue; let t = f(d.up[k] * s); if (k === 'takeShot' && d.up.takeSpeed) t += ', ' + TR_TEXT.takeSpeed(d.up.takeSpeed * s); out.push(t); }
+  if (id === 'latebloomer') out.unshift('+' + Math.round(d.height * 100) + ' cm adult height (a growth spurt at 17)');
+  return out;
+}
+function traitDownLines(id) { const d = TR.list[id]; if (!d) return []; if (d.flavor) return [d.flavor]; const out = []; for (const k in (d.down || {})) { if (k === 'head') { out.push(trHeadText(d.down.head, 1)); continue; } const f = TR_TEXT[k]; if (f) out.push(f(d.down[k])); } return out; }
+// V3: a level-up's lines: each upside number, before → after ("Block chance: +10% → +15%").
+const TR_LABEL = { practiceXp: 'Practice XP', hot: 'Make chance after 2 straight makes', trust: 'Coach trust gains', trustStart: 'Coach trust on a new team', gameXp: 'XP from games', moveEarly: 'Moves unlock early (rating points)', clutch: 'Make chance in crunch time and the playoffs', injury: 'Injury risk', stamina: 'Stamina drain in games', fatigue: 'Fatigue from games and practice', stolen: 'Steals against you', moveBite: 'Dribble move bite', highlight: 'Hype and fame from highlights', block: 'Block chance', heat: 'Make chance while hot', film: 'Film study', filmXp: 'A Film week\'s XP (share of a Practice week)', spdXp: 'Speed XP', hanXp: 'Handles XP', finXp: 'Finishing XP', defXp: 'Defense XP', shoXp: 'Shooting XP', physXp: 'Speed, Hops and Strength XP', lateXp: 'XP from age 17 on', fame: 'Fame from everything', ageShift: 'Ageing slower (years)' };
+function trKeyValText(k, v) { return k === 'film' ? '×' + trNum(1 + v) : k === 'moveEarly' ? trNum(v / 10) : k === 'trustStart' ? '+' + trNum(v) : k === 'ageShift' ? trNum(v) : k === 'filmXp' ? Math.round(v * 100) + '%' : trPct(v); }
+function traitLevelLines(id, L) { const d = TR.list[id], a = trScale(id, L - 1), b = trScale(id, L), out = []; if (!d || !d.up) return out; for (const k in d.up) { if (k === 'head') { for (const r in d.up.head) out.push((r === 'all' ? 'Every rating cap' : TR_RATING_WORD[r] + ' cap') + ': +' + trNum(d.up.head[r] * a) + ' → +' + trNum(d.up.head[r] * b)); continue; } if (!TR_LABEL[k]) continue; out.push(TR_LABEL[k] + ': ' + trKeyValText(k, d.up[k] * a) + ' → ' + trKeyValText(k, d.up[k] * b)); } return out; }
+function traitUpText(id, L) { const a = traitUpLines(id, L); return a.length ? a.join('; ').replace(/^./, ch => ch.toUpperCase()) : ''; }
+function traitDownText(id) { const a = traitDownLines(id); return a.length ? a.join('; ').replace(/^./, ch => ch.toUpperCase()) : ''; }
+
+// --- V3 (§2.2): deeds. Doing a trait's thing levels it up: B.tr.deeds counts every deed (ovr keeps the best OVR). A
+// level-up waits in B.tr.pend for the career's event queue (trFlush); the hidden trait's wait until it is found. ---
+const TR_DEED_WORD = { practice: 'Practice weeks', hotGames: 'hot games (' + TR.hotMakes + '+ makes)', wins: 'wins', games: 'games played', moves: 'moves learned', clutch: 'clutch makes', healthy: 'healthy games', cleanGames: 'games without a turnover', highlights: 'highlights', blocks: 'blocks', ovr: 'overall', heatGames: 'heat-check games (' + TR.heatMakes + '+ makes)', film: 'Film weeks', dunks: 'dunks' };
+function trDeeds(B) { const T = traitsOf(B); return T ? (T.deeds || (T.deeds = {})) : null; }
+function trNext(B, id) { const d = TR.list[id]; if (!d || !d.deed) return null; const L = trLvOf(B, id); if (L >= trTop(id)) return null; const at = d.deed[1][L - 1]; if (at == null) return null; return { key: d.deed[0], word: TR_DEED_WORD[d.deed[0]] || d.deed[0], at, have: Math.floor((trDeeds(B) || {})[d.deed[0]] || 0), level: L + 1 }; }
+function trDeed(B, key, n, best) { const T = traitsOf(B); if (!T || !(n > 0)) return; const D = trDeeds(B); D[key] = best ? Math.max(D[key] || 0, n) : (D[key] || 0) + n; trCheckLevels(B); if (key === 'pts') trCheckThird(B); }
+function trCheckLevels(B) {
+  const T = traitsOf(B); if (!T) return; let nx;
+  for (const id of trActive(B)) { if (id === T.hidden && !T.found) continue; while ((nx = trNext(B, id)) && nx.have >= nx.at) { (T.lv || (T.lv = {}))[id] = nx.level; (T.pend || (T.pend = [])).push({ kind: 'traitlevel', trait: id, level: nx.level }); } }
+}
+// The third trait (§2.2): at TR.thirdAt career points, three Common or Uncommon traits you don't have (seeded by your
+// traits, so a reload offers the same three).
+function trCheckThird(B) { const T = traitsOf(B); if (!T || T.third || T.offer || ((T.deeds || {}).pts || 0) < TR.thirdAt) return; const have = trActive(B), rng = new RNG(hashString('third|' + T.sig + '|' + (T.hidden || '')) || 7); T.offer = rng.shuffle(TRAIT_IDS.filter(id => (TR.list[id].r === 'C' || TR.list[id].r === 'U') && !have.includes(id))).slice(0, TR.thirdOffer); (T.pend || (T.pend = [])).push({ kind: 'traitpick' }); }
+function trPickThird(B, id) { const T = traitsOf(B); if (!T || T.third || !Array.isArray(T.offer) || !T.offer.includes(id)) return false; T.third = id; T.offer = null; (T.lv || (T.lv = {}))[id] = 1; trCheckLevels(B); return true; }
+// The career simulator's pick: the rarest offer (the first of equals).
+function trPickAuto(B) { const T = traitsOf(B); if (!T || !Array.isArray(T.offer) || !T.offer.length) return null; const rank = { C: 0, U: 1 }; const id = T.offer.reduce((a, b) => (rank[TR.list[b].r] > rank[TR.list[a].r] ? b : a), T.offer[0]); trPickThird(B, id); return id; }
+// Pending level-ups and offers become career events (a celebration card; the pick).
+function trFlush(c) {
+  const B = c && holderOf(c), T = traitsOf(B); if (!T || !Array.isArray(T.pend) || !T.pend.length) return; if (!Array.isArray(c.events)) c.events = [];
+  for (const e of T.pend) { if (e.kind === 'traitlevel') { const d = TR.list[e.trait]; c.events.push({ kind: 'traitlevel', trait: e.trait, level: e.level, title: 'LEVEL UP: ' + d.name.toUpperCase(), lines: [trLevelName(e.level) + ' ' + d.name + '!'].concat(traitLevelLines(e.trait, e.level)) }); }
+    else if (e.kind === 'traitpick' && T.offer && !T.third) c.events.push({ kind: 'traitpick', title: 'A THIRD TRAIT', offers: T.offer.slice(), lines: [Math.round(TR.thirdAt).toLocaleString('en-US') + ' career points! Pick a third trait. It starts at Bronze.'] }); }
+  T.pend = [];
+}
+// After every game you played (amateur or pro, played or simmed): its deeds from your box line s. x: { won, playoff, us,
+// them, injured, ovr, eng } (eng: the engine's own counts when the game was played: clutch makes).
+function trAfterGame(c, s, x) {
+  const B = c && holderOf(c), T = traitsOf(B); if (!T || !s) return; x = x || {}; const fgm = s.fgm || 0, close = Math.abs((x.us || 0) - (x.them || 0)) <= TR.clutchMargin;
+  trDeed(B, 'games', 1); if (x.won) trDeed(B, 'wins', 1); if (!x.injured) trDeed(B, 'healthy', 1);
+  if (fgm >= TR.hotMakes) trDeed(B, 'hotGames', 1); if (fgm >= TR.heatMakes) trDeed(B, 'heatGames', 1);
+  trDeed(B, 'clutch', x.eng ? x.eng.clutch || 0 : (x.playoff ? fgm : 0) + (close && x.won ? 1 : 0)); // simmed: a playoff game's makes, and the last basket of a close win
+  if (!(s.to > 0)) trDeed(B, 'cleanGames', 1); trDeed(B, 'highlights', (s.dunkM || 0) + (s.posters || 0) + (s.ankles || 0)); trDeed(B, 'blocks', s.blk || 0); trDeed(B, 'dunks', s.dunkM || 0);
+  if (x.ovr) trDeed(B, 'ovr', x.ovr, true); trDeed(B, 'pts', s.pts || 0); trFlush(c);
+}
+// Old saves (V3): levels start at Bronze; the deeds start from what the save already knows (games, wins and points), so
+// a veteran reaches a third trait and the counted levels at once.
+function trMigrate(B, known) { const T = traitsOf(B); if (!T || T.deeds) return; T.lv = T.lv || {}; T.deeds = {}; known = known || {}; for (const k of ['games', 'wins', 'pts', 'healthy', 'ovr']) if (known[k] > 0) T.deeds[k] = Math.round(known[k]); trCheckLevels(B); if ((T.deeds.pts || 0) >= TR.thirdAt) trCheckThird(B); }
+
+// Simulated games: what the traits' in-game numbers are worth in OVR points (CONFIG.traits.sim: +1% make chance over a
+// whole game is perPct OVR; each in-game effect touches a share of the game's shots).
+function trEdgeOf(id, L, playoff) {
+  const S = TR.sim, k = key => trKey(id, key, L) * 100, shot = (pct, share) => pct * share * S.perPct;
+  switch (id) {
+    case 'streaky': return shot(k('hot'), S.hot) + shot(k('cold'), S.cold);
+    case 'clutch': return playoff ? shot(k('clutch'), 1) : shot(k('clutch'), S.crunch) + shot(k('early'), S.early);
+    case 'microwave': return shot(k('heat'), S.heat) + k('effort') * S.effort;
+    case 'generational': return shot(k('takeShot'), S.takeover) + k('takeSpeed') * S.speed * S.takeover;
+    case 'iceveins': return playoff ? shot(k('last'), 1) : shot(k('last'), S.last);
+    case 'paintprotector': return k('block') * S.block - k('fouls') * S.turnover * 0.5;
+    case 'floorgeneral': return -k('stolen') * S.steal + k('moveBite') * S.bite;
+    case 'showman': return -k('turnovers') * S.turnover;
+    case 'ironman': return -k('stamina') * S.speed * 0.25; // stamina drain: a tired player's last seconds
+    default: return 0;
+  }
+}
+function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) e += trEdgeOf(id, trLvOf(o, id), playoff); return e; }
 // The hidden trait's story moment (R3): during the sophomore season, a few games in.
 function traitRevealDue(c) { const T = traitsOf(c), L = c.league, wk = L && Array.isArray(L.games) ? L.games.length : (c.seasonStats ? c.seasonStats.g : 0); return !!T && !T.found && T.hidden && ((c.stage === 'hs' && c.age >= TR.revealAge && wk >= TR.revealGames) || c.stage !== 'hs'); } // F5: the team's games count, bench weeks too (a benched sophomore used to wait a year)
 function traitRevealCard(c) {
-  const T = traitsOf(c); T.found = true; const d = TR.list[T.hidden];
+  const T = traitsOf(c); T.found = true; const d = TR.list[T.hidden]; trCheckLevels(c); // V3: levels its deeds earned while it was hidden
   const lines = { gymrat: 'The janitor finds you in the gym at 6 a.m. again, and has stopped asking why.', streaky: 'Three straight buckets, then three straight bricks. Your coach calls you a weather system.', glueguy: 'Your coach keeps putting you with the freshmen. "They listen to you."', fasttwitch: 'The trainer times your first step twice. Then a third time, to be sure.', quickstudy: 'You pick up a move in one practice that took the seniors a month.', clutch: 'Tie game, last shot of practice, everybody watching. You want the ball. You make it.', ironman: 'You play through a sprained ankle and nobody even notices you limping.', floorgeneral: 'Nobody in practice can take the ball from you. They stop trying.', showman: 'The crowd roars when you show off. You notice. You like it.', paintprotector: 'Anything near the rim is yours. Even the ball you shouldn\'t have touched.', latebloomer: 'The doctor looks at your growth plates and smiles: you are not done yet.', microwave: 'Two in a row and you feel it: the rim looks as wide as a hula hoop.', filmjunkie: 'You watch the same tape four times. Your coach starts asking you what you saw.', freak: 'The trainer measures your vertical and calls the head coach over.', generational: 'A scout from three states away is sitting in the bleachers. For you.', unbreakable: 'Everyone else is sore after two-a-days. You feel great.', iceveins: 'Pressure? You don\'t feel it. Your pulse at the line barely moves.' };
-  return { kind: 'trait', title: 'HIDDEN TRAIT: ' + d.name.toUpperCase(), trait: T.hidden, lines: [lines[T.hidden] || 'Something about your game shows itself.', d.up + '.', 'The catch: ' + d.down.charAt(0).toLowerCase() + d.down.slice(1) + '.'] };
+  const L = trLvOf(c, T.hidden); return { kind: 'trait', title: 'HIDDEN TRAIT: ' + d.name.toUpperCase(), trait: T.hidden, lines: [lines[T.hidden] || 'Something about your game shows itself.', traitUpText(T.hidden, L) + '.', (d.flavor ? 'The catch, such as it is: ' : 'The catch: ') + traitDownText(T.hidden).replace(/^./, ch => ch.toLowerCase()) + (/[.)]$/.test(traitDownText(T.hidden)) ? '' : '.')] };
 }
 // Rarity helpers for the UI.
 function traitFrame(id) { const d = TR.list[id]; return d ? TR.frame[d.r] : '#A9B1C6'; }
 function traitRarity(id) { const d = TR.list[id]; return d ? TR.label[d.r] : ''; }
 
-// --- the engine side: a match player's traits map, its streak and heat, and the multipliers the mechanics read ---
-// def.traits is an id list (an old save's stat-trait map is ignored: those traits are gone, their awards stay).
-function trMap(list) { const o = {}; if (Array.isArray(list)) for (const id of list) if (TR.list[id]) o[id] = true; return o; }
+// --- the engine side: a match player's traits map (id → level), its streak, heat and Takeover, and the multipliers the
+// mechanics read. V3: each multiplier counts what it added (trs.help: expected makes, blocks, steals avoided) for the
+// results screen's "Traits that helped", and a trait kicking in shows a banner under the HUD. ---
+// def.traits is an id list, def.traitLv its levels (an old save's stat-trait map is ignored: those traits are gone, their awards stay).
+function trMap(list, lv) { const o = {}; if (Array.isArray(list)) for (const id of list) if (TR.list[id]) o[id] = TR.list[id].r === 'L' ? trTop(id) : clamp((lv && lv[id]) || 1, 1, trTop(id)); return o; }
+function trE(p, id, key) { const L = p && p.traits && p.traits[id]; return L ? trKey(id, key, L) : 0; }
 // Crunch time: a first-to game with either side within crunchPts of the target; a timed game's last crunchS seconds
 // (F5: a one-period game's last crunchShare of it, and any overtime).
 function trCrunch(m) { const F = m.format || {}; if (F.type === 'timed') return m.period > m.periods || (m.period >= m.periods && m.gameClock <= (m.periods === 1 ? Math.min(TR.crunchS, (F.half || 60) * TR.crunchShare) : TR.crunchS)); const t = F.target || CONFIG.rules.targetScore; return Math.max(m.teams[0].score, m.teams[1].score) >= t - TR.crunchPts; }
+// V3: Ice Veins' last seconds: a timed game's last lastS seconds and overtime (a first-to game: crunch time).
+function trLast(m) { const F = m.format || {}; if (F.type === 'timed') return m.period > m.periods || (m.period >= m.periods && m.gameClock <= TR.lastS); return trCrunch(m); }
 // The first half: a timed game's first period (F5: a one-period game's first half of the clock); a first-to game until
 // either side is halfway there.
 function trFirstHalf(m) { const F = m.format || {}; if (F.type === 'timed') return m.periods === 1 ? m.period === 1 && m.gameClock > (F.half || 60) / 2 : m.period === 1; const t = F.target || CONFIG.rules.targetScore; return Math.max(m.teams[0].score, m.teams[1].score) < t / 2; }
+function trState(p) { return p.trs || (p.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }); }
+// The make chance's trait multiplier; trs.muls keeps each trait's part of it for the tally at release (trShotTally).
 function trShotMul(p, type) {
-  const T = p.traits; if (!T) return 1; const m = p.match, s = p.trs; let mul = 1; if (!m || !s) return 1;
-  if (T.streaky) { if (s.streak >= 2) mul *= 1 + TR.list.streaky.hot; else if (s.streak <= -2) mul *= 1 - TR.list.streaky.cold; }
-  if (T.clutch) { if (m.playoff || trCrunch(m)) mul *= 1 + TR.list.clutch.clutch; else if (trFirstHalf(m)) mul *= 1 - TR.list.clutch.early; }
-  if (T.microwave && s.heatUntil > m.time) mul *= 1 + TR.list.microwave.heat;
-  if (T.iceveins && type === 'ft') mul *= 1 + TR.list.iceveins.ft;
+  const T = p.traits; if (!T) return 1; const m = p.match; if (!m) return 1; const s = trState(p), M = s.muls || (s.muls = []); M.length = 0; let mul = 1;
+  const add = (id, v) => { if (!v) return; M.push(id, 1 + v); mul *= 1 + v; };
+  if (T.streaky) { if (s.streak >= 2) add('streaky', trE(p, 'streaky', 'hot')); else if (s.streak <= -2) add('streaky', trE(p, 'streaky', 'cold')); }
+  if (T.clutch) { if (m.playoff || trCrunch(m)) add('clutch', trE(p, 'clutch', 'clutch')); else if (trFirstHalf(m)) add('clutch', trE(p, 'clutch', 'early')); }
+  if (T.microwave && s.heatUntil > m.time) add('microwave', trE(p, 'microwave', 'heat'));
+  if (T.generational && s.takeUntil > m.time) add('generational', trE(p, 'generational', 'takeShot'));
+  if (T.iceveins && (m.playoff || trLast(m))) add('iceveins', trE(p, 'iceveins', 'last'));
   return mul;
 }
-// A field goal made or missed: the streak (+ makes, − misses) and the Microwave's heat.
+// A real shot's release: each trait's share of its make chance P is an expected make it added (or cost).
+function trHelp(p, id, key, v) { const s = trState(p), H = s.help || (s.help = {}), h = H[id] || (H[id] = {}); h[key] = (h[key] || 0) + v; }
+function trShotTally(p, P) { const s = p.trs; if (!s || !s.muls || !s.muls.length) return; const M = s.muls; for (let i = 0; i < M.length; i += 2) trHelp(p, M[i], 'makes', P * (1 - 1 / M[i + 1])); }
+// A field goal made or missed: the streak (+ makes, − misses), the Microwave's heat, Generational's Takeover; the
+// banners; the clutch makes (Clutch Gene's deed).
 function trShotResult(p, made, type) {
-  if (!p || !p.traits || type === 'ft') return; const s = p.trs || (p.trs = { streak: 0, heatUntil: -1 }); const m = p.match;
+  if (!p || !p.traits || type === 'ft') return; const s = trState(p); const m = p.match;
   s.streak = made ? Math.max(1, s.streak + 1) : Math.min(-1, s.streak - 1);
-  if (made && s.streak === 2 && m && m.bus) { if (p.traits.microwave) { s.heatUntil = m.time + TR.heatS; m.bus.emit('TRAIT_FX', { player: p, id: 'microwave' }); } else if (p.traits.streaky) m.bus.emit('TRAIT_FX', { player: p, id: 'streaky' }); }
-  if (made && p.traits.clutch && m && (m.playoff || trCrunch(m)) && !s.clutchShown && m.bus) { s.clutchShown = true; m.bus.emit('TRAIT_FX', { player: p, id: 'clutch' }); }
+  if (!m || !m.bus) return; const T = p.traits;
+  if (made && (m.playoff || trCrunch(m)) && p.stats) p.stats.trClutch = (p.stats.trClutch || 0) + 1; // (the box line carries it: Clutch Gene's deed)
+  if (made && s.streak === 2) { if (T.microwave) { s.heatUntil = m.time + TR.heatS; trBanner(m, p, 'microwave'); } else if (T.streaky) trBanner(m, p, 'streaky'); }
+  if (made && T.generational && s.streak === TR.takeover.makes) { s.takeUntil = m.time + TR.takeover.s; trBanner(m, p, 'generational', true); }
+  if (made && T.clutch && (m.playoff || trCrunch(m))) trBanner(m, p, 'clutch');
+  if (made && T.iceveins && (m.playoff || trLast(m))) trBanner(m, p, 'iceveins');
+  if (made && T.showman && type === 'dunk') trBanner(m, p, 'showman');
 }
+// The in-game banner (§2.3): a trait kicking in. At most once per TR.bannerGap s of game time for one trait.
+function trBanner(m, p, id, big) { const s = trState(p), B = s.bannerAt || (s.bannerAt = {}); if (B[id] != null && m.time - B[id] < TR.bannerGap) return; B[id] = m.time; m.bus.emit('TRAIT_FX', { player: p, id, level: p.traits[id] || 1, big: !!big }); }
 // Dribble moves: Floor General's bite more.
-function trBiteMul(p) { return p.traits && p.traits.floorgeneral ? 1 + TR.list.floorgeneral.moveBite : 1; }
+function trBiteMul(p) { return 1 + trE(p, 'floorgeneral', 'moveBite'); }
 // A swipe at handler h by p: Floor General protects the ball, a Showman loses it more, a Microwave's defense coasts.
-function trStealMul(p, h) { let m = 1; if (h.traits) { if (h.traits.floorgeneral) m *= TR.list.floorgeneral.stolen; if (h.traits.showman) m *= TR.list.showman.turnovers; } if (p.traits && p.traits.microwave) m *= TR.list.microwave.effort; return m; }
-// Blocks: a Paint Protector's +15% (a Microwave's defense coasts).
-function trBlockMul(d) { if (!d.traits) return 1; return (d.traits.paintprotector ? 1 + TR.list.paintprotector.block : 1) * (d.traits.microwave ? TR.list.microwave.effort : 1); }
-const TRAIT_FX_TEXT = { microwave: 'MICROWAVE', streaky: 'HOT HAND', clutch: 'CLUTCH GENE' };
+function trStealMul(p, h) { return Math.max(0, (1 + trE(h, 'floorgeneral', 'stolen')) * (1 + trE(h, 'showman', 'turnovers')) * (1 + trE(p, 'microwave', 'effort'))); }
+// The steal roll at chance (with trStealMul in it): what Floor General saved its handler (expected steals).
+function trStealTally(p, h, chance) { const f = trE(h, 'floorgeneral', 'stolen'); if (f && chance > 0) trHelp(h, 'floorgeneral', 'stolen', chance / (1 + f) - chance); }
+// Blocks: a Paint Protector's block chance (a Microwave's defense coasts).
+function trBlockMul(d) { return Math.max(0, (1 + trE(d, 'paintprotector', 'block')) * (1 + trE(d, 'microwave', 'effort'))); }
+function trBlockTally(d, chance) { const v = trE(d, 'paintprotector', 'block'); if (v && chance > 0) trHelp(d, 'paintprotector', 'blocks', chance - chance / (1 + v)); }
+const TRAIT_FX_TEXT = { generational: 'TAKEOVER!' }; // a big callout too (the rest: the banner)
+// The results screen's "Traits that helped" (§2.3): from a played game's tallies (the player's trs.help).
+function traitsHelpedLines(p, m) {
+  const H = p && p.trs && p.trs.help, out = []; if (!H) return out; const f = v => (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
+  for (const id in H) { const h = H[id], d = TR.list[id]; if (!d) continue;
+    if (h.makes && Math.abs(h.makes) >= 0.05) { const where = h.makes > 0 ? ({ streaky: 'hot hand', clutch: m && m.playoff ? 'playoffs' : 'crunch time', microwave: 'while hot', generational: 'Takeover', iceveins: m && m.playoff ? 'playoffs' : 'last ' + TR.lastS + ' s' }[id] || '') : (id === 'clutch' ? 'first half' : 'cold'); out.push({ id, good: h.makes > 0, text: d.name + ': ' + (h.makes > 0 ? '+' : '−') + f(Math.abs(h.makes)) + ' makes' + (where ? ' (' + where + ')' : '') }); }
+    if (h.blocks >= 0.05) out.push({ id, good: true, text: d.name + ': +' + f(h.blocks) + ' blocks' });
+    if (h.stolen >= 0.05) out.push({ id, good: true, text: d.name + ': ' + f(h.stolen) + ' steals saved' }); }
+  return out.sort((a, b) => (b.good - a.good));
+}
+// A simulated game's version: what each trait was worth in it (OVR points).
+function traitsHelpedSim(B, playoff) { const out = []; for (const id of trActive(B)) { const v = trEdgeOf(id, trLvOf(B, id), playoff); if (Math.abs(v) >= 0.05) out.push({ id, good: v > 0, text: TR.list[id].name + ': worth ' + (v > 0 ? '+' : '−') + trNum(Math.abs(v)) + ' OVR in this game' }); } return out; }
 
 // --- the career side: B is whoever carries the week (the amateur career, or the pro career's c.me) ---
-// XP from anything (games and practice): Generational ×1.2, Unbreakable ×0.9, Iron Man ×0.9 through age teenAge.
-function trXpMul(B, age) { let m = trMul(B, 'xp'); if (hasTrait(B, 'ironman') && age <= TR.teenAge) m *= TR.list.ironman.teenXp; return m; }
-function trPracticeMul(B, age) { return trMul(B, 'practiceXp') * trXpMul(B, age) * mdPracticeMul(B) * stPracticeMul(B); } // Gym Rat ×1.25 on top; R8: media distractions (Generational's always, anyone's from distractAt hype) and No comment's quiet week
-function trSpotlightTier(B) { return hasTrait(B, 'generational') ? TR.spotlightTier : 0; } // defenses key on a Generational player
-function trFilmBonus(B) { return WK.filmBonus * trMul(B, 'film'); } // Film Junkie: film counts double
-function trConfFloor(B) { return hasTrait(B, 'iceveins') ? TR.list.iceveins.confFloor : -Infinity; }
-function trHype(B, v) { return v > 0 ? v * trMul(B, 'hype') : v; } // hype gains: Quick Study ×0.8, Ice Veins ×0.6
-function trAgeShift(B) { return trVal(B, 'ageShift'); } // Unbreakable ages 3 years slower
+// XP from anything (games and practice): Generational +30%; Iron Man −3% through age teenAge.
+function trXpMul(B, age) { let m = trMul(B, 'xp'); if (age <= TR.teenAge) m *= trMul(B, 'teenXp'); if (age >= TR.lateAge) m *= trMul(B, 'lateXp'); return m; } // V3: Late Bloomer from 17
+// V3: one rating's XP: Floor General's Handles, Paint Protector's Defense, Microwave's Shooting, Fast Twitch's Speed, Freak Athlete's body.
+function trRatingXpMul(B, k) { return trMul(B, k + 'Xp') * (PHYS_KEYS.includes(k) ? trMul(B, 'physXp') : 1); }
+function trPracticeMul(B, age) { return trMul(B, 'practiceXp') * trXpMul(B, age) * mdPracticeMul(B) * stPracticeMul(B); } // Gym Rat on top; R8: media distractions (from distractAt hype) and No comment's quiet week
+function trFilmBonus(B) { return Math.round(WK.filmBonus * trMul(B, 'film') * 10) / 10; } // Film Junkie: film counts double (×2.5 Silver, ×3 Gold)
+function trConfHold(B) { return trVal(B, 'confHold') > 0; } // V3: Ice Veins: confidence never drops
+function trConf(B, v) { const before = B.confidence || 0; return trConfHold(B) ? Math.max(before, v) : v; } // a new confidence value, held by Ice Veins
+function trHype(B, v) { return v > 0 ? v * trMul(B, 'hype') : v; } // hype gains: Quick Study −3%
+function trAgeShift(B) { return trVal(B, 'ageShift'); } // Unbreakable ages 4 years slower
 function trMoveEarly(B) { return trVal(B, 'moveEarly'); } // Quick Study: moves a rating point early
 // Stories built on traits (§3.1): Clutch Gene's playoff buzzer-beater, Late Bloomer's summer at 17. B holds the story flags.
 function traitStoryAfterGame(B, x) {
@@ -12542,7 +12717,7 @@ function tmNewAm(c, kind, o) {
   const T = { kind, name: o.name, mascot: o.mascot || schoolMascot(o.name), colors: (o.colors || schoolColors(o.name)).slice(), tier: o.tier || 0, coach: tmCoach(rng, o.coach), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0 };
   const mean = o.base != null ? o.base : kind === 'hs' ? AMC.stageMean.hs : AMC.stageMean.college + AMC.stageMean.collegePerTier * T.tier + TM.tierOvr * T.tier;
   for (let i = 0; i < TM.roster[kind]; i++) { const cls = 1 + (i % 4); T.mates.push(tmMakeMate(c, rng, kind, Math.round(clamp(mean + TM.classOvr[cls - 1] + TM.sd * rng.gauss(), 28, 92)), 'tm' + (c.tmn = (c.tmn || 0) + 1), used, cls)); }
-  T.trust = TM.trustStart[kind] || 40; return T;
+  T.trust = Math.min(100, (TM.trustStart[kind] || 40) + trVal(c, 'trustStart')); return T; // V3: Glue Guy
 }
 // Each summer: the seniors leave, everyone moves up a year and gets better, new freshmen arrive.
 function tmNewSeason(c, rng) {
@@ -12566,7 +12741,7 @@ function amAssignOppTeams(c, recolor) {
 // A pro franchise: your club, its coach, the league players on its roster and a bench that practices with you.
 function tmNewPro(c) {
   const me = meOf(c); const club = clubOf(me.club); const rng = tmRng(c); const used = new Set(Object.values(c.players).map(p => p.name));
-  const stars = frStars(c, me.club); const T = { kind: 'pro', club: me.club, name: club.name, mascot: '', colors: club.colors.slice(), tier: (c.facilities && c.facilities[me.club]) || 1, stars, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0, trust: TM.trustStart.pro };
+  const stars = frStars(c, me.club); const T = { kind: 'pro', club: me.club, name: club.name, mascot: '', colors: club.colors.slice(), tier: (c.facilities && c.facilities[me.club]) || 1, stars, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0, trust: Math.min(100, TM.trustStart.pro + trVal(c.me, 'trustStart')) }; // V3: Glue Guy
   for (let i = 0; i < TM.roster.pro; i++) { const m = tmMakeMate(c, rng, 'pro', Math.round(clamp(CR.proMean + TM.proBench + FRN.benchStar * (stars - 3) + TM.sd * rng.gauss(), 55, 88)), /* F7: a 5★ bench is deeper */ 'tb' + (c.tmn = (c.tmn || 0) + 1), used, 0); T.mates.push(m); }
   const best = Math.max(...T.mates.map(tmMateOvr)), prev = c.team; c.team = T; ladderInit(c, (c.me.contract && c.me.contract.promise) || (me.draftPick && me.draftPick <= TM.proStartTop && c.season <= 1) || recOvr(me) >= best ? 1 : 2); c.team = prev; return T; // a promised start (F7: the offer), a high pick from before F7, or anyone better than the bench starts
 }
@@ -12664,29 +12839,7 @@ function roleOf(r, h) {
 }
 function roleLabel(r, h) { return ROLE_LABELS[roleOf(r, h)]; }
 
-// --- trait cards ---
-// A trait card: rarity band, name, upside (green) and downside (orange). hidden: the unfound hidden trait (???).
-function drawTraitCard(ctx, id, x, y, w, h, opts) {
-  opts = opts || {}; const d = traitDef(id), hid = !!opts.hidden || !d; const col = hid ? '#6E7590' : traitFrame(id); const small = h < 150;
-  ctx.fillStyle = 'rgba(0,0,12,0.35)'; ctx.fillRect(x + 3, y + 5, w, h); /* the drop */
-  ctx.fillStyle = col; ctx.fillRect(x, y, w, h); ctx.fillStyle = '#0D1230'; ctx.fillRect(x + 4, y + 4, w - 8, h - 8); /* the frame: 4 px of rarity color */
-  ctx.fillStyle = shadeHex(col, -0.55); ctx.fillRect(x + 4, y + 4, w - 8, small ? 24 : 28); /* the rarity band */
-  const pad = 14, iw = w - 2 * pad; ctx.textBaseline = 'middle';
-  ctx.font = fontStr(small ? 11 : 12, true); ctx.fillStyle = col; ctx.textAlign = 'left'; const rar = hid ? '???' : traitRarity(id).toUpperCase(); ctx.fillText(rar, x + pad, y + (small ? 16 : 18), iw);
-  if (opts.tag && ctx.measureText(rar).width + ctx.measureText(opts.tag).width + 16 <= iw) { ctx.textAlign = 'right'; ctx.fillStyle = UI_DIM; ctx.fillText(opts.tag, x + w - pad, y + (small ? 16 : 18)); } /* the tag only when it fits */
-  let yy = y + (small ? 44 : 54); ctx.textAlign = 'left'; const ns = fitFont(ctx, hid ? '???' : d.name.toUpperCase(), iw, small ? 17 : 22, true); ctx.font = fontStr(ns, true); ctx.fillStyle = hid ? UI_DIM : UI_TEXT; ctx.fillText(hid ? '???' : d.name.toUpperCase(), x + pad, yy, iw);
-  yy += small ? 20 : 26; const ts = small ? 11 : 13;
-  if (hid) { ui_para(ctx, opts.hint || 'Something about your game will show itself in your sophomore season.', x + pad, yy, iw, ts, UI_DIM, opts.maxLines || 3); return; }
-  yy += ui_para(ctx, '▲ ' + d.up, x + pad, yy, iw, ts, UI_GREEN, opts.maxLines || 2) + 2; ui_para(ctx, '▼ ' + d.down, x + pad, yy, iw, ts, UI_ORANGE, opts.maxLines || 2);
-}
-// A wrapped paragraph (the ui object's para without a ui): returns the height used.
-function ui_para(ctx, text, x, y, maxW, size, color, maxLines) { ctx.font = fontStr(size, false); ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; const lh = Math.max(size * 1.35, rbLineH(ctx)); let lines = rbWrap(ctx, text, maxW); const cut = maxLines && lines.length > maxLines; if (cut) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; } lines.forEach((l, i) => ctx.fillText(l, x, y + i * lh, maxW)); if (cut && RBF.boxes && RBF.boxes.length) RBF.boxes[RBF.boxes.length - 1].cut = text; /* F7: the tests' cut-text audit */ return lines.length * lh; }
-// A trait as a small chip in its rarity color (the hub, rosters). Returns the width.
-function traitChip(ctx, id, x, y, opts) { opts = opts || {}; const d = traitDef(id); if (!d) return kitChip(ctx, '???', x, y, { size: opts.size || 11, fill: 'rgba(110,117,144,0.25)', stroke: '#6E7590', color: UI_DIM, align: opts.align, maxW: opts.maxW }); return kitChip(ctx, (opts.short ? d.name : d.name).toUpperCase(), x, y, { size: opts.size || 11, fill: 'rgba(8,12,36,0.85)', stroke: traitFrame(id), color: traitFrame(id), align: opts.align, maxW: opts.maxW }); }
-// Both of a career's traits, side by side (the signature, and the hidden one or ???).
-function drawTraitPair(ctx, B, x, y, w, h) { const T = traitsOf(B); if (!T) return; const gw = (w - 12) / 2; ctx.font = fontStr(12, true); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('SIGNATURE', x, y + 8); ctx.fillText('HIDDEN', x + gw + 12, y + 8); drawTraitCard(ctx, T.sig, x, y + 22, gw, h - 22); drawTraitCard(ctx, T.hidden, x + gw + 12, y + 22, gw, h - 22, { hidden: !T.found, hint: traitHint(B) }); }
-// Where the hidden trait will show itself.
-function traitHint(B) { return B && B.stage === 'hs' && (B.age || 14) < TR.revealAge ? 'Something about your game will show itself in your sophomore season.' : 'Something about your game is about to show itself.'; }
+// (V3: trait cards, chips and the hidden trait's hint are in the traits UI section, 169_ui_traits.js)
 
 // --- F11: your team's level (the user: "it should tell you which team you're on, or whether you're on varsity or JV,
 // and which team is better"). One description for the hub's header, the Team page and the stats guide: a chip, a note
@@ -12736,7 +12889,7 @@ function teamScreen(game) {
     const S_ = coachStyle(T.coach); ui.heading(ctx, T.coach.name, cx + (P ? 104 : 118), cy + 40, P ? 18 : 20, UI_TEXT, 'left', P ? 400 : 240); ui.label(ctx, S_.label.toUpperCase(), cx + (P ? 104 : 118), cy + 66, 13, UI_GOLD, 'left', P ? 400 : 240); ui.para(ctx, S_.line, cx + (P ? 104 : 118), cy + 92, P ? 420 : 250, 12, UI_DIM, 'left', P ? 2 : 3);
     // you and the rival team
     const yx = P ? 50 : 60, yy = P ? 290 : 300; kitHeader(ctx, 'You', yx, yy, P ? 520 : 360); ui.label(ctx, meRec.name + ' · ' + fmtHeight(meRec.height) + ' · OVR ' + ovrOf(meRec.r, meRec.height), yx, yy + 26, 14, UI_GOLD, 'left', P ? 520 : 360); ui.label(ctx, roleLabel(meRec.r, meRec.height) + (P && T.ladder ? ' · depth chart #' + ladderRank(c) : ''), yx, yy + 48, 13, UI_TEXT, 'left', P ? 520 : 360); if (T.ladder && !P) ui.label(ctx, 'DEPTH CHART #' + ladderRank(c) + ' OF ' + (ladderOf(c) || []).length + (isStarter(c) ? ' · STARTER' : ''), yx, yy + 126, 12, isStarter(c) ? UI_GOLD : UI_ORANGE, 'left', 360);
-    const B = holderOf(c), TR_ = traitsOf(B); if (TR_ && !P) { let tx = yx; tx += traitChip(ctx, TR_.sig, tx, yy + 74) + 8; traitChip(ctx, TR_.found ? TR_.hidden : null, tx, yy + 74); }
+    const B = holderOf(c), TR_ = traitsOf(B); if (TR_ && !P) { let tx = yx; tx += traitChip(ctx, TR_.sig, tx, yy + 74, { B }) + 8; tx += traitChip(ctx, TR_.found ? TR_.hidden : null, tx, yy + 74, { B }) + 8; if (TR_.third) traitChip(ctx, TR_.third, tx, yy + 74, { B }); }
     if (T.trust != null) { const ty = yy + (P ? 72 : 102); ctx.font = fontStr(12, false); const lw = ctx.measureText('COACH TRUST ' + trustOf(c)).width; ui.label(ctx, 'COACH TRUST ' + trustOf(c), yx, ty, 12, UI_CYAN); meterBar(ctx, yx + lw + 10, ty - 6, Math.max(60, (P ? 460 : 350) - lw - 10), 12, trustOf(c) / 100, UI_CYAN); } /* R4: coach trust */
     if (rt && !P) { kitHeader(ctx, 'Rival team', yx, yy + 152, 360); ctx.fillStyle = rt.colors[0]; ctx.fillRect(yx, yy + 168, 16, 16); ctx.fillStyle = rt.colors[1]; ctx.fillRect(yx + 16, yy + 168, 6, 16); ctx.font = fontStr(14, false); const rn = [rt.name + (rt.mascot ? ' ' + rt.mascot : ''), rt.name].find(t => ctx.measureText(t).width <= 320) || rt.name; ui.label(ctx, rn, yx + 30, yy + 176, 14, UI_RED, 'left'); } /* F11: a rival name too long for the column drops its mascot (it was cut short) */
     if (!P) { const past = c.pastTeams; if (past && past.length) { kitHeader(ctx, 'Before', yx, yy + 206, 360); past.slice(-1).forEach((p, i) => ui.label(ctx, p.name + ' · ' + p.w + '-' + p.l + (p.titles ? ' · ' + p.titles + ' title' + (p.titles > 1 ? 's' : '') : ''), yx, yy + 230 + i * 22, 13, UI_DIM, 'left', 360)); } }
@@ -12746,25 +12899,28 @@ function teamScreen(game) {
       const ps = rowH - 12; try { drawPortrait(ctx, { name: m.name, look: m.look, age: m.age || 16 }, col, rx, y + 4, ps); } catch (e) { /* decoration */ }
       if (!m.league && L0.includes(m.id)) { ctx.fillStyle = 'rgba(8,12,36,0.85)'; ctx.fillRect(rx, y + 4, 26, 18); ui.label(ctx, '#' + (L0.indexOf(m.id) + 1), rx + 13, y + 13, 11, L0.indexOf(m.id) === 0 ? UI_GOLD : UI_TEXT, 'center'); } /* the rung, on the portrait's corner */
       const tx = rx + ps + 12, sub = (m.cls ? TEAM_CLASS[Math.min(3, m.cls - 1)] + ' · ' : m.age ? 'age ' + m.age + ' · ' : '') + fmtHeight(m.height) + ' · ' + roleLabel(m.r, m.height) + (m.league ? ' · in the league' : '');
-      if (P) { ui.heading(ctx, m.name, tx, y + 22, 17, UI_TEXT, 'left', rw - ps - 110); ui.label(ctx, sub, tx, y + 50, 13, UI_DIM, 'left', rw - ps - 20); if (m.tr) traitChip(ctx, m.tr.sig, tx, y + 78, { size: 11 }); hexBadge(ctx, rx + rw - 40, y + 30, 22, m.ovr, { sub: false }); } /* phone: the number alone (a 4 px OVR under it overlapped the digits) */
-      else { ui.heading(ctx, m.name, tx, y + 18, 16, UI_TEXT, 'left', 250); ui.label(ctx, sub, tx, y + 40, 12, UI_DIM, 'left', rw - ps - 80); if (m.tr) { let cx2 = tx + 262; const end = rx + rw - 56; ctx.font = fontStr(10, true); cx2 += traitChip(ctx, m.tr.sig, cx2, y + 18, { size: 10, maxW: end - cx2 }) + 6; const hd = m.tr.hidden && traitDef(m.tr.hidden); if (hd && ctx.measureText(hd.name.toUpperCase()).width + 30 <= end - cx2) traitChip(ctx, m.tr.hidden, cx2, y + 18, { size: 10, maxW: end - cx2 }); } /* F4: the chips end before the badge; F7: beside the name, so the line under it has room (a second chip that can't fit whole isn't drawn cut) */ hexBadge(ctx, rx + rw - 26, y + 28, 20, m.ovr, {}); } });
+      if (P) { ui.heading(ctx, m.name, tx, y + 22, 17, UI_TEXT, 'left', rw - ps - 110); ui.label(ctx, sub, tx, y + 50, 13, UI_DIM, 'left', rw - ps - 20); if (m.tr) traitChip(ctx, m.tr.sig, tx, y + 78, { size: 11, T: m.tr }); hexBadge(ctx, rx + rw - 40, y + 30, 22, m.ovr, { sub: false }); } /* phone: the number alone (a 4 px OVR under it overlapped the digits) */
+      else { ui.heading(ctx, m.name, tx, y + 18, 16, UI_TEXT, 'left', 250); ui.label(ctx, sub, tx, y + 40, 12, UI_DIM, 'left', rw - ps - 80); if (m.tr) { let cx2 = tx + 262; const end = rx + rw - 56; ctx.font = fontStr(10, true); cx2 += traitChip(ctx, m.tr.sig, cx2, y + 18, { size: 10, maxW: end - cx2, T: m.tr }) + 6; const hd = m.tr.hidden && traitDef(m.tr.hidden); if (hd && ctx.measureText(hd.name.toUpperCase()).width + 30 <= end - cx2) traitChip(ctx, m.tr.hidden, cx2, y + 18, { size: 10, maxW: end - cx2, T: m.tr }); } /* F4: the chips end before the badge; F7: beside the name, so the line under it has room (a second chip that can't fit whole isn't drawn cut) */ hexBadge(ctx, rx + rw - 26, y + 28, 20, m.ovr, {}); } });
     if (!P && pro) { const G = frGoalBanner(c); ui.heading(ctx, G.label, 60, 568, 13, UI_GOLD, 'left', 360); ui.para(ctx, G.line, 60, 586, 360, 12, UI_DIM, 'left', 2); } /* F7: the goal */
     else if (!P) { ui.para(ctx, lv && lv.kind === 'hs' && lv.at === 0 ? 'On JV, win ' + Math.round(HS.promoteWin * 4) + ' of every 4 games and varsity calls you up.' : 'Every game is 1v1: you against another team\'s player. Your teammates practice with you.', 60, 566, 360, 12, UI_DIM, 'left', 3); } /* F11: on JV, how to move up */
   } };
 }
 
-// A trait story card: the text on the left, the trait's card on the right (the reveal; the NEW: TRAITS note shows both).
+// A trait story card: the text on the left, the trait's card on the right (the reveal; the NEW: TRAITS note shows both;
+// V3: a level-up pops its card at the new level with a burst in the level's color).
 function traitEventScreen(game, c, ev, done) {
-  const items = [btn('Continue', 0, 0, 0, 0, done, { primary: true })]; const ui = game.ui, P = ui.phone; if (P) phoneGrid(ui, items, 780, UI_H - tapH(ui, 44) - 16, 440, 1, 0, 0); else Object.assign(items[0], { x: 830, y: 600, w: 360, h: 58 });
-  const B = holderOf(c); let t = 0;
+  const items = [btn('Continue', 0, 0, 0, 0, done, { primary: true })]; const ui = game.ui, P = ui.phone; if (P) phoneGrid(ui, items, 780, UI_H - tapH(ui, 44) - 16, 440, 1, 0, 0); else Object.assign(items[0], { x: 830, y: 612, w: 360, h: 58 });
+  const B = holderOf(c), lvl = ev.kind === 'traitlevel'; let t = 0; if (lvl && game.audio && game.audio.ui) game.audio.ui('confirm');
   return { widgets: items, name: 'amevent', overlay: true, onBack: done, update(dt) { t += dt; },
     draw(ctx, ui) {
       ui.panel(ctx, 60, 40, 1160, 640); ui.title(ctx, ev.title || '', 100, 100, P ? 36 : 40); const tw = P ? 560 : 600; let y = 150;
       (ev.lines || []).forEach((l, i) => { y += ui.para(ctx, l, 100, y, tw, P ? 18 : 17, i === 0 ? UI_GOLD : UI_TEXT) + 10; });
-      const k = uiReduceMotion() ? 1 : easeOutCubic(clamp01(t / 0.5)), cx = 760, cw = 400;
+      const k0 = uiReduceMotion() ? 1 : clamp01(t / 0.5), k = easeOutCubic(k0), cx = 740, cw = 440;
+      if (lvl) { const ps = uiReduceMotion() ? 1 : popScale(k0), col = trLevelColor(ev.level), ch = Math.min(470, traitCardHeight(ctx, ev.trait, cw, { B, level: ev.level, tag: 'LEVEL UP' })), cy = 130 + (470 - ch) / 2; { const my = Math.max(y + 60, 420); kitStamp(ctx, trLevelName(ev.level).toUpperCase(), 330, my, 64, [col, shadeHex(col, -0.25)], { outline: 0.16 }); const pz = 26, tp = trTop(ev.trait); for (let i = 0; i < tp; i++) { const px = 330 - (tp * (pz + 10) - 10) / 2 + i * (pz + 10); if (i < ev.level) { ctx.fillStyle = trLevelColor(i + 1); ctx.fillRect(px, my + 52, pz, pz); } else { ctx.strokeStyle = 'rgba(243,240,255,0.45)'; ctx.lineWidth = 2; ctx.strokeRect(px + 1, my + 53, pz - 2, pz - 2); } } } ctx.save(); ctx.translate(cx + cw / 2, cy + ch / 2); ctx.scale(ps, ps); ctx.translate(-(cx + cw / 2), -(cy + ch / 2)); drawTraitCard(ctx, ev.trait, cx, cy, cw, ch, { B, level: ev.level, tag: 'LEVEL UP' }); ctx.restore();
+        if (!uiReduceMotion() && t < 1.2) { const a = 1 - t / 1.2; ctx.fillStyle = col; for (let i = 0; i < 18; i++) { const ang = i / 18 * TAU, r = 60 + t * 260 + (i % 3) * 14, s = 6 + (i % 2) * 4; ctx.globalAlpha = a; ctx.fillRect(Math.round(cx + cw / 2 + Math.cos(ang) * r * 1.3 - s / 2), Math.round(cy + ch / 2 + Math.sin(ang) * r - s / 2), s, s); } ctx.globalAlpha = 1; } return; }
       ctx.save(); ctx.globalAlpha = k; ctx.translate(0, (1 - k) * 30);
-      if (ev.kind === 'traitnew') { const T = traitsOf(B); if (T) { drawTraitCard(ctx, T.sig, cx, 140, cw, 210, { tag: 'SIGNATURE' }); drawTraitCard(ctx, T.hidden, cx, 370, cw, 170, { tag: 'HIDDEN', hidden: !T.found, hint: traitHint(B) }); } }
-      else if (ev.trait) drawTraitCard(ctx, ev.trait, cx, 170, cw, 190, { tag: ev.title && /HIDDEN/.test(ev.title) ? 'FOUND' : 'TRAIT' });
+      if (ev.kind === 'traitnew') { const T = traitsOf(B); if (T) { drawTraitCard(ctx, T.sig, cx, 132, cw, 300, { B, tag: 'SIGNATURE' }); drawTraitCard(ctx, T.hidden, cx, 448, cw, 140, { B, tag: 'HIDDEN', hidden: !T.found, hint: traitHint(B) }); } }
+      else if (ev.trait) drawTraitCard(ctx, ev.trait, cx, 140, cw, 440, { B, tag: ev.title && /HIDDEN/.test(ev.title) ? 'FOUND' : 'TRAIT' });
       ctx.restore();
     } };
 }
@@ -12778,13 +12934,13 @@ function genesPage2(ctx, ui, c, t) {
   kitHeader(ctx, 'Height', 60, y, 560); y += 24; ui.para(ctx, 'On top of all that, in every game: ' + amHeightFxText(c.heightFinal) + ' at ' + fmtHeight(c.projection || c.heightFinal) + '.', 60, y, 570, 14, UI_TEXT);
   kitPanel(ctx, 674, 26, 572, 668); ui.title(ctx, 'YOUR TRAITS', 700, 74, 40); const T = traitsOf(c); if (!T) return;
   const k = uiReduceMotion() ? 1 : easeOutCubic(clamp01(t / 0.45)); ctx.save(); ctx.globalAlpha = k; ctx.translate(0, (1 - k) * 24);
-  drawTraitCard(ctx, T.sig, 700, 110, 520, 214, { tag: 'SIGNATURE' }); drawTraitCard(ctx, T.hidden, 700, 344, 520, 150, { tag: 'HIDDEN', hidden: !T.found, hint: traitHint(c) }); ctx.restore();
-  ui.para(ctx, 'Every trait has an upside and a catch.' + (ui.phone ? '' : ' Rarity: Common 55%, Uncommon 28%, Rare 13%, Legendary 4%.'), 700, 522, 520, 13, UI_DIM);
+  drawTraitCard(ctx, T.sig, 700, 104, 520, 300, { B: c, tag: 'SIGNATURE' }); drawTraitCard(ctx, T.hidden, 700, 418, 520, 96, { B: c, tag: 'HIDDEN', hidden: !T.found, hint: traitHint(c), compact: true }); ctx.restore();
+  ui.para(ctx, 'Every trait has an upside and a catch, and levels up Bronze → Silver → Gold by doing its thing.' + (ui.phone ? '' : ' Rarity: Common 55%, Uncommon 28%, Rare 13%, Legendary 4%: the rarer, the stronger.'), 700, 536, 520, 13, UI_DIM);
 }
 
 // ---------------- R4: the depth chart ----------------
 // Match defs for a teammate (practice games and drills: their real ratings, traits and face).
-function mateMatchDef(m) { const eff = effRatings(m.r, m.height), attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: m.name, nick: m.nick, arch: ARCHETYPES[m.style] ? m.style : 'slasher', height: m.height, wing: m.wing || 1.03, attrs, look: m.look, moves: movesFor(eff), traits: traitIdsFor(m) }; }
+function mateMatchDef(m) { const eff = effRatings(m.r, m.height), attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: m.name, nick: m.nick, arch: ARCHETYPES[m.style] ? m.style : 'slasher', height: m.height, wing: m.wing || 1.03, attrs, look: m.look, moves: movesFor(eff), traits: traitIdsFor(m), traitLv: trLevels(m) }; }
 function mateTeam(c, m) { const T = c.team, cols = T ? [T.colors[1], T.colors[0]] : ['#3A3F4A', '#F3F0FF']; if (luminance(cols[0]) < 0.25 && luminance(cols[1]) < 0.25) cols[0] = '#F3F0FF'; return { id: 'mate', name: m.name, abbr: amAbbr(m.name), colors: cols, pattern: 'solid', personality: archPersonality(m.style), blurb: '', players: [mateMatchDef(m)] }; } // practice: the teammate wears the reversed practice jersey
 function myPracticeTeam(c) { if (isPro(c)) return matchTeamDef(c, c.meId, false, { week: true }); return { id: 'amme', name: c.name, abbr: amAbbr(c.name), colors: (c.team ? c.team.colors : c.colors).slice(), pattern: 'solid', personality: archPersonality(c.style), blurb: '', players: [amPlayerDef(c)] }; }
 // A practice partner for drills: the teammate a rung below you (or above, if you're last).
@@ -12877,6 +13033,189 @@ function benchResultScreen(game, rec) {
 }
 
 // ============================================================================
+// SECTION: UI (part 10b) — V3 (2.0 §2.3): traits, explained everywhere. Pixel icons; the trait card (one layout
+// everywhere: the icon in a rarity-colored frame, the name and level, one plain sentence, when it kicks in, the exact
+// numbers, the downside, the way to the next level); chips that open their card when tapped or hovered, anywhere; the
+// card as a popup; the in-game banner; the level-up celebration; the third trait's pick; the Codex's Traits page.
+// ============================================================================
+// 12×12 pixel icons: a = the rarity color, b = its shade, c = its light, k = ink, . = clear.
+const TRAIT_ICONS = {
+  dumbbell: ['............', '............', '.kk......kk.', 'kaak....kaak', 'kaakkkkkkaak', 'kacaaaaaaaak', 'kaakkkkkkaak', 'kaak....kaak', 'kbbk....kbbk', '.kk......kk.', '............', '............'],
+  flame: ['.....k......', '....kak.....', '....kaak....', '...kaaak.k..', '..kaacaakak.', '..kaccaaaak.', '.kaaccaaaak.', '.kacccaaaak.', '.kaccccaaak.', '..kacccaak..', '...kbbbbk...', '....kkkk....'],
+  link: ['............', '.kkkkk......', 'kaaaaak.....', 'kak..kakkkk.', 'kak..kaaaaak', 'kakkkaak..ak', 'kaaaaak..kak', '.kkkk.kaaaak', '......kbbbk.', '.......kkk..', '............', '............'],
+  bolt: ['......kkkk..', '.....kaaak..', '....kaaak...', '...kaaak....', '..kaaakkkk..', '..kaaaaaak..', '..kkkkaaak..', '.....kaak...', '....kaak....', '...kaak.....', '...kak......', '...kk.......'],
+  book: ['............', '.kkkk..kkkk.', 'kaaaakkaaaak', 'kaccakkaccak', 'kaaaakkaaaak', 'kaccakkaccak', 'kaaaakkaaaak', 'kaccakkaccak', 'kaaaakkaaaak', 'kbbbbkkbbbbk', '.kkkkkkkkkk.', '............'],
+  clock: ['...kkkkkk...', '..kaaaaaak..', '.kaccccccak.', 'kacccckcccak', 'kacccckcccak', 'kacccckcccak', 'kacccckkkcak', 'kaccccccccak', 'kaccccccccak', '.kaccccccak.', '..kbbbbbbk..', '...kkkkkk...'],
+  shield: ['.kkkkkkkkkk.', 'kaaaaaaaaaak', 'kaccaaaaaaak', 'kaccaaaaaaak', 'kacaaaaaaaak', 'kaaaaaaaaaak', '.kaaaaaaaak.', '.kaaaaaaaak.', '..kaaaaaak..', '...kbbbbk...', '....kbbk....', '.....kk.....'],
+  chevron: ['.k........k.', 'kak......kak', 'kaak....kaak', '.kaak..kaak.', '..kaakkaak..', '...kaaaak...', '.k..kaak..k.', 'kak..kk..kak', 'kaak....kaak', '.kaak..kaak.', '..kbbkkbbk..', '...kkkkkk...'],
+  star: ['.....kk.....', '....kaak....', '....kaak....', 'kkkkkaakkkkk', 'kaaaaccaaaak', '.kaaaccaaak.', '..kaaaaaak..', '..kaaaaaak..', '.kaaakkaaak.', '.kaak..kaak.', 'kbbk....kbbk', 'kkk......kkk'],
+  hand: ['...k.k.k....', '..kakakak...', '..kakakak.k.', '..kakakakkak', '..kakakakak.', '.kkaaaaaaak.', 'kakaaaaaaak.', 'kaaaaaaaaak.', '.kaaaaaaak..', '..kaaaaaak..', '...kbbbbbk..', '...kkkkkk...'],
+  sprout: ['............', '.kkk....kkk.', 'kaaak..kaaak', 'kacaakkaacak', '.kaaakkaaak.', '..kkkakkkk..', '.....ak.....', '.....ak.....', '....kak.....', '..kkkakkkk..', '..kbbbbbbk..', '..kkkkkkkk..'],
+  wave: ['..k...k...k.', '.kak.kak.kak', '.kak.kak.kak', '..kak.kak.k.', '...kak.kak..', '...kak.kak..', '..kak.kak.k.', '.kak.kak.kak', '.kak.kak.kak', '..kak.kak.k.', '...k...k....', '............'],
+  film: ['............', 'kkkkkkkkkkkk', 'kckckckckckk', 'kkkkkkkkkkkk', 'kaaaakaaaaak', 'kaccakaccaak', 'kaccakaccaak', 'kaaaakaaaaak', 'kkkkkkkkkkkk', 'kckckckckckk', 'kkkkkkkkkkkk', '............'],
+  spring: ['.....kk.....', '....kaak....', '...kaaaak...', '..kkkaakkk..', '....kaak....', '.kkkkkkkkkk.', 'kaaaaaaaaaak', '.kkkkkkkkkk.', 'kaaaaaaaaaak', '.kkkkkkkkkk.', 'kbbbbbbbbbbk', '.kkkkkkkkkk.'],
+  crown: ['............', '.k...kk...k.', 'kak.kaak.kak', 'kaakaaaakaak', 'kaaaaaaaaaak', 'kaaaaaaaaaak', 'kacaacaacaak', 'kaaaaaaaaaak', 'kkkkkkkkkkkk', 'kbbbbbbbbbbk', 'kkkkkkkkkkkk', '............'],
+  gem: ['............', '..kkkkkkkk..', '.kccaaaaaak.', 'kcccaaaaaaak', 'kkkkkkkkkkkk', '.kaaaaaaaak.', '..kaaaaaak..', '...kaaaak...', '....kbbk....', '.....kk.....', '............', '............'],
+  snow: ['.....cc.....', '..c..cc..c..', '...c.cc.c...', '....cccc....', 'c...cccc...c', 'cccccaaccccc', 'cccccaaccccc', 'c...cccc...c', '....cccc....', '...c.cc.c...', '..c..cc..c..', '.....cc.....'],
+  unknown: ['....kkkk....', '...kaaaak...', '..kaakkaak..', '..kak..kak..', '.......kak..', '......kaak..', '.....kaak...', '.....kak....', '.....kkk....', '.....kak....', '.....kak....', '.....kkk....'],
+};
+const _trIconCache = new Map();
+function traitIconCanvas(icon, col) {
+  const key = icon + '|' + col; let cv = _trIconCache.get(key); if (cv) return cv; const rows = TRAIT_ICONS[icon] || TRAIT_ICONS.unknown;
+  cv = document.createElement('canvas'); cv.width = 12; cv.height = 12; const g = cv.getContext('2d'), pal = { a: col, b: shadeHex(col, -0.35), c: shadeHex(col, 0.55), k: '#0D1230' };
+  for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) { const ch = rows[y][x]; if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }
+  _trIconCache.set(key, cv); return cv;
+}
+// A trait's icon at (x, y), size × size (whole multiples of its 12 pixels look best), smoothing off.
+function drawTraitIcon(ctx, id, x, y, size, color) { const d = TR.list[id]; const cv = traitIconCanvas(d ? d.icon : 'unknown', color || (d ? traitFrame(id) : '#8A90A8')); const s0 = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false; ctx.drawImage(cv, Math.round(x), Math.round(y), size, size); ctx.imageSmoothingEnabled = s0; }
+// Level pips: filled up to L in its level's color, hollow up to the trait's top level. Returns the width.
+function drawLevelPips(ctx, id, L, x, y, s) { const top = trTop(id); for (let i = 0; i < top; i++) { const px = x + i * (s + 3); if (i < L) { ctx.fillStyle = trLevelColor(L); ctx.fillRect(px, y - s / 2, s, s); } else { ctx.strokeStyle = 'rgba(243,240,255,0.45)'; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, y - s / 2 + 0.5, s - 1, s - 1); } } return top * (s + 3) - 3; }
+
+// --- hot spots: a trait chip or card registers its box while the screen draws; a tap or a click on it opens the card,
+// and a mouse resting on it shows the card beside it (UI.update and UI.drawInner read them) ---
+let UI_HOTS = null; // the top screen's list while it draws (null: drawing something else, e.g. the HUD)
+function uiHot(x, y, w, h, info) { if (UI_HOTS && UI_HOTS.length < 120) UI_HOTS.push({ x, y, w, h, info }); }
+function uiHotAt(list, lx, ly, slop) { if (!list) return null; for (let i = list.length - 1; i >= 0; i--) { const r = list[i], px = slop ? Math.max(0, (slop - r.w) / 2) : 0, py = slop ? Math.max(0, (slop - r.h) / 2) : 0; if (lx >= r.x - px && lx <= r.x + r.w + px && ly >= r.y - py && ly <= r.y + r.h + py) return r; } return null; }
+
+// --- the card ---
+// opts: { B (the holder: your level and progress), level (shown instead), hidden, hint, rarity (a hidden one's), tag,
+// compact }. Sections that don't fit drop out, least important first: the next level, when it kicks in, the progress.
+function traitCardLevel(id, opts) { return opts && opts.level ? opts.level : opts && opts.B && hasTrait(opts.B, id) ? trLvOf(opts.B, id) : TR.list[id] && TR.list[id].r === 'L' ? trTop(id) : 1; }
+// The next level's numbers: the whole line for a one-number trait, the numbers alone for several.
+function traitNextText(id, L) { const lines = traitUpLines(id, L); if (lines.length <= 1) return lines.join(''); const d = TR.list[id], s = trScale(id, L), out = []; for (const k in d.up) { const v = d.up[k] * s; if (k === 'head') { for (const r in d.up.head) out.push('+' + trNum(d.up.head[r] * s) + (r === 'all' ? ' caps' : ' ' + TR_RATING_WORD[r])); continue; } if (k === 'takeSpeed' || k === 'confHold') continue; out.push(k === 'film' ? '×' + trNum(1 + v) : k === 'moveEarly' ? trNum(v / 10) + ' pt early' : k === 'trustStart' ? '+' + trNum(v) + ' trust' : k === 'ageShift' ? trNum(v) + ' yrs' : trPct(v)); } return out.join(' · '); }
+// How a trait levels up, in words: "Silver at 20 Practice weeks" (and Gold).
+function traitDeedText(id) { const d = TR.list[id]; if (!d || !d.deed) return ''; const w = TR_DEED_WORD[d.deed[0]] || d.deed[0], at = d.deed[1]; if (d.deed[0] === 'ovr') return 'Silver at ' + at[0] + ' overall' + (at[1] ? ', Gold at ' + at[1] : ''); return 'Silver at ' + at[0] + ' ' + w + (at[1] ? ', Gold at ' + at[1] : ''); }
+function traitCardBlocks(ctx, id, w, opts, shrink) {
+  const d = TR.list[id], L = traitCardLevel(id, opts), small = !!opts.compact, ts = (small ? 12 : 14) - (shrink || 0), out = [], B = opts.B, gap = small ? 4 : 7;
+  const para = (text, size, color, pri, sp) => { ctx.font = fontStr(size, false); const lh = Math.max(size * 1.35, rbLineH(ctx)); const n = rbWrap(ctx, text, w).length; out.push({ pri, h: n * lh + (sp || 0), draw: (x, y) => ui_para(ctx, text, x, y + lh / 2, w, size, color, n) }); }; // (whole: a section that doesn't fit drops out instead)
+  para(d.what, ts + 1, UI_TEXT, 0, gap);
+  out.push({ pri: 2, h: small ? 14 : 17, draw: (x, y) => { ctx.font = fontStr(small ? 10 : 11, true); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('WHEN IT KICKS IN', x, y + 7, w); } });
+  para(d.when, ts, UI_CYAN, 2, gap);
+  para('▲ ' + traitUpText(id, L), ts, UI_GREEN, 0, 2);
+  if (d.r !== 'L' && L < trTop(id)) para(trLevelName(L + 1).toUpperCase() + ': ' + traitNextText(id, L + 1), ts - 1, 'rgba(243,240,255,0.6)', 3, 2);
+  para((d.flavor ? 'Flavor: ' : '▼ ') + traitDownText(id), ts, d.flavor ? UI_DIM : UI_ORANGE, 1, gap); // (the pixel font has no ◆)
+  const nx = B && hasTrait(B, id) ? trNext(B, id) : null, prog = d.r === 'L' ? 'Legendary: always Gold' : L >= trTop(id) ? trLevelName(L) + ': the top level' : nx ? nx.word.charAt(0).toUpperCase() + nx.word.slice(1) + ': ' + Math.min(nx.have, nx.at) + ' / ' + nx.at + ' → ' + trLevelName(nx.level) : traitDeedText(id);
+  if (prog) { const ps = (small ? 11 : 12) - (shrink || 0); ctx.font = fontStr(ps, false); const lh = Math.max(ps * 1.35, rbLineH(ctx)), n = rbWrap(ctx, prog, w).length; out.push({ pri: 2, h: 12 + n * lh, draw: (x, y) => { const bh = 6, f = nx ? clamp01(nx.have / nx.at) : 1; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x, y + 1, w, bh); ctx.fillStyle = nx ? trLevelColor(nx.level) : trLevelColor(L); ctx.fillRect(x, y + 1, Math.max(2, w * f), bh); ui_para(ctx, prog, x, y + 12 + lh / 2, w, ps, UI_DIM, n); } }); }
+  return out;
+}
+// The height a card needs at width w (its band and every section): popups size themselves with it.
+function traitCardHeight(ctx, id, w, opts) { opts = opts || {}; const small = !!opts.compact, pad = small ? 10 : 14; return (small ? 40 : 52) + 4 + (small ? 8 : 12) + traitCardBlocks(ctx, id, w - 2 * pad, opts).reduce((a, b) => a + b.h, 0) + (small ? 8 : 12) + 6; }
+function drawTraitCard(ctx, id, x, y, w, h, opts) {
+  opts = opts || {}; const d = traitDef(id), hid = !!opts.hidden || !d, col = hid ? (opts.rarity ? TR.frame[opts.rarity] : '#6E7590') : traitFrame(id), small = !!opts.compact || h < 190;
+  ctx.fillStyle = 'rgba(0,0,12,0.35)'; ctx.fillRect(x + 3, y + 5, w, h); /* the drop */
+  ctx.fillStyle = col; ctx.fillRect(x, y, w, h); ctx.fillStyle = '#0D1230'; ctx.fillRect(x + 4, y + 4, w - 8, h - 8); /* the frame: 4 px of rarity color */
+  const bandH = small ? 40 : 52, pad = small ? 10 : 14, iw = w - 2 * pad, isz = small ? 24 : 36; ctx.fillStyle = shadeHex(col, -0.55); ctx.fillRect(x + 4, y + 4, w - 8, bandH); /* the band */
+  drawTraitIcon(ctx, hid ? null : id, x + pad, y + 4 + (bandH - isz) / 2, isz, hid ? col : null);
+  const tx = x + pad + isz + 10, tw = x + w - pad - tx; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  const rar = hid ? (opts.rarity ? TR.label[opts.rarity].toUpperCase() : '???') : traitRarity(id).toUpperCase(); ctx.font = fontStr(small ? 10 : 11, true); const rw = ctx.measureText(rar).width;
+  const name = hid ? '???' : d.name.toUpperCase(), ns = fitFont(ctx, name, tw - rw - 12, small ? 16 : 21, true); ctx.font = fontStr(ns, true); ctx.fillStyle = hid ? UI_DIM : UI_TEXT; ctx.fillText(name, tx, y + 4 + bandH * 0.33, tw - rw - 12);
+  ctx.font = fontStr(small ? 10 : 11, true); ctx.fillStyle = col; ctx.textAlign = 'right'; ctx.fillText(rar, x + w - pad, y + 4 + bandH * 0.33); ctx.textAlign = 'left';
+  if (!hid) { const L = traitCardLevel(id, opts), ps = small ? 6 : 8, pw = drawLevelPips(ctx, id, L, tx, y + 4 + bandH * 0.76, ps); ctx.font = fontStr(small ? 10 : 11, true); ctx.fillStyle = trLevelColor(L); ctx.fillText(trLevelName(L).toUpperCase() + (opts.tag ? '  ·  ' + opts.tag : ''), tx + pw + 8, y + 4 + bandH * 0.76, tw - pw - 8); }
+  else if (opts.tag) { ctx.font = fontStr(small ? 10 : 11, true); ctx.fillStyle = UI_DIM; ctx.fillText(opts.tag, tx, y + 4 + bandH * 0.76, tw); }
+  let yy = y + 4 + bandH + (small ? 8 : 12); const bottom = y + h - (small ? 8 : 12);
+  if (hid) { ui_para(ctx, opts.hint || 'Something about your game will show itself in your sophomore season.', x + pad, yy + 9, iw, small ? 12 : 14, UI_DIM, Math.max(1, Math.floor((bottom - yy) / 19))); return; }
+  const room = bottom - yy, sum = a => a.reduce((t, b) => t + b.h, 0); let keep = null; // the optional sections go first (the next level, when it kicks in, the progress, then the downside), then the size steps down: never a cut line
+  for (let sh = 0; sh <= 3 && !keep; sh++) { const k2 = traitCardBlocks(ctx, id, iw, opts, sh); for (const pri of [3, 2]) { if (sum(k2) <= room) break; for (let i = k2.length - 1; i >= 0; i--) if (k2[i].pri === pri) k2.splice(i, 1); } if (sum(k2) <= room || sh === 3) keep = k2; }
+  if (sum(keep) > room) keep = keep.filter(b => b.pri < 1);
+  for (const b of keep) { if (yy + b.h > bottom + 2) break; b.draw(x + pad, yy); yy += b.h; }
+  uiHot(x, y, w, h, { trait: id, B: opts.B, card: true });
+}
+// A wrapped paragraph (the ui object's para without a ui): returns the height used.
+function ui_para(ctx, text, x, y, maxW, size, color, maxLines) { ctx.font = fontStr(size, false); ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; const lh = Math.max(size * 1.35, rbLineH(ctx)); let lines = rbWrap(ctx, text, maxW); const cut = maxLines && lines.length > maxLines; if (cut) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; } lines.forEach((l, i) => ctx.fillText(l, x, y + i * lh, maxW)); if (cut && RBF.boxes && RBF.boxes.length) RBF.boxes[RBF.boxes.length - 1].cut = text; /* F7: the tests' cut-text audit */ return lines.length * lh; }
+// A trait as a small chip: its icon, name and level pips in its rarity color (the hub, rosters, previews, results).
+// opts.B (the holder) or opts.T (a .tr) sets the level; null id: the hidden ???. Tapping or hovering it opens its card.
+// Returns the width.
+function traitChip(ctx, id, x, y, opts) {
+  opts = opts || {}; const d = traitDef(id), size0 = opts.size || 11; ctx.font = fontStr(size0, true);
+  if (!d) { if (opts.measure) return ctx.measureText('???').width + size0 * 1.3; return kitChip(ctx, '???', x, y, { size: size0, fill: 'rgba(110,117,144,0.25)', stroke: '#6E7590', color: UI_DIM, align: opts.align, maxW: opts.maxW }); }
+  const T = opts.T || (opts.B ? traitsOf(opts.B) : null), L = opts.level || (T ? trLvOf({ tr: T }, id) : d.r === 'L' ? trTop(id) : 1), text = d.name.toUpperCase();
+  // the widest that fits maxW: icon, name and level pips; then one pip for the level; then a smaller size (never under 9)
+  const fit = (size, pips) => { ctx.font = fontStr(size, true); const isz = Math.round(size * 1.2), ps = Math.max(3, Math.round(size * 0.36)), pad = size * 0.65, n = pips ? trTop(id) : 1; return { size, isz, ps, pad, n, tw: ctx.measureText(text).width, w: pad + isz + 5 + ctx.measureText(text).width + 6 + n * (ps + 2) + pad }; };
+  let F = fit(size0, true); if (opts.maxW && F.w > opts.maxW) { F = fit(size0, false); for (let s2 = size0 - 1; opts.maxW && F.w > opts.maxW && s2 >= 9; s2--) F = fit(s2, false); }
+  let tw = F.tw, w = F.w; if (opts.maxW && w > opts.maxW) { tw = Math.max(8, tw - (w - opts.maxW)); w = opts.maxW; } if (opts.measure) return w;
+  const h = F.size * 1.75, x0 = opts.align === 'right' ? x - w : opts.align === 'center' ? x - w / 2 : x, col = traitFrame(id); ctx.font = fontStr(F.size, true);
+  ctx.fillStyle = 'rgba(8,12,36,0.85)'; ctx.beginPath(); roundRectPath(ctx, x0, y - h / 2, w, h, h / 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+  drawTraitIcon(ctx, id, x0 + F.pad, y - F.isz / 2, F.isz); ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, x0 + F.pad + F.isz + 5, y + 1, tw);
+  for (let i = 0; i < F.n; i++) { const px = x0 + F.pad + F.isz + 5 + tw + 6 + i * (F.ps + 2); if (i < L || F.n === 1) { ctx.fillStyle = trLevelColor(L); ctx.fillRect(px, y - F.ps / 2, F.ps, F.ps); } else { ctx.strokeStyle = 'rgba(243,240,255,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, y - F.ps / 2 + 0.5, F.ps - 1, F.ps - 1); } }
+  uiHot(x0, y - h / 2, w, h, { trait: id, T, level: L }); return w;
+}
+// Both of a career's traits, side by side (the signature, and the hidden one or ???); a third one, when you have it, as
+// a chip under them.
+function drawTraitPair(ctx, B, x, y, w, h) {
+  const T = traitsOf(B); if (!T) return; const gw = (w - 12) / 2, third = T.third && TR.list[T.third], ch = third ? 28 : 0; ctx.font = fontStr(12, true); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('SIGNATURE', x, y + 8); ctx.fillText('HIDDEN', x + gw + 12, y + 8);
+  drawTraitCard(ctx, T.sig, x, y + 22, gw, h - 22 - ch, { B, compact: true }); drawTraitCard(ctx, T.hidden, x + gw + 12, y + 22, gw, h - 22 - ch, { B, compact: true, hidden: !T.found, hint: traitHint(B) });
+  if (third) { ctx.font = fontStr(12, true); ctx.fillStyle = UI_DIM; ctx.fillText('THIRD', x, y + h - 10); traitChip(ctx, T.third, x + 64, y + h - 10, { B, size: 12 }); }
+}
+// Where the hidden trait will show itself.
+function traitHint(B) { return B && B.stage === 'hs' && (B.age || 14) < TR.revealAge ? 'Something about your game will show itself in your sophomore season.' : 'Something about your game is about to show itself.'; }
+
+// --- the card as a popup (a tap or a click on any chip or card) ---
+function traitCardScreen(game, id, B, level) {
+  const ui = game.ui, P = ui.phone, c = careerOf(game) || amateurOf(game), H = c ? holderOf(c) : null, own = !!(B && H && traitsOf(H) && (B === H || B.tr === H.tr) && hasTrait(H, id));
+  const items = [btn('All traits', 0, 0, 0, 0, () => { game.ui.pop(); game.ui.push(statsGuideScreen(game, 'traits')); }), btn('Close', 0, 0, 0, 0, () => game.ui.pop(), { primary: true })];
+  if (P) phoneBar(ui, items, [1, 1], 300, 680); else { Object.assign(items[0], { x: 340, y: 620, w: 280, h: 52 }); Object.assign(items[1], { x: 660, y: 620, w: 280, h: 52 }); }
+  let t = 0; return { widgets: items, name: 'traitcard', overlay: true, noHots: true, update(dt) { t += dt; },
+    draw(ctx) { const k = uiReduceMotion() ? 1 : easeOutCubic(clamp01(t / 0.25)); ctx.save(); ctx.globalAlpha = k; const o = { B: B && hasTrait(B, id) ? B : null, level: own ? null : level, tag: own ? 'YOURS' : '' }, cw = P ? 760 : 640, room = P ? UI_H - tapH(ui, 44) - 50 : 590, ch = Math.min(room, Math.max(260, traitCardHeight(ctx, id, cw, o))), cx = (UI_W - cw) / 2, cy = Math.max(16, (room + 10 - ch) / 2); drawTraitCard(ctx, id, cx, cy + (1 - k) * 20, cw, ch, o); ctx.restore(); } };
+}
+// The hover popup: a desktop mouse resting on a chip shows its card next to it (drawn over the screen).
+function drawTraitHover(ctx, ui, hot) {
+  if (!hot || !hot.info || !hot.info.trait || hot.info.card) return; const w = 400, h = 330; let x = hot.x + hot.w + 12, y = hot.y - 40; if (x + w > UI_W - 10) x = hot.x - w - 12; if (x < 10) x = clamp(hot.x, 10, UI_W - w - 10); y = clamp(y, 10, UI_H - h - 10);
+  const B = hot.info.B || (hot.info.T ? { tr: hot.info.T } : null); const was = UI_HOTS; UI_HOTS = null; try { drawTraitCard(ctx, hot.info.trait, x, y, w, h, { B: B && hasTrait(B, hot.info.trait) ? B : null, level: hot.info.level, compact: true }); } finally { UI_HOTS = was; }
+}
+
+// --- the in-game banner (§2.3): a trait kicking in, under the HUD for TR.bannerS s ---
+function trBannerPush(m, e) { const p = e.player; if (!p || !p.traits) return; m.trBanners = (m.trBanners || []).filter(b => m.time - b.t < TR.bannerS); m.trBanners.push({ id: e.id, level: e.level || 1, t: m.time, team: p.team, name: p.nick || p.name }); if (m.trBanners.length > 2) m.trBanners.shift(); }
+// Under the score bug, below the side of the player whose trait it is (the center is the callouts'): an icon, the
+// trait's name and its level in a rarity-framed plate. G: the score bug's geometry (scoreBugGeo).
+function drawTraitBanners(ctx, m, G) {
+  const list = m && m.trBanners; if (!list || !list.length) return; const k = Math.max(1.2, 1.5 * G.k), next = [G.y + G.h + 6 * G.k, G.y + G.h + 6 * G.k];
+  for (const b of list) { const age = m.time - b.t; if (age < 0 || age >= TR.bannerS) continue; const d = TR.list[b.id]; if (!d) continue; const a = age < 0.12 ? age / 0.12 : age > TR.bannerS - 0.25 ? (TR.bannerS - age) / 0.25 : 1, col = traitFrame(b.id), side = b.team ? 1 : 0;
+    ctx.save(); ctx.globalAlpha = clamp01(a); const fs = 9 * k, label = d.name.toUpperCase() + (d.r !== 'L' && b.level > 1 ? ' · ' + trLevelName(b.level).toUpperCase() : ''); ctx.font = fontStr(fs, true); const tw = ctx.measureText(label).width, isz = Math.round(12 * k), w = Math.round(isz + tw + 18 * k), h = Math.round(16 * k), cx = side ? G.cx + G.cw / 2 + G.pw / 2 : G.cx - G.cw / 2 - G.pw / 2, x = Math.round(cx - w / 2), y = Math.round(next[side]); next[side] += h + 3 * k;
+    ctx.fillStyle = 'rgba(8,12,36,0.88)'; ctx.fillRect(x, y, w, h); const e = Math.max(1, Math.round(k)); ctx.fillStyle = col; ctx.fillRect(x, y, w, e); ctx.fillRect(x, y + h - e, w, e);
+    drawTraitIcon(ctx, b.id, x + 4 * k, y + (h - isz) / 2, isz); ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label, x + isz + 9 * k, y + h / 2 + 0.5 * k); ctx.restore(); }
+}
+
+// --- the third trait's pick (§2.2) ---
+function traitPickScreen(game, c, ev, done) {
+  const B = holderOf(c), T = traitsOf(B), offers = (T && T.offer) || ev.offers || [], ui = game.ui, P = ui.phone; const pick = id => { if (trPickThird(B, id)) { game.save.save(); game.ui.toastMsg(TR.list[id].name + ': your third trait (Bronze).'); } done(); };
+  const items = offers.map(id => btn('Take ' + TR.list[id].name, 0, 0, 0, 0, () => pick(id), { primary: true })); const cw = P ? 392 : 376, gap = P ? 20 : 26, x0 = (UI_W - (cw * offers.length + gap * (offers.length - 1))) / 2;
+  items.forEach((b, i) => Object.assign(b, { x: x0 + i * (cw + gap), y: P ? UI_H - tapH(ui, 44) - 16 : 618, w: cw, h: P ? tapH(ui, 44) : 56 }));
+  let t = 0; return { widgets: items, name: 'traitpick', overlay: true, noHots: true, onBack: () => {}, update(dt) { t += dt; },
+    draw(ctx, ui) { ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, ev.title || 'A THIRD TRAIT', 50, 62, P ? 34 : 40); const leadH = ui.para(ctx, (ev.lines || [])[0] || '', 50, 104, 1170, P ? 16 : 15, UI_TEXT, 'left', 2), top = 104 + leadH, ch = (P ? UI_H - tapH(ui, 44) - 26 : 606) - top; // (the lead line may wrap on a phone)
+      const k = uiReduceMotion() ? 1 : easeOutCubic(clamp01(t / 0.4)); offers.forEach((id, i) => { const x = x0 + i * (cw + gap); ctx.save(); ctx.globalAlpha = k; drawTraitCard(ctx, id, x, top + (1 - k) * (20 + i * 10), cw, ch, { level: 1 }); ctx.restore(); }); } };
+}
+
+// --- the Codex's Traits page (§2.3): all 17 by rarity; yours highlighted (with your level); your hidden one, before
+// its story moment, as ??? with its rarity and a hint. Each tile opens its card (hover or tap). part: on a phone, 0 =
+// Common and Uncommon, 1 = Rare and Legendary (the hidden one's note shows on the page with its rarity). ---
+function traitHintShort(B) { return B && B.stage === 'hs' && (B.age || 14) < TR.revealAge ? 'It shows itself in your sophomore season.' : 'It is about to show itself.'; }
+function drawCodexTraits(ctx, ui, game, x0, top, w, bottom, part) {
+  const c = careerOf(game) || amateurOf(game), B = c ? holderOf(c) : null, T = traitsOf(B), P = ui.phone, rows = ['C', 'U', 'R', 'L'].filter((r, i) => !P || (part ? i >= 2 : i < 2));
+  const hidR = T && !T.found && T.hidden ? TR.list[T.hidden].r : null, note = hidR && rows.includes(hidR), noteH = P ? 50 : 40; if (note) bottom -= noteH + 10;
+  const lw = P ? 190 : 170, rowH = (bottom - top) / rows.length, cols = 5, gap = 10, tw = (w - lw - gap * (cols - 1)) / cols, fs = P ? 16 : 13;
+  rows.forEach((r, ri) => { const y = top + ri * rowH, ids = TRAIT_IDS.filter(id => TR.list[id].r === r), th = rowH - 10;
+    ctx.font = fontStr(P ? 17 : 14, true); ctx.fillStyle = TR.frame[r]; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(TR.label[r].toUpperCase(), x0, y + 14, lw - 10); ui.label(ctx, Math.round(TR.odds[r] * 100) + '%', x0, y + (P ? 42 : 36), P ? 14 : 12, UI_DIM, 'left', lw - 10); ui.label(ctx, 'MAX ' + trLevelName(TR.top[r]).toUpperCase(), x0, y + (P ? 66 : 56), P ? 14 : 12, trLevelColor(TR.top[r]), 'left', lw - 10);
+    ids.forEach((id, i) => { const x = x0 + lw + i * (tw + gap), mine = B && hasTrait(B, id) && !(id === T.hidden && !T.found), d = TR.list[id], isz = P ? 36 : 36;
+      ctx.fillStyle = mine ? 'rgba(255,210,63,0.16)' : 'rgba(8,12,36,0.6)'; ctx.fillRect(x, y, tw, th); ctx.strokeStyle = mine ? UI_GOLD : shadeHex(TR.frame[r], -0.2); ctx.lineWidth = mine ? 3 : 1.5; ctx.strokeRect(x + 0.5, y + 0.5, tw - 1, th - 1);
+      drawTraitIcon(ctx, id, x + 8, y + 8, isz); const nm = d.name.toUpperCase(), widest = s0 => { ctx.font = fontStr(s0, false); return Math.max(...nm.split(' ').map(wd => ctx.measureText(wd).width)); }; let nx = x + isz + 16, nw = tw - isz - 22, ny = y + 8, f = fs; if (widest(fs - 2) > nw) { nx = x + 10; nw = tw - 20; ny = y + isz + 14; } /* a long single word (GENERATIONAL) goes under the icon, across the tile */ for (; f > 9; f--) if (widest(f) <= nw) break; const nameH = ui.para(ctx, nm, nx, ny + f * 0.7, nw, f, mine ? UI_GOLD : UI_TEXT, 'left', 2), nameBot = ny + f * 0.7 + nameH - Math.max(f * 1.35, rbLineH(ctx)) / 2;
+      if (th > 140) { const fz = P ? 14 : 12; ctx.font = fontStr(fz, false); const lh = Math.max(fz * 1.35, rbLineH(ctx)), n = rbWrap(ctx, d.what, tw - 20).length, ty = Math.max(y + 8 + isz, nameBot) + 10 + lh / 2; if (n <= Math.floor((y + th - (mine ? 34 : 12) - ty) / lh)) ui.para(ctx, d.what, x + 10, ty, tw - 20, fz, UI_DIM, 'left', n); } /* a tall tile (a phone's): the sentence too, only when it fits whole */
+      if (mine && th > 60) { const L = trLvOf(B, id), pw = drawLevelPips(ctx, id, L, x + 8, y + th - 14, 7); ui.label(ctx, trLevelName(L).toUpperCase(), x + 16 + pw, y + th - 14, P ? 13 : 11, trLevelColor(L), 'left', tw - pw - 24); }
+      uiHot(x, y, tw, th, { trait: id, B: mine ? B : null, tile: true }); });
+  });
+  if (note) { const y = bottom + 10, col = TR.frame[hidR]; ctx.save(); ctx.strokeStyle = col; ctx.setLineDash([5, 4]); ctx.lineWidth = 2; ctx.strokeRect(x0 + 0.5, y + 0.5, w - 1, noteH - 1); ctx.restore(); drawTraitIcon(ctx, null, x0 + 10, y + (noteH - 24) / 2, 24, col);
+    ui.label(ctx, 'Your hidden trait: ??? · ' + TR.label[hidR] + '. ' + traitHintShort(B), x0 + 46, y + noteH / 2, P ? 15 : 14, UI_TEXT, 'left', w - 60); }
+}
+// --- the results screen's "Traits that helped" (§2.3): a played game's tallies, or a simulated game's worth ---
+function traitsHelpedFor(m, rec) { if (m && m.players) { const p = m.players.find(q => q.isHuman) || (m.teams[0] && m.teams[0].players[0]); return p ? traitsHelpedLines(p, m) : []; } return (rec && rec.helped) || []; }
+// Up to n lines from (x, y): the trait's icon and its line (green: it helped; orange: its catch cost something). Each
+// line opens the trait's card. Returns the height used (0 when there is nothing to say).
+function drawTraitsHelped(ctx, ui, lines, x, y, w, n, B) {
+  if (!lines || !lines.length) return 0; ui.heading(ctx, 'TRAITS THAT HELPED', x, y, 14, UI_CYAN, 'left', w); let yy = y + 24;
+  for (const l of lines.slice(0, n)) { drawTraitIcon(ctx, l.id, x, yy - 9, 18); let f = 14; for (; f > 11; f--) { ctx.font = fontStr(f, false); if (ctx.measureText(l.text).width <= w - 26) break; } /* a long line shrinks, never cut */ ui.label(ctx, l.text, x + 26, yy, f, l.good ? UI_GREEN : UI_ORANGE, 'left', w - 26); uiHot(x, yy - 10, w, 20, { trait: l.id, B: B && hasTrait(B, l.id) ? B : null }); yy += 22; }
+  return yy - y;
+}
+
+// ============================================================================
 // SECTION: DEV TOOLS — headless AI-vs-AI sims, shot lab, tunneling test, replay by seed, perf guard
 // ============================================================================
 function teamDef(id) { return TEAMS.find(t => t.id === id) || TEAMS[0]; }
@@ -12896,7 +13235,7 @@ function simulateMatch(opts, runOpts) {
 }
 function boxScore(m, steps) {
   const teams = m.teams.map(t => ({ name: t.name, abbr: t.abbr, score: t.score, possessions: t.possessions, players: t.players.map(p => Object.assign({ name: p.name, nick: p.nick }, p.stats)) }));
-  return { seed: m.seed, winner: m.winner, teams, steps, invariantFails: m.invariantCount, invariantList: Object.values(m.invariantFails), timedOut: !!m.timedOut, time: m.time, overtime: m.overtime };
+  return { eng: true, seed: m.seed, winner: m.winner, teams, steps, invariantFails: m.invariantCount, invariantList: Object.values(m.invariantFails), timedOut: !!m.timedOut, time: m.time, overtime: m.overtime };
 }
 function sumStat(team, k) { return team.players.reduce((a, p) => a + (p[k] || 0), 0); }
 function aggregateSims(results) {
@@ -13233,7 +13572,7 @@ function hsToVarsity(c, why) {
 }
 function hsToJv(c) {
   if (c.squad !== 'jv') c.varsity = c.team; c.squad = 'jv'; const V = c.varsity, rng = tmRng(c), used = new Set((V ? V.mates.map(m => m.name) : []).concat([c.name]));
-  const T = { kind: 'hs', jv: true, name: c.school + ' JV', mascot: V ? V.mascot : schoolMascot(c.school), colors: (V ? V.colors : c.colors).slice(), tier: 0, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0, trust: TM.trustStart.hs };
+  const T = { kind: 'hs', jv: true, name: c.school + ' JV', mascot: V ? V.mascot : schoolMascot(c.school), colors: (V ? V.colors : c.colors).slice(), tier: 0, coach: tmCoach(rng), mates: [], w: 0, l: 0, titles: 0, since: c.season, seasons: 0, trust: Math.min(100, TM.trustStart.hs + trVal(c, 'trustStart')) };
   for (let i = 0; i < HS.jvRoster; i++) { const cls = 1 + (i % 2); T.mates.push(tmMakeMate(c, rng, 'hs', Math.round(clamp(amOvr(c) + HS.jvBase + TM.classOvr[cls - 1] + TM.sd * rng.gauss(), 28, 92)), 'jv' + (c.tmn = (c.tmn || 0) + 1), used, cls)); }
   c.team = T; ladderInitByOvr(c);
 }
@@ -13896,7 +14235,7 @@ function stCount(c) { const A = stFill(c); A.beats++; A.w = stWeek(c); } // a be
 // Answering a card's choice. fx: { conf, hype, fatigue, trust, money, xp (practice XP this week), injury (games), fragile (weeks), tour }.
 function stChoose(c, ev, i) {
   if (!ev || ev.answered != null || !ev.choice || !ev.choice[i]) return null; ev.answered = i; const B = mdFill(holderOf(c)), fx = ev.choice[i].fx || {}, out = [];
-  if (fx.conf) { const v = clamp(B.confidence + fx.conf, trConfFloor(B), MD.confMax) - B.confidence; B.confidence += v; if (v) out.push('Confidence ' + (v > 0 ? '+' : '−') + Math.abs(v)); }
+  if (fx.conf) { const v = trConf(B, clamp(B.confidence + fx.conf, -MD.confMax, MD.confMax)) - B.confidence; B.confidence += v; if (v) out.push('Confidence ' + (v > 0 ? '+' : '−') + Math.abs(v)); }
   if (fx.hype) { const h0 = B.hype; B.hype = clamp(B.hype + fx.hype, 0, MD.hypeMax); if (B.hype !== h0) out.push('Hype ' + (B.hype > h0 ? '+' : '−') + Math.round(Math.abs(B.hype - h0))); }
   if (fx.fatigue) { const f0 = B.fatigue || 0; B.fatigue = clamp(f0 + fx.fatigue, 0, 100); out.push('Fatigue ' + (fx.fatigue > 0 ? '+' : '−') + Math.abs(Math.round(B.fatigue - f0))); }
   if (fx.trust) { const d = trustAdd(c, fx.trust); if (d) out.push('Coach trust ' + (d > 0 ? '+' : '−') + Math.abs(Math.round(d))); }
@@ -14102,7 +14441,7 @@ function gearScreen(game) {
 
 // ============================================================================
 // SECTION: UI (part 10) — F9, the stats guide (the user: "add something that allows us to see stats, like what does
-// hype do, or fame, etc."). Every meter the career shows, with your value right now, what it does in the game's own
+// hype do, or fame, etc."). V3: it is the Codex now (2.0 §5.1), and its first page is the Traits page (§2.3). Every meter the career shows, with your value right now, what it does in the game's own
 // numbers (read from CONFIG, so the guide never drifts from the rules) and how to move it. From the Career menu, the
 // amateur Stats screen and How to play (general, when there is no career).
 // ============================================================================
@@ -14159,20 +14498,21 @@ function drawGuideEntry(ctx, ui, e, x, y, w) {
 // The guide's pages: one per topic on a desktop (a long one splits into two columns there); on a phone a topic that
 // doesn't fit above the bottom bar becomes parts ("Team & pro value 1/2").
 function guidePages(game, ctx, ui, P, room, w) {
-  const pages = [];
+  const pages = P ? [{ id: 'traits', part: 0, label: 'Traits 1/2', E: [] }, { id: 'traits', part: 1, label: 'Traits 2/2', E: [] }] : [{ id: 'traits', part: 0, label: 'Traits', E: [] }]; // V3: the Codex's Traits page (a phone: two)
   for (const [id, label] of GUIDE_TOPICS) { const E = guideEntries(game, id); if (!P) { pages.push({ id, part: 0, label, E }); continue; }
     const parts = []; let cur = [], h = 0; for (const e of E) { const eh = guideEntryH(ctx, ui, e, w); if (cur.length && h + eh > room) { parts.push(cur); cur = []; h = 0; } cur.push(e); h += eh; } if (cur.length || !parts.length) parts.push(cur);
     parts.forEach((E2, k) => pages.push({ id, part: k, label: label + (parts.length > 1 ? ' ' + (k + 1) + '/' + parts.length : ''), E: E2 })); }
   return pages;
 }
 function statsGuideScreen(game, topic) {
-  const st = { t: 0, id: GUIDE_TOPICS.some(x => x[0] === topic) ? topic : GUIDE_TOPICS[0][0], part: 0, pages: GUIDE_TOPICS.map(([id, label]) => ({ id, part: 0, label, E: [] })) }, P = game.ui.phone; /* the page is kept as (topic, part): the list is measured every frame */
-  const pick = sel('Topic', 40, 88, 520, 40, st.pages.map(p => p.label), () => st.t, i => { const p = st.pages[i]; if (p) { st.t = i; st.id = p.id; st.part = p.part; } }), back = btn('Back', 40, 650, 200, 44, () => game.ui.pop()); const items = [pick, back]; phoneBar(game.ui, items, [2.6, 1]);
+  const st = { t: 0, id: topic === 'traits' || GUIDE_TOPICS.some(x => x[0] === topic) ? topic : GUIDE_TOPICS[0][0], part: 0, pages: [{ id: 'traits', part: 0, label: 'Traits', E: [] }].concat(GUIDE_TOPICS.map(([id, label]) => ({ id, part: 0, label, E: [] }))) }, P = game.ui.phone; /* the page is kept as (topic, part): the list is measured every frame */
+  const pick = sel('Page', 40, 88, 520, 40, st.pages.map(p => p.label), () => st.t, i => { const p = st.pages[i]; if (p) { st.t = i; st.id = p.id; st.part = p.part; } }), back = btn('Back', 40, 650, 200, 44, () => game.ui.pop()); const items = [pick, back]; phoneBar(game.ui, items, [2.6, 1]);
   return { widgets: items, name: 'guide',
     draw(ctx, ui) {
-      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'STATS GUIDE', 44, 56, 38); if (!P) ui.label(ctx, 'What every number does, and yours right now', 1236, 56, 14, UI_DIM, 'right', 560);
+      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'THE CODEX', 44, 56, 38); if (!P) ui.label(ctx, 'Every number and trait, and yours', 1236, 56, 14, UI_DIM, 'right', 560);
       const top = P ? 100 : 150, bottom = P ? UI_H - tapH(ui, 44) - 22 : 636, x0 = 60, w = 1160;
       st.pages = guidePages(game, ctx, ui, P, bottom - top, w); pick.options = st.pages.map(p => p.label); let pi = st.pages.findIndex(p => p.id === st.id && p.part === st.part); if (pi < 0) pi = st.pages.findIndex(p => p.id === st.id); st.t = Math.max(0, pi);
+      if (st.pages[st.t].id === 'traits') { drawCodexTraits(ctx, ui, game, x0 - 20, top, w + 40, bottom, st.pages[st.t].part); return; } // V3 (§2.3)
       const E = st.pages[st.t].E; let y = top;
       const two = !P && E.reduce((a, e) => a + guideEntryH(ctx, ui, e, w), 0) > bottom - top; /* a long topic on a desktop: two columns */
       if (two) { const cw = 560; let yl = top, yr = top; E.forEach(e => { const h = guideEntryH(ctx, ui, e, cw); if (yl <= yr) { drawGuideEntry(ctx, ui, e, x0, yl, cw); yl += h; } else { drawGuideEntry(ctx, ui, e, x0 + cw + 40, yr, cw); yr += h; } }); return; }
@@ -14267,7 +14607,7 @@ function drawMatchScene(ctx, env, m, alpha) {
   if (V) drawCourtFloor(ctx, cam, V, m.courtId); else { world.drawFloor(ctx, cam, court, m.courtId); world.drawGloss(ctx, cam); } if (m.halfCourt && LAY.legends) drawHalfCourtLine(ctx, cam); // L3
   const drawAll = (g, reflection) => {
     const o = { replay: !!rp, reflection, glow: !!(V && V.kind === 'pro'), noShadow: true }; let ballDrawn = false;
-    for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } const own = ball.owner === p; drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], Object.assign({}, o, { depth: p._depth || 0, ballPaint: own ? () => drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o) : null })); if (own) ballDrawn = true; } // the owner paints the ball between its palms and fingers
+    for (const p of order) { if (!ballDrawn && ball.z < p.z - 0.01 && !ball.owner) { drawBallNew(g, cam, ball, alpha, m.ball.skin, false, o); ballDrawn = true; } const own = ball.owner === p; if (p.trs && p.trs.takeUntil > m.time) { const sx = cam.sx(lerp(p.px != null ? p.px : p.x, p.x, alpha)), sy = cam.sy(lerp(p.py != null ? p.py : p.y, p.y, alpha), p.z), hh = p.height * cam.scale(p.z) * 1.1; g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.28 + 0.12 * Math.sin(m.time * 9); g.fillStyle = '#FFD23F'; g.beginPath(); g.ellipse(sx, sy - hh * 0.5, hh * 0.32, hh * 0.6, 0, 0, TAU); g.fill(); g.restore(); } /* V3: Takeover's glow */ drawPlayer(g, cam, p, alpha, ball, m.teams[p.team], Object.assign({}, o, { depth: p._depth || 0, ballPaint: own ? () => drawBallNew(g, cam, ball, alpha, m.ball.skin, p.onFire > 0, o) : null })); if (own) ballDrawn = true; } // the owner paints the ball between its palms and fingers
     if (!ballDrawn) drawBallNew(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && ((m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0) || m.ball.shot.fireball)), o);
   };
   if (!env.degraded && guard < 2) drawReflections(ctx, cam, g => { HOOPS.forEach((h, i) => drawHoopBackNew(g, cam, h, V, i, null, null)); drawAll(g, true); HOOPS.forEach((h, i) => drawHoopFrontNew(g, cam, h, V, i, null, null)); }, V && (V.kind === 'legends' || V.bright()) ? ART.lgReflectA : null); // L4 (§5: stronger in the Legends Arena and the bright career venues)
@@ -14440,7 +14780,7 @@ class Game {
     const W_ = this.W, H_ = this.H, cam = this.cam, S = this.save.data.settings, rp = this.replayPlayer;
     ctx.save(); ctx.translate(0, this.safe.top);
     if (rp) { kitStamp(ctx, 'REPLAY', W_ / 2, 60, 44, ['#FFFFFF', '#C9CCE0'], { tilt: -3, outline: 0.16 }); ctx.fillStyle = 'rgba(243,240,255,0.8)'; ctx.fillRect(W_ * 0.3, 90, W_ * 0.4 * rp.progress, 4); ctx.font = fontStr(14, false); ctx.textAlign = 'center'; ctx.fillStyle = '#F3F0FF'; ctx.fillText(rp.clip.label + (rp.clip.player ? ' · ' + rp.clip.player : '') + '   (jump to skip)', W_ / 2, 112); ctx.restore(); return; }
-    if (!m.practice && !m.contest3 && !m.drill) drawScoreBug(ctx, m, W_, H_); 
+    if (!m.practice && !m.contest3 && !m.drill) { drawScoreBug(ctx, m, W_, H_); if (m.trBanners && m.trBanners.length) drawTraitBanners(ctx, m, scoreBugGeo(m, W_, H_)); } /* V3: a trait kicking in, under the HUD */
     if (m.drill) drawDrillHud(ctx, m, W_);
     if (m.contest3) { const c = m.contest3; const l1 = 'SCORE ' + c.score + '   ·   rack ' + Math.min(c.rack + 1, 5) + '/5   ball ' + Math.min(c.ball + 1, 5) + '/5', l2 = c.started ? '' : 'Hold Shoot, let go at the top. You walk rack to rack on your own.'; /* F2/F4: the contest's lines sit on their own dark strip, clear of the arena's banners */
       ctx.font = fontStr(22, true); let w = ctx.measureText(l1).width; ctx.font = fontStr(16, false); if (l2) w = Math.max(w, Math.min(W_ - 40, ctx.measureText(l2).width)); w = Math.max(w, 200) + 40; const hh = l2 ? 124 : 100; ctx.fillStyle = 'rgba(8,12,40,0.78)'; ctx.beginPath(); roundRectPath(ctx, W_ / 2 - w / 2, 8, w, hh, 12); ctx.fill();
