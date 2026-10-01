@@ -12,7 +12,7 @@ const t0 = Date.now();
 
 function runOne(policy, seed) {
   return new Promise(resolve => {
-    const args = [path.join(__dirname, 'careersim.js'), String(per), String(seed), '--policy=' + policy, '--json', ...(edge ? ['--edge=' + edge] : []), ...sets];
+    const args = [path.join(__dirname, 'careersim.js'), String(per), String(seed), '--policy=' + policy, '--json', ...(edge ? ['--edge=' + edge] : []), ...(opt('staffBudget') ? ['--staffBudget=' + opt('staffBudget')] : []), ...(opt('spend') ? ['--spend=' + opt('spend')] : []), ...(opt('staff') ? ['--staff=' + opt('staff')] : []), ...sets]; /* V10: --staffBudget= (the smart spender's share of the salary) */
     const p = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     p.stdout.on('data', d => { out += d; });

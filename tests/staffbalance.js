@@ -1,0 +1,32 @@
+// V10 (Part 2 §4): what the staff are worth. The career simulator with --spend=none (no staff at all), the default
+// --spend=smart (the best agent who isn't shady; then the salaried roles in this order, each the best tier that fits a
+// budget of half the salary: skills coach, mental coach, nutritionist, physio, strength trainer) and each
+// role alone (--staff=only:<role>), on the same careers. Prints mean legacy and its change against none, titles, the Hall
+// of Fame, peak OVR, injuries and the money (earned, spent on staff, net worth: medians). Targets: smart +10–20% legacy
+// over none; every salaried role alone above none; the agent (whose job is money) earns you more than none.
+// The band is read on the great policy, as the trait balance's is (V6): a typical career's legacy is mostly its seasons and
+// points, which staff barely move (they show in its titles and Hall of Fame); --policy=typical reports it too, and judges
+// only smart spending over none and the agent's money.
+// Usage: node tests/staffbalance.js [careers=300] [seed=1] [parallel=3] [--policy=great|typical] [--seeds=1] [--runs=smart,physio,...]
+const { spawn } = require('child_process'); const path = require('path');
+const ARGS = process.argv.slice(2).filter(a => !a.startsWith('--')), N = +(ARGS[0] || 300), SEED = +(ARGS[1] || 1), PAR = +(ARGS[2] || 3), POLICY = ((process.argv.find(a => a.startsWith('--policy=')) || '').split('=')[1]) || 'great', SEEDS = Math.max(1, +(((process.argv.find(a => a.startsWith('--seeds=')) || '').split('=')[1]) || 1));
+const RUNS = [['none', ['--spend=none']], ['smart', ['--spend=smart']]].concat(['agent', 'skills', 'strength', 'physio', 'nutrition', 'mental'].map(r => [r, ['--spend=smart', '--staff=only:' + r]]));
+const PICK = ((process.argv.find(a => a.startsWith('--runs=')) || '').split('=')[1] || '').split(',').filter(Boolean); if (PICK.length) RUNS.splice(0, RUNS.length, ...RUNS.filter(([id]) => id === 'none' || PICK.includes(id))); /* --runs=smart,physio: a quicker look (none always runs) */
+const runOne = (args, seed) => new Promise(res => { const p = spawn('node', [path.join(__dirname, 'careersim.js'), String(N), String(seed), '0', '--policy=' + POLICY, '--json'].concat(args)); let out = ''; p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d);
+  p.on('close', () => { const line = out.split('\n').find(l => l.startsWith('JSON ')); if (!line) return res({ error: out.slice(-400) }); try { res(JSON.parse(line.slice(5))); } catch (e) { res({ error: String(e) }); } }); });
+const run = async args => { const parts = []; for (let k = 0; k < SEEDS; k++) parts.push(await runOne(args, SEED + k)); const bad = parts.find(r => r.error); if (bad) return bad; const cat = key => [].concat(...parts.map(r => r[key] || [])); return { n: parts.reduce((a, r) => a + r.n, 0), legacy: cat('legacy'), titles: cat('titles'), money: cat('money'), worth: cat('worth'), spent: cat('spent'), inj: cat('inj'), diff: cat('diff'), hof: parts.reduce((a, r) => a + r.hof, 0), stuck: parts.reduce((a, r) => a + (r.stuck || 0), 0) }; };
+(async () => {
+  const t0 = Date.now(), queue = RUNS.slice(), results = {};
+  await Promise.all(Array.from({ length: PAR }, async () => { while (queue.length) { const [id, args] = queue.shift(); results[id] = await run(args); } }));
+  const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0, med = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0; }, M = x => '$' + (x / 1e6).toFixed(1) + 'M';
+  const base = results.none; if (!base || base.error) { console.log('none ERROR ' + (base && base.error)); process.exit(1); }
+  const L0 = mean(base.legacy), pct = d => (d >= 0 ? '+' : '') + (100 * d).toFixed(1) + '%';
+  console.log('Staff balance · ' + N + ' careers a policy · seed' + (SEEDS > 1 ? 's ' + SEED + '–' + (SEED + SEEDS - 1) + ' (' + N * SEEDS + ' careers each)' : ' ' + SEED) + ' · the ' + POLICY + ' policy · no staff: mean legacy ' + L0.toFixed(1));
+  console.log('staff            legacy   vs none  titles   HOF   peak  5★ team  injuries  earned   on staff  net worth  stuck');
+  let fails = 0; const rows = {};
+  for (const [id] of RUNS) { const r = results[id]; if (!r || r.error) { fails++; console.log(id.padEnd(16) + ' ERROR ' + (r && r.error)); continue; } const L = mean(r.legacy), d = L0 ? (L - L0) / L0 : 0; rows[id] = d; if (r.stuck) fails++;
+    console.log(id.padEnd(16) + ' ' + L.toFixed(1).padStart(6) + '  ' + (id === 'none' ? '' : pct(d)).padStart(7) + '  ' + mean(r.titles).toFixed(2).padStart(6) + '  ' + (Math.round(100 * r.hof / r.n) + '%').padStart(4) + '  ' + mean(r.diff.map(x => x.pk)).toFixed(1).padStart(5) + '  ' + (Math.round(100 * r.diff.filter(x => x.b5 >= 5).length / r.n) + '%').padStart(7) + '  ' + mean(r.inj).toFixed(2).padStart(8) + '  ' + M(med(r.money)).padStart(7) + '  ' + M(med(r.spent)).padStart(8) + '  ' + M(med(r.worth)).padStart(9) + '  ' + String(r.stuck).padStart(5)); }
+  const band = POLICY === 'great', smartOk = rows.smart == null || (band ? rows.smart >= 0.10 && rows.smart <= 0.20 : rows.smart > 0), roles = ['skills', 'strength', 'physio', 'nutrition', 'mental'].filter(r => rows[r] != null), low = roles.filter(r => !(rows[r] > 0)), A = results.agent, agentOk = !A || A.error || (med(A.money) > med(base.money) && med(A.worth) > med(base.worth));
+  console.log('targets: smart ' + (band ? '+10–20%' : 'above none (the band is read on the great policy)') + ' legacy over none → ' + (rows.smart == null ? '–' : pct(rows.smart) + ' ' + (smartOk ? '✓' : '✗')) + ' · every salaried role alone above none in legacy → ' + (low.length ? 'not ' + low.map(r => r + ' (' + pct(rows[r]) + ', injuries ' + pct(mean(results[r].inj) / Math.max(1e-9, mean(base.inj)) - 1) + ')').join(', ') + (band ? ' ✗' : ' (reported)') : '✓') + ' · the agent (a cut, no salary) earns you more → ' + (!A || A.error ? '–' : M(med(A.money) - med(base.money)) + ' ' + (agentOk ? '✓' : '✗')) + ' (' + Math.round((Date.now() - t0) / 1000) + ' s)');
+  process.exit(fails || !smartOk || (band && low.length) || !agentOk ? 1 : 0); // the typical policy judges smart spending and the agent; its roles alone are reported (a typical career's legacy is its seasons and points: the physio and the strength trainer show in its injuries)
+})();

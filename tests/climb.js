@@ -61,16 +61,16 @@ const { launch, openPage, runner } = require('./lib');
     return 'hard session +' + r2.loadFatigue + ' fatigue · great hard drill ' + Math.round(great) + ' → ' + Math.round(r4.xp) + ' XP, +' + r4.loadFatigue + ' fatigue';
   }));
 
-  await step('setbacks (§1.2): an injury can cost 1–3 rating points for good, longer ones more often; nutrition & physio cut the odds', () => ev(() => {
+  await step('setbacks (§1.2): an injury can cost 1–3 rating points for good, longer ones more often; a physio cuts the odds (V10; R7: nutrition & physio)', () => ev(() => {
     const L = WK.injuryLoss; if (JSON.stringify(L.odds) !== '[0.25,0.5,0.85]') throw new Error('odds ' + JSON.stringify(L.odds));
     const rng = new RNG(5), by = {}, pts = new Set(); for (let i = 0; i < 6000; i++) { const B = {}; const inj = wkInjure(B, rng); const g = inj.games; const b = by[g] || (by[g] = [0, 0]); b[0]++; if (inj.loss) { b[1]++; pts.add(inj.loss.pts); const [lo, hi] = L.pts[clamp(g - 1, 0, 2)]; if (inj.loss.pts < lo || inj.loss.pts > hi) throw new Error(g + ' games: ' + inj.loss.pts + ' points'); if (!['spd', 'jmp'].includes(inj.loss.k)) throw new Error('the loss hits ' + inj.loss.k); } }
     for (const g in by) { const want = L.odds[clamp(g - 1, 0, 2)], got = by[g][1] / by[g][0]; if (Math.abs(got - want) > 0.04) throw new Error(g + '-game injuries cost points ' + (100 * got).toFixed(0) + '% (want ' + 100 * want + '%)'); }
     if (Math.min(...pts) !== 1 || Math.max(...pts) !== 3) throw new Error('points ' + [...pts]);
-    let n0 = 0, n1 = 0; const r2 = new RNG(6), r3 = new RNG(6); for (let i = 0; i < 4000; i++) { if (wkInjure({}, r2).loss) n0++; if (wkInjure({ staff: { nutrition: 1 } }, r3).loss) n1++; } if (!(n1 < n0 * (PR.nutritionInjury + 0.1))) throw new Error('nutrition: ' + n1 + ' vs ' + n0);
+    let n0 = 0, n1 = 0; const r2 = new RNG(6), r3 = new RNG(6); for (let i = 0; i < 4000; i++) { if (wkInjure({}, r2).loss) n0++; if (wkInjure({ staff: { v: 2, physio: { tier: 5 } } }, r3).loss) n1++; } if (!(n1 < n0 * (1 - SF.physioLoss[5] + 0.1))) throw new Error('a 5★ physio: ' + n1 + ' losses vs ' + n0); /* V10: the physio (R7: nutrition & physio) */
     // it comes off the rating once, and says so
     const c = amCreate(defaultSave(), { name: 'Hurt', look: PRESET_LOOKS[3], number: 3, style: 'slasher', seed: 616 }); c.injury = { name: 'Knee sprain', games: 3, loss: { k: 'jmp', pts: 2 } }; const before = c.r.jmp; const got = injuryLossApply(c);
     if (!got || c.r.jmp !== before - 2 || injuryLossApply(c)) throw new Error('applied once: ' + before + ' → ' + c.r.jmp); if (injLossText(c.injury) !== ', and −2 Hops for good') throw new Error('text: ' + injLossText(c.injury));
-    return Object.keys(by).map(g => g + ' game' + (g > 1 ? 's' : '') + ' ' + (100 * by[g][1] / by[g][0]).toFixed(0) + '%').join(' · ') + ' · nutrition ' + n1 + ' vs ' + n0;
+    return Object.keys(by).map(g => g + ' game' + (g > 1 ? 's' : '') + ' ' + (100 * by[g][1] / by[g][0]).toFixed(0) + '%').join(' · ') + ' · a 5★ physio ' + n1 + ' vs ' + n0;
   }));
 
   await step('a slump (§1.2): 3 games graded D or F drop confidence and Shooting until a game graded B or better; Ice Veins never slumps', () => ev(() => {

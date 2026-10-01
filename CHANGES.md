@@ -3,6 +3,219 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V10 — Part 2: your staff (§4)
+
+The fifth milestone of Part 2 (§4). The career is still 1v1 only. Staff are a pro thing: the agent you sign in college
+comes along as your agent, and R7's trainer, private coach and nutrition & physio become staffers (below).
+
+**Six roles, one person each.** An agent, a skills coach, a strength trainer, a physio, a nutritionist and a mental
+coach. Each staffer has a pixel portrait, a 1–5★ tier, a personality and a salary a season.
+
+- **Who will talk to you.** Three candidates a role, new every season (and after a hire or a firing). The best is the
+  best tier your fame reaches: 1–2★ always, 3★ at fame 25, 4★ at 45, 5★ at 65.
+- **Salaries** by tier: about $200K, $600K, $1.5M, $3M and $5M a season (±10%). A Loyal staffer costs ×0.95, an
+  Ambitious one ×1.05. A rookie (~$0.8M) can afford one 1–2★; a full 3–4★ staff is $7.5–15M, most of a mid-career
+  salary. The agent takes a cut instead: 3–10% of your salary and sponsors.
+- **Hiring** takes a season's salary in the bank. The pay comes out every week.
+- **Contracts** run two seasons. One that's up waits in the offseason: re-sign at +10% or let them go for free. Do
+  nothing and they re-sign when the next season starts.
+- **Letting someone go early** costs a buyout of a quarter of a season's salary. The staff room asks first.
+- **When the money runs out,** everyone on a salary leaves (the agent stays). The news says so.
+
+**What they do** (1★ … 5★; every number is in `CONFIG.staff`):
+
+| Role | Effect |
+| --- | --- |
+| Agent | Contracts +5/10/13/16/20% for a cut of 3/4/6/8/10%. 3★+: a fourth club in free agency (a rebuild that starts you). 4★+: a third sponsor offer on the table (and offers ×1.5 as likely), and they handle a trade request: it costs no hype |
+| Skills coach | +10/15/21/28/35% XP in the two skills you pick (games and practice). 3★+: signature moves unlock 5 rating points sooner. Every tier: scouting tips on the pregame screen |
+| Strength trainer | Fatigue −2/3/4/5/6 after every game week, twice that in a Rest week. Speed, Hops and Strength ceilings +5 at 4★, +10 at 5★ |
+| Physio | Injury risk −15/22/30/37/45%. Injuries end 1/1/1/2/2 games sooner (never under one game). The odds an injury costs rating points −30/40/50/60/75% |
+| Nutritionist | The fatigue a game costs −10/14/18/21/25%. Speed and Hops start to fade 1 year later from 3★, 2 at 5★ (your skills age as before) |
+| Mental coach | The confidence a loss costs −15/20/25/30/40%. Your shots in the last 15 s +3/4/5/6.5/8% (in a simulated game, 4 OVR points per 1.0 of it). A slump also ends on a C+ game (4★+: a C) |
+
+**Personalities.** Agents: Straight shooter, Shark (+2% on contracts, +1% cut), Loyal (−1% cut) and Shady (+5% on
+contracts, and scandals). Everyone else: Old school, Analytics, Players' coach, Drill sergeant, Loyal (never takes
+another club's call) and Ambitious (twice as likely to). Each has a line on the card.
+
+**The story's calls.**
+
+- **A rival's call.** Halfway through each season every 3★+ staffer who isn't the agent may get a call from a rival club
+  (20% each, Ambitious twice as often, Loyal never; one call a season). The staffer comes to you: match the offer
+  (+25% salary, the default) or let them go (the job is open at once).
+- **A scandal.** A shady agent can make the news (25% a season, at a seeded week). Stand by them (hype −10, you keep
+  their deals) or fire them (hype −5, the default).
+- Both are dialog cards with the staffer's (or the reporter's) portrait. The answer's outcome shows on the card.
+
+**The staff room.** From the hub's TEAM tab (its line says how many are hired, or that a contract is up), the Career
+menu and the Office's Staff tab ("Open the staff room").
+
+- On a desktop: the six roles down the left (the one you're looking at is gold), the staffer's card on the right (their
+  personality, pay, years left, buyout and what they do at their tier, with Let go, Re-sign and the skills coach's two
+  skills) and the three candidates under it, each with a Hire button. A candidate you can't hire yet says why ("Needs
+  fame 45", "Needs $2.99M").
+- On a phone: the six roles, then one role with your staffer on top and the candidates as three cards you tap to hire.
+- The Codex has a "Your staff" page: every role's numbers by tier, read from CONFIG, and who you have.
+
+**Old saves.** R7's staff become staffers when a save loads:
+
+- the personal trainer (1–3) becomes a skills coach a star higher (2–4★), one more with the private coach (at most 4★;
+  the private coach alone: 2★);
+- nutrition & physio become a 3★ physio and a 3★ nutritionist;
+- R6's four old roles go through R7's step first (their best becomes the trainer's tier);
+- the agent you signed in college becomes a 2★ Straight shooter with the same name.
+
+**Balance.** Part 2 §4: "a 'smart spending' policy beats 'no spending' by 10–20% legacy, and every role is worth
+hiring." `tests/staffbalance.js` runs the career simulator with no staff, with smart spending and with each role
+alone, on the same careers. Smart spending hires the best agent who isn't shady, then the skills coach, the mental
+coach, the nutritionist, the physio and the strength trainer, each the best tier that fits half the salary.
+
+Read on the great policy, as the trait balance is (400 careers × 3 seeds a row):
+
+| Staff | Legacy | vs none | Titles | Hall of Fame | 5★ team | Injuries | Earned | On staff | Net worth |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| nobody | 75.2 | — | 1.47 | 29% | 58% | 2.25 | $259.8M | $0.0M | $258.7M |
+| smart spending | 85.0 | +13.1% | 1.78 | 35% | 63% | 1.69 | $290.0M | $169.6M | $106.2M |
+| the agent alone | 75.6 | +0.5% | 1.48 | 29% | 59% | 2.24 | $275.4M | $0.0M | $274.1M |
+| the skills coach alone | 77.2 | +2.7% | 1.53 | 30% | 59% | 2.24 | $264.5M | $75.2M | $176.4M |
+| the strength trainer alone | 76.1 | +1.3% | 1.48 | 29% | 58% | 1.79 | $262.3M | $75.1M | $174.5M |
+| the physio alone | 75.4 | +0.2% | 1.47 | 29% | 58% | 1.70 | $262.0M | $75.4M | $174.3M |
+| the nutritionist alone | 83.6 | +11.3% | 1.73 | 35% | 63% | 2.05 | $274.0M | $80.8M | $182.6M |
+| the mental coach alone | 79.2 | +5.4% | 1.63 | 32% | 60% | 2.28 | $267.3M | $75.5M | $176.6M |
+
+- The band is read on the great policy for the trait balance's reason (V6). A typical career's legacy is mostly its
+  seasons and points, which staff barely move. On the typical policy smart spending adds +6.1% legacy, but its titles
+  rise 29% and its Hall of Fame rate goes from 2% to 3%:
+
+| Staff | Legacy | vs none | Titles | Hall of Fame | 5★ team | Injuries | Earned | On staff | Net worth |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| nobody | 38.2 | — | 0.28 | 2% | 14% | 1.90 | $140.0M | $0.0M | $138.8M |
+| smart spending | 40.6 | +6.1% | 0.36 | 3% | 18% | 1.60 | $150.7M | $84.3M | $62.7M |
+| the agent alone | 38.4 | +0.4% | 0.29 | 2% | 14% | 1.89 | $147.3M | $0.0M | $145.8M |
+| the skills coach alone | 38.9 | +1.8% | 0.31 | 3% | 16% | 1.88 | $141.4M | $44.5M | $92.0M |
+| the strength trainer alone | 38.2 | -0.2% | 0.28 | 2% | 14% | 1.56 | $140.1M | $44.2M | $92.4M |
+| the physio alone | 38.4 | +0.3% | 0.29 | 2% | 14% | 1.51 | $140.6M | $44.0M | $92.3M |
+| the nutritionist alone | 40.1 | +4.8% | 0.34 | 3% | 16% | 1.77 | $143.5M | $44.3M | $94.5M |
+| the mental coach alone | 39.2 | +2.5% | 0.31 | 2% | 16% | 1.91 | $140.9M | $44.5M | $92.4M |
+
+- The agent's job is money: alone, no legacy to speak of, but $15.6M more earned over a great career. The test judges
+  it on earnings.
+- The physio and the strength trainer are insurance: injuries −20 to −24%, legacy +0.2% and +1.3%.
+- On the typical policy the strength trainer alone comes out at −0.2% legacy, inside the noise, with injuries −18%.
+  The typical run reports each role; it judges smart spending over none and the agent's money (the great run judges
+  every role).
+
+**The §1.1 table, recalibrated.** The new staff made a smart spender's career better than R7's staff did, and the
+table moved out of its bands. The league got tougher to bring it back, without moving its median (§1.2: pros about
+74):
+
+| Step (600 careers a policy, seeds 1–3) | Typical: 5★ · titles · Hall of Fame | Great: 5★ · titles · Hall of Fame |
+| --- | --- | --- |
+| V9 (R7's staff) | 17.7% · 0.34 · 3.3% | 64.0% · 2.00 · 39.8% |
+| V10, no staff hired | 16.3% · 0.32 · 1.8% | 61.5% · 1.79 · 35.7% |
+| V10, smart spending | 20.8% · 0.47 · 4.3% | 69.3% · 2.24 · 45.2% |
+| + the agent no longer lifts a trade a star; the mental coach's simulated clutch at half the Mentor's rate | 21.0% · 0.48 · 3.7% | 66.3% · 2.23 · 43.8% |
+| + the league's three best veterans +4, +3 and +2; young AI players grow faster; the Hall of Fame line 95 → 93 | 19.3% · 0.40 · 3.7% | 63.0% · 1.73 · 34.8% |
+| the same on seeds 4–6 (held out) | 14.8% · 0.34 · 3.7% | 64.2% · 1.82 · 36.2% |
+
+- Seeds 4–6 put the typical 5★ share at 14.8%, a hair under its band; over all six seeds it is 17.1% (titles 0.37,
+  the Hall of Fame 3.7%; great careers 63.6% · 1.78 · 35.5%).
+- The league's stars: `career.proStars` [4, 3, 2] adds to the three best veterans' ratings and ceilings when a league is
+  made. Its top three open near 85 (83 before; §1.2: stars 82–90) and the median stays at 75.
+- The bar keeps rising (§1.2: "Leagues refresh every season"): `career.aiGrowth` 0.45 → 0.75, the share of the gap to
+  its ceiling a young AI player closes each offseason. The other players' mean OVR goes 75.3 after a first pro season,
+  77.4 after five and 77.7 after ten (75.3, 76.6 and 77.1 before).
+- Tried and dropped:
+  - a stronger league all round (veterans' mean OVR 80 → 85). It fit the table, but the league then opened at a 78
+    median, against §1.2's "about 74". The climb test caught it.
+  - slower pro growth for you (`ageXpMul` 26–31): it barely moved the table.
+  - a bigger star edge, more stars (+6, +5, +4), and the stars alone: each pushed a row out of its band.
+- Typical careers' Hall of Fame rate barely moves with the line: about 5% of them break out, with legacies of 90–200,
+  and the rest stay under 65. The line moves great careers about a point per point.
+
+**Calls I made.**
+
+- "Unlocks signature moves 1 rating earlier" is one of the ratings' 5-point steps; "+1 to +2 physical headroom" is one
+  or two of them (+5, +10).
+- "Handles trade requests": a 4★+ agent's trade request costs no hype. A first version let it reach a franchise a star
+  higher, which broke §1.3's 5★ scarcity.
+- "More teams interested" is the fourth free-agency club; "endorsement deals" are a third offer on the table.
+- The nutritionist's later aging is the body's (Speed and Hops). Delaying all of it made one role worth more than the
+  whole smart staff (+19.7% alone).
+- Staff can't be hired by an amateur. Every effect reads the holder's staff, so the shared week code does nothing for
+  high school and college.
+- A buyout, and hiring over someone mid-contract, ask first.
+
+**Removed.** R7's staff (`hireStaff`, `proHire`, `proTrainerMul`, `proCoachMul`, `proNutrition`) and its CONFIG
+(`pro.trainerXp`, `trainerCost`, `coachXp`, `coachCost`, `nutritionCost`, `nutritionInjury`, `nutritionRegen`,
+`nutritionAging`, `week.restPhysio`), and `offseasonDevelop`'s chance to skip a decline step.
+
+**Also.**
+
+- A two-answer dialog's note sits lower under its label on a desktop when it fits in two lines.
+- The scandal card's agent is "the agency", not "him".
+
+**CONFIG** (all new unless marked):
+
+- `staff`: `roles`, `salary` [0, 200K, 600K, 1.5M, 3M, 5M], `salaryJitter` 0.1, `fameFor` [0, 0, 0, 25, 45, 65],
+  `years` 2, `raise` 0.1, `buyout` 0.25, `pool` 3.
+- The agent: `agentRaise` [0, .05, .1, .13, .16, .2], `agentCut` [0, .03, .04, .06, .08, .1], `agentOfferAt` 3,
+  `agentSponsorAt` 4, `agentTradeAt` 4, `shadyRaise` 0.05, `scandalOdds` 0.25, `scandalHype` 10, `sharkRaise` 0.02,
+  `sharkCut` 0.01, `loyalCut` 0.01.
+- The skills coach: `skillsXp` [0, .1, .15, .21, .28, .35], `movesEarlyAt` 3, `movesEarly` 5, `tipsAt` 1.
+- The strength trainer: `strengthCaps` [0, 0, 0, 0, 5, 10], `strengthRegen` [0, 2, 3, 4, 5, 6].
+- The physio: `physioInjury` [0, .15, .22, .3, .37, .45], `physioFaster` [0, 1, 1, 1, 2, 2], `physioLoss` [0, .3, .4,
+  .5, .6, .75].
+- The nutritionist: `nutritionFatigue` [0, .1, .14, .18, .21, .25], `nutritionAging` [0, 0, 0, 1, 1, 2].
+- The mental coach: `mentalConf` [0, .15, .2, .25, .3, .4], `mentalClutch` [0, .03, .04, .05, .065, .08],
+  `mentalSimOvr` 4, `mentalSlump` [0, 1, 1, 1, 2, 2].
+- The calls: `poachOdds` 0.2, `poachRaise` 0.25, `loyalSalary` 0.95, `ambitiousSalary` 1.05.
+- `career.proStars` [4, 3, 2] (new), `career.aiGrowth` 0.45 → 0.75 and `career.hofScore` 95 → 93 (above). `career.proMean`
+  stays 80.
+
+**Tests.**
+
+- `tests/staff.js` (new, 11 steps):
+  - the pools, tiers and salaries;
+  - hiring, the money it takes, buyouts;
+  - contracts and re-signing;
+  - salaries every week, the agent's cut, money running out;
+  - each role's effects (the agent's four, the skills coach's XP, moves and tips, the strength trainer's ceilings and
+    recovery, the physio, the nutritionist, the mental coach in sims and in the engine);
+  - the rival's call and the scandal, both answers, and how often they come;
+  - every old staff shape and a v2 round trip;
+  - the staff room on a desktop and a phone.
+- `tests/staffbalance.js` (new): the table above, run in the suite on both policies.
+- Smoke's R7 pro-and-money step checks the six roles in place of R7's three, and the old-save step reads the
+  migrated staff. Climb's injury step uses the physio.
+- The career simulator: `--staff=only:<role>`, `--staffBudget=` and a staff line (each role's share of seasons and its
+  mean tier). `--spend=none` hires nobody. `tests/difficulty.js` passes `--spend`, `--staff` and `--staffBudget` on.
+- The phone audit has 13 new cases: the staff room empty and staffed, a role empty, the skills coach, a contract that's
+  up, the agent, the buyout question, the Office's tab, the rival's call and the scandal with their answers. It also has
+  the Codex's staff page, for amateurs and pros.
+
+**Suite.** Everything passed on the commit's build:
+
+- smoke (desktop and phone, 137 steps), every mode, old saves (34), the dev tools, the phone audit (223 screens) and
+  the Art Lab;
+- staff (11 steps), the staff balance on both policies (the tables above), school (8 steps), story (13 steps: 15 arcs,
+  72 choices), climb (9 steps: the pros' median 75, their top three 85.2), difficulty (the §1.1 table above), flow,
+  gameplay, traits, steals, fixes, the HUD audit and the style mix;
+- the full career (897 actions, retiring at 36 after 14 pro seasons), and the desktop and 1.25× text audits;
+- the balance gate, the balance run, the career simulator (40 careers, none stuck) and the trait balance (400 careers ×
+  3 seeds: Common +4%, Uncommon +11%, Rare +25%, Legendary +54%, every rarity in its band).
+
+The first run of the suite failed two tests, and both are fixed above:
+
+- **smoke**: its old-save step read the R6 offseason save's staff in R7's shape. It reads the six roles now.
+- **climb**: the pros' median came out at 78 against §1.2's "about 74", from the veterans' mean OVR going 80 → 85.
+  That change is gone; the league's stars and its faster growth do the work instead (the §1.1 section above).
+
+Two Codex lines changed after the second run had started: the injury lines name the physio (not R7's nutrition &
+physio), and the staff page's first line is shorter for amateurs (the desktop audit cut it). The three UI audits were
+rerun on the final build: 222–223 screens each, no flags.
+
+Still open from V4: the style mix's Slashers drive on 46% of possessions against a 60% target (V14).
+
 ## V9 — Part 2: GPA and school (§3)
 
 The fourth milestone of Part 2 (§3, with Academic Probation from §2.3). The career is still 1v1 only. Old saves keep their

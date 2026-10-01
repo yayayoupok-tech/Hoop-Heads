@@ -834,8 +834,9 @@ const CONFIG = {
     retireFadeOvr: 62,         // ...this OVR
     ratingMin: 10,             // lowest rating (engine attribute 1)
     ratingMax: 100,            // highest rating (engine attribute 10)
-    proMean: 80,               // pro league OVR mean for generated veterans (V6, Part 2 §1.2: pros about 74, stars 82–90: the league settles near 76 with its best near 87; was 83 and 78.5)
+    proMean: 80,               // pro league OVR mean for generated veterans (V6, Part 2 §1.2: pros about 74, stars 82–90: the league opens near 75 and rises to about 77.5 by season 10; was 83 and 78.5. V10: 85 for a tougher league with staff put the opening median at 78, so it's back at 80 and the stars, the AI's growth and the Hall of Fame line below do that work)
     proSd: 8,                  // ...spread (spec 6.5: a wider spread gives the league real stars, see CHANGES.md M8)
+    proStars: [4, 3, 2],       // V10 (§1.2: the pros' stars about 82–90): the league's three best veterans get this many more points in every rating and its ceiling, so its top three open near 85 (83 without) while the median stays near 75
     prospectMean: 72,          // OVR mean of the other rookies in a draft class (V6: was 75)
     prospectSd: 5,             // ...spread
     xpStep: 5,                 // ratings grow in steps of 5 (half an engine point)
@@ -851,7 +852,7 @@ const CONFIG = {
     fame: { win: 0.6, loss: -0.2, perPt: 0.02, highlight: 0.25, playoff: 0.8, potw: 1.5, allStar: 4, title: 10, mvp: 12, decayAbove: 30, decay: 0.022 }, // popularity changes; above decayAbove it fades each week by decay × the excess
     gymCost: [0, 2000000, 6000000, 15000000], // personal gym levels ($)
     gymBonus: 0.1,             // training XP +10% per gym level
-    aiGrowth: 0.45,            // young AI players close this fraction of the gap to their ceilings each offseason...
+    aiGrowth: 0.75,            // young AI players close this fraction of the gap to their ceilings each offseason... (V10: 0.45 → 0.75, Leagues refresh every season, so the bar keeps rising (§1.2): with the staff a typical career won 0.47 titles a career, against about 0.3)
     aiGrowthAge: 27,           // ...up to this age
     aiRoom: [[21, 8, 20], [24, 5, 14], [27, 2, 8]], // AI ceilings: room above current ratings by age (up to age: min, max)
     moveUnlocks: { hesitation: { han: 50 }, stepback: { any: [{ sho: 50 }, { han: 55 }] }, spin: { han: 60 }, euro: { fin: 70 }, dunk360: { jmp: 75 }, windmill: { jmp: 80 }, btb: { han: 70 }, snatch: { han: 80 }, reverse: { jmp: 80 }, pullup: { sho: 80 } }, // moves are learned by getting better (V4, 2.0 §3: the signature moves at 7 and 8: Behind-the-back han 70, Snatch-back han 80, Euro-step fin 70 (was 60), Reverse dunk jmp 80, Pull-up three sho 80)
@@ -866,7 +867,7 @@ const CONFIG = {
     payRef: 55,
     payMin: 0.9,
     legacy: { title: 12, mvp: 12, allLeague: 3, season: 1, ptsPer: 250 }, // legacy = 12·titles + 12·MVPs + 3·All-League 1st teams + pro seasons + points/250
-    hofScore: 95,              // legacy score for the Hall of Fame (F7: 90 → 85; V6: 85 → 92, fitted to Part 2 §1.1: 3.7% of typical careers and 38% of great ones in tests/difficulty.js; at 85, 4.7% and 42%. V8: 92 → 95: the fourteen arcs' safe answers lift a great career (at 92: typical 4.3%, great 41.0%; the saga off: great 37.8%); at 95, 3.8% and 39.3%)
+    hofScore: 93,              // legacy score for the Hall of Fame (F7: 90 → 85; V6: 85 → 92, fitted to Part 2 §1.1: 3.7% of typical careers and 38% of great ones in tests/difficulty.js; at 85, 4.7% and 42%. V8: 92 → 95: the fourteen arcs' safe answers lift a great career (at 92: typical 4.3%, great 41.0%; the saga off: great 37.8%); at 95, 3.8% and 39.3%. V10: 95 → 93 with the staff, the league's stars and its faster growth: typical 3.7% and great 35.5% over seeds 1–6)
     firstBallotMul: 1.5,       // a legacy this many times the line is a first-ballot induction
     newsMax: 40,               // news items kept
   },
@@ -878,8 +879,7 @@ const CONFIG = {
     drillGreat: { shooting: 24, handles: 45, finishing: 55, defense: 14 }, // the drill score that pays the full drillXp[1]: about twice what a Pro bot scores (bots average 25, 31 and 7.5 in the 60 s drills), so an average drill pays about the middle
     intensity: { light: { xp: 0.6, fatigue: 0, risk: 0 }, normal: { xp: 1, fatigue: 0, risk: 0 }, hard: { xp: 1.5, fatigue: 3, risk: 0.01 } }, /* V5 (2.0 §4.2): hard practice adds 3 fatigue (was 6) */ // practice intensity: XP multiplier, fatigue added, injury risk in practice
     restFatigue: 25,           // Rest: fatigue − this (and an injury heals a game faster)
-    restPhysio: 5,             // pro: with nutrition & physio (R7) a Rest week takes 2 × this much more fatigue off...
-    restGym: 3,                // ...and this much more per home gym level
+    restGym: 3,                // pro: a Rest week takes this much more fatigue off per home gym level (V10: the strength trainer's recovery counts twice in one)
     filmBonus: 3,              // Film: effective Defense and Shooting + this (career scale; +0.3 engine) for the next game
     fatiguePerGame: 5,         // every game adds this much fatigue (0–100)... (V5, 2.0 §4.2: half of the old 10)
     fatigueOt: 1.5,            // ...plus this after overtime (V5: was 3)
@@ -1253,14 +1253,6 @@ const CONFIG = {
   },
   pro: {                       // R7 (§3.6, §3.7): contracts you negotiate, free agency, trade requests, what money buys, the epilogue
     xpBase: 0.85,              // all your pro XP × this: a career that spends sensibly (a trainer by pay, nutrition from 29, promised starts) won 1.6 pro titles with a 28% Hall of Fame at 1.0; at 0.85, over 120 careers, 1.08 and 16%
-    trainerXp: [0, 0.1, 0.2, 0.3], // a personal trainer: your practice XP (sessions and drills) + this, by tier...
-    trainerCost: [0, 500000, 1500000, 3000000], // ...for this much a season ($, charged week by week: the same per season whatever the season's length)
-    coachXp: 0.5,              // a private coach: practice sessions in your training focus + this (targeted XP)...
-    coachCost: 1000000,        // ...for this much a season
-    nutritionCost: 2500000,    // nutrition & physio: this much a season (the expensive one)...
-    nutritionInjury: 0.6,      // ...injury risk × this...
-    nutritionRegen: 5,         // ...this much fatigue off after every game week, and a Rest week takes off 2 × WK.restPhysio more...
-    nutritionAging: 0.25,      // ...and every age-decline step is skipped with this chance (the decline runs 25% slower)
     yearsMul: [1.08, 1.04, 1, 0.97, 0.94], // a season's salary × this for a deal of 1 to 5 seasons (security costs money)
     maxYears: [[30, 5], [32, 3], [99, 2]], // the longest deal a club offers, by your age (up to and including)
     startMul: 0.9,             // a promised start (you begin every season of the deal first on the depth chart) costs this share of the salary
@@ -1285,6 +1277,46 @@ const CONFIG = {
     academyCost: 30000000,     // a youth academy: your next career gets a Legacy Start...
     legacyCaps: 5,             // ...every ceiling + this (half a point on the 10 scale) and an Uncommon or better signature trait
     stakeCost: 250000000,      // a franchise stake: the Owner ending and an owner's badge on your profile, for good (the first careers ran up $330M of net worth by the median: a cheaper stake was no choice at all)
+  },
+  staff: {                    // V10 (Part 2 §4): your staff in the pros (176_staff.js): six roles, one person each, 1–5★, hired from a pool, on contracts
+    roles: ['agent', 'skills', 'strength', 'physio', 'nutrition', 'mental'], // the agent, the skills coach, the strength trainer, the physio, the nutritionist, the mental coach
+    salary: [0, 200000, 600000, 1500000, 3000000, 5000000], // a season's salary by tier ($; the agent takes a cut instead): a rookie (~$0.8M) can afford one 1–2★, a full 3–4★ staff is $7.5–15M
+    salaryJitter: 0.1,         // a candidate's salary × (1 ± this)
+    fameFor: [0, 0, 0, 25, 45, 65], // the fame a tier needs before it will talk to you (1–2★: anyone)
+    years: 2,                  // a contract's seasons; when it ends the staffer re-signs for this many more at a raise...
+    raise: 0.1,                // ...of this share (or you let them go)
+    buyout: 0.25,              // firing early costs this share of a season's salary
+    pool: 3,                   // candidates per role, new every offseason (and after you fire someone)
+    agentRaise: [0, 0.05, 0.1, 0.13, 0.16, 0.2], // the agent: every contract + this, by tier (2★: R6's college agent, +10% for 4%)...
+    agentCut: [0, 0.03, 0.04, 0.06, 0.08, 0.1], // ...for this share of your salary and endorsements...
+    agentOfferAt: 3,           // ...from this tier, a 4th club in free agency...
+    agentSponsorAt: 4,         // ...from this tier, an extra endorsement offer every season...
+    agentTradeAt: 4,           // ...and from this tier they handle a trade request: it costs no hype (no distraction)
+    shadyRaise: 0.05,          // a shady agent gets you this much more on top...
+    scandalOdds: 0.25,         // ...and a season brings a scandal with this chance (a story card)
+    scandalHype: 10,           // a scandal: hype − this (stand by them) or half of it (fire them)
+    sharkRaise: 0.02,          // a Shark: contracts + this more, and the cut + sharkCut...
+    sharkCut: 0.01,            // (a Shark's extra cut)
+    loyalCut: 0.01,            // ...a Loyal agent's cut − this
+    skillsXp: [0, 0.1, 0.15, 0.21, 0.28, 0.35], // the skills coach: game and practice XP + this in the two skills you choose, by tier...
+    movesEarlyAt: 3,           // ...from this tier, moves unlock movesEarly rating points sooner...
+    movesEarly: 5,             // ...(one of the ratings' 5-point steps)...
+    tipsAt: 1,                 // ...and the pregame screen gets the coach's tips from this tier
+    strengthCaps: [0, 0, 0, 0, 5, 10], // the strength trainer: Speed, Hops and Strength ceilings + this (4★ and 5★ only: one or two of the ratings' 5-point steps)...
+    strengthRegen: [0, 2, 3, 4, 5, 6], // ...and this much fatigue off after every game week (stamina recovery)
+    physioInjury: [0, 0.15, 0.22, 0.3, 0.37, 0.45], // the physio: injury risk − this...
+    physioFaster: [0, 1, 1, 1, 2, 2], // ...injuries this many games shorter (at least 1)...
+    physioLoss: [0, 0.3, 0.4, 0.5, 0.6, 0.75], // ...and the odds an injury costs rating points − this
+    nutritionFatigue: [0, 0.1, 0.14, 0.18, 0.21, 0.25], // the nutritionist: the fatigue a game costs − this...
+    nutritionAging: [0, 0, 0, 1, 1, 2], // ...and Speed and Hops start to fade this many years later (the skills' decline at 32 stays)
+    mentalConf: [0, 0.15, 0.2, 0.25, 0.3, 0.4], // the mental coach: the confidence a loss (or a lost boast) costs − this...
+    mentalClutch: [0, 0.03, 0.04, 0.05, 0.065, 0.08], // ...your shots in the last 15 s + this (make chance)...
+    mentalSimOvr: 4,           // ...worth this many OVR points per 1.0 of it in a simulated game (5★: 0.32; the Mentor arc's clutch is worth 8: its 0.05 → 0.4)
+    mentalSlump: [0, 1, 1, 1, 2, 2], // ...and a slump also ends on a grade this many steps under B (C+, then C)
+    poachOdds: 0.2,            // every season each 3★+ staffer gets a call from a rival club with this chance (Ambitious ×2, Loyal never)...
+    poachRaise: 0.25,          // ...matching it costs this share more salary
+    loyalSalary: 0.95,         // a Loyal staffer's salary × this; an Ambitious one's × ambitiousSalary
+    ambitiousSalary: 1.05,     // (an Ambitious staffer's salary ×)
   },
   franchise: {                 // F7 (the user: the goal of the game is getting onto a really good pro team; teams instead of drafts)
     starsDist: [2, 2, 3, 3, 2], // the twelve franchises by stars: two 1★, two 2★, three 3★, three 4★, two 5★ (a franchise's stars are its prestige's rank)
@@ -4079,7 +4111,7 @@ let _pid = 0;
 class Player {
   constructor(def, team, match) {
     this.id = _pid++; this.def = def; this.name = def.name; this.nick = def.nick || def.name.split(' ')[0]; this.arch = def.arch; this.team = team; this.match = match;
-    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.sagaClutch = def.sagaClutch || 0; /* V7: the mentor's lasting edge in the last 15 s */ this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
+    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.sagaClutch = def.sagaClutch || 0; /* V7: the mentor's lasting edge in the last 15 s */ this.staffClutch = def.staffClutch || 0; /* V10: the mental coach's */ this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
     this.moves = def.moves || Object.assign({ crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true }, sigMovesOfAttrs(def.attrs)); // a roster player without a move list: every move, and the V4 signature moves its attributes earn
     this.pers = def.pers || null; this.tend = Array.isArray(def.tend) ? def.tend.slice() : []; // V4 (2.0 §3): a personality and tendencies the brain plays to (career opponents; Quick Play bots)
     this.x = 12; this.y = 0; this.z = 0.5; this.zTarget = 0.5; this.lane = 1; this.vx = 0; this.vy = 0; this.facing = 1; this.grounded = true; this.laneT = -9; this.lastBeatT = -9;
@@ -9539,7 +9571,7 @@ function nextEventLabel(c) {
 function pregameScreen(game, g) {
   const s = game.save.data, c = careerOf(game); const me = meOf(c), opp = c.players[opponentOf(c, g)]; let t = 0;
   const items = [btn('TIP OFF', 470, 600, 220, 54, () => { proStartGame(c); game.save.save(); if (!playsThisWeek(c)) { game.ui.clearTo(careerHub(game)); game.ui.toastMsg('You lost your spot in practice: your teammate starts.'); return; } const opts = careerMatchOpts(c, s, g, false); if (s.settings.colorblind) [opts.teams[0], opts.teams[1]] = colorblindTeams(opts.teams[0], opts.teams[1]); game.startMatch(opts, { kind: 'career' }); }, { primary: true }), btn('Back', 700, 600, 110, 54, () => game.ui.pop())]; phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12);
-  const scout = scoutCard(opp, opp.r, opp.h, { film: c.me.plan === 'film' || !!(c.me.wk && c.me.wk.done === 'film'), junkie: hasTrait(c.me, 'filmjunkie'), boss: !g.playoff && proIsBoss(c, opp.id), salt: c.seed }); // V4
+  const scout = scoutCard(opp, opp.r, opp.h, { film: c.me.plan === 'film' || !!(c.me.wk && c.me.wk.done === 'film') || staffTipsB(c.me) /* V10: your skills coach scouted them */, junkie: hasTrait(c.me, 'filmjunkie'), boss: !g.playoff && proIsBoss(c, opp.id), salt: c.seed }); // V4
   return { widgets: items, name: 'pregame', update(dt) { t += dt; },
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'TALE OF THE TAPE', UI_W / 2 - 200, 56, 40);
@@ -9681,19 +9713,16 @@ function playerCard(ctx, ui, c, id, x, y) {
 
 // ---------------- management: contract, sponsors, staff, gym, shop, money ----------------
 function managementScreen(game) {
-  const c = careerOf(game), M = c.me; proStaffMigrate(M); const st = game.mgmtTab || (game.mgmtTab = { tab: 0 }); const tabs = ['Moving up', 'Contract & money', 'Sponsors', 'Training', 'Home gym', 'Lifestyle', 'Gear', 'Looks']; // F7: Moving up (your value, the franchises' bars, a trade request); R7: Training (was Staff) and Lifestyle
+  const c = careerOf(game), M = c.me; staffOf(c); /* V10 */ const st = game.mgmtTab || (game.mgmtTab = { tab: 0 }); const tabs = ['Moving up', 'Contract & money', 'Sponsors', 'Staff', 'Home gym', 'Lifestyle', 'Gear', 'Looks']; // F7: Moving up (your value, the franchises' bars, a trade request); R7: Training (was Staff) and Lifestyle
   const refresh = () => game.ui.replace(managementScreen(game)); if (st.tab >= tabs.length) st.tab = 0;
   const items = [sel('View', 40, 88, 460, 40, tabs, () => st.tab, i => { st.tab = i; refresh(); })]; const P = game.ui.phone, TH = tapH(game.ui, 44); // phones: 64 px targets, View and Back in the bottom bar
   if (st.tab === 0) { const can = proTradeOpen(c), to = can ? proTradeDest(c) : null; items.push(btn(can ? 'Ask for a trade · to a ' + frStars(c, to) + '★ franchise' : 'Ask for a trade', P ? 40 : 60, P ? 470 : 580, P ? 820 : 560, P ? TH : 48, () => { if (!proTradeOpen(c)) return; game.ui.push(confirmScreen(game, 'Ask for a trade? Your agent finds the best franchise that takes you, at most a star up (' + frStars(c, to) + '★). A trade up means earning the start there. Hype −' + Math.round(PR.tradeHype * MD.hypeMax * 10) / 10 + '; once every ' + FRN.tradeGap + ' seasons, before the deadline.', () => { c.me.tradeSeason = c.season; proTrade(c); game.save.save(); game.ui.replace(careerHub(game)); })); }, { primary: can, enabled: can, align: 'left' })); } /* F7 */
   if (st.tab === 1) { // R7: your agent and your shoe line
-    const row = [btn(M.agent ? 'Part ways with ' + M.agent.split(' ').slice(-1)[0] : 'Hire an agent', 700, 470, 520, 44, () => { if (M.agent) proFireAgent(c); else proHireAgent(c); game.save.save(); refresh(); }, { align: 'left', sub: P ? (M.agent ? 'Your agent: +' + Math.round(CO.agentRaise * 100) + '% on deals' : '+' + Math.round(CO.agentRaise * 100) + '% on every deal, ' + Math.round(CO.agentFee * 100) + '% of pay') : null })];
+    const ag = staffOf(c).agent, row = [btn(ag ? 'Your agent: ' + ag.name + ' ' + '★'.repeat(ag.tier) : 'Find an agent', 700, 470, 520, 44, () => game.ui.push(staffScreen(game, 'agent')), { align: 'left', sub: P ? (ag ? '+' + Math.round(staffAgentRaise(c) * 100) + '% on deals, ' + Math.round(staffAgentCut(c) * 100) + '% of pay' : 'The staff room: agents from 1★ to 5★') : null })]; /* V10: the agent is staff now */
     if (!M.shoe && proShoeOpen(c)) row.push(btn('Launch your shoe line · ' + fmtMoney(PR.shoeCost), 700, 590, 520, 44, () => { if (proShoeLaunch(c)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { align: 'left', primary: true, sub: P ? 'Royalties every week' : null }));
     items.push(...row); if (P) phoneGrid(game.ui, row, 40, 404, 1200, 2, 0, 10); }
   if (st.tab === 2) { M.offers.forEach((o, i) => { items.push(btn('Accept ' + o.brand + ' · ' + fmtMoney(o.weekly) + '/week × ' + o.weeks, 60, P ? 328 + i * (TH + 8) : 360 + i * 56, P ? 820 : 560, P ? TH : 44, () => { acceptEndorsement(c, i); game.save.save(); refresh(); }, { align: 'left', primary: true })); items.push(btn('Decline', P ? 888 : 640, P ? 328 + i * (TH + 8) : 360 + i * 56, P ? 352 : 140, P ? TH : 44, () => { declineEndorsement(c, i); game.save.save(); refresh(); })); }); }
-  if (st.tab === 3) { // R7: a personal trainer (3 tiers), a private coach (your focus), nutrition & physio
-    const T = PR.trainerCost, f = (CR.trainFocus[M.focus] || {}).label || 'your focus';
-    const rows = [['trainer', 'Personal trainer', ['None', '★ ' + fmtMoney(T[1]) + '/season', '★★ ' + fmtMoney(T[2]) + '/season', '★★★ ' + fmtMoney(T[3]) + '/season'], '+' + PR.trainerXp.slice(1).map(x => Math.round(x * 100)).join('/') + '% practice XP'], ['coach', 'Private coach', ['None', 'Hired · ' + fmtMoney(PR.coachCost) + '/season'], '+' + Math.round(PR.coachXp * 100) + '% on practice in ' + f], ['nutrition', 'Nutrition & physio', ['None', 'Hired · ' + fmtMoney(PR.nutritionCost) + '/season'], 'Injuries ×' + PR.nutritionInjury + ', −' + PR.nutritionRegen + ' fatigue a week, slower aging']];
-    rows.forEach(([k, label, opts, what], i) => items.push(sel(label, P ? 40 + (i % 2) * 604 : 60, P ? 176 + Math.floor(i / 2) * (TH + 48) : 180 + i * 90, P ? 596 : 620, P ? TH : 44, opts, () => M.staff[k] || 0, v => { proHire(c, k, v); game.save.save(); }, { what }))); }
+  if (st.tab === 3) { const open = btn('Open the staff room', P ? 40 : 60, P ? 470 : 590, P ? 820 : 560, P ? TH : 50, () => game.ui.push(staffScreen(game)), { primary: true }); items.push(open); } // V10: the staff (176_ui_staff.js)
   if (st.tab === 4) { const next = (M.gym || 0) + 1; if (CR.gymCost[next]) items.push(btn('Build level ' + next + ' · ' + fmtMoney(CR.gymCost[next]), P ? 40 : 60, P ? 280 : 300, P ? 640 : 520, P ? TH : 50, () => { if (buyGym(c)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { primary: true })); }
   if (st.tab === 5) { // R7: a car and a house (confidence and a story, never a rating)
     const life = PR.lifestyle.map((it, i) => { const own = M.lifestyle && M.lifestyle[it.id]; return btn(own ? it.name + ' · yours since season ' + own : it.name + ' · ' + fmtMoney(it.cost), 60, 170 + i * 60, 620, 48, () => { if (own) return; if (proBuy(c, it.id)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { align: 'left', enabled: !own, sub: P ? 'Confidence +' + it.conf : null }); });
@@ -9719,13 +9748,11 @@ function managementScreen(game) {
       if (!P) { const hm = ui.para(ctx, 'Market value today: ' + fmtMoney(marketValue(c, me)) + ' a season. When your deal runs out, clubs make offers in the offseason.', 390, 228, 840, 14, UI_DIM); ui.label(ctx, 'Facilities: ' + '★'.repeat(c.facilities[club.id]) + '☆'.repeat(3 - c.facilities[club.id]) + ' · home court: ' + clubCourt(club.id).name + (proBigMarket(c) ? ' · big market (fame ×' + PR.bigFame + ')' : ''), 390, 228 + hm + 2, 14, UI_DIM, 'left', 840); }
       const roy = proShoeRoyalty(c); let inc = salaryWeek(c) + roy; for (const e of M.endorsements) inc += e.weekly; const exp = proStaffCost(M, c); const y1 = P ? 196 : 320; ui.heading(ctx, 'EACH WEEK', 60, y1, 15, UI_CYAN); const wk = ui.para(ctx, 'Game check ' + fmtMoney(salaryWeek(c)) + (M.agent ? ' (after your agent)' : '') + ' · sponsors ' + fmtMoney(inc - salaryWeek(c) - roy) + (roy ? ' · shoe royalties ' + fmtMoney(roy) : '') + (exp ? ' · training −' + fmtMoney(exp) : ' · no training staff') + ' · net ' + fmtMoney(inc - exp), 60, y1 + 26, P ? 1160 : 600, 16, UI_TEXT);
       if (!P) { const fy = Math.max(420, y1 + 26 + wk + 24); ui.heading(ctx, 'FAME ' + Math.round(M.fame), 60, fy, 15, UI_CYAN); meterBar(ctx, 60, fy + 20, 400, 12, M.fame / 100, UI_GOLD); ui.para(ctx, 'Winning, big nights, highlights and awards raise it. Sponsors and All-Star votes follow it.', 60, fy + 52, 600, 14, UI_DIM);
-        ui.heading(ctx, 'YOUR AGENT', 700, 330, 15, UI_CYAN); ui.para(ctx, M.agent ? M.agent + ' gets you ' + Math.round(CO.agentRaise * 100) + '% more on every contract and takes ' + Math.round(CO.agentFee * 100) + '% of your pay.' : 'No agent: you keep all your pay, and your next contract is ' + Math.round(CO.agentRaise * 100) + '% smaller than it could be.', 700, 356, 520, 14, UI_TEXT);
+        ui.heading(ctx, 'YOUR AGENT', 700, 330, 15, UI_CYAN); { const ag = staffOf(c).agent; ui.para(ctx, ag ? ag.name + ' (' + ag.tier + '★, ' + STAFF_PERS_INFO[ag.pers][0].toLowerCase() + ') gets you ' + Math.round(staffAgentRaise(c) * 100) + '% more on every contract and takes ' + Math.round(staffAgentCut(c) * 100) + '% of your pay and sponsors.' : 'No agent: you keep all your pay, and your next contract is ' + Math.round(SF.agentRaise[1] * 100) + '–' + Math.round(SF.agentRaise[5] * 100) + '% smaller than it could be. The staff room has agents.', 700, 356, 520, 14, UI_TEXT); } /* V10 */
         ui.heading(ctx, 'SIGNATURE SHOE', 700, 540, 15, UI_CYAN); if (M.shoe) ui.para(ctx, 'Your line since season ' + M.shoe.since + ': ' + fmtMoney(proShoeSeason(c)) + ' a season now, ' + fmtMoney(M.shoe.earned || 0) + ' so far.', 700, 566, 520, 14, UI_TEXT); else if (!proShoeOpen(c)) ui.para(ctx, 'Brands come calling at hype ' + Math.round(PR.shoeHype * MD.hypeMax * 10) / 10 + ' (yours: ' + (Math.round((M.hype || 0) * 10) / 10) + ').', 700, 566, 520, 14, UI_DIM);
         ui.heading(ctx, 'NET WORTH ' + fmtMoney(proNetWorth(c)), 60, Math.max(560, y1 + wk + 180), 17, UI_GOLD); } }
     if (st.tab === 2) { const y0 = P ? 104 : 160, fs = P ? 19 : 15, lh = P ? 30 : 26; ui.heading(ctx, 'ACTIVE DEALS', 60, y0, fs, UI_CYAN); if (!M.endorsements.length) ui.para(ctx, (M.offers.length ? 'No active deals. Check the offers below.' : 'No sponsors yet. Brands call when your fame grows (' + Math.round(M.fame) + ' now): win, score, make highlights, make the All-Star team.'), 60, y0 + 30, P ? 1160 : 1160, fs, UI_DIM); M.endorsements.slice(0, P ? 5 : 6).forEach((e, i) => ui.label(ctx, e.brand + ' (' + e.what + ') · ' + fmtMoney(e.weekly) + '/week · ' + e.weeks + ' weeks left', 60, y0 + 30 + i * lh, fs, UI_TEXT)); ui.heading(ctx, 'OFFERS', 60, P ? 306 : 330, fs, UI_CYAN); if (!M.offers.length) ui.label(ctx, 'None right now.', 60, P ? 340 : 360, fs, UI_DIM); }
-    if (st.tab === 3) { const intro = 'Paid week by week from your money. Your gym and the club’s facilities stack on top.';
-      if (P) { ctx.font = fontStr(19, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, intro, 44, 96, 1190, 25); for (const w of items) if (w.what) ui.label(ctx, w.what, w.x + 8, w.y + w.h + 20, 18, UI_DIM, 'left', w.w - 16); }
-      else { ui.label(ctx, intro, 60, 146, 14, UI_TEXT, 'left', 1180); for (const w of items) if (w.what) ui.label(ctx, w.what, 700, w.y + w.h / 2, 14, UI_DIM, 'left', 530); } }
+    if (st.tab === 3) drawStaffSummary(ctx, ui, c, P ? 44 : 60, P ? 104 : 150, P ? 1190 : 1160, P); // V10
     if (st.tab === 4) { const lvl = M.gym || 0; ui.heading(ctx, 'HOME GYM · LEVEL ' + lvl, 60, 160, 22, UI_GOLD); ui.para(ctx, 'Every level: +' + Math.round(CR.gymBonus * 100) + '% practice XP and ' + WK.restGym + ' more fatigue off a Rest week. Yours forever, whatever club you play for.', 60, 196, 1160, 15, UI_TEXT); if (!CR.gymCost[lvl + 1]) ui.label(ctx, 'Maxed out. It has a sauna now.', 60, 300, 16, UI_GREEN); }
     if (st.tab === 5) { if (P) ui.label(ctx, 'Confidence and a story. Never a rating.', 60, 140, 18, UI_DIM, 'left', 1160); else { ui.label(ctx, 'Off the court: confidence and a story, never a rating. Houses count in your net worth.', 60, 140, 14, UI_TEXT, 'left', 1180); PR.lifestyle.forEach((it, i) => ui.label(ctx, 'Confidence +' + it.conf + (it.asset ? ' · an asset' : ''), 700, 194 + i * 60, 14, UI_DIM, 'left', 520)); } }
     if (st.tab === 6 && !P) { kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, 770, 120, 440, 0); } else if (st.tab === 6) ui.label(ctx, gearSummary(M) || 'Small edges, in games only.', 360, UI_H - tapH(ui, 44) - 50, 15, UI_DIM, 'left', 880); /* F8 */
@@ -10751,7 +10778,7 @@ function careerHub(game) {
       play: box => hubPlayWidgets(game, box, () => roadBanner(c), actions(), sims()),
       train: box => g ? hubTrainWidgets(game, box, planButtons(game, K), sel('Focus', 0, 0, 0, 0, focusKeys.map(k => CR.trainFocus[k].label), () => Math.max(0, focusKeys.indexOf(c.me.focus)), i => { c.me.focus = focusKeys[i]; game.save.save(); }), ladderBtn()) : hubTrainWidgets(game, box, [], null, ladderBtn()),
       me: box => hubMeWidgets(game, box, [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game))), btn('News', 0, 0, 0, 0, () => { hubNewsSeen(c); game.ui.push(headlinesScreen(game)); }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game))), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game))), btn('Story', 0, 0, 0, 0, () => game.ui.push(storySoFarScreen(game))), btn('Records', 0, 0, 0, 0, () => game.ui.push(recordsBookScreen(game))), /* V8: the Story so far, the record book */ btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)))].concat(ui.phone ? [btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })] : [btn('Career', 0, 0, 0, 0, () => game.ui.push(careerMenuScreen(game)))])), /* (the Career menu repeats these: desktop only; phones: Settings stay on the main menu) */
-      team: box => hubTeamWidgets(game, box, [btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game))), btn('League', 0, 0, 0, 0, () => game.ui.push(leagueScreen(game))), btn('Office', 0, 0, 0, 0, () => { c.me.offersSeen = (c.me.offers || []).length; game.ui.push(managementScreen(game)); }, { sub: c.me.offers.length ? c.me.offers.length + ' offer' + (c.me.offers.length > 1 ? 's' : '') : '' })].concat(ladderBtn())),
+      team: box => hubTeamWidgets(game, box, [btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game))), btn('League', 0, 0, 0, 0, () => game.ui.push(leagueScreen(game))), btn('Office', 0, 0, 0, 0, () => { c.me.offersSeen = (c.me.offers || []).length; game.ui.push(managementScreen(game)); }, { sub: c.me.offers.length ? c.me.offers.length + ' offer' + (c.me.offers.length > 1 ? 's' : '') : '' }), btn('Staff', 0, 0, 0, 0, () => game.ui.push(staffScreen(game)), { sub: staffHubSub(c) }) /* V10 */].concat(ladderBtn())),
       shop: box => hubShopWidgets(game, c, box, rebuild) },
     draw: { play: drawHubPlay, train: drawHubTrain, me: drawHubMe, team: drawHubTeam, shop: (ctx, ui, H, t, box) => drawHubShop(ctx, ui, H, t, box, c) },
     update(dt, scr) { if (game.ui.screen !== scr) return; if (c.events && c.events.length) game.ui.push(proEventScreen(game)); else if (c.phase === 'offseason') game.ui.replace(offseasonScreen(game)); },
@@ -11798,7 +11825,7 @@ function repairCareer(c) {
   const me = c.me || (c.me = {}); const d = defaultMeShape(); proStaffMigrate(me); /* R7: the old four staff roles become the trainer, the private coach and nutrition & physio */
   for (const k in d) if (me[k] == null) me[k] = d[k];
   if ((!me.pot || typeof me.pot !== 'object') && c.players && c.players.me) me.pot = potRoll(c.seed, c.players.me.r); /* V6: a pro save from before the hidden potential */
-  me.staff = Object.assign({}, d.staff, me.staff || {}); me.cosmetics = Object.assign({}, d.cosmetics, me.cosmetics || {}); me.careerStats = Object.assign({}, d.careerStats, me.careerStats || {}); me.records = Object.assign({}, d.records, me.records || {});
+  me.staff = me.staff && typeof me.staff === 'object' ? Object.assign({}, me.staff) : null; try { if (c.players && c.meId != null) staffOf(c); } catch (e) { /* V10: the staff migrate (176_staff.js); a broken save keeps going without staff */ } me.cosmetics = Object.assign({}, d.cosmetics, me.cosmetics || {}); me.careerStats = Object.assign({}, d.careerStats, me.careerStats || {}); me.records = Object.assign({}, d.records, me.records || {});
   if (!c.players || !c.active || !c.schedule) return null;
   for (const id of c.active) { if (!c.players[id]) return null; if (!c.standings[id]) c.standings[id] = { w: 0, l: 0, pf: 0, pa: 0, strk: 0 }; if (!c.stats[id]) c.stats[id] = emptySeasonStats(); }
   if (!c.news) c.news = []; if (!c.history) c.history = []; if (!Array.isArray(c.events)) c.events = []; storyFill(c);
@@ -11859,7 +11886,7 @@ function earn(c, amount) { const M = c.me; M.money += schoolLoanPay(c, amount); 
 const SIG_UNLOCKS = [['Rookie deal', me => (me.cosmetics.shoes || 0) > 0], ['All-Star', me => (me.allStar || 0) > 0], ['Champion', me => ((me.careerStats || {}).titles || 0) > 0], ['MVP', me => (me.awards || []).some(a => a && a.name === 'MVP')], ['Poster', me => ((me.careerStats || {}).posters || 0) >= 10], ['Veteran', me => (me.seasonLog || []).length >= 5]];
 function signatureUnlocked(me) { return SIG_UNLOCKS.map(([, f]) => { try { return !!f(me); } catch (e) { return false; } }); }
 function nextSignature(me) { const u = signatureUnlocked(me), n = SIGNATURE_SHOES.length, cur = (me.cosmetics.shoes || 1) - 1; for (let k = 1; k <= n; k++) { const i = (cur + k) % n; if (u[i] || i === 0) return i + 1; } return cur + 1; }
-function defaultMeShape() { return { earned: 0, fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, fame: 5, money: 25000, gym: 0, contract: null, endorsements: [], offers: [], staff: { trainer: 0, coach: 0, nutrition: 0 }, cosmetics: { headband: false, sleeves: false, shoes: 0, ballskin: 0, headbandOn: true, sleevesOn: true }, careerStats: { g: 0, w: 0, l: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0, to: 0, dunk: 0, ank: 0, posters: 0, titles: 0, playoffW: 0, playoffL: 0 }, seasonLog: [], log: [], awards: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, tr: null, prevOvr: 0, xpSeason: 0, allStar: 0, potw: 0, startOvr: 0 }; }
+function defaultMeShape() { return { earned: 0, fatigue: 0, injury: null, plan: 'practice', intensity: 'normal', wk: null, fame: 5, money: 25000, gym: 0, contract: null, endorsements: [], offers: [], staff: null, /* V10: staffOf makes it */ cosmetics: { headband: false, sleeves: false, shoes: 0, ballskin: 0, headbandOn: true, sleevesOn: true }, careerStats: { g: 0, w: 0, l: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0, to: 0, dunk: 0, ank: 0, posters: 0, titles: 0, playoffW: 0, playoffL: 0 }, seasonLog: [], log: [], awards: [], records: { pts: 0, reb: 0, stl: 0, blk: 0, tpm: 0 }, tr: null, prevOvr: 0, xpSeason: 0, allStar: 0, potw: 0, startOvr: 0 }; }
 function genVet(def, id, rng, age) {
   const target = clamp(CR.proMean + CR.proSd * rng.gauss() - (age >= 32 ? 2 : 0), 62, 93); const h = def.height || heightForArch(def.arch, rng); const r = genProRatings(def.arch, h, target, rng);
   const wing = +clamp(CONFIG.amateur.wingMean + CONFIG.amateur.wingSd * rng.gauss(), 0.97, 1.1).toFixed(3);
@@ -11877,7 +11904,7 @@ function playerOf(c, id) { return c.players[id]; }
 function clubOf(id) { return TEAMS.find(t => t.id === id) || TEAMS[0]; }
 // Market value per season: max(0.9, (OVR − 55) × 0.8) million, less for players past 32, more for famous ones.
 function marketValue(c, p) { let v = Math.max(CR.payMin, (recOvr(p) - CR.payRef) * CR.payPerOvr) * 1e6; if (p.age >= 32) v *= 0.8; if (p.isMe) { v *= 1 + (c.me.fame || 0) / 250; v += (c.me.hype || 0) * CONFIG.media.hypeSalary * 1e6; } return Math.round(v / 10000) * 10000; } // hype adds to your salary (§8)
-function salaryWeek(c) { const M = c.me; return Math.round(M.contract.salary / c.seasonLength * (M.agent ? 1 - CO.agentFee : 1)); } // R6: a game week's pay (an agent takes their share)
+function salaryWeek(c) { const M = c.me; return Math.round(M.contract.salary / c.seasonLength * (1 - staffAgentCut(c))); } // R6: a game week's pay (V10: the agent's cut, by tier)
 function rookiePay(pick) { const R = CR.rookiePay; return Math.round((pick > 60 ? R[2] : Math.max(R[2], R[0] - R[1] * Math.log(pick))) * 1e6 / 10000) * 10000; }
 function makeSchedule(ids, length, rng) {
   // circle method: each round pairs everyone once. Home court goes to whoever has had fewer home games so far,
@@ -11901,6 +11928,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
   rng.shuffle(pool);
   for (const d of pool.slice(0, CR.leagueSize - 4)) { if (used.has(d.name)) continue; const id = 'p' + c.nextId++; used.add(d.name); c.players[id] = genVet(d, id, rng, 23 + rng.int(11)); c.active.push(id); }
+  { const vets = c.active.map(id => c.players[id]).sort((x, y) => recOvr(y) - recOvr(x)); (CR.proStars || []).forEach((n, i) => { const p = vets[i]; if (p && n) for (const k of RATING_KEYS) { p.r[k] = clamp(p.r[k] + n, 20, 99); p.caps[k] = clamp(p.caps[k] + n, 20, 99); } }); } // V10 (§1.2): the league's stars
   const rookies = [];
   if (a.rival && a.rival.r) { const rv = a.rival, id = 'p' + c.nextId++; const age = rv.age || a.age; const rec = { id, name: rv.name, nick: rv.nick || String(rv.name).split(' ')[0], arch: ARCHETYPES[rv.style] ? rv.style : 'slasher', h: rv.height, wing: rv.wing || 1.03, age, r: Object.assign({}, rv.r), caps: null, look: Object.assign({}, rv.look), club: null, contract: { years: CR.rookieYears, salary: 0 }, since: 1, isMe: false, rookie: true, fromAmateur: true };
     rec.caps = capsAbove(rec.r, age, rng); used.add(rv.name); c.players[id] = rec; c.active.push(id); rookies.push(rec); c.rivalId = id; }
@@ -11941,7 +11969,7 @@ function startSeason(c, rng) {
 // ---------------- engine defs: what a player looks like to the match ----------------
 function movesFor(r, early) { const T = CR.moveUnlocks, out = { crossover: true }, e = early || 0; for (const k in T) { const t = T[k]; out[k] = t.any ? t.any.some(o => Object.keys(o).every(a => r[a] >= o[a] - e)) : Object.keys(t).every(a => r[a] >= t[a] - e); } return out; } // early: Quick Study's head start (rating points)
 function sigMovesOfAttrs(a) { const T = CR.moveUnlocks, out = {}; if (!a) return out; for (const k of ['btb', 'snatch', 'reverse', 'pullup']) out[k] = Object.keys(T[k]).every(r => (a[r] || 0) * 10 >= T[k][r]); return out; } // V4: a roster player's signature moves from its attributes
-function learnedMoves(p, B) { return movesFor(effRatings(p.r, p.h), trMoveEarly(B)); }
+function learnedMoves(p, B) { return movesFor(effRatings(p.r, p.h), trMoveEarly(B) + staffMovesEarlyB(B)); } // V10: a 3★+ skills coach
 function engineDef(c, id, opts) {
   const p = c.players[id]; opts = opts || {}; const eff = effRatings(p.r, p.h); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]);
   let look = Object.assign({}, p.look); if (!p.isMe && opts.fire) for (const k of RATING_KEYS) attrs[k] = ratingToAttr(effRatings(p.r, p.h)[k] + opts.fire); // R8: an opponent you trash-talked, a fired-up rival
@@ -11949,7 +11977,7 @@ function engineDef(c, id, opts) {
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
     look = proLook(c, look); // the Office's looks and your gear (F8)
   }
-  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), sagaClutch: p.isMe ? sagaClutchOf(c.me) : 0, /* V7 */ id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
+  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), sagaClutch: p.isMe ? sagaClutchOf(c.me) : 0, /* V7 */ staffClutch: p.isMe ? staffClutchB(c.me) : 0, /* V10: the mental coach */ id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
 }
 function clubKit(clubId, away) { const t = clubOf(clubId); const kit = Object.assign({}, t); if (away) { kit.colors = [t.colors[1], t.colors[0]]; if (luminance(kit.colors[0]) < 0.25 && luminance(t.colors[0]) < 0.25) kit.colors = ['#F3F0FF', t.colors[0]]; } return kit; }
 function matchTeamDef(c, id, away, opts) { const p = c.players[id]; const kit = clubKit(p.club, away); return Object.assign({}, kit, { name: p.name, abbr: p.nick.toUpperCase().slice(0, 4), personality: archPersonality(p.arch), players: [engineDef(c, id, opts)] }); }
@@ -12062,20 +12090,20 @@ function developFromGame(r, xp, caps, split, age, st, won, simmed, focusMul, poo
   const rim = (st.dunkM || 0) + (st.layM || 0) + (st.hookM || 0) + (st.tipM || 0);
   const use = { sho: (st.tpm || 0) * U.sho3 + Math.max(0, (st.fgm || 0) - (st.tpm || 0) - rim) * U.shoMid + U.floor, fin: rim * U.rim + U.floor, han: U.move, spd: U.move, jmp: (st.reb || 0) * U.reb + (st.blk || 0) * U.blk + U.body, def: ((st.stl || 0) + (st.blk || 0)) * U.stops + U.floor, str: (st.reb || 0) * U.reb + U.body };
   const tot = RATING_KEYS.reduce((a, k) => a + use[k], 0); split = split || {}; const sw = RATING_KEYS.reduce((a, k) => a + (split[k] || 0), 0);
-  const statMul = trMul(B, 'statXp'); const add = {}; for (const k of RATING_KEYS) add[k] = pool * (sw > 0 ? 1 - X.focusShare : 1) * use[k] / tot * statMul + (sw > 0 ? pool * X.focusShare * (focusMul || 1) * (split[k] || 0) / sw : 0); // Glue Guy: −8% of the stat share
+  const statMul = trMul(B, 'statXp'); const add = {}; for (const k of RATING_KEYS) add[k] = (pool * (sw > 0 ? 1 - X.focusShare : 1) * use[k] / tot * statMul + (sw > 0 ? pool * X.focusShare * (focusMul || 1) * (split[k] || 0) / sw : 0)) * staffSkillsMulB(B, k); // Glue Guy: −8% of the stat share; V10: the skills coach's two skills
   for (const k of RATING_KEYS) add[k] *= trRatingXpMul(B, k); // V3: a trait's rating XP (Floor General's −3% Shooting, Microwave's +18%, ...)
   const gains = spendXp(r, xp, caps, add, potsOf(B, caps)); gains.add = add; gains.pool = pool; return gains;
 }
 function gainsMap(list) { const m = {}; for (const g of list || []) m[g.k] = (m[g.k] || 0) + (g.to - g.from); return m; }
 // One offseason for anyone: focus ratings grow (until 27), the body fills out (until 20), the young round out their
 // weakest rating (until 24); from 30 Speed and Hops fade (faster from 34), from 32 Finishing, Defense and Strength too.
-function offseasonDevelop(r, caps, focusKeys, age, shift, slow, rng) { // shift: Unbreakable ages this many years slower (the decline starts later); slow: R7 nutrition & physio skip a decline step with this chance
+function offseasonDevelop(r, caps, focusKeys, age, shift, bodyShift) { // shift: Unbreakable ages this many years slower (the decline starts later); bodyShift (V10's nutritionist): Speed and Hops start to fade this many years later still
   const A = CONFIG.amateur; const got = []; const lab = k => RATING_LONG[k] || k;
-  const bump = (k, d) => { if (d < 0 && slow && rng && rng.next() < slow) return; const was = r[k]; r[k] = d > 0 ? Math.max(was, Math.min(caps[k], was + d)) : Math.max(CR.ratingMin, was + d); if (r[k] !== was) got.push(lab(k) + ' ' + (r[k] > was ? '+' : '−') + Math.abs(r[k] - was)); };
+  const bump = (k, d) => { const was = r[k]; r[k] = d > 0 ? Math.max(was, Math.min(caps[k], was + d)) : Math.max(CR.ratingMin, was + d); if (r[k] !== was) got.push(lab(k) + ' ' + (r[k] > was ? '+' : '−') + Math.abs(r[k] - was)); };
   const sf = A.summerFocus.find(([a]) => age <= a); if (sf) for (const k of focusKeys) bump(k, sf[1]);
   if (age <= A.summerBodyAge) for (const k of ['str', 'jmp']) bump(k, A.summerBody);
   if (age <= A.roundOutAge) { let best = null, gap = 0; for (const k of RATING_KEYS) { if (focusKeys.includes(k)) continue; const g = caps[k] - r[k]; if (g > gap) { gap = g; best = k; } } if (best) bump(best, A.roundOut); }
-  const da = age - (shift || 0); if (da >= 30) { const d = da >= 34 ? 10 : 5; bump('spd', -d); bump('jmp', -d); } if (da >= 32) for (const k of ['fin', 'def', 'str']) bump(k, -5);
+  const da = age - (shift || 0), db = da - (bodyShift || 0); if (db >= 30) { const d = db >= 34 ? 10 : 5; bump('spd', -d); bump('jmp', -d); } if (da >= 32) for (const k of ['fin', 'def', 'str']) bump(k, -5);
   return got;
 }
 function focusKeysOf(focus) { return Object.keys((CR.trainFocus[focus] || {}).split || {}); }
@@ -12091,12 +12119,12 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const sOp = { pts: their.pts, fgm: their.fgm, fga: their.fga, tpm: their.tpm, tpa: their.tpa, reb: their.reb, stl: their.stl, blk: their.blk, to: their.to, dunk: their.dunkM, ank: their.ankles };
   const r = { h: g.h, a: g.a, hs: g.h === c.meId ? us : them, as: g.h === c.meId ? them : us, ot: box.overtime || 0, box: {} }; r.box[c.meId] = sMe; r.box[opp] = sOp;
   const me = meOf(c), movesBefore = learnedMoves(me, c.me), ovrBefore = recOvr(me), len = gameScale('pro'); const grade = gradeFor(sMe, win, len); /* F5 */ const slump = slumpAfterGame(c, grade); /* V6 (§1.2) */ const spot = !!(c.team && !isStarter(c)); // V5: a spot start
-  const dev = developFromGame(me.r, c.me.xp, me.caps, (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, proXpMul(c) * sagaBagMul(c), c.me, len, grade); /* R7: the personal trainer; V6: × your grade; V8: the contract year's bag */ const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me)); trDeed(c.me, 'moves', learned.length);
+  const dev = developFromGame(me.r, c.me.xp, proCaps(c), (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, proXpMul(c) * sagaBagMul(c), c.me, len, grade); /* R7: the personal trainer; V6: × your grade; V8: the contract year's bag */ const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me)); trDeed(c.me, 'moves', learned.length);
   // money, fame, then the week: fatigue and injuries
   const M = c.me; let pay = 0; if (!g.playoff) pay += salaryWeek(c); else pay += LG.playoffGamePay;
   const fameGain = (win ? CR.fame.win : CR.fame.loss) + CR.fame.perPt * Math.max(0, my.pts / len - 20) + CR.fame.highlight * trMul(M, 'highlight') * ((my.dunkM || 0) * 0.3 + (my.posters || 0) + (my.ankles || 0)) / len + (g.playoff ? CR.fame.playoff : 0);
   M.fame = clamp(M.fame + fameGain * (fameGain > 0 ? FRN.fameByStars[frMine(c) - 1] * trMul(M, 'fame') : 1), 0, 100); /* V3: Showman */ earn(c, pay); /* F7: a bigger stage by stars (R7: a big market) */
-  const wk = wkAfterGame(M, careerRng(c), { ot: r.ot, nutrition: proNutrition(c) }); const injury = wk.injury; trustAfterGame(c, win, us, them); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
+  const wk = wkAfterGame(M, careerRng(c), { ot: r.ot }); /* V10: the staff ride on the holder */ const injury = wk.injury; trustAfterGame(c, win, us, them); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   if (injury) { injuryLossApply(c); /* V6 (§1.2) */ pushNews(c, me.name + ' is playing through a ' + injury.name.toLowerCase() + ' (' + injury.games + ' game' + (injury.games > 1 ? 's' : '') + injLossText(injury) + ').', 'injury'); } else if (wk.healed) pushNews(c, me.name + ' is back to full health.', 'injury');
   // career totals and records
   const ss0 = c.stats[c.meId], ppgBefore = ss0 && ss0.g ? ss0.pts / ss0.g : 0; const cs = M.careerStats; cs.g++; if (win) cs.w++; else cs.l++; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk', 'to']) cs[k] += my[k] || 0; cs.ptsN = (cs.ptsN != null ? cs.ptsN : cs.pts - (my.pts || 0)) + (my.pts || 0) / len; /* F5: points per the old game length (the legacy) */ cs.dunk += my.dunkM || 0; cs.ank += my.ankles || 0; cs.posters += my.posters || 0; if (g.playoff) { if (win) cs.playoffW++; else cs.playoffL++; }
@@ -12137,7 +12165,7 @@ function finishWeek(c, rec) {
   let best = null, bs = -1; for (const r of c.results[c.week] || []) { for (const id of [r.h, r.a]) { if (rec && rec.bench && id === c.meId) continue; /* R4: no Player of the Week from the bench */ const won = (id === r.h) === (r.hs > r.as); const line = r.top && r.top.id === id ? r.top.pts : 0; const s = line + (won ? 6 : 0); if (s > bs) { bs = s; best = id; } } }
   if (best) { c.potw = best; if (best === c.meId) { c.me.potw++; earn(c, LG.potwBonus); c.me.fame = clamp(c.me.fame + CR.fame.potw, 0, 100); if (rec) rec.potw = true; pushNews(c, meOf(c).name + ' is the Player of the Week.', 'award'); } else pushNews(c, c.players[best].name + ' is the Player of the Week.', 'league'); }
   for (const r of c.results[c.week] || []) for (const id of [r.h, r.a]) { const sd = c.standings[id]; if (sd.strk === 5 || sd.strk === 8 || sd.strk === 12) pushNews(c, c.players[id].name + ' has won ' + sd.strk + ' straight.', id === c.meId ? 'award' : 'league'); }
-  weeklyFinance(c, rec); weeklyEndorsementOffers(c);
+  weeklyFinance(c, rec); weeklyEndorsementOffers(c); try { staffWeek(c); } catch (e) { /* V10: the staff's calls and scandals are decoration */ }
   if (c.me.fame > CR.fame.decayAbove) c.me.fame -= CR.fame.decay * (c.me.fame - CR.fame.decayAbove);
   c.week++;
   const half = Math.floor(c.seasonLength / 2);
@@ -12146,18 +12174,17 @@ function finishWeek(c, rec) {
 }
 function weeklyFinance(c, rec) {
   const M = c.me; let inc = 0, exp = 0; for (const e of M.endorsements) { inc += e.weekly; e.weeks--; } M.endorsements = M.endorsements.filter(e => e.weeks > 0); inc = Math.round(inc * mdSponsorMul(M)); if (M.sponsorCut > 0) M.sponsorCut--; // R8: a sponsor pulling back after a fine
-  exp = proStaffCost(M, c); earn(c, inc); M.money -= exp; if (rec) { rec.endorse = inc; rec.staffCost = exp; } proWeekMoney(c, rec); /* R7: the trainer, the private coach, nutrition & physio; the shoe line's royalties */
-  if (M.money < 0) { for (const role in M.staff) if (M.staff[role] > 0) { M.staff[role] = 0; } pushNews(c, 'Money ran out: ' + meOf(c).name + ' let the training staff go.', 'money'); M.money = Math.max(M.money, 0); }
+  inc = Math.round(inc * (1 - staffAgentCut(c))); /* V10: the agent's cut */ exp = proStaffCost(M, c); earn(c, inc); M.money -= exp; if (rec) { rec.endorse = inc; rec.staffCost = exp; } proWeekMoney(c, rec); /* V10: the staff's salaries; the shoe line's royalties */
+  if (M.money < 0) { const S = staffOf(c); for (const role of STAFF_ROLES) if (role !== 'agent' && S[role]) { S[role] = null; S.pool[role] = null; } pushNews(c, 'Money ran out: ' + meOf(c).name + ' let the staff go.', 'money'); tlAdd(c, 'staff', 'Money ran out: let the staff go'); M.money = Math.max(M.money, 0); } // V10: everyone on a salary (the agent takes a cut)
 }
 function weeklyEndorsementOffers(c) {
-  const M = c.me; if (M.offers.length >= 2) return; const rng = careerRng(c);
+  const M = c.me, ag = staffTier(c, 'agent') >= SF.agentSponsorAt; if (M.offers.length >= (ag ? 3 : 2)) return; const rng = careerRng(c); /* V10: a 4★+ agent brings a third offer to the table */
   const lvl = Math.floor(M.fame / 20); const owned = new Set(M.endorsements.map(e => e.brand).concat(M.offers.map(o => o.brand)));
-  if (lvl <= 0 || rng.next() > 0.22 + M.fame / 400) return; const choices = CR.brands.filter(b => !owned.has(b.name)); if (!choices.length) return; const b = rng.pick(choices);
+  if (lvl <= 0 || rng.next() > (0.22 + M.fame / 400) * (ag ? 1.5 : 1)) return; const choices = CR.brands.filter(b => !owned.has(b.name)); if (!choices.length) return; const b = rng.pick(choices);
   M.offers.push({ brand: b.name, what: b.what, weekly: Math.round((b.base + b.perFame * M.fame) * (1 + MD.hypeEndorse * (M.hype || 0) / MD.hypeMax) / 500) * 500, weeks: 8 + rng.int(4) * 4 }); pushNews(c, b.name + ' wants ' + meOf(c).name + ' for a ' + b.what + ' deal.', 'money');
 }
 function acceptEndorsement(c, i) { const o = c.me.offers[i]; if (!o) return; c.me.endorsements.push(o); c.me.offers.splice(i, 1); pushNews(c, meOf(c).name + ' signs with ' + o.brand + '.', 'money'); }
 function declineEndorsement(c, i) { c.me.offers.splice(i, 1); }
-function hireStaff(c, role, level) { proHire(c, role, level); } // R7: the trainer, the private coach, nutrition & physio
 function buyGym(c) { const lvl = (c.me.gym || 0) + 1; const cost = CR.gymCost[lvl]; if (!cost || c.me.money < cost) return false; c.me.money -= cost; c.me.gym = lvl; pushNews(c, meOf(c).name + ' builds a level ' + lvl + ' home gym.', 'money'); return true; }
 
 // ---------------- simming the user's game ----------------
@@ -12234,7 +12261,7 @@ function simPlayoffsToEnd(c) { let guard = 0; while (c.phase === 'playoffs' && g
 function mvpScore(c, id) { const s = c.stats[id], st = c.standings[id]; const g = Math.max(1, s.g), len = gameScale('pro'); return (st.w / Math.max(1, st.w + st.l)) * CR.mvpWin + (s.pts / g * 1.1 + s.reb / g * 0.4 + (s.stl + s.blk) / g * 1.5 - s.to / g) / len + (s.fga ? s.fgm / s.fga : 0) * 20; } // F5: the per-game line per the old length
 function endSeason(c) {
   try { stSeasonEnd(c); } catch (e) { /* the story is decoration */ } // R9
-  c.phase = 'offseason'; const ids = c.active; const me = meOf(c);
+  c.phase = 'offseason'; const ids = c.active; const me = meOf(c); try { staffSeasonEnd(c); } catch (e) { /* V10: contracts run down */ }
   const byScore = ids.slice().sort((a, b) => mvpScore(c, b) - mvpScore(c, a));
   const top4 = standingsSorted(c).slice(0, 4); const dpoy = top4.slice().sort((a, b) => { const s = x => { const t = c.stats[x]; return t.stl + t.blk + c.players[x].r.def * 0.001; }; return s(b) - s(a); })[0]; // DPOY: the most steals + blocks among the top four (§8)
   const rookies = ids.filter(id => c.players[id].since === c.season && c.players[id].rookie); const roy = rookies.sort((a, b) => mvpScore(c, b) - mvpScore(c, a))[0] || null;
@@ -12264,7 +12291,7 @@ function offseasonProgression(c) {
     const p = c.players[id]; const before = recOvr(p), rb = Object.assign({}, p.r), hb = p.h; p.age++; if (!p.caps) p.caps = Object.assign({}, p.r);
     if (p.isMe) {
       p.grew = 0; if (p.hFinal && p.h < p.hFinal) { const t = CONFIG.amateur.growth[p.bloom] || CONFIG.amateur.growth.normal; const fr = p.age >= 20 ? 1 : (t[p.age] != null ? t[p.age] : 1); const nh = Math.max(p.h, Math.round(p.hFinal * fr * 100) / 100); if (nh > p.h) { p.grew = Math.round((nh - p.h) * 100); p.h = nh; } }
-      report.work = offseasonDevelop(p.r, p.caps, focusKeysOf(c.me.focus), p.age, trAgeShift(c.me), proNutrition(c) ? PR.nutritionAging : 0, rng); /* R7: nutrition & physio slow the decline */
+      report.work = offseasonDevelop(p.r, proCaps(c), focusKeysOf(c.me.focus), p.age, trAgeShift(c.me), staffAgingDelayB(c.me)); /* V10: the nutritionist keeps Speed and Hops a year or two longer; the strength trainer's headroom */
     } else {
       if (p.age <= CR.aiGrowthAge) for (const k of RATING_KEYS) { const room = p.caps[k] - p.r[k]; if (room > 0) p.r[k] = Math.min(p.caps[k], p.r[k] + Math.round(room * CR.aiGrowth * rng.range(0.6, 1.4))); }
       offseasonDevelop(p.r, p.caps, [], p.age);
@@ -12288,7 +12315,7 @@ function offseasonMoves(c) {
 // Offseason step 3: the user's contract. Returns offers when it expired, else null.
 function offseasonContract(c) {
   const M = c.me, me = meOf(c); M.contract.years--; if (M.contract.years > 0) { c.offseason.fa = null; return null; }
-  const rng = careerRng(c); const raise = sagaRaise(c), bag = raise > 0 && sagaFlag(c, 'contractRaise').kind === 'bag'; const val = marketValue(c, me) * (M.agent ? 1 + CO.agentRaise : 1) * (bag ? 1 + raise : 1); /* R6: an agent gets you more; V8: playing for the bag raises your market value */
+  const rng = careerRng(c); const raise = sagaRaise(c), bag = raise > 0 && sagaFlag(c, 'contractRaise').kind === 'bag'; const val = marketValue(c, me) * (1 + staffAgentRaise(c)) * (bag ? 1 + raise : 1); /* V10: the agent gets you more, by tier; V8: playing for the bag raises your market value */
   const offers = proFreeAgency(c, rng, val); // R7: your club, a big market, a club that starts you; you negotiate the years and the role
   if (raise > 0 && !bag) for (const o of offers) if (o.club === me.club) { o.base = Math.round(o.base * (1 + raise) / 1000) * 1000; o.salary = proOfferSalary(o, o.years, o.promise); o.loyal = raise; } // V8: team first: your club's offer + saga.teamRaise
   c.offseason.fa = { offers, value: val }; return offers;
@@ -12301,12 +12328,12 @@ function newSeason(c) {
   c.season++; for (const id of c.active) { const p = c.players[id]; if (p.rookie && p.since < c.season) p.rookie = false; }
   const me = meOf(c); me.rookie = false; wkNewSeason(c.me); c.me.playoffResult = null; c.offseason = null; c.me.ovrSeasonStart = recOvr(me); // V1: the season's practice gains start here
   try { tmSyncPro(c); if (c.team) { c.team.seasons++; c.team.stars = frMine(c); } proApplyPromise(c); frCheckGoals(c, 'sign'); } catch (e) { /* the franchise is decoration */ } /* R7: a promised start; F7: this season's stars, the goals */
-  startSeason(c, careerRng(c)); pushNews(c, 'Season ' + c.season + ' tips off.', 'league'); try { stSeasonStart(c); } catch (e) { /* the story is decoration */ } // R9: is this the last one?
+  try { staffSeasonStart(c); } catch (e) { /* V10: a contract that's up re-signs */ } startSeason(c, careerRng(c)); pushNews(c, 'Season ' + c.season + ' tips off.', 'league'); try { stSeasonStart(c); } catch (e) { /* the story is decoration */ } // R9: is this the last one?
 }
 function canRetire(c) { return meOf(c).age >= CR.retireMinAge; }
 function mustRetire(c) { const me = meOf(c), s = trAgeShift(c.me); return (c.me.tour > 0 && c.me.tour <= c.season) /* R9: the farewell tour */ || me.age >= CR.retireForcedAge + s || (me.age >= CR.retireFadeAge + s && recOvr(me) < CR.retireFadeOvr); } // Unbreakable: 3 years later
 // Legacy counts pro achievements only: 12 per title, 12 per MVP, 3 per All-League first team, 1 per pro season,
-// 1 per 250 points. The Hall of Fame line is 90.
+// 1 per 250 points. The Hall of Fame line is CONFIG.career.hofScore.
 function legacyOf(c) {
   const cs = c.me.careerStats, A = c.me.awards, L = CR.legacy; const count = n => A.filter(a => a.name === n).length;
   const titles = cs.titles, mvps = count('MVP'), fmvp = count('Finals MVP'), allL = count('All-League 1st Team') + count('All-PBL First Team') + count('All-ISO First Team'), /* (old saves' name, renamed on load) */ allL2 = count('All-League 2nd Team'), dpoy = count('Defensive Player of the Year'), roy = count('Rookie of the Year'), scoring = count('Scoring Champion'); const seasons = c.me.seasonLog.length;
@@ -12771,7 +12798,7 @@ function drawGoalBanner(ctx, ui, B, x, y, w) {
 // The Career menu (F7): your player, the news, the trophy case, the timeline.
 function careerMenuScreen(game) {
   const c = careerOf(game); if (!c) return mainMenu(game);
-  const items = [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game)), { sub: 'ratings · moves' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: 'headlines · the feed' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { sub: 'every award you won' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { sub: 'your career by age' }), btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)), { sub: 'what each stat does' }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; /* F9: the stats guide */
+  const items = [btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game)), { sub: 'ratings · moves' }), btn('News', 0, 0, 0, 0, () => game.ui.push(headlinesScreen(game)), { sub: 'headlines · the feed' }), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game)), { sub: 'every award you won' }), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game)), { sub: 'your career by age' }), btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)), { sub: 'what each stat does' }), btn('Staff', 0, 0, 0, 0, () => game.ui.push(staffScreen(game)), { sub: staffHubSub(c) }), /* V10 */ btn('Back', 0, 0, 0, 0, () => game.ui.pop())]; /* F9: the stats guide */
   const tiles = items.slice(0, -1), back = items[items.length - 1]; tiles.forEach((b, i) => Object.assign(b, { x: UI_W / 2 - 290 + (i % 2) * 300, y: 222 + Math.floor(i / 2) * 112, w: 280, h: 100 })); Object.assign(back, { x: UI_W / 2 - 290, y: 222 + Math.ceil(tiles.length / 2) * 112 + 6, w: 580, h: 50 }); /* F7: tiles tall enough for their sub-labels, the goal on top */
   const pb = phoneGrid(game.ui, items, UI_W / 2 - 420, 100, 840, 2, 0, 12); const G = frGoalBanner(c); /* phones: two columns */
   return { widgets: items, name: 'careermenu', draw(ctx, ui) { if (pb) { ui.panel(ctx, UI_W / 2 - 450, 12, 900, pb + 8); ui.title(ctx, 'CAREER', UI_W / 2 - 420, 50, 36); return; } ui.panel(ctx, UI_W / 2 - 320, 60, 640, back.y + back.h + 30 - 60); ui.title(ctx, 'CAREER', UI_W / 2 - 290, 108, 40); drawGoalBanner(ctx, ui, G, UI_W / 2 - 290, 136, 580); } };
@@ -12827,11 +12854,11 @@ function wkSummary(B) {
   if (cut > 0) parts.push('Tired: −' + cut + '% to every rating');
   return parts.join(' · ');
 }
-function wkInjure(B, rng) { const n = WK.injuryGames; B.injury = { name: rng.pick(WK.injuryNames), games: n[0] + rng.int(n[1] - n[0] + 1) };
+function wkInjure(B, rng) { const n = WK.injuryGames; B.injury = { name: rng.pick(WK.injuryNames), games: Math.max(1, n[0] + rng.int(n[1] - n[0] + 1) - staffInjuryFasterB(B)) }; /* V10: the physio gets you back sooner */
   const L = WK.injuryLoss, i = clamp(B.injury.games - 1, 0, L.odds.length - 1); if (rng.next() < L.odds[i] * injuryLossMul(B)) { const [lo, hi] = L.pts[i]; B.injury.loss = { k: /knee|calf/i.test(B.injury.name) ? 'jmp' : 'spd', pts: lo + rng.int(hi - lo + 1) }; } // V6 (§1.2): a setback for good (injuryLossApply takes it off the ratings)
   return B.injury; }
-// V6 (Part 2 §1.2): the odds an injury costs rating points for good (nutrition & physio cut them like they cut injuries).
-function injuryLossMul(B) { return B && B.staff && B.staff.nutrition ? PR.nutritionInjury : 1; }
+// V6 (Part 2 §1.2): the odds an injury costs rating points for good (V10: the physio cuts them).
+function injuryLossMul(B) { return staffLossMulB(B); }
 // Takes a fresh injury's lasting cost off your ratings, once, and gives it back (null if there is none).
 function injuryLossApply(c) { const B = holderOf(c), inj = B && B.injury, L = inj && inj.loss; if (!L || L.done) return null; const r = isPro(c) ? meOf(c).r : c.r; const before = r[L.k]; r[L.k] = Math.max(CR.ratingMin, before - L.pts); L.done = true; L.pts = before - r[L.k]; return L.pts > 0 ? L : null; }
 function injLossText(inj) { const L = inj && inj.loss; return L && L.pts > 0 ? ', and −' + L.pts + ' ' + RATING_LONG[L.k] + ' for good' : ''; }
@@ -12846,10 +12873,10 @@ function wkFilm(B, oppId) { const w = wkOf(B); if (w.done) return false; w.done 
 // and can hurt you.
 function wkPractice(B, r, xpBank, caps, focus, xpIn, intensity, rng) {
   const w = wkOf(B); if (w.done) return null; const F = CR.trainFocus[focus] || CR.trainFocus.shooting, I = WK.intensity[intensity] || WK.intensity.normal;
-  const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k] * trRatingXpMul(B, k); // V3: a trait's rating XP
+  const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k] * trRatingXpMul(B, k) * staffSkillsMulB(B, k); // V3: a trait's rating XP; V10: the skills coach's two skills
   const gains = gainsMap(spendXp(r, xpBank, caps, add, potsOf(B, caps))); // V6: past your potential it costs more
   w.done = 'practice'; w.xp = Math.round(xpIn); B.plan = 'practice'; B.fatigue = clamp((B.fatigue || 0) + I.fatigue * trMul(B, 'fatigue'), 0, 100); trDeed(B, 'practice', 1); // V3: Iron Man and Unbreakable tire slower; Gym Rat's deed
-  let injury = null; if (I.risk && injuriesOn() && !B.injury && rng.next() < I.risk * trMul(B, 'injury')) injury = wkInjure(B, rng); // Iron Man ×0.6, Unbreakable never
+  let injury = null; if (I.risk && injuriesOn() && !B.injury && rng.next() < I.risk * trMul(B, 'injury') * staffInjuryMulB(B)) injury = wkInjure(B, rng); // Iron Man ×0.6, Unbreakable never; V10: the physio
   return { gains, xp: Math.round(xpIn), injury };
 }
 // Drill score → XP: drillXp[0] at zero, drillXp[1] at the focus's "great" score (then × intensity; the caller adds the rest).
@@ -12860,8 +12887,8 @@ function drillXpFor(focus, score) { const g = WK.drillGreat[focus] || 10; return
 function wkAfterGame(B, rng, opts) {
   opts = opts || {}; const out = { healed: false, injury: null, fatigueBefore: B.fatigue || 0, plan: (B.wk && B.wk.done) || null, practiceXp: (B.wk && B.wk.xp) || 0 };
   if (B.injury) { B.injury.games--; if (B.injury.games <= 0) { B.injury = null; out.healed = true; } }
-  else if (injuriesOn()) { const ch = Math.max(0, WK.injuryBase + WK.injuryPerFatigue * (B.fatigue || 0)) * trMul(B, 'injury') * (opts.nutrition ? PR.nutritionInjury : 1) * stInjuryMul(B) * gearInjuryMul(B); /* R7: nutrition & physio (the old physio stars are gone); R9: a rushed comeback; F8: ankle braces */ if (rng.next() < ch) out.injury = Object.assign({}, wkInjure(B, rng)); } // Iron Man ×0.6, Unbreakable never
-  B.fatigue = clamp((B.fatigue || 0) + (WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0)) * trMul(B, 'fatigue') - (opts.nutrition ? PR.nutritionRegen : 0) - gearRegen(B), 0, 100); out.fatigue = B.fatigue; /* R7: nutrition & physio recover faster; F8: the recovery kit */
+  else if (injuriesOn()) { const ch = Math.max(0, WK.injuryBase + WK.injuryPerFatigue * (B.fatigue || 0)) * trMul(B, 'injury') * staffInjuryMulB(B) * stInjuryMul(B) * gearInjuryMul(B); /* V10: the physio; R9: a rushed comeback; F8: ankle braces */ if (rng.next() < ch) out.injury = Object.assign({}, wkInjure(B, rng)); } // Iron Man ×0.6, Unbreakable never
+  B.fatigue = clamp((B.fatigue || 0) + (WK.fatiguePerGame + (opts.ot ? WK.fatigueOt : 0)) * trMul(B, 'fatigue') * staffFatigueMulB(B) - staffRegenB(B) - gearRegen(B), 0, 100); out.fatigue = B.fatigue; /* V10: the nutritionist (a game tires you less), the strength trainer (recovery); F8: the recovery kit */
   wkNew(B); return out;
 }
 // R4: a week on the bench: you practiced but didn't play, so no game fatigue; an injury heals a game.
@@ -12890,19 +12917,19 @@ function amFilm(c) { const g = amNext(c); const ok = wkFilm(c, g && g.opp ? g.op
 function amStartGame(c) { wkFill(c); amBossEnsure(c); /* V4: the season's Boss */ ladderSettlePending(c); if (c.wk.done) return null; if (c.stage === 'hs' && hsFill(c).gpa < HS.autoStudyAt) return wkStudy(c); /* R5: grades first (the coach's rule) */ const p = c.plan === 'study' ? 'practice' : c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
 
 // --- the pro week ---
-function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proCoachMul(c, focus) * proTrainerMul(c) * proXpMul(c) * /* R7: the private coach (your focus), the personal trainer (practice), the pro XP base */ (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
+function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proXpMul(c) * /* the pro XP base (V10: the skills coach works rating by rating, in wkPractice) */ (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
 function proSessionXp(c, focus, intensity) { return CR.xpEarn /* F6 */ * WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proPractice(c, focus, intensity, xpIn, drill) {
   const M = c.me, me = meOf(c); if (CR.trainFocus[focus]) M.focus = focus; M.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = recOvr(me), movesBefore = learnedMoves(me, M);
-  const L = wkLoadCap(xpIn, proLoadRef(c, M.focus, drill)); const res = wkPractice(M, me.r, M.xp, me.caps, M.focus, L.xp, M.intensity, careerRng(c)); if (!res) return null; if (res.injury) injuryLossApply(c); /* V6 */ if (L.fatigue > 0) { M.fatigue = clamp((M.fatigue || 0) + L.fatigue, 0, 100); res.loadFatigue = Math.round(L.fatigue); res.loadXp = Math.round(xpIn - L.xp); } // V6: the load cap
+  const L = wkLoadCap(xpIn, proLoadRef(c, M.focus, drill)); const res = wkPractice(M, me.r, M.xp, proCaps(c), M.focus, L.xp, M.intensity, careerRng(c)); /* V10: the strength trainer's headroom */ if (!res) return null; if (res.injury) injuryLossApply(c); /* V6 */ if (L.fatigue > 0) { M.fatigue = clamp((M.fatigue || 0) + L.fatigue, 0, 100); res.loadFatigue = Math.round(L.fatigue); res.loadXp = Math.round(xpIn - L.xp); } // V6: the load cap
   M.xpSeason = (M.xpSeason || 0) + res.xp; if (res.injury) pushNews(c, me.name + ' got hurt in practice: ' + res.injury.name.toLowerCase() + ' (' + res.injury.games + ' game' + (res.injury.games > 1 ? 's' : '') + ').', 'injury');
   res.ovrBefore = ovrBefore; res.ovrAfter = recOvr(me); res.learned = newMovesSince(movesBefore, learnedMoves(me, M)); trDeed(M, 'moves', res.learned.length); trDeed(M, 'ovr', res.ovrAfter, true); return res;
 }
-function proRest(c) { const M = c.me; return wkRest(M, WK.restPhysio * (proNutrition(c) ? 2 : 0) + WK.restGym * (M.gym || 0)); } // R7: nutrition & physio count as the old two physio stars
+function proRest(c) { const M = c.me; return wkRest(M, 2 * staffRegenB(M) + WK.restGym * (M.gym || 0)); } // V10: the strength trainer's recovery counts twice in a Rest week
 function proFilm(c) { const g = userGame(c); const ok = wkFilm(c.me, g ? opponentOf(c, g) : null); if (ok) trFilmXp(c); return ok; }
 // V3: Film Junkie: a Film week also pays a share of a Practice week's XP (into your focus).
-function trFilmXp(c) { const B = holderOf(c), f = trMul(B, 'filmXp') - 1; if (!(f > 0)) return 0; const pro = isPro(c), me = pro ? meOf(c) : null, focus = pro ? c.me.focus : c.focus, F = CR.trainFocus[focus] || CR.trainFocus.shooting; const xp = f * (pro ? proSessionXp(c, focus, 'normal') : amSessionXp(c, 'normal')), add = {}; for (const k in F.split) add[k] = xp * F.split[k]; spendXp(pro ? me.r : c.r, pro ? c.me.xp : c.xp, pro ? me.caps : c.caps, add, potsOf(B, pro ? me.caps : c.caps)); const w = wkOf(B); w.xp = Math.round(xp); return xp; }
+function trFilmXp(c) { const B = holderOf(c), f = trMul(B, 'filmXp') - 1; if (!(f > 0)) return 0; const pro = isPro(c), me = pro ? meOf(c) : null, focus = pro ? c.me.focus : c.focus, F = CR.trainFocus[focus] || CR.trainFocus.shooting; const xp = f * (pro ? proSessionXp(c, focus, 'normal') : amSessionXp(c, 'normal')), add = {}; for (const k in F.split) add[k] = xp * F.split[k]; spendXp(pro ? me.r : c.r, pro ? c.me.xp : c.xp, pro ? proCaps(c) : c.caps, add, potsOf(B, pro ? me.caps : c.caps)); const w = wkOf(B); w.xp = Math.round(xp); return xp; }
 function proStartGame(c) { const M = wkFill(c.me); proBossEnsure(c); /* V4 */ ladderSettlePending(c); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
 
 // ============================================================================
@@ -12922,11 +12949,12 @@ function mdFill(B) {
 // V6 (Part 2 §1.2): a slump: MD.slump.games straight games graded D or F drop your confidence to MD.slump.conf and cost
 // Shooting (MD.slump.sho) until a game graded B or better. Ice Veins (confidence never drops) never slumps. Returns
 // 'start', 'end' or null for the story.
+const SLUMP_LESSER = ['C+', 'C']; // V10: the grades under B a mental coach lets end a slump (one, then two)
 function slumpAfterGame(c, grade) {
   const B = holderOf(c), M = MD.slump; if (!B || !grade) return null; const S = B.slump || (B.slump = { n: 0, on: false }); const bad = grade === 'D' || grade === 'F'; S.n = bad ? S.n + 1 : 0;
   const name = isPro(c) ? meOf(c).name : c.name;
   if (!S.on && S.n >= M.games && !trConfHold(B)) { S.on = true; B.confidence = Math.min(B.confidence || 0, M.conf); try { storyNews(c, name + ' is in a slump: ' + M.games + ' rough games in a row.', 'league'); } catch (e) { /* the news is decoration */ } return 'start'; }
-  if (S.on && M.endAt.includes(grade)) { S.on = false; S.n = 0; try { storyNews(c, name + ' snaps out of the slump with a ' + grade + '.', 'league'); } catch (e) { /* decoration */ } return 'end'; }
+  if (S.on && (M.endAt.includes(grade) || SLUMP_LESSER.slice(0, staffSlumpCutB(B)).includes(grade))) { S.on = false; S.n = 0; /* V10: a mental coach ends it on a C+ (5★: a C) too */ try { storyNews(c, name + ' snaps out of the slump with a ' + grade + '.', 'league'); } catch (e) { /* decoration */ } return 'end'; }
   return null;
 }
 function confShoOf(B) { return clamp((Number(B && B.confidence) || 0) * MD.confSho, -MD.confShoMax, MD.confShoMax); }
@@ -12951,9 +12979,9 @@ function checkRecords(R, line, gamesBefore) { const out = []; for (const k in RE
 // blowout more), × (1 + hype/100); confidence drifts back toward zero. out.hype0: hype before this week (the decay).
 function mdAfterGame(B, won, us, them) {
   mdFill(B); const out = { hype0: B.hype }, c0 = B.confidence, held = trConfHold(B); // V3: Ice Veins: confidence never drops (no loss, no fade, no boast's cost)
-  if (B.boast) { B.boast = false; if (!won) { B.hype = Math.max(0, B.hype - MD.boastLoss); B.confidence = Math.max(-MD.confMax, B.confidence - MD.boastConf); out.boastCost = MD.boastLoss; } }
+  if (B.boast) { B.boast = false; if (!won) { B.hype = Math.max(0, B.hype - MD.boastLoss); B.confidence = Math.max(-MD.confMax, B.confidence - MD.boastConf * staffConfMulB(B)); out.boastCost = MD.boastLoss; } } /* V10: the mental coach steadies it */
   B.confidence = B.confidence > 0 ? Math.max(0, B.confidence - MD.confFade) : Math.min(0, B.confidence + MD.confFade);
-  if (!won) { const blow = them > 0 && them - us > MD.blowoutFrac * them && them - us >= MD.blowoutMinPts; /* F5: and by two baskets */ const d = (MD.lossConf + (blow ? MD.confBlowout : 0)) * (1 + MD.lossConfMul * B.hype / MD.hypeMax); B.confidence = Math.max(-MD.confMax, B.confidence - d); out.confLoss = held ? 0 : Math.round(d * 10) / 10; if (blow && !held) out.shaken = true; }
+  if (!won) { const blow = them > 0 && them - us > MD.blowoutFrac * them && them - us >= MD.blowoutMinPts; /* F5: and by two baskets */ const d = (MD.lossConf + (blow ? MD.confBlowout : 0)) * (1 + MD.lossConfMul * B.hype / MD.hypeMax) * staffConfMulB(B); /* V10: the mental coach */ B.confidence = Math.max(-MD.confMax, B.confidence - d); out.confLoss = held ? 0 : Math.round(d * 10) / 10; if (blow && !held) out.shaken = true; }
   if (held && B.confidence < c0) { B.confidence = c0; out.confHeld = true; }
   B.pressGap = Math.max(0, (B.pressGap || 0) - 1); B.quiet = false; /* No comment's quiet week is over */ return out;
 }
@@ -13443,7 +13471,7 @@ function trEdgeOf(id, L, playoff) {
     default: return 0;
   }
 }
-function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) e += trEdgeOf(id, trLvOf(o, id), playoff); return e + (sagaClutchOf(o) ? SG.mentorClutchSim : 0); } // V7: + the mentor's clutch edge
+function trSimEdge(o, playoff) { let e = 0; for (const id of trActive(o)) e += trEdgeOf(id, trLvOf(o, id), playoff); return e + (sagaClutchOf(o) ? SG.mentorClutchSim : 0) + staffClutchB(o) * SF.mentalSimOvr; } // V7: + the mentor's clutch edge; V10: the mental coach's
 // The hidden trait's story moment (R3): during the sophomore season, a few games in.
 function traitRevealDue(c) { const T = traitsOf(c), L = c.league, wk = L && Array.isArray(L.games) ? L.games.length : (c.seasonStats ? c.seasonStats.g : 0); return !!T && !T.found && T.hidden && ((c.stage === 'hs' && c.age >= TR.revealAge && wk >= TR.revealGames) || c.stage !== 'hs'); } // F5: the team's games count, bench weeks too (a benched sophomore used to wait a year)
 function traitRevealCard(c) {
@@ -13472,7 +13500,7 @@ function trFirstHalf(m) { const F = m.format || {}; if (F.type === 'timed') retu
 function trState(p) { return p.trs || (p.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }); }
 // The make chance's trait multiplier; trs.muls keeps each trait's part of it for the tally at release (trShotTally).
 function trShotMul(p, type) {
-  const T = p.traits || {}; if (!p.traits && !p.sagaClutch) return 1; const m = p.match; if (!m) return 1; const s = trState(p), M = s.muls || (s.muls = []); M.length = 0; let mul = 1;
+  const T = p.traits || {}; if (!p.traits && !p.sagaClutch && !p.staffClutch) return 1; const m = p.match; if (!m) return 1; const s = trState(p), M = s.muls || (s.muls = []); M.length = 0; let mul = 1;
   const add = (id, v) => { if (!v) return; M.push(id, 1 + v); mul *= 1 + v; };
   if (T.streaky) { if (s.streak >= 2) add('streaky', trE(p, 'streaky', 'hot')); else if (s.streak <= -2) add('streaky', trE(p, 'streaky', 'cold')); }
   if (T.clutch) { if (m.playoff || trCrunch(m)) add('clutch', trE(p, 'clutch', 'clutch')); else if (trFirstHalf(m)) add('clutch', trE(p, 'clutch', 'early')); }
@@ -13480,6 +13508,7 @@ function trShotMul(p, type) {
   if (T.generational && s.takeUntil > m.time) add('generational', trE(p, 'generational', 'takeShot'));
   if (T.iceveins && (m.playoff || trLast(m))) add('iceveins', trE(p, 'iceveins', 'last'));
   if (p.sagaClutch && trLast(m)) add('mentor', p.sagaClutch); // V7: the mentor's last lesson
+  if (p.staffClutch && trLast(m)) add('mental', p.staffClutch); // V10: the mental coach (the last 15 s)
   return mul;
 }
 // A real shot's release: each trait's share of its make chance P is an expected make it added (or cost).
@@ -15122,14 +15151,10 @@ const PR = CONFIG.pro;
 // ---------------- staff (what money buys for your development) ----------------
 // Saves from before R7 had a shooting coach, a skills trainer, a strength coach and a physio (0–3 stars each): the best
 // coach becomes the personal trainer's tier, a physio becomes nutrition & physio.
-function proStaffMigrate(M) { const s = M && M.staff; if (!s || s.trainer != null) return; M.staff = { trainer: clamp(Math.max(s.shooting || 0, s.skills || 0, s.strength || 0), 0, 3), coach: 0, nutrition: (s.physio || 0) > 0 ? 1 : 0 }; }
-function proStaffSeason(M) { const s = (M && M.staff) || {}; return (PR.trainerCost[s.trainer || 0] || 0) + (s.coach ? PR.coachCost : 0) + (s.nutrition ? PR.nutritionCost : 0); } // a season's cost
-function proStaffCost(M, c) { return Math.round(proStaffSeason(M) / ((c && c.seasonLength) || CR.seasonLengths[0])); } // a week's
+function proStaffMigrate(M) { const s = M && M.staff; if (!s || s.v === 2 || s.trainer != null) return; M.staff = { trainer: clamp(Math.max(s.shooting || 0, s.skills || 0, s.strength || 0), 0, 3), coach: 0, nutrition: (s.physio || 0) > 0 ? 1 : 0 }; } // (V10's staffOf takes it from there)
+function proStaffSeason(M, c) { return c ? staffSeasonCost(c) : 0; } // V10: a season's salaries (176_staff.js)
+function proStaffCost(M, c) { return Math.round(proStaffSeason(M, c) / ((c && c.seasonLength) || CR.seasonLengths[0])); } // a week's
 function proXpMul(c) { return PR.xpBase; } // all your pro XP (games, practice, the bench)
-function proTrainerMul(c) { const s = c && c.me && c.me.staff; return 1 + ((s && PR.trainerXp[s.trainer || 0]) || 0); } // the personal trainer runs your practice
-function proCoachMul(c, focus) { const M = c.me; return M.staff && M.staff.coach && focus === M.focus ? 1 + PR.coachXp : 1; } // the private coach: sessions in your focus
-function proNutrition(c) { return !!(c && c.me && c.me.staff && c.me.staff.nutrition); }
-function proHire(c, role, level) { const s = c.me.staff; if (role === 'trainer') s.trainer = clamp(level | 0, 0, 3); else if (role === 'coach' || role === 'nutrition') s[role] = level ? 1 : 0; }
 
 // ---------------- free agency and the negotiation ----------------
 function proMaxYears(age) { const r = PR.maxYears.find(([a]) => age <= a); return r ? r[1] : 2; }
@@ -15142,7 +15167,9 @@ function proFreeAgency(c, rng, val) {
   const me = meOf(c), T = frTable(c); let cap = frCapOf(c); const spot = cap >= 5 ? frSpotWin(c, [me.club]) : null; if (cap >= 5 && !spot) cap = 4; /* V6 (§1.3): a 5★ offer needs an open spot you win */ const maxY = proMaxYears(me.age), picks = frPickOffers(T, cap, rng, [me.club]); if (spot) { const b = picks.find(o => o.kind === 'best'); if (b) { b.club = spot; b.stars = T[spot].stars; } }
   const mk = (club, kind, mul, promised) => { const s = T[club].stars, o = { club, kind, stars: s, base: Math.round(val * mul * FRN.payByStars[s - 1] * rng.range(0.97, 1.03) / 1000) * 1000, promised, facilities: FRN.facByStars[s - 1], current: club === me.club, maxYears: maxY }; o.years = Math.min(CR.contractYears, maxY); o.promise = promised; o.salary = proOfferSalary(o, o.years, o.promise); return o; };
   const out = [mk(me.club, 'yours', PR.faYours, ladderRank(c) === 1)], best = picks.find(o => o.kind === 'best'), st = picks.find(o => o.kind === 'starter');
-  if (best) out.push(mk(best.club, 'best', PR.faBig, false)); if (st) out.push(mk(st.club, 'starter', PR.faStarter, true)); return out;
+  if (best) out.push(mk(best.club, 'best', PR.faBig, false)); if (st) out.push(mk(st.club, 'starter', PR.faStarter, true));
+  const rb = picks.find(o => o.kind === 'rebuild'); if (rb && staffTier(c, 'agent') >= SF.agentOfferAt) out.push(Object.assign(mk(rb.club, 'rebuild', PR.faStarter * (1 + (rb.more || 0)), true), { agent: true })); /* V10: a 3★+ agent brings a fourth club (a rebuild that starts you and pays a little more) */
+  return out;
 }
 function proOfferKind(o) { return frKindLabel(o); }
 // Every season of a deal with a promised start begins with you first on the depth chart (the coach's trust at least
@@ -15173,7 +15200,7 @@ function proTradeDest(c) { return frTradeDest(c, careerRng(c)); }
 function proTrade(c) {
   const me = meOf(c), M = c.me, from = me.club, to = proTradeDest(c); const mate = c.active.find(id => id !== c.meId && c.players[id].club === to); if (mate) c.players[mate].club = from;
   const up = frStars(c, to) > frStars(c, from); me.club = to; if (M.contract) M.contract.club = to; M.bigMarket = null; tmSyncPro(c); const L = ladderOf(c); if (L && (!up || recOvr(me) >= Math.max(...c.team.mates.map(tmMateOvr)))) { L.splice(L.indexOf('me'), 1); L.unshift('me'); } if (c.team) { c.team.trust = TM.trustStart.pro; c.team.pending = null; } // F7: a trade up doesn't promise the start (a sideways or down one still does)
-  M.hype = Math.max(0, (M.hype || 0) - PR.tradeHype * MD.hypeMax); M.traded = (M.traded || 0) + 1;
+  if (staffTier(c, 'agent') < SF.agentTradeAt) M.hype = Math.max(0, (M.hype || 0) - PR.tradeHype * MD.hypeMax); M.traded = (M.traded || 0) + 1; /* V10: a 4★+ agent handles the trade request: no distraction, no hype lost */
   pushNews(c, me.name + ' is traded from the ' + clubOf(from).name + ' to the ' + clubOf(to).name + '.', 'league'); tlAdd(c, 'trade', 'Traded to the ' + clubOf(to).name + ' (asked for it)'); try { socialPost(c, 'trade', stFirst(me.name) + ' asked out and got it. ' + clubOf(to).name + ' fans, you have a new favorite player.', 2); socialPost(c, 'trade', clubOf(from).name + ' fans are NOT happy about the ' + stFirst(me.name) + ' trade.', 1.5); } catch (e) { /* decoration */ } // R9
   frCheckGoals(c, 'sign'); c.events.push({ kind: 'story', who: 'coach', title: 'TRADED', lines: ['You play for the ' + clubOf(to).name + ' now (' + frStars(c, to) + '★). Your contract came with you: ' + fmtMoney(M.contract ? M.contract.salary : 0) + ' a season.', (c.team && c.team.coach ? c.team.coach.name : 'Your new coach') + (isStarter(c) ? ': "You start. Show me why they let you go."' : ': "This bench is deep. Earn the start in practice."'), 'The press calls it a distraction. Win and nobody will remember.'] });
   return to;
@@ -15208,8 +15235,8 @@ function proBuy(c, id) {
 function proWeekMoney(c, rec) { const M = c.me, r = proShoeRoyalty(c); if (r) { earn(c, r); M.shoe.earned = (M.shoe.earned || 0) + r; if (rec) rec.royalty = r; } proShoePitch(c); return r; }
 
 // ---------------- the agent, in the pros ----------------
-function proHireAgent(c) { const M = c.me; if (M.agent) return M.agent; M.agent = genName(new RNG((((c.seed >>> 0) ^ 0xA6E17) >>> 0) || 7), new Set([meOf(c).name]), new Set()); tlAdd(c, 'agent', 'Signed with agent ' + M.agent); pushNews(c, meOf(c).name + ' signs with agent ' + M.agent + '.', 'money'); return M.agent; }
-function proFireAgent(c) { const M = c.me; if (!M.agent) return; tlAdd(c, 'agent', 'Parted ways with agent ' + M.agent); M.agent = null; }
+function proHireAgent(c) { const S = staffOf(c); if (!S.agent) staffHire(c, 'agent', Math.max(0, staffPool(c, 'agent').findIndex(a => a.tier === 2 && a.pers !== 'shady'))); if (S.agent) c.me.agent = S.agent.name; return S.agent ? S.agent.name : null; } // V10: the staff's agent (R7's button: a 2★ that isn't shady, if one will talk to you)
+function proFireAgent(c) { if (staffOf(c).agent) staffFire(c, 'agent'); c.me.agent = null; }
 
 // ---------------- the epilogue ----------------
 function proNetWorth(c) { const M = c.me; let v = M.money || 0; for (const it of PR.lifestyle) if (it.asset && M.lifestyle && M.lifestyle[it.id]) v += it.cost; if (M.shoe) v += proShoeSeason(c) * PR.shoeBuyout; return Math.round(v); }
@@ -15251,6 +15278,240 @@ function proLegacyStart(save, c, rng) {
 }
 
 // ============================================================================
+// SECTION: SAVE / PROGRESSION (part 21) — V10 (Part 2 §4): your staff. Six roles, one person each, hired from a pool of
+// candidates (1–5★, a personality, a salary a season), on contracts that end and get re-signed, sometimes called away by
+// a rival club. Better staff talk to you as your fame grows; you need a season's salary in the bank to hire. The agent
+// takes a cut instead of a salary. Staff are the pros' money sink: a rookie can afford one 1–2★, a full 3–4★ staff
+// costs most of a mid-career salary. (The amateur years have no staff: the agent you sign in college comes along.)
+// ============================================================================
+const SF = CONFIG.staff;
+const STAFF_ROLES = SF.roles;
+const STAFF_INFO = { // [the role, the short name, what they do (the staff room's line when nobody has the job)]
+  agent: ['Agent', 'Agent', 'Negotiates your contracts for a cut of your pay, finds sponsors, gets you a 4th free-agency offer (3★+) and better trades (4★+).'],
+  skills: ['Skills coach', 'Skills', 'Extra XP in two skills you pick, signature moves a step sooner (3★+) and scouting tips before every game.'],
+  strength: ['Strength trainer', 'Strength', 'Recovery every week, and higher Speed, Hops and Strength ceilings (4★+).'],
+  physio: ['Physio', 'Physio', 'Fewer injuries, shorter ones, and less chance an injury costs rating points for good.'],
+  nutrition: ['Nutritionist', 'Nutrition', 'Games tire you less, and your Speed and Hops fade later (3★+).'],
+  mental: ['Mental coach', 'Mental', 'Smaller confidence drops, a clutch edge in the last 15 seconds and shorter slumps.'],
+};
+const STAFF_PERS = { agent: ['straight', 'shark', 'loyal', 'shady'], other: ['oldschool', 'analytics', 'players', 'drill', 'loyal', 'ambitious'] };
+const STAFF_PERS_INFO = { // [name, the card's line]
+  straight: ['Straight shooter', 'Tells you the truth.'],
+  shark: ['Shark', 'Squeezes every dollar, keeps a bit more.'],
+  shady: ['Shady', 'Gets deals done. Don\'t ask how.'],
+  loyal: ['Loyal', 'Never takes another club\'s call.'],
+  oldschool: ['Old school', 'Fundamentals, every day.'],
+  analytics: ['Analytics', 'Has a spreadsheet for your left elbow.'],
+  players: ['Players\' coach', 'Pushes you, and listens.'],
+  drill: ['Drill sergeant', 'Practice starts at 5 a.m.'],
+  ambitious: ['Ambitious', 'Good, and knows it: other clubs call.'],
+};
+function staffIsPro(c) { return !!(c && c.me && c.players); }
+// The staff on the holder: { v: 2, agent … mental: staffer | null, pool: { role: [candidates] }, poolSeason, picks: [two rating keys] }.
+function staffOf(c) {
+  const M = c.me; let S = M.staff; if (!S || S.v !== 2) S = M.staff = staffMigrate(c, S);
+  for (const r of STAFF_ROLES) if (S[r] === undefined) S[r] = null; if (!S.pool || typeof S.pool !== 'object') S.pool = {};
+  if (!Array.isArray(S.picks) || S.picks.length !== 2 || S.picks.some(k => !RATING_KEYS.includes(k))) S.picks = staffDefaultPicks(c);
+  return S;
+}
+function staffTier(c, role) { if (!staffIsPro(c)) return 0; const s = staffOf(c)[role]; return s ? clamp(s.tier | 0, 0, 5) : 0; }
+function staffPers(c, role) { if (!staffIsPro(c)) return null; const s = staffOf(c)[role]; return s ? s.pers : null; }
+// The two skills a skills coach works on: your focus's ratings, else your two lowest skills.
+function staffDefaultPicks(c) { const me = meOf(c), F = CR.trainFocus[(c.me && c.me.focus) || 'shooting'] || {}, ks = Object.keys(F.split || {}).filter(k => RATING_KEYS.includes(k));
+  const low = RATING_KEYS.filter(k => !PHYS_KEYS.includes(k)).sort((a, b) => ((me && me.r[a]) || 0) - ((me && me.r[b]) || 0)); const out = ks.slice(0, 2); for (const k of low) if (out.length < 2 && !out.includes(k)) out.push(k); return out.slice(0, 2); }
+// A staffer: { id, role, name, look, tier, pers, salary, years, since, up (their contract is up this offseason) }.
+function staffMake(c, role, tier, pers, rng, salary) {
+  const name = genName(rng, new Set(), new Set([meOf(c) ? meOf(c).name : ''])); const P = pers || rng.pick(role === 'agent' ? STAFF_PERS.agent : STAFF_PERS.other);
+  const base = role === 'agent' ? 0 : SF.salary[clamp(tier, 1, 5)] * (1 + SF.salaryJitter * (rng.next() * 2 - 1)) * (P === 'loyal' ? SF.loyalSalary : P === 'ambitious' ? SF.ambitiousSalary : 1);
+  return { id: role + ':' + name + ':' + (c.season || 1), role, name, look: stLookFor('staff:' + role + ':' + name), age: 32 + rng.int(28), tier: clamp(tier | 0, 1, 5), pers: P, salary: salary != null ? salary : Math.round(base / 10000) * 10000, years: SF.years, since: c.season || 1 };
+}
+// The best tier that will talk to you (your fame).
+function staffMaxTier(c) { const f = (c.me && c.me.fame) || 0; let t = 1; for (let k = 1; k <= 5; k++) if (f >= SF.fameFor[k]) t = k; return t; }
+// The pool: SF.pool candidates a role, new every season (and after a hire or a firing in that role).
+function staffPool(c, role) {
+  const S = staffOf(c); if (S.poolSeason !== c.season) { S.pool = {}; S.poolSeason = c.season; }
+  if (!Array.isArray(S.pool[role])) { const rng = new RNG((hashString(c.seed + ':staff:' + role + ':' + c.season + ':' + (S.poolN = (S.poolN || 0) + 1)) >>> 0) || 7), top = staffMaxTier(c), out = [];
+    for (let i = 0; i < SF.pool; i++) { const t = i === 0 ? top : i === 1 ? Math.max(1, top - 1) : 1 + rng.int(top); out.push(staffMake(c, role, t, null, rng)); }
+    S.pool[role] = out.sort((a, b) => b.tier - a.tier); }
+  return S.pool[role];
+}
+function staffSeasonCost(c) { if (!staffIsPro(c)) return 0; const S = staffOf(c); let v = 0; for (const r of STAFF_ROLES) if (r !== 'agent' && S[r]) v += S[r].salary || 0; return v; }
+// Hiring: the role's pool; a season's salary in the bank (an agent takes a cut instead). Returns the staffer, or null.
+function staffCanHire(c, cand) { return !!cand && (cand.role === 'agent' || (c.me.money || 0) >= cand.salary) && cand.tier <= staffMaxTier(c); }
+function staffHire(c, role, i) {
+  const S = staffOf(c), pool = staffPool(c, role), cand = pool[i]; if (!staffCanHire(c, cand)) return null;
+  if (S[role]) staffFire(c, role, true); const s = Object.assign({}, cand, { since: c.season, years: SF.years, up: false }); S[role] = s; S.pool[role] = null;
+  if (role === 'agent') c.me.agent = s.name; tlAdd(c, 'staff', 'Hired ' + STAFF_INFO[role][0].toLowerCase() + ' ' + s.name + ' (' + s.tier + '★)'); pushNews(c, meOf(c).name + ' hires ' + s.name + ' as ' + (role === 'agent' ? 'agent' : STAFF_INFO[role][0].toLowerCase()) + '.', 'money'); return s;
+}
+// Firing: mid-contract it costs a buyout (a contract that's up: free).
+function staffBuyout(c, role) { const s = staffOf(c)[role]; return s && !s.up && role !== 'agent' ? Math.round(s.salary * SF.buyout / 1000) * 1000 : 0; }
+function staffFire(c, role, quiet) {
+  const S = staffOf(c), s = S[role]; if (!s) return 0; const pay = staffBuyout(c, role); c.me.money = (c.me.money || 0) - pay; S[role] = null; S.pool[role] = null; if (role === 'agent') c.me.agent = null;
+  if (!quiet) tlAdd(c, 'staff', 'Parted ways with ' + STAFF_INFO[role][0].toLowerCase() + ' ' + s.name + (pay ? ' (a ' + fmtMoney(pay) + ' buyout)' : '')); return pay;
+}
+// The season's end: contracts run down; one that's up waits for you in the offseason (re-sign or let go), and re-signs
+// itself at the new season's start if you do nothing.
+function staffSeasonEnd(c) { const S = staffOf(c); for (const r of STAFF_ROLES) { const s = S[r]; if (!s) continue; s.years = Math.max(0, (s.years || 1) - 1); if (s.years <= 0) s.up = true; } }
+function staffResignPay(s) { return Math.round((s.salary || 0) * (1 + SF.raise) / 10000) * 10000; } // a re-signing's new salary
+function staffResign(c, role) { const S = staffOf(c), s = S[role]; if (!s || !s.up) return null; s.salary = staffResignPay(s); s.years = SF.years; s.up = false; tlAdd(c, 'staff', 'Re-signed ' + STAFF_INFO[role][0].toLowerCase() + ' ' + s.name + ' (' + fmtMoney(s.salary) + ' a season)'); return s; }
+function staffSeasonStart(c) { const S = staffOf(c); for (const r of STAFF_ROLES) if (S[r] && S[r].up) staffResign(c, r); S.poach = null; S.scandal = null; }
+// Saves from before V10: R7's personal trainer (1–3) and private coach become a skills coach, nutrition & physio a physio
+// and a nutritionist (3★ each), and R6's agent a 2★ straight shooter.
+function staffMigrate(c, old) {
+  const S = { v: 2, pool: {}, poolSeason: 0, picks: null }; for (const r of STAFF_ROLES) S[r] = null; const o = old || {}, rng = new RNG((hashString(c.seed + ':staffmig') >>> 0) || 5); c.me.staff = S;
+  const tr = clamp(Math.max(o.trainer | 0, o.shooting | 0, o.skills | 0), 0, 3), sk = tr ? Math.min(4, tr + 1 + (o.coach ? 1 : 0)) : o.coach ? 2 : 0; /* a 1–3 trainer: 2–4★ (the private coach: one more) */
+  if (sk) S.skills = staffMake(c, 'skills', sk, 'oldschool', rng); if (o.nutrition || o.physio) { S.physio = staffMake(c, 'physio', 3, 'players', rng); S.nutrition = staffMake(c, 'nutrition', 3, 'analytics', rng); }
+  if ((o.strength | 0) >= 3) S.strength = staffMake(c, 'strength', 2, 'drill', rng);
+  if (c.me.agent) { const a = staffMake(c, 'agent', 2, 'straight', rng); a.name = String(c.me.agent); a.look = stLookFor('staff:agent:' + a.name); S.agent = a; }
+  return S;
+}
+
+// ---------------- the season's calls: a rival club poaching, a shady agent's scandal ----------------
+// Once a season each: at mid-season every 3★+ staffer (not the agent) may get a call from a rival club (Ambitious twice
+// as often, Loyal never); and at a seeded week a shady agent may make the news.
+function staffWeek(c) {
+  if (!staffIsPro(c) || c.phase !== 'regular') return; const S = staffOf(c), half = Math.floor(c.seasonLength / 2), rng = new RNG((hashString(c.seed + ':staffwk:' + c.season + ':' + c.week) >>> 0) || 3);
+  if (c.week === half && S.poach !== c.season) { S.poach = c.season; const cands = STAFF_ROLES.filter(r => r !== 'agent' && S[r] && S[r].tier >= 3 && S[r].pers !== 'loyal'); for (const r of cands) { const s = S[r]; if (rng.next() < SF.poachOdds * (s.pers === 'ambitious' ? 2 : 1)) { staffPoachCard(c, r, rng); break; } } }
+  const sw = 2 + (hashString(c.seed + ':scandal:' + c.season) % Math.max(1, c.seasonLength - 4)); if (c.week === sw && S.scandal !== c.season && S.agent && S.agent.pers === 'shady') { S.scandal = c.season; if (rng.next() < SF.scandalOdds) staffScandalCard(c); }
+}
+function staffWho(s) { return { role: STAFF_INFO[s.role][0], name: s.name, look: s.look, colors: ['#2B3A5C', '#C9D3E8'] }; }
+function staffPoachCard(c, role, rng) {
+  const S = staffOf(c), s = S[role], club = (rng.pick(c.active.map(id => c.players[id]).filter(p => p.club !== meOf(c).club)) || {}).club, cn = club ? clubOf(club).name : 'Another club', pay = Math.round(s.salary * (1 + SF.poachRaise) / 10000) * 10000;
+  c.events.push({ kind: 'dialog', id: 'staff-poach-' + role + '-' + c.season, staff: { kind: 'poach', role, pay }, title: 'A CALL FOR YOUR ' + STAFF_INFO[role][0].toUpperCase(), who: staffWho(s),
+    lines: ['The ' + cn + ' called. They want me on their staff, and they pay ' + fmtMoney(pay) + ' a season.', 'I\'d rather stay. Match it and I\'m yours.'],
+    choice: [{ label: 'Match it', note: 'Pay ' + fmtMoney(pay) + ' a season (now ' + fmtMoney(s.salary) + ') · they stay', def: true }, { label: 'Let them go', note: 'Keep the money · the job is open until you hire' }] });
+}
+function staffScandalCard(c) {
+  const a = staffOf(c).agent; c.events.push({ kind: 'dialog', id: 'staff-scandal-' + c.season, staff: { kind: 'scandal' }, title: 'YOUR AGENT IN THE NEWS', who: 'reporter',
+    lines: ['A report says your agent, ' + a.name + ', promised a high school star\'s family money to sign with the agency.', 'Your sponsors are calling. What do you tell them?'],
+    choice: [{ label: 'Stand by them', note: 'Hype −' + SF.scandalHype + ' · keep their +' + Math.round(staffAgentRaise(c) * 100) + '% on contracts' }, { label: 'Fire them', note: 'Hype −' + Math.round(SF.scandalHype / 2) + ' · no agent until you hire one', def: true }] });
+  pushNews(c, 'A report links agent ' + a.name + ' to payments to a recruit\'s family.', 'money');
+}
+// The answer (stChoose): returns the outcome lines.
+function staffChoose(c, ev, i) {
+  const X = ev.staff || {}, S = staffOf(c), out = []; if (X.kind === 'poach') { const s = S[X.role]; if (!s) return out; if (i === 0) { s.salary = X.pay; s.years = Math.max(s.years || 1, 1); tlAdd(c, 'staff', 'Matched a rival\'s offer for ' + s.name); out.push(s.name + ' stays: ' + fmtMoney(s.salary) + ' a season'); } else { S[X.role] = null; S.pool[X.role] = null; tlAdd(c, 'staff', s.name + ' left for a rival club'); out.push(s.name + ' is gone'); } }
+  if (X.kind === 'scandal') { const B = c.me, h0 = B.hype || 0; if (i === 0) { B.hype = Math.max(0, h0 - SF.scandalHype); out.push('Hype −' + Math.round(h0 - B.hype)); } else { B.hype = Math.max(0, h0 - Math.round(SF.scandalHype / 2)); out.push('Hype −' + Math.round(h0 - B.hype)); if (S.agent) { const n = S.agent.name; S.agent = null; S.pool.agent = null; c.me.agent = null; tlAdd(c, 'staff', 'Fired agent ' + n + ' after a scandal'); out.push('Agent fired'); } } }
+  return out;
+}
+
+// ---------------- what each role does (0 without one) ----------------
+// By holder (the week's code is shared: an amateur career has no staff, so every effect is off) and by career.
+function staffT(B, role) { const S = B && B.staff, s = S && S.v === 2 ? S[role] : null; return s ? clamp(s.tier | 0, 0, 5) : 0; }
+const STF = (B, role, arr) => arr[staffT(B, role)] || 0;
+function staffRaiseFor(t, pers) { return t ? SF.agentRaise[t] + (pers === 'shady' ? SF.shadyRaise : pers === 'shark' ? SF.sharkRaise : 0) : 0; } // an agent's bump on contracts
+function staffCutFor(t, pers) { return t ? Math.max(0, SF.agentCut[t] + (pers === 'shark' ? SF.sharkCut : pers === 'loyal' ? -SF.loyalCut : 0)) : 0; } // and their cut of your pay
+function staffAgentRaise(c) { if (!staffIsPro(c)) return 0; staffOf(c); const t = staffT(c.me, 'agent'); return t ? staffRaiseFor(t, c.me.staff.agent.pers) : 0; }
+function staffAgentCut(c) { if (!staffIsPro(c)) return 0; staffOf(c); const t = staffT(c.me, 'agent'); return t ? staffCutFor(t, c.me.staff.agent.pers) : 0; }
+function staffSkillsMulB(B, k) { const t = staffT(B, 'skills'); return t && B.staff.picks && B.staff.picks.includes(k) ? 1 + SF.skillsXp[t] : 1; }
+function staffMovesEarlyB(B) { return staffT(B, 'skills') >= SF.movesEarlyAt ? SF.movesEarly : 0; } // rating points (the 10–100 scale)
+function staffTipsB(B) { return staffT(B, 'skills') >= SF.tipsAt; }
+function staffCapBonusB(B, k) { return PHYS_KEYS.includes(k) ? STF(B, 'strength', SF.strengthCaps) : 0; }
+function staffRegenB(B) { return STF(B, 'strength', SF.strengthRegen); }
+function staffInjuryMulB(B) { return 1 - STF(B, 'physio', SF.physioInjury); }
+function staffInjuryFasterB(B) { return STF(B, 'physio', SF.physioFaster); }
+function staffLossMulB(B) { return 1 - STF(B, 'physio', SF.physioLoss); }
+function staffFatigueMulB(B) { return 1 - STF(B, 'nutrition', SF.nutritionFatigue); }
+function staffAgingDelayB(B) { return STF(B, 'nutrition', SF.nutritionAging); }
+function staffConfMulB(B) { return 1 - STF(B, 'mental', SF.mentalConf); }
+function staffClutchB(B) { return STF(B, 'mental', SF.mentalClutch); }
+function staffSlumpCutB(B) { return STF(B, 'mental', SF.mentalSlump); }
+// The pro ceilings with the strength trainer's headroom (the base caps stay on the player).
+function proCaps(c) { const me = meOf(c), B = c.me; if (!staffT(B, 'strength')) return me.caps; const out = Object.assign({}, me.caps); for (const k of PHYS_KEYS) out[k] = Math.min(CR.ratingMax, (out[k] || 0) + staffCapBonusB(B, k)); return out; }
+
+// ============================================================================
+// SECTION: UI (part 18) — V10 (Part 2 §4): THE STAFF ROOM. Six roles down the left (who has the job, their stars); the
+// role you pick on the right: your staffer (personality, contract, what they do at their tier) and the candidates who'll
+// talk to you, each with a Hire button. A phone shows the six roles, then one role: your staffer on top and the
+// candidates as three cards you tap to hire. Letting someone go mid-contract (or hiring over them) asks first: it costs
+// a buyout.
+// ============================================================================
+const STAFF_KIT = ['#2B3A5C', '#C9D3E8']; // the staff's polo (their portraits)
+function staffDef(s) { return { name: s.name, look: s.look, age: s.age || 36 + (hashString('age:' + s.name) % 24) }; }
+function staffPortrait(ctx, s, x, y, size) { try { drawPortrait(ctx, staffDef(s), STAFF_KIT, x, y, size, 'neutral'); } catch (e) { /* decoration */ } }
+function staffPct(x) { return (Math.round(x * 1000) / 10) + '%'; }
+// What a staffer ({ role, tier, pers }) does: the card's full line, or the candidates' short one. A skills coach names
+// your two skills when `picks` is given.
+function staffWhat(s, opts) {
+  const role = s.role, t = s.tier | 0, pers = s.pers, o = opts || {}, short = !!o.short, pc = staffPct; if (!t) return '';
+  if (role === 'agent') return '+' + pc(staffRaiseFor(t, pers)) + ' on contracts' + (short ? (t >= SF.agentOfferAt ? ' · a 4th FA offer' : '') : ' · ' + pc(staffCutFor(t, pers)) + ' of your pay' + (t >= SF.agentOfferAt ? ' · a 4th club in free agency' : '') + (t >= SF.agentSponsorAt ? ' · more sponsors · quiet trade requests' : '') + (pers === 'shady' ? ' · scandals' : ''));
+  if (role === 'skills') return '+' + pc(SF.skillsXp[t]) + ' XP in ' + (short ? 'two skills' : o.picks ? o.picks.map(k => RATING_LONG[k]).join(' and ') : 'your two skills') + (t >= SF.movesEarlyAt ? (short ? ' · moves sooner' : ' · signature moves a step sooner') : '') + (short ? '' : ' · pregame scouting tips');
+  if (role === 'strength') return 'Fatigue −' + SF.strengthRegen[t] + ' a week' + (SF.strengthCaps[t] ? (short ? ' · ceilings +' : ' · Speed, Hops and Strength ceilings +') + SF.strengthCaps[t] : short ? '' : ' · higher ceilings from 4★');
+  if (role === 'physio') return (short ? 'Injuries −' : 'Injury risk −') + pc(SF.physioInjury[t]) + (SF.physioFaster[t] ? ' · back ' + SF.physioFaster[t] + ' game' + (SF.physioFaster[t] > 1 ? 's' : '') + ' sooner' : '') + (short ? '' : ' · lasting losses −' + pc(SF.physioLoss[t]));
+  if (role === 'nutrition') return (short ? 'Fatigue −' + pc(SF.nutritionFatigue[t]) : 'Games tire you ' + pc(SF.nutritionFatigue[t]) + ' less') + (SF.nutritionAging[t] ? (short ? ' · legs +' + SF.nutritionAging[t] + ' yr' + (SF.nutritionAging[t] > 1 ? 's' : '') : ' · Speed and Hops fade ' + SF.nutritionAging[t] + ' year' + (SF.nutritionAging[t] > 1 ? 's' : '') + ' later') : '');
+  if (role === 'mental') return 'Confidence drops −' + pc(SF.mentalConf[t]) + ' · clutch +' + pc(SF.mentalClutch[t]) + (short ? '' : ' in the last 15 s · slumps end on a ' + SLUMP_LESSER[Math.max(0, SF.mentalSlump[t] - 1)] + ' game');
+  return '';
+}
+function staffHubSub(c) { const S = staffOf(c), n = STAFF_ROLES.filter(r => S[r]).length, up = STAFF_ROLES.some(r => S[r] && S[r].up); return up ? 'a contract is up' : n + ' of ' + STAFF_ROLES.length + ' hired'; } // the hub button's line
+function staffPayText(s) { return s.role === 'agent' ? staffPct(staffCutFor(s.tier, s.pers)) + ' cut' : fmtMoney(s.salary) + ' a season'; }
+function staffStars(t) { return '★'.repeat(t) + '☆'.repeat(5 - t); }
+// The Office's summary (its Staff tab).
+function drawStaffSummary(ctx, ui, c, x, y, w, P) {
+  const S = staffOf(c), fs = P ? 18 : 14, rh = P ? 46 : 40; ui.label(ctx, 'Salaries ' + fmtMoney(staffSeasonCost(c)) + ' a season · fame ' + Math.round(c.me.fame || 0) + ': up to ' + staffMaxTier(c) + '★ will talk to you', x, y, fs, UI_TEXT, 'left', w);
+  STAFF_ROLES.forEach((r, i) => { const s = S[r], yy = y + 40 + i * rh; ui.label(ctx, STAFF_INFO[r][0], x, yy, fs, UI_CYAN, 'left', w * 0.3); ui.label(ctx, s ? s.name + ' ' + staffStars(s.tier) + ' · ' + staffPayText(s) + (s.up ? ' · contract up' : '') : 'Open', x + w * 0.32, yy, fs, s ? (s.up ? UI_ORANGE : UI_TEXT) : UI_DIM, 'left', w * 0.68); });
+}
+// A phone's candidate: a card you tap to hire (the label says Hire, Hire instead, or what you still need).
+function staffCandCard(ctx, ui, w, focused, p) {
+  kitButton(ctx, w, focused, ui.t); const lip = kitBtnLip(w), dis = w.enabled === false, ink = dis ? 'rgba(243,240,255,0.6)' : UI_TEXT, pi = STAFF_PERS_INFO[p.pers] || [''], tx = w.x + 122, tw = w.x + w.w - 14 - tx;
+  staffPortrait(ctx, p, w.x + 14, w.y + 14, 96); ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillStyle = ink; fitFont(ctx, p.name, tw, 20, true); ctx.fillText(p.name, tx, w.y + 32);
+  ui.heading(ctx, staffStars(p.tier), tx, w.y + 62, 18, dis ? UI_DIM : UI_GOLD, 'left'); ctx.fillStyle = ink; fitFont(ctx, pi[0], tw, 17, false); ctx.fillText(pi[0], tx, w.y + 92);
+  ctx.fillStyle = ink; fitFont(ctx, staffPayText(p), w.w - 32, 19, true); ctx.fillText(staffPayText(p), w.x + 16, w.y + 136);
+  const eh = ui.para(ctx, staffWhat(p, { short: true }), w.x + 16, w.y + 166, w.w - 32, 16, dis ? 'rgba(243,240,255,0.5)' : '#C8FFD6', 'left', 2); if (w.h - lip - 54 - (166 + eh) > 30) ui.para(ctx, pi[1] || '', w.x + 16, w.y + 166 + eh + 8, w.w - 32, 15, dis ? 'rgba(243,240,255,0.45)' : 'rgba(243,240,255,0.8)', 'left', Math.max(1, Math.min(2, Math.floor((w.h - lip - 54 - (166 + eh) - 8) / 22))));
+  ctx.fillStyle = 'rgba(8,12,36,0.35)'; ctx.fillRect(w.x + 10, w.y + w.h - lip - 54, w.w - 20, 44); ctx.textAlign = 'center'; ctx.fillStyle = dis ? UI_DIM : UI_GOLD; fitFont(ctx, w.label.toUpperCase(), w.w - 40, 22, true); ctx.fillText(w.label.toUpperCase(), w.x + w.w / 2, w.y + w.h - lip - 31);
+}
+function staffScreen(game, role0) {
+  const c = careerOf(game); if (!c || !staffIsPro(c)) return mainMenu(game); const S = staffOf(c), P = game.ui.phone, st = game.staffTab || (game.staffTab = { role: 'skills', view: 'list' }); if (role0) { st.role = role0; st.view = 'role'; } if (!STAFF_ROLES.includes(st.role)) st.role = 'skills';
+  const refresh = () => { game.save.save(); game.ui.replace(staffScreen(game)); }, role = st.role, cur = S[role], pool = staffPool(c, role), top = staffMaxTier(c), info = STAFF_INFO[role], items = [];
+  const ask = (text, go) => { if (!text) { go(); refresh(); return; } game.ui.push(confirmScreen(game, text, () => { go(); refresh(); })); }; // a buyout asks first
+  const back = btn('Back', 40, 650, 200, 48, () => { if (P && st.view === 'role') { st.view = 'list'; refresh(); return; } game.ui.pop(); });
+  // the six roles (the one you're looking at is gold)
+  const roleBtns = STAFF_ROLES.map(r => Object.assign(btn(STAFF_INFO[r][0], 0, 0, 0, 0, () => { st.role = r; st.view = 'role'; refresh(); }), { kind: 'custom', role: r, draw(ctx, focused, ui) {
+    const s = S[r], on = r === role && !P; this.primary = on; kitButton(ctx, this, focused, ui.t); const lip = kitBtnLip(this), ps = this.h - lip - 14, mid = this.y + (this.h - lip) / 2, ink = on ? UI_INK : UI_TEXT;
+    if (s) staffPortrait(ctx, s, this.x + 9, this.y + 7, ps); const tx = this.x + (s ? ps + 22 : 18), tw = this.x + this.w - 14 - tx;
+    ui.heading(ctx, this.label, tx, mid - (P ? 19 : 14), P ? 22 : 17, ink, 'left', tw); ui.label(ctx, s ? (s.up ? 'Contract up: re-sign?' : s.name + ' ' + staffStars(s.tier)) : 'Open · hire one', tx, mid + (P ? 19 : 14), P ? 18 : 14, on ? UI_INK : s ? (s.up ? UI_ORANGE : UI_GOLD) : UI_DIM, 'left', tw); } }));
+  // your staffer: re-sign or let go (a contract that's up), let go (a buyout) or part ways (the agent); the skills coach's two skills
+  const buy = cur ? staffBuyout(c, role) : 0;
+  const fire = cur ? btn(cur.up ? 'Let them go' : role === 'agent' ? 'Part ways' : 'Let go', 0, 0, 0, 0, () => ask(buy ? 'Let ' + cur.name + ' go? Their buyout is ' + fmtMoney(buy) + '.' : '', () => staffFire(c, role))) : null;
+  const resign = cur && cur.up ? btn(role === 'agent' ? 'Re-sign' : 'Re-sign · ' + fmtMoney(staffResignPay(cur)), 0, 0, 0, 0, () => { staffResign(c, role); refresh(); }, { primary: true }) : null;
+  const skillKeys = RATING_KEYS.filter(k => !PHYS_KEYS.includes(k)), picks = role === 'skills' && cur && !cur.up ? [0, 1].map(j => sel('Skill ' + (j + 1), 0, 0, 0, 0, skillKeys.map(k => RATING_LONG[k]), () => Math.max(0, skillKeys.indexOf(S.picks[j])), v => { const k = skillKeys[v]; if (S.picks[1 - j] === k) S.picks[1 - j] = S.picks[j]; S.picks[j] = k; game.save.save(); })) : [];
+  // the candidates
+  const why = p => p.tier > top ? 'Needs fame ' + SF.fameFor[p.tier] : p.role !== 'agent' && (c.me.money || 0) < p.salary ? 'Needs ' + fmtMoney(p.salary) : '';
+  const hires = pool.map((p, i) => { const ok = staffCanHire(c, p); return Object.assign(btn(ok ? (cur ? 'Hire instead' : 'Hire') : why(p), 0, 0, 0, 0, () => { if (staffCanHire(c, p)) ask(buy ? 'Hire ' + p.name + '? ' + cur.name + ' leaves: a ' + fmtMoney(buy) + ' buyout.' : '', () => staffHire(c, role, i)); }, { enabled: ok }), P ? { kind: 'custom', cand: p, draw(ctx, focused, ui) { staffCandCard(ctx, ui, this, focused, p); } } : { cand: p }); });
+  const mine = cur && cur.up ? [fire, resign] : picks.concat(fire ? [fire] : []);
+  // layout
+  const L = { x: 464, w: 776, cardY: 100, cardH: 236, candY: 352, rowH: 84, gap: 8 }, by = L.cardY + L.cardH - 54; let focus0 = -1, bar = 0;
+  if (!P) { roleBtns.forEach((b, i) => Object.assign(b, { x: 40, y: 100 + i * 88, w: 404, h: 80 }));
+    let rx = L.x + L.w - 16; if (resign) { Object.assign(resign, { x: rx - 250, y: by, w: 250, h: 42 }); rx -= 262; } if (fire) Object.assign(fire, { x: rx - 196, y: by, w: 196, h: 42 });
+    picks.forEach((s2, j) => Object.assign(s2, { x: L.x + 16 + j * 272, y: by, w: 260, h: 42 }));
+    hires.forEach((h, i) => Object.assign(h, { x: L.x + L.w - 216, y: L.candY + 20 + i * (L.rowH + L.gap) + (L.rowH - 48) / 2, w: 200, h: 48 }));
+    items.push(...roleBtns, ...mine, ...hires, back); focus0 = items.indexOf(roleBtns[STAFF_ROLES.indexOf(role)]); }
+  else if (st.view === 'list') { items.push(...roleBtns, back); phoneGrid(game.ui, roleBtns, 40, 104, 1200, 2, 0, 12); phoneBar(game.ui, [back], [1], 40, 300); }
+  else { bar = phoneBar(game.ui, [back].concat(mine), [0.8].concat(mine.map(b => b === fire ? 1.3 : 1.1)), 40, 1200); const cy = 248, cw = (1200 - 24) / 3; hires.forEach((h, i) => Object.assign(h, { x: 40 + i * (cw + 12), y: cy, w: cw, h: bar - 12 - cy })); items.push(...hires, ...mine, back); }
+  const pay = (c.me.contract && c.me.contract.salary) || 0, note = role === 'agent' ? 'Agents take a cut, no salary' : 'Needs a season\'s pay in the bank';
+  return { widgets: items, name: 'staff', focus: focus0 >= 0 ? focus0 : null, onBack() { back.onPress(); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 20, 14, 1240, 692); const sub = 'Salaries ' + fmtMoney(staffSeasonCost(c)) + ' a season of your ' + fmtMoney(pay) + ' · up to ' + top + '★ at fame ' + Math.round(c.me.fame || 0);
+      if (P && st.view === 'role') ui.title(ctx, info[0].toUpperCase(), 44, 50, 34); else ui.title(ctx, 'STAFF', 44, P ? 52 : 56, P ? 34 : 38);
+      if (!P) ui.label(ctx, sub, 1236, 56, 14, UI_DIM, 'right', 760); else if (st.view === 'list') { ui.label(ctx, sub, 44, 88, 17, UI_DIM, 'left', 1190); return; }
+      const pi = cur ? STAFF_PERS_INFO[cur.pers] || ['', ''] : null, contract = cur ? staffPayText(cur) + ' · ' + (cur.up ? 'contract up: re-sign or let go' : cur.years + ' season' + (cur.years > 1 ? 's' : '') + ' left' + (buy ? ' · buyout ' + fmtMoney(buy) : '')) : '', what = cur ? staffWhat(cur, { picks: role === 'skills' ? S.picks : null }) : '';
+      if (!P) { // the card: your staffer, or what the job does
+        kitPanel(ctx, L.x, L.cardY, L.w, L.cardH, 'rgba(8,12,36,0.55)'); ui.heading(ctx, info[0].toUpperCase(), L.x + 16, L.cardY + 22, 18, UI_GOLD, 'left', 400);
+        if (cur) { staffPortrait(ctx, cur, L.x + 16, L.cardY + 42, 96); const tx = L.x + 128, tw = L.w - 144; ui.heading(ctx, cur.name + '  ' + staffStars(cur.tier), tx, L.cardY + 54, 17, UI_TEXT, 'left', tw);
+          ui.label(ctx, pi[0] + ': ' + pi[1], tx, L.cardY + 80, 13, UI_CYAN, 'left', tw); ui.label(ctx, contract, tx, L.cardY + 102, 13, cur.up ? UI_ORANGE : UI_DIM, 'left', tw); ui.para(ctx, what, tx, L.cardY + 124, tw, 13, UI_GREEN, 'left', 3); }
+        else { ui.heading(ctx, 'Nobody has the job.', L.x + 16, L.cardY + 56, 16, UI_TEXT, 'left', L.w - 32); ui.para(ctx, info[2], L.x + 16, L.cardY + 84, L.w - 32, 14, UI_DIM, 'left', 3); }
+        ui.heading(ctx, 'WHO WILL TALK TO YOU', L.x, L.candY + 6, 14, UI_CYAN, 'left', 300); ui.label(ctx, note, L.x + L.w, L.candY + 6, 13, UI_DIM, 'right', 460);
+        pool.forEach((p, i) => { const y = L.candY + 20 + i * (L.rowH + L.gap), tx = L.x + 88, tw = L.w - 216 - 12 - 88, ppi = STAFF_PERS_INFO[p.pers] || [''];
+          kitPanel(ctx, L.x, y, L.w, L.rowH, 'rgba(8,12,36,0.45)'); staffPortrait(ctx, p, L.x + 8, y + 8, 68);
+          ui.heading(ctx, p.name + '  ' + staffStars(p.tier), tx, y + 20, 15, p.tier > top ? UI_DIM : UI_TEXT, 'left', tw); ui.label(ctx, ppi[0] + ' · ' + staffPayText(p), tx, y + 42, 13, UI_CYAN, 'left', tw); ui.label(ctx, staffWhat(p, { short: true }), tx, y + 64, 12, UI_GREEN, 'left', tw); });
+        return; }
+      // a phone's role: your staffer on top, the candidates' cards under it
+      if (cur) { staffPortrait(ctx, cur, 44, 80, 104); const tx = 164, tw = 1236 - tx; ui.heading(ctx, cur.name + '  ' + staffStars(cur.tier), tx, 94, 22, UI_TEXT, 'left', tw);
+        ui.label(ctx, pi[0] + ': ' + pi[1], tx, 122, 16, UI_CYAN, 'left', tw); ui.label(ctx, contract, tx, 146, 16, cur.up ? UI_ORANGE : UI_DIM, 'left', tw); ui.para(ctx, what, tx, 170, tw, 16, UI_GREEN, 'left', 2); }
+      else { ui.heading(ctx, 'Nobody has the job.', 44, 100, 22, UI_TEXT, 'left', 1190); ui.para(ctx, info[2], 44, 134, 1190, 17, UI_DIM, 'left', 3); }
+      ui.heading(ctx, 'WHO WILL TALK TO YOU', 44, 230, 17, UI_CYAN, 'left', 420); ui.label(ctx, note, 1236, 230, 16, UI_DIM, 'right', 740);
+    } };
+}
+
+// ============================================================================
 // SECTION: UI (part 12) — R7 the pros and your money: the negotiation (free agency: the years, the role, the money),
 // the epilogue (what your money builds when you retire) and the net-worth leaderboard of every career.
 // ============================================================================
@@ -15268,7 +15529,7 @@ function negotiateScreen(game, i) {
     if (!P) drawTeamCard(ctx, club, 60, 100, 300, 110, true, null); const tx = P ? 60 : 390; ui.heading(ctx, club.name.toUpperCase(), tx, P ? 110 : 124, 24, UI_TEXT); kitChip(ctx, proOfferKind(o).toUpperCase(), P ? 1236 : tx, P ? 52 : 160, { size: 14, color: o.kind === 'best' || o.kind === 'big' ? UI_CYAN : o.kind === 'starter' ? UI_GREEN : UI_GOLD, align: P ? 'right' : 'left' }); { ctx.font = fontStr(14, true); const kw = ctx.measureText(proOfferKind(o).toUpperCase()).width + 30; drawStarsTxt(ctx, o.stars || frStars(c, o.club), P ? 1236 - kw - 10 : tx + kw + 10, P ? 52 : 160, 18, P ? 'right' : 'left'); } /* F7 */
     const lines = ['Facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) + ' (practice XP +' + Math.round(CR.facilityBonus * 100 * (o.facilities - 1)) + '%) · home court ' + clubCourt(o.club).short, o.kind === 'best' || o.kind === 'big' ? 'The best franchise that wants you (' + (o.stars || frStars(c, o.club)) + '★): fame ×' + FRN.fameByStars[(o.stars || frStars(c, o.club)) - 1] + ', pay ×' + FRN.payByStars[(o.stars || frStars(c, o.club)) - 1] + '. You compete for the start with a deeper bench.' : o.kind === 'starter' ? 'A franchise a star lower that promises you the start: first on the depth chart every season of the deal.' : o.promised ? 'You start here now; the deal keeps it that way every season.' : 'You compete for the start on the depth chart.'];
     let y = P ? 150 : 200; for (const l of lines) y += ui.para(ctx, l, tx, y, P ? 1160 : 820, P ? 17 : 15, UI_DIM) + 4;
-    const sy = P ? 250 : c.me.agent ? 494 : 520; ui.heading(ctx, fmtMoney(sal) + ' A SEASON', P ? 60 : 860, sy, P ? 30 : 34, UI_GOLD); ui.label(ctx, st.years + ' season' + (st.years > 1 ? 's' : '') + ' · ' + fmtMoney(sal * st.years) + ' in all', P ? 60 : 860, sy + 34, 15, UI_TEXT, 'left', P ? 1160 : 380); if (c.me.agent) ui.para(ctx, 'Your agent got this deal +' + Math.round(CO.agentRaise * 100) + '%. Their fee: ' + Math.round(CO.agentFee * 100) + '% of each check.', P ? 660 : 860, P ? sy - 8 : sy + 58, P ? 560 : 380, P ? 15 : 13, UI_DIM, 'left', 2); /* V1 (§1.10): two lines, never cut short (a phone: beside the pay) */
+    const sy = P ? 250 : c.me.agent ? 494 : 520; ui.heading(ctx, fmtMoney(sal) + ' A SEASON', P ? 60 : 860, sy, P ? 30 : 34, UI_GOLD); ui.label(ctx, st.years + ' season' + (st.years > 1 ? 's' : '') + ' · ' + fmtMoney(sal * st.years) + ' in all', P ? 60 : 860, sy + 34, 15, UI_TEXT, 'left', P ? 1160 : 380); if (c.me.agent) ui.para(ctx, 'Your agent got this deal +' + Math.round(staffAgentRaise(c) * 100) + '%. Their cut: ' + Math.round(staffAgentCut(c) * 100) + '% of each check.', /* V10: by tier */ P ? 660 : 860, P ? sy - 8 : sy + 58, P ? 560 : 380, P ? 15 : 13, UI_DIM, 'left', 2); /* V1 (§1.10): two lines, never cut short (a phone: beside the pay) */
     if (!P) ui.para(ctx, 'Longer deals pay a little less each season (security); shorter ones pay more but you negotiate again sooner. ' + (o.maxYears < 5 ? 'At ' + meOf(c).age + ' clubs offer ' + o.maxYears + ' seasons at most.' : ''), 60, 470, 620, 14, UI_DIM);
   } };
 }
@@ -15376,7 +15637,7 @@ function stChoose(c, ev, i) {
   if (fx.fragile) { B.fragile = fx.fragile; out.push('Injury risk ×' + SY.rushInjury + ' for ' + fx.fragile + ' weeks'); }
   if (fx.tour) { B.tour = c.season; out.push('The farewell tour: you retire after this season'); }
   if (fx.gpa) { const g0 = B.gpa || 0; B.gpa = Math.round(clamp(g0 + fx.gpa, 0, 4) * 100) / 100; out.push('GPA ' + (fx.gpa > 0 ? '+' : '−') + Math.abs(fx.gpa) + ' → ' + B.gpa.toFixed(2)); } // V9: an exam week
-  if (ev.exam) for (const l of schoolExamDone(c, ev)) out.push(l); if (ev.major) for (const l of schoolMajorDone(c, ev, i)) out.push(l); /* V9: the report card follows the pick; the major */
+  if (ev.exam) for (const l of schoolExamDone(c, ev)) out.push(l); if (ev.major) for (const l of schoolMajorDone(c, ev, i)) out.push(l); /* V9: the report card follows the pick; the major */ if (ev.staff) for (const l of staffChoose(c, ev, i)) out.push(l); /* V10: a rival's call, a scandal */
   if (ev.saga) for (const l of sagaChoose(c, ev, i)) out.push(l); /* V7: the saga's meters and flags */
   ev.outcome = out; return out;
 }
@@ -15587,7 +15848,7 @@ function gearScreen(game) {
 // numbers (read from CONFIG, so the guide never drifts from the rules) and how to move it. From the Career menu, the
 // amateur Stats screen and How to play (general, when there is no career).
 // ============================================================================
-const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['moves', 'Moves'], ['season', 'The season'], ['buzz', 'Hype, fame, confidence'], ['story', 'The story'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']]; // (V4: the move list; V5: the season)
+const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['moves', 'Moves'], ['season', 'The season'], ['buzz', 'Hype, fame, confidence'], ['story', 'The story'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school'], ['staff', 'Your staff']]; // (V4: the move list; V5: the season; V10: the staff)
 function guidePct(x, d) { let s = (x * 100).toFixed(d == null ? 1 : d); if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s + '%'; } // 0.0004 → 0.04%, 0.008 → 0.8%
 function guidePts(p) { return p[0] === p[1] ? p[0] + ' point' + (p[0] === 1 ? '' : 's') : p[0] + '–' + p[1] + ' points'; } // V6: an injury's lasting cost, [min, max]
 // The entries of one topic for career c (or none): { title, value, lines: [[text, color]] }.
@@ -15635,7 +15896,7 @@ function guideEntries(game, topic) {
   if (topic === 'body') {
     const fa = B ? B.fatigue || 0 : 0, cut = fatigueCut(fa), ch = WK.injuryBase + WK.injuryPerFatigue * fa;
     add('Fatigue', c ? Math.round(fa) + ' / 100' : '', ['Above ' + WK.fatigueFreeAt + ', every rating drops by (fatigue − ' + WK.fatigueFreeAt + ')% in games' + (c ? ' (now: ' + (cut > 0 ? '−' + guidePct(cut, 0) : 'none') + ').' : '.'), 'A game adds ' + WK.fatiguePerGame + (B && gearRegen(B) ? ' (your recovery kit takes ' + gearRegen(B) + ' off)' : '') + '; a Rest week takes ' + WK.restFatigue + ' off; a week on the bench, ' + TM.benchRecovery + '.']);
-    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. Ankle braces, nutrition & physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.', 'An injury can also cost rating points for good: a 1-game knock ' + guidePct(WK.injuryLoss.odds[0], 0) + ' of the time (' + guidePts(WK.injuryLoss.pts[0]) + '), 2 games ' + guidePct(WK.injuryLoss.odds[1], 0) + ' (' + guidePts(WK.injuryLoss.pts[1]) + '), 3 games ' + guidePct(WK.injuryLoss.odds[2], 0) + ' (' + guidePts(WK.injuryLoss.pts[2]) + '): Speed for an ankle, a hamstring or a foot, Hops for a knee or a calf. Nutrition & physio cut those odds too.']);
+    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. Ankle braces, a physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.', 'An injury can also cost rating points for good: a 1-game knock ' + guidePct(WK.injuryLoss.odds[0], 0) + ' of the time (' + guidePts(WK.injuryLoss.pts[0]) + '), 2 games ' + guidePct(WK.injuryLoss.odds[1], 0) + ' (' + guidePts(WK.injuryLoss.pts[1]) + '), 3 games ' + guidePct(WK.injuryLoss.odds[2], 0) + ' (' + guidePts(WK.injuryLoss.pts[2]) + '): Speed for an ankle, a hamstring or a foot, Hops for a knee or a calf. A physio cuts those odds too.']);
     add('Slumps', B && B.slump && B.slump.on ? 'in a slump' : '', [MD.slump.games + ' games graded D or F in a row is a slump: confidence drops to ' + MD.slump.conf + ' and Shooting ' + MD.slump.sho + ' until a game graded B or better. Ice Veins never slumps.']); // V6 (Part 2 §1.2)
     add('Gear', B ? gearSummary(B) || 'none yet' : '', ['Six pieces in the gear shop (Team → Gear shop; in the pros, the Office): +' + GEAR.rating + ' a level to one rating in games, fewer injuries, less fatigue.', 'Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']);
   }
@@ -15658,6 +15919,17 @@ function guideEntries(game, topic) {
       add('College offers and money', c && c.stage === 'college' ? (c.scholarship === 'full' ? 'full ride' : c.scholarship === 'lost' ? 'no scholarship' : 'partial') : '', ['Every program has a GPA line: blue bloods ' + R.blue.toFixed(1) + ', elite academic programs ' + R.academic.toFixed(1) + ', everyone else ' + R.other.toFixed(1) + '. No offer comes under it, and a report card under it pulls one. Elite academic programs bring more exposure (×' + SCH.academicExposure + ') and NIL (×' + SCH.academicNil + ').', 'A full ride takes a ' + SCH.fullRideGpa.toFixed(1) + ' and ' + SCH.fullRideStars + '★ at commitment. Otherwise you pay ' + Math.round(SCH.partialShare * 100) + '% of $' + SCH.tuition.toLocaleString() + ' tuition every college season; short of cash, it\'s a student loan: what you have at the draft pays it, then your first paychecks.', 'Your major (picked at commitment) and a degree (' + SCH.degreeYears + ' college years, or summer classes in the pros at ' + fmtMoney(SCH.summerCost) + ') open the best endings: Kinesiology a head coach, Communications the national booth, Business the front office.']); }
     if (pro) { const D = schoolDegreeOf(c) || {}; add('Your degree', D.years >= SCH.degreeYears ? 'graduated' : (D.years || 0) + ' of ' + SCH.degreeYears + ' years', ['Summer classes in the offseason: ' + fmtMoney(SCH.summerCost) + ' for a year toward the degree (one a summer); practice XP −' + Math.round(-SCH.summerXp[0] * 100) + '% for the first ' + SCH.summerXp[1] + ' weeks of the season. Your college seasons count.', 'A degree opens the best version of an ending: Kinesiology a head coach, Communications the national booth, Business the front office (an elite academic school opens the last two).']); } /* V9 */
     add('Legacy and the Hall of Fame', pro ? String(Math.round(legacyOf(c).score)) : '', ['Titles, MVPs, All-League teams, seasons and points add up to your legacy score; ' + CR.hofScore + ' gets you into the Hall of Fame.', 'About 1 career in 12 makes it.']);
+  }
+  if (topic === 'staff') { // V10 (Part 2 §4): six roles, their numbers by tier (1★–5★), read from CONFIG
+    const T5 = (arr, f) => arr.slice(1).map(f || (x => x)).join('/'), P5 = arr => T5(arr, x => guidePct(x).replace('%', '')) + '%', S = pro ? staffOf(c) : null, mine = r => S && S[r] ? S[r].name + ' ' + S[r].tier + '★' : pro ? 'open' : '';
+    add('Your staff', pro ? STAFF_ROLES.filter(r => S[r]).length + ' of ' + STAFF_ROLES.length + ' hired' : 'in the pros', [(pro ? 'Six roles, one person each: an' : 'In the pros: an') + ' agent, a skills coach, a strength trainer, a physio, a nutritionist and a mental coach' + (pro ? '' : ' (your college agent comes along)') + '. Better staff talk to you as your fame grows: 1–2★ always, ' + [3, 4, 5].map(k => k + '★ at fame ' + SF.fameFor[k]).join(', ') + '.', 'Hiring takes a season\'s salary in the bank: about ' + T5(SF.salary, fmtMoney) + ' a season (1★–5★; Loyal ×' + SF.loyalSalary + ', Ambitious ×' + SF.ambitiousSalary + '). Contracts run ' + SF.years + ' seasons, then re-sign at +' + guidePct(SF.raise, 0) + ' unless you let them go; letting someone go early costs ' + guidePct(SF.buyout, 0) + ' of a season\'s salary.']);
+    add('Agent', mine('agent'), ['Contracts +' + P5(SF.agentRaise) + ' (1★–5★) for a cut of ' + P5(SF.agentCut) + ' of your salary and sponsors, no salary. ' + SF.agentOfferAt + '★+: a 4th free-agency offer. ' + SF.agentSponsorAt + '★+: more sponsor offers, and they handle a trade request (no hype lost).', 'Shark: +' + guidePct(SF.sharkRaise, 0) + ' more, and +' + guidePct(SF.sharkCut, 0) + ' on the cut. Loyal: −' + guidePct(SF.loyalCut, 0) + ' on the cut. Shady: +' + guidePct(SF.shadyRaise, 0) + ' more, and a scandal can hit.']);
+    add('Skills coach', mine('skills'), ['+' + P5(SF.skillsXp) + ' XP (1★–5★) in the two skills you pick (Shooting, Finishing, Handles, Defense), from games and practice. ' + SF.movesEarlyAt + '★+: signature moves unlock ' + SF.movesEarly + ' rating points sooner. Every tier: scouting tips before your games.']);
+    add('Strength trainer', mine('strength'), ['Fatigue −' + T5(SF.strengthRegen) + ' a week (1★–5★). Speed, Hops and Strength ceilings ' + [4, 5].map(k => '+' + SF.strengthCaps[k] + ' at ' + k + '★').join(', ') + '.']);
+    add('Physio', mine('physio'), ['Injury risk −' + P5(SF.physioInjury) + ' (1★–5★); injuries end ' + T5(SF.physioFaster) + ' games sooner (never under one game); the odds an injury costs rating points −' + P5(SF.physioLoss) + '.']);
+    add('Nutritionist', mine('nutrition'), ['Fatigue from games −' + P5(SF.nutritionFatigue) + ' (1★–5★). Speed and Hops start to fade ' + [3, 5].map(k => SF.nutritionAging[k] + ' year' + (SF.nutritionAging[k] > 1 ? 's' : '') + ' later from ' + k + '★').join(', ') + ' (your skills age as before).']);
+    add('Mental coach', mine('mental'), ['Confidence drops −' + P5(SF.mentalConf) + ' (1★–5★); +' + P5(SF.mentalClutch) + ' on your shots in the last 15 seconds; a slump ends on a ' + SLUMP_LESSER[0] + ' game (' + SF.mentalSlump.findIndex(x => x >= 2) + '★+: a ' + SLUMP_LESSER[1] + ').']);
+    add('Calls and scandals', '', ['Halfway through a season a rival club may call a 3★+ staffer (' + guidePct(SF.poachOdds, 0) + ', Ambitious twice as often, Loyal never): match their offer (+' + guidePct(SF.poachRaise, 0) + ' salary) or let them go.', 'A shady agent can make the news (' + guidePct(SF.scandalOdds, 0) + ' a season): stand by them (hype −' + SF.scandalHype + ') or fire them (hype −' + Math.round(SF.scandalHype / 2) + ').']);
   }
   return out;
 }
@@ -16302,7 +16574,7 @@ function dialogScreen(game, c, ev, done, opts) {
   const last = () => page >= nPages - 1;
   const next = btn('▼', 0, 0, 0, 0, () => { page++; shown = reduce ? 1e9 : 0; relayout(); }); // the buttons always act; a tap anywhere else finishes the typing
   const cont = btn('CONTINUE', 0, 0, 0, 0, () => done(), { primary: true });
-  const choices = (opts.options || (ev.choice || []).map((ch, i) => ({ label: ch.label, note: ch.note, pick: () => { stChoose(c, ev, i); game.save.save(); } }))).map(o => Object.assign(btn(o.label, 0, 0, 0, 0, () => { finish(); o.pick(); if (opts.options) { game.save.save(); done(); return; } relayout(); }), { note: o.note, kind: 'custom', draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); const tight = !P && this.h < 100; /* V9: four answers' shorter buttons */ ui.label(ctx, this.label, this.x + 22, this.y + (this.note ? (P ? 30 : tight ? 18 : 22) : this.h / 2), P ? 24 : 16, UI_TEXT, 'left', this.w - 44); if (this.note) { const ny = P ? 56 : tight ? 36 : 42; ctx.font = fontStr(P ? 19 : 12, false); const lh = Math.max(P ? 22 : 15, rbLineH(ctx)); ui.para(ctx, this.note, this.x + 22, this.y + ny, this.w - 44, P ? 19 : 12, UI_GOLD, 'left', P ? 2 : Math.min(3, 1 + Math.max(0, Math.floor((this.h - ny - 16) / lh)))); } } /* V9: as many note lines as the button holds (the pixel font's lines are ~24 px) */ }));
+  const choices = (opts.options || (ev.choice || []).map((ch, i) => ({ label: ch.label, note: ch.note, pick: () => { stChoose(c, ev, i); game.save.save(); } }))).map(o => Object.assign(btn(o.label, 0, 0, 0, 0, () => { finish(); o.pick(); if (opts.options) { game.save.save(); done(); return; } relayout(); }), { note: o.note, kind: 'custom', draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); const tight = !P && this.h < 100; /* V9: four answers' shorter buttons */ ui.label(ctx, this.label, this.x + 22, this.y + (this.note ? (P ? 30 : tight ? 18 : 22) : this.h / 2), P ? 24 : 16, UI_TEXT, 'left', this.w - 44); if (this.note) { ctx.font = fontStr(P ? 19 : 12, false); const lh = Math.max(P ? 22 : 15, rbLineH(ctx)), ny = P ? 56 : tight ? 36 : rbWrap(ctx, this.note, this.w - 44).length <= 2 && this.h - 48 - 16 >= lh ? 48 : 42; /* V10: a short note sits a little lower, clear of the label */ ui.para(ctx, this.note, this.x + 22, this.y + ny, this.w - 44, P ? 19 : 12, UI_GOLD, 'left', P ? 2 : Math.min(3, 1 + Math.max(0, Math.floor((this.h - ny - 16) / lh)))); } } /* V9: as many note lines as the button holds (the pixel font's lines are ~24 px) */ }));
   const answered = () => !opts.options && ev.answered != null;
   function relayout() {
     const lastP = last(), ask = lastP && choices.length && !answered(); scr.asks = !!ask && !opts.options; laidTyping = typing(); next.hidden = lastP; cont.hidden = !lastP || ask; for (const b of choices) b.hidden = !ask || laidTyping;
