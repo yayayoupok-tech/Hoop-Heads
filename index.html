@@ -385,6 +385,15 @@ const CONFIG = {
     repeatAnkleMul: 0.5,       // spam halves the ankle chance
     repeatExposureMul: 2,      // spam doubles steal exposure
     biteJumpVel: 0.9,          // fraction of jump velocity used when a defender bites a fake
+    btbReach: 0.5,             // V4: a crossover turns into a Behind-the-back when a defender is within steal reach plus this (m)...
+    btbBurstMul: 1.2,          // ...its burst lasts this much longer (the ball can't be poked while it goes behind the back)
+    snatchWindowMs: 260,       // V4: the Snatch-back: press Move again within this much of a crossover's burst to spin out of it...
+    snatchAnkleMul: 1.5,       // ...the spin's ankle-breaker chance × this...
+    snatchQuickS: 0.6,         // ...and the quick step-back gather is ready for this long after it (s)
+    reverseShield: 0.5,        // V4: a Reverse dunk under a shot-blocker: the rim shields it (rim duel and dunk block chances × this)
+    reverseNear: 1.6,          // ...a defender within this of the rim, between you and it, makes the dunk a reverse (m)
+    pullupMinSpeed: 2.6,       // V4: a three at this speed or faster off the dribble is a Pull-up three (m/s)...
+    pullupWindowMul: 1.15,     // ...with the quick gather and this much wider a perfect window
   },
   ankle: {
     range: 1.4,                // defender must be within this (m)
@@ -546,11 +555,14 @@ const CONFIG = {
     playerBrainHz: 30,         // PlayerBrain update rate
     difficulties: {            // only the brain changes with difficulty
       rookie:  { reaction: 0.38, reactionJitter: 0.06, temperature: 1.0,  releaseSigma: 0.110, bite: 0.65, discipline: 0.15, help: 0.20, rebNoise: 0.12, moves: ['crossover'], memory: 0, anticipation: 0.3 },
-      pro:     { reaction: 0.26, reactionJitter: 0.04, temperature: 0.55, releaseSigma: 0.050, bite: 0.35, discipline: 0.30, help: 0.55, rebNoise: 0.07, moves: ['crossover', 'stepback', 'pumpfake', 'hesitation', 'lane'], memory: 0.5, anticipation: 0.6 },
-      allstar: { reaction: 0.19, reactionJitter: 0.03, temperature: 0.30, releaseSigma: 0.040, bite: 0.18, discipline: 0.40, help: 0.80, rebNoise: 0.04, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane'], memory: 1, anticipation: 0.8 },
-      legend:  { reaction: 0.13, reactionJitter: 0.02, temperature: 0.12, releaseSigma: 0.030, bite: 0.07, discipline: 0.50, help: 0.95, rebNoise: 0.02, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane'], memory: 1, rotations: true, readsMomentum: true, anticipation: 1 },
+      pro:     { reaction: 0.26, reactionJitter: 0.04, temperature: 0.55, releaseSigma: 0.050, bite: 0.35, discipline: 0.30, help: 0.55, rebNoise: 0.07, moves: ['crossover', 'stepback', 'pumpfake', 'hesitation', 'lane', 'euro'], memory: 0.5, anticipation: 0.6 },
+      allstar: { reaction: 0.19, reactionJitter: 0.03, temperature: 0.30, releaseSigma: 0.040, bite: 0.18, discipline: 0.40, help: 0.80, rebNoise: 0.04, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane', 'euro', 'snatch'], memory: 1, anticipation: 0.8 },
+      legend:  { reaction: 0.13, reactionJitter: 0.02, temperature: 0.12, releaseSigma: 0.030, bite: 0.07, discipline: 0.50, help: 0.95, rebNoise: 0.02, moves: ['crossover', 'stepback', 'pumpfake', 'spin', 'hesitation', 'lane', 'euro', 'snatch'], memory: 1, rotations: true, readsMomentum: true, anticipation: 1 },
     },
     tierOrder: ['rookie', 'pro', 'allstar', 'legend'], // ordered tiers for Adaptive and tournaments
+    euroChance: 0.7,           // V4: a bot that has the Euro-step (and the tier for it) uses it on a layup with a shot-blocker in front this often
+    euroBlockerDist: 1.8,      // ...a defender within this of the rim, between the bot and it (m)
+    snatchChance: 0.3,         // V4: a bot with the Snatch-back spins out of a crossover this often while the defender is still on it (× its Showman and move tendencies)
     adaptiveLead: 10,          // Adaptive shifts the brain when the human leads/trails by this
     adaptiveShift: 0.33,       // ...by up to this fraction of a tier
     spots: { dunker: 1.0, shortMid: 3.5, arc: 7.0, deepTop: 8.5 }, // spacing spot distances from the hoop (m)
@@ -698,6 +710,7 @@ const CONFIG = {
     },
   },
   fx: {
+    contestRingS: 0.6,         // V4 (2.0 §3): the contest ring around a shooter lasts this long after the release (s)
     hitStop: { dunk: 40, block: 60, ankle: 40 }, // hit-stop durations (ms) (F3: 70/90/50 before: every dunk stopped the game)
     slowMo: { duration: 0.2, scale: 0.6 },      // slow-mo on posterizers and clutch shots (F3: 0.35 s at 0.4× before)
     particleBudget: 400,       // max live particles
@@ -753,7 +766,9 @@ const CONFIG = {
   },
   ui: {
     hintUses: 2,               // hints fade after each action is used this many times
-    touchMinPx: 64,            // minimum touch button size (px)
+    touchMinPx: 64,            // minimum touch target in the menus (px)
+    touchGamePx: 80,           // V4 (2.0 §3: bigger phone buttons): the smallest in-game touch button (px; it was the menus' 64)
+    vibrate: { steal: 35, block: 50, dunk: [30, 40, 60] }, // V4: short vibrations on a touch screen (ms; a pattern for the dunk), where the device has them
     dprCap: 2,                 // devicePixelRatio cap
     kBias: 0.25,               // F4: the menus' pixel size rounds up only past .75 (at most ~12% bigger text than its layout, never 50%)
     designW: 1280,             // virtual UI width
@@ -828,7 +843,7 @@ const CONFIG = {
     aiGrowth: 0.45,            // young AI players close this fraction of the gap to their ceilings each offseason...
     aiGrowthAge: 27,           // ...up to this age
     aiRoom: [[21, 8, 20], [24, 5, 14], [27, 2, 8]], // AI ceilings: room above current ratings by age (up to age: min, max)
-    moveUnlocks: { hesitation: { han: 50 }, stepback: { any: [{ sho: 50 }, { han: 55 }] }, spin: { han: 60 }, euro: { fin: 60 }, dunk360: { jmp: 75 }, windmill: { jmp: 80 } }, // moves are learned by getting better
+    moveUnlocks: { hesitation: { han: 50 }, stepback: { any: [{ sho: 50 }, { han: 55 }] }, spin: { han: 60 }, euro: { fin: 70 }, dunk360: { jmp: 75 }, windmill: { jmp: 80 }, btb: { han: 70 }, snatch: { han: 80 }, reverse: { jmp: 80 }, pullup: { sho: 80 } }, // moves are learned by getting better (V4, 2.0 §3: the signature moves at 7 and 8: Behind-the-back han 70, Snatch-back han 80, Euro-step fin 70 (was 60), Reverse dunk jmp 80, Pull-up three sho 80)
     brands: [{ name: 'Zoomfruit', what: 'sports drink', base: 6000, perFame: 450 }, { name: 'Bouncehaus', what: 'sneaker', base: 10000, perFame: 700 }, { name: 'Glide Co.', what: 'headband', base: 3000, perFame: 250 }, { name: 'Rimrock Bars', what: 'snack', base: 4000, perFame: 300 }, { name: 'Nightowl Energy', what: 'energy drink', base: 5000, perFame: 400 }, { name: 'Loud Duck Audio', what: 'headphone', base: 4000, perFame: 350 }], // invented sponsors and weekly pay
     shoeColors: ['#FF4FA3', '#B8FF5A', '#8BE3FF', '#FFD23F'], // cosmetic shoe colors
     cosmeticCosts: { headband: 15000, sleeves: 15000, shoes: 25000, ballskin: 40000 }, // cosmetics prices ($)
@@ -1061,6 +1076,41 @@ const CONFIG = {
       unbreakable: { name: 'Unbreakable', r: 'L', icon: 'gem', what: 'Nothing slows you down. Not even time.', when: 'Always', up: { injury: -1, fatigue: -0.4, ageShift: 4 }, flavor: 'A rival who hates you: they say you\'re a machine, and they mean it as an insult (no effect on your numbers).' },
       iceveins: { name: 'Ice Veins', r: 'L', icon: 'snow', what: 'The last shot is the one you want.', when: 'The last 15 s of every game, and the playoffs', up: { last: 0.25, confHold: 1 }, flavor: 'The media calls you cold: robotic, they say (no effect on your numbers).' },
     },
+  },
+  scout: {                     // V4 (2.0 §3): opponent scouting and AI variety. Every career opponent has a personality and four
+                               // tendencies (two with the ball, two on defense). The scouting card before a game shows the personality,
+                               // their traits, two tendencies (all four after a Film week), their weakness and one tip, and the bots play
+                               // to what the card says: each tendency multiplies the value of one of the AI's options.
+    shown: 2,                  // tendencies on the card (one with the ball, one on defense)...
+    filmShown: 4,              // ...and after a Film week on this opponent (Film Junkie: always)
+    persByArch: 0.6,           // a career opponent's personality follows their build this often (otherwise any of the four)
+    archPers: { sharpshooter: 'gunner', slasher: 'showman', playmaker: 'showman', postscorer: 'bully', rimprotector: 'bully', lockdown: 'lockdown' }, // the personality a build leans to (Quick Play bots always take it)
+    pers: {                    // the four personalities: what the card says, the brain's multipliers (sag in m) and the tendencies each leans to
+      lockdown: { name: 'Lockdown', what: 'Defense first. Patient with the ball, and never gambles.', ai: { discipline: 0.1, bite: -0.1, sag: -0.15, closeout: 1.2, reset: 1.3, three: 0.95 }, pool: { pullup: 2, fade: 1.5, pumpfake: 1.5, rim: 1, stepback3: 1, post: 1, shake: 0.5, presser: 3, rimguard: 2, sagger: 1, biter: 0.4, gambler: 0 } },
+      gunner: { name: 'Gunner', what: 'Shoots early and often, from anywhere.', ai: { three: 1.25, mid: 1.15, drive: 0.85, move: 0.9, fade: 1.2, planThree: 0.15 }, pool: { stepback3: 3, pullup: 3, fade: 2, pumpfake: 1.5, shake: 1, rim: 0.3, post: 0.3, sagger: 1.5, biter: 1.5, gambler: 1, presser: 0.5, rimguard: 0.3 } },
+      showman: { name: 'Showman', what: 'Plays for the highlight: dribble moves, step-backs and dunks.', ai: { move: 1.6, drive: 1.1, stepback: 1.3, pumpfake: 1.2, discipline: -0.08, snatch: 1.5, euro: 1.3 }, pool: { shake: 3, rim: 2, pumpfake: 2, stepback3: 1.5, fade: 1, pullup: 1, post: 0.3, gambler: 3, biter: 1.5, presser: 1, sagger: 0.5, rimguard: 0.5 } },
+      bully: { name: 'Bully', what: 'Physical. Backs you down and attacks the rim.', ai: { post: 1.5, drive: 1.15, three: 0.75, sag: -0.1, planPost: 0.2 }, pool: { post: 3, rim: 3, pullup: 1, pumpfake: 1, fade: 0.5, shake: 0.5, stepback3: 0.3, rimguard: 2.5, presser: 1.5, gambler: 1, biter: 1, sagger: 0.5 } },
+    },
+    tend: {                    // the tendencies: the card's words, the tip against it, and what the bot does
+      stepback3: { side: 'o', text: 'Loves the step-back three', tip: 'Stay attached on the step-back and contest the three.', ai: { stepback: 2.2, three: 1.15, planThree: 0.2 } },
+      rim: { side: 'o', text: 'Lives at the rim', tip: 'Give them a step of room and wall up at the rim.', ai: { drive: 1.35, mid: 0.85, three: 0.75, planDrive: 0.25 } },
+      pullup: { side: 'o', text: 'Pulls up from mid-range', tip: 'Crowd the elbows: the pull-up is their money shot.', ai: { mid: 1.7, three: 0.85, planMid: 0.35 } }, // (a shooter's threes win most reads: the mid-range needs the bigger push)
+      fade: { side: 'o', text: 'Fadeaway artist', tip: 'Body them up early: a fadeaway needs room.', ai: { fade: 1.9 } },
+      post: { side: 'o', text: 'Backs smaller players down', tip: 'Front the post. Don\'t let them back you under the rim.', ai: { post: 1.9, planPost: 0.3 }, minH: 1.96 },
+      pumpfake: { side: 'o', text: 'Pump-fakes a lot', tip: 'Stay down on the pump fake.', ai: { pumpfake: 1.4 } }, // (×2.2 had a bot faking 11 times a game)
+      shake: { side: 'o', text: 'Shakes you with moves', tip: 'Don\'t reach on the crossover. Hold your ground.', ai: { move: 1.45, snatch: 1.5 } },
+      gambler: { side: 'd', text: 'Gambles for steals', tip: 'Keep the dribble alive: a quick crossover beats the reach.', ai: { discipline: -0.15, stealCd: 0.55 } },
+      biter: { side: 'd', text: 'Bites on pump fakes', tip: 'Pump-fake, then go right by.', ai: { bite: 0.25 } },
+      sagger: { side: 'd', text: 'Sags off shooters', tip: 'They give you room: take the open jumper.', ai: { sag: 0.6 } },
+      presser: { side: 'd', text: 'Picks you up close', tip: 'They play up on you: attack the first step.', ai: { sag: -0.35 } },
+      rimguard: { side: 'd', text: 'Protects the rim', tip: 'Pull them out: the mid-range is open.', ai: { rimJump: 1.25, sag: 0.3 } },
+    },
+    weak: {                    // the weakness on the card: their lowest rating against their own average (at least weakGap below it)
+      sho: ['Shaky jumper', 'Sag off a step and take away the drive.'], fin: ['Struggles to finish', 'Let them drive, then contest at the rim.'], han: ['Loose handle', 'Reach when they dribble into you.'],
+      spd: ['Slow feet', 'Attack them off the dribble.'], jmp: ['Plays below the rim', 'Go up strong: they can\'t get up to block it.'], def: ['Soft on defense', 'Go right at them.'], str: ['Gets pushed around', 'Use your body: post them up.'],
+    },
+    weakGap: 5,                // a rating this far under their average is a weakness (rating points)
+    boss: { legendary: ['generational', 'unbreakable', 'iceveins'], hype: 3, minWeek: 2 }, // the Boss: one per season, the best regular-season opponent who isn't your rival, with a Legendary trait for the season (not before week minWeek); beating them: +hype
   },
   team: {                      // R3: teams are organizations (the career is 1v1): a school, a college program, a pro franchise
     roster: { hs: 7, college: 7, pro: 4 }, // teammates on a high school team and a college program; a pro franchise's bench (its league players come on top)
@@ -2842,6 +2892,7 @@ const RIG_CLIPS = {
     const v = c.a.dunkVar || 'onehand', u = clamp(t / 0.35, 0, 1), P = idleBase(c); P.footF = { x: 0.08, y: 0.09, r: -0.2 }; P.footB = { x: -0.04, y: 0.05, r: 0 }; P.sy = lerp(1, 1.04, u); P.head.r = -0.1;
     if (v === 'tomahawk') P.lean = lerp(-10, 10, EASE.in(u)) * DEG; // arched back, then snapped forward
     if (v === 'spin360') { P.turn = c.a.spinAngle || u * TAU; P.turnMin = 0.02; P.headTurnMin = 0.3; } // §4: the body squashes to a sliver side-on and swaps facing
+    if (v === 'reverse') { P.turn = Math.PI * EASE.io(clamp(t / 0.32, 0, 1)); P.turnMin = 0.02; P.headTurnMin = 0.3; P.lean = -6 * DEG; } // V4: the Reverse dunk: a half turn on the way up, finishing backwards
     if (!c.holding) { P.handF = rigHand(0.12, c.reachH - 0.05, 'open', -1.4); P.handB = rigHand(-0.1, 0.95, 'open', -1.2); return P; }
     const bl = c.bl, br = c.br;
     if (v === 'twohand') gripSides(P, bl, br);
@@ -3366,20 +3417,23 @@ class HumanInput {
   hintLabels() { if (this.lastDevice === 'gamepad') return KEY_LABELS.gamepad; if (this.lastDevice === 'touch') return KEY_LABELS.touch; return KEY_LABELS[this.preset]; }
 }
 
+// V4 (2.0 §3): a short vibration on steals, blocks and dunks, when the last input was a touch screen and Settings allow it
+// (navigator.vibrate is missing on some devices and refused in some frames: never an error).
+function vibrate(kind, m) { try { if (typeof game === 'undefined' || !game || !game.save || game.save.data.settings.vibrate === false) return false; if (!game.input || game.input.lastDevice !== 'touch' || (m && !m.human)) return false; const pat = CONFIG.ui.vibrate[kind]; if (!pat || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return false; navigator.vibrate(pat); return true; } catch (e) { return false; } }
 // On-screen touch controls: a left-thumb stick and four right-thumb buttons. Full multi-touch.
 class TouchControls {
   constructor(input) {
     this.input = input; this.pointers = new Map();
     this.moveX = 0; this.down = false; this.sprint = false; this.jump = false; this.shoot = false; this.pass = false; this.action = false; this.laneUp = false; this.laneDown = false;
     this.stickId = -1; this.stickX = 0; this.stickY = 0; this.stickDX = 0; this.stickDY = 0;
-    this.size = 1; this.opacity = 0.55; this.leftHanded = false; this.visible = false; this.offense = true;
+    this.size = 1; this.opacity = 0.55; this.leftHanded = false; this.visible = false; this.offense = true; this.autoSprint = true; this.custom = null; this.stickRight = false; // V4: auto-sprint, the layout you placed
     this.pausePressed = false; this.taps = []; this.layout = null; this.W = 0; this.H = 0;
     this.lastTapX = 0; this.lastTapY = 0; this.tapped = false;
   }
-  // Thumb controls sized so the smallest button is CONFIG.ui.touchMinPx across (64 px), placed inside the safe area.
+  // Thumb controls sized so the smallest button is CONFIG.ui.touchGamePx across (80 px; V4), placed inside the safe area.
   computeLayout(W, H, safe, band) {
     this.W = W; this.H = H; const sf = safe || this.safe || { top: 0, right: 0, bottom: 0, left: 0 }; this.safe = sf; this.band = band || null;
-    const s = this.size, m = Math.max(CONFIG.ui.touchMinPx / (2 * 0.62), Math.min(W, H) * 0.11 * s);
+    const s = this.size, m = Math.max(CONFIG.ui.touchGamePx / (2 * 0.62), Math.min(W, H) * 0.11 * s);
     const inset = Math.min(W, H) * 0.06, iL = inset + sf.left, iR = inset + sf.right, iB = inset + sf.bottom, iT = inset * 0.8 + sf.top;
     const right = !this.leftHanded;
     const bx = right ? W - iR - m * 2.2 : iL + m * 2.2, by = H - iB - m * 1.6;
@@ -3392,18 +3446,26 @@ class TouchControls {
         { key: 'pass', x: bx + (right ? -m * 1.1 : m * 1.1), y: by + m * 0.55, r: m * 0.62, labelO: 'PASS', labelD: 'SWITCH' },
         { key: 'action', x: bx + (right ? m * 0.2 : -m * 0.2), y: by + m * 1.25, r: m * 0.62, labelO: 'MOVE', labelD: 'STEAL' },
         { key: 'super', x: bx + (right ? m * 1.1 : -m * 1.1), y: by - m * 1.7, r: m * 0.62, labelO: 'SUPER', labelD: 'FREEZE' }, // L9: only while the super meter is full; Action + Shoot at once
-      ],
+      ].concat(this.autoSprint ? [] : [{ key: 'sprint', x: stickX + (right ? m * 1.3 : -m * 1.3), y: by - m * 1.55, r: m * 0.62, labelO: 'SPRINT', labelD: 'SPRINT' }]), // V4: auto-sprint off: a Sprint button by the stick
       pause: { x: W - iR * 0.8 - 26, y: iT + 26, r: 24 },
     };
     if (band) this.fitBand(band, right, iL, iR);
+    this.applyCustom(); this.stickRight = this.layout.stick.x > W / 2;
+  }
+  // V4 (2.0 §3): the layout you placed in Settings (each control's center as a fraction of the screen), kept inside the
+  // safe area.
+  applyCustom() {
+    const C = this.custom, L = this.layout; if (!C || typeof C !== 'object' || !L) return; const sf = this.safe || { top: 0, right: 0, bottom: 0, left: 0 }, W = this.W, H = this.H;
+    const put = (o, k) => { const v = C[k]; if (!Array.isArray(v) || !(v[0] >= 0 && v[0] <= 1 && v[1] >= 0 && v[1] <= 1)) return; o.x = clamp(v[0] * W, sf.left + o.r, W - sf.right - o.r); o.y = clamp(v[1] * H, sf.top + o.r, H - sf.bottom - o.r); if (k === 'stick') o.labelSide = 0; };
+    put(L.stick, 'stick'); for (const b of L.buttons) put(b, b.key);
   }
   // L18 (a Legends View match on a landscape touch screen): every control goes in the floor band under the floor line
   // (y0…y1), below the players: the stick at one end with its hint beside it, the buttons in a row at the other end, sized
-  // to the band and never under touchMinPx. A screen too narrow for the hint drops it.
+  // to the band and never under touchGamePx. A screen too narrow for the hint drops it.
   fitBand(B, right, iL, iR) {
-    const L = this.layout, W = this.W, h = B.y1 - B.y0, minR = CONFIG.ui.touchMinPx / 2, cy = B.y0 + h / 2; if (!(h > 2 * minR) || !(W > this.H)) return;
+    const L = this.layout, W = this.W, h = B.y1 - B.y0, minR = CONFIG.ui.touchGamePx / 2, cy = B.y0 + h / 2; if (!(h > 2 * minR) || !(W > this.H)) return;
     const r = Math.max(minR, Math.min(L.stick.r, h / 2 - 3)); L.stick = { x: right ? iL + r + 4 : W - iR - r - 4, y: cy, r, labelSide: right ? 1 : -1 };
-    const order = ['shoot', 'jump', 'action', 'pass', 'super']; let x = right ? W - iR : iL;
+    const order = ['shoot', 'jump', 'action', 'pass', 'sprint', 'super']; let x = right ? W - iR : iL;
     for (const k of order) { const b = L.buttons.find(q => q.key === k); if (!b) continue; b.r = Math.max(minR, Math.min(b.key === 'shoot' ? L.m * 0.85 : minR, h / 2 - 3)); x += (right ? -1 : 1) * b.r; b.x = x; b.y = cy; x += (right ? -1 : 1) * (b.r + 10); }
     const gap = right ? x - (L.stick.x + r) : (L.stick.x - r) - x; if (gap < ART.touchHintW) L.stick.labelSide = 0; // (no room for the hint)
   }
@@ -3414,9 +3476,8 @@ class TouchControls {
     if (!this.visible || !this.layout) { this.pointers.set(e.pointerId, { kind: 'tap', x, y }); return; }
     const L = this.layout;
     if (dist2(x, y, L.pause.x, L.pause.y) < L.pause.r * L.pause.r * 2) { this.pausePressed = true; this.pointers.set(e.pointerId, { kind: 'pause', x, y }); return; }
-    const isStickSide = this.leftHanded ? x > this.W * 0.5 : x < this.W * 0.5;
-    if (isStickSide && this.stickId < 0) { this.stickId = e.pointerId; this.stickX = x; this.stickY = y; this.stickDX = 0; this.stickDY = 0; this.pointers.set(e.pointerId, { kind: 'stick', x, y }); return; }
-    const b = this.hitButton(x, y);
+    const b = this.hitButton(x, y), isStickSide = this.stickRight ? x > this.W * 0.5 : x < this.W * 0.5; // (V4: buttons first: one you placed may sit on the stick's side)
+    if (!b && isStickSide && this.stickId < 0) { this.stickId = e.pointerId; this.stickX = x; this.stickY = y; this.stickDX = 0; this.stickDY = 0; this.pointers.set(e.pointerId, { kind: 'stick', x, y }); return; }
     this.pointers.set(e.pointerId, { kind: b ? 'button' : 'tap', key: b, x, y });
     this.recompute();
   }
@@ -3434,7 +3495,7 @@ class TouchControls {
   recompute() {
     const L = this.layout; if (!L) return; const r = L.stick.r;
     let mx = clamp(this.stickDX / (r * 0.8), -1, 1); if (Math.abs(mx) < 0.15) mx = 0;
-    this.moveX = mx; this.sprint = Math.abs(mx) > 0.85; this.down = this.stickId >= 0 && this.stickDY > r * 0.45 && Math.abs(this.stickDY) > Math.abs(this.stickDX) * 0.7; this.laneUp = false; this.laneDown = false;
+    this.moveX = mx; this.sprint = this.autoSprint !== false && Math.abs(mx) > 0.85; /* V4: auto-sprint is a setting (off: the Sprint button) */ this.down = this.stickId >= 0 && this.stickDY > r * 0.45 && Math.abs(this.stickDY) > Math.abs(this.stickDX) * 0.7; this.laneUp = false; this.laneDown = false;
     this.jump = this.shoot = this.pass = this.action = false;
     for (const p of this.pointers.values()) if (p.kind === 'button' && p.key) { if (p.key === 'super') this.action = this.shoot = true; else this[p.key] = true; }
   }
@@ -3498,6 +3559,12 @@ class AudioSys {
   bonk() { this.tone(300, 'square', 0.12, 0.15, { freqEnd: 160 }); this.tone(900, 'sine', 0.2, 0.12, { vibrato: 12, vibratoDepth: 120 }); }
   catchBall() { this.noise(0.04, 0.12, { filter: 'lowpass', freq: 1200 }); }
   block() { this.tone(160, 'sine', 0.12, 0.5, { freqEnd: 60 }); this.noise(0.06, 0.4, { filter: 'bandpass', freq: 2200, Q: 1 }); }
+  // V4 (2.0 §3, §6): the block's swat (a hard slap of a hand on leather, then the thud), the steal's snatch, the poke's
+  // two-tone tick (no change of possession) and the perfect release's chime
+  swat() { this.noise(0.035, 0.55, { filter: 'highpass', freq: 2400 }); this.noise(0.09, 0.4, { filter: 'bandpass', freq: 900, Q: 1.4 }); this.tone(130, 'sine', 0.16, 0.55, { freqEnd: 48 }); }
+  steal() { this.noise(0.06, 0.3, { filter: 'bandpass', freq: 2600, freqEnd: 900, Q: 1.2 }); this.tone(520, 'triangle', 0.09, 0.16, { freqEnd: 780 }); }
+  poked() { if (!this.ok) return; const t = this.t; /* (no clock before the first tap) */ this.tone(1180, 'square', 0.05, 0.07, { at: t }); this.tone(860, 'square', 0.06, 0.06, { at: t + 0.055 }); }
+  perfect() { if (!this.ok) return; const t = this.t; /* (no clock before the first tap) */ this.tone(1568, 'sine', 0.22, 0.12, { at: t }); this.tone(2349, 'sine', 0.3, 0.09, { at: t + 0.06 }); }
   dunk() { this.tone(70, 'sine', 0.5, 0.7, { freqEnd: 28, slide: 0.35 }); this.noise(0.25, 0.35, { filter: 'lowpass', freq: 800, freqEnd: 100 }); this.rim(true); }
   shove() { this.noise(0.09, 0.3, { filter: 'lowpass', freq: 900 }); this.tone(110, 'sine', 0.15, 0.3, { freqEnd: 50 }); }
   stumble() { this.noise(0.15, 0.2, { filter: 'lowpass', freq: 500 }); }
@@ -3863,7 +3930,8 @@ class Player {
   constructor(def, team, match) {
     this.id = _pid++; this.def = def; this.name = def.name; this.nick = def.nick || def.name.split(' ')[0]; this.arch = def.arch; this.team = team; this.match = match;
     this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
-    this.moves = def.moves || { crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true };
+    this.moves = def.moves || Object.assign({ crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true }, sigMovesOfAttrs(def.attrs)); // a roster player without a move list: every move, and the V4 signature moves its attributes earn
+    this.pers = def.pers || null; this.tend = Array.isArray(def.tend) ? def.tend.slice() : []; // V4 (2.0 §3): a personality and tendencies the brain plays to (career opponents; Quick Play bots)
     this.x = 12; this.y = 0; this.z = 0.5; this.zTarget = 0.5; this.lane = 1; this.vx = 0; this.vy = 0; this.facing = 1; this.grounded = true; this.laneT = -9; this.lastBeatT = -9;
     this.px = this.x; this.py = this.y; this.pz = this.z;
     this.state = 'idle'; this.stateT = 0; this.sd = {}; // state data
@@ -3894,7 +3962,7 @@ class Player {
   get recovering() { return (this.state === 'swipe' && this.sd.phase === 'recovery') || this.inState('stumble', 'knocked', 'stagger') || this.biteT > 0; }
   get busy() { return this.inState('crossover', 'spin', 'stepback', 'hesitation', 'pumpfake', 'swipe', 'pass', 'lob', 'shove', 'gather', 'jumpshot', 'layup', 'dunk', 'rimhang', 'floater', 'tipin', 'stumble', 'knocked', 'stagger', 'catch', 'ft', 'tipoff'); }
 }
-function makeStats() { return { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, oreb: 0, ast: 0, stl: 0, blk: 0, to: 0, dunkM: 0, dunkA: 0, layM: 0, layA: 0, tipM: 0, tipA: 0, hookM: 0, hookA: 0, fadeM: 0, fadeA: 0, moves: 0, midM: 0, midA: 0, threeM: 0, threeA: 0, deepM: 0, deepA: 0, heaveM: 0, heaveA: 0, green: 0, ankles: 0, posters: 0, fouls: 0, chg: 0, highlights: 0 }; }
+function makeStats() { return { pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, reb: 0, oreb: 0, ast: 0, stl: 0, blk: 0, to: 0, dunkM: 0, dunkA: 0, layM: 0, layA: 0, tipM: 0, tipA: 0, hookM: 0, hookA: 0, fadeM: 0, fadeA: 0, moves: 0, midM: 0, midA: 0, threeM: 0, threeA: 0, deepM: 0, deepA: 0, heaveM: 0, heaveA: 0, green: 0, ankles: 0, posters: 0, fouls: 0, chg: 0, highlights: 0, sigs: 0 }; } // (V4: sigs, signature moves used)
 
 class Ball {
   constructor() {
@@ -3926,7 +3994,7 @@ class Match {
     this.mode = o.mode || '1v1'; this.perSide = this.mode === '5v5' ? 5 : this.mode === '3v3' ? 3 : (this.mode === '2v2' ? 2 : 1);
     this.ruleset = o.ruleset || 'arcade'; this.halfCourt = this.ruleset === 'half' && this.perSide === 1; this.arcade = this.ruleset === 'arcade' || this.ruleset === 'half';
     const hc = o.half || {}; this.makeItTakeIt = this.halfCourt && !!hc.makeItTakeIt; this.pointBase = this.halfCourt && hc.scoring === '1s2s' ? 1 : 2; this.mustClear = -1; // street half court: winner's ball, 1s and 2s, clear after a stop
-    this.playoff = !!o.playoff; this.format = o.format || { type: 'first', target: CONFIG.rules.targetScore, winBy2: false };
+    this.playoff = !!o.playoff; this.boss = !!o.boss; /* V4: the season's Boss */ this.format = o.format || { type: 'first', target: CONFIG.rules.targetScore, winBy2: false };
     this.courtId = o.court || 'blacktop'; this.headless = !!o.headless; this.practice = o.practice || null; this.tutorial = o.tutorial || null; this.contest3 = o.contest3 || null; this.drill = o.drill && !o.contest3 && this.halfCourt ? Object.assign({ kind: 'offense', attack: 0 }, o.drill) : null; // a 60 s career drill: one side attacks every possession
     this.controlMode = o.controlMode || 'ball'; this.adaptive = !!o.adaptive; this.difficulty = o.difficulty || 'pro'; this.charges = o.charges != null ? !!o.charges : CONFIG.rules.charges;
     this.time = 0; this.stepCount = 0; this.phase = 'pregame'; this.phaseT = 0; this.period = 1; this.periods = 2; this.gameClock = 0; this.shotClock = CONFIG.rules.shotClock; this.clockRunning = false; this.overtime = 0;
@@ -4169,9 +4237,9 @@ function stepStateMachine(p, dt) {
       sd.phase = ph;
       // cancel into a shot or pass during the burst/go phase (handled in burst) — pumpfake recovery can go to a drive
       if (ph === 'done') {
-        if (st === 'crossover') { p.setState('burst', { dir: sd.dir, ms: FR.crossover.burst, kind: 'crossover' }); checkAnkleBreak(p, sd.dir); }
+        if (st === 'crossover') { p.setState('burst', { dir: sd.dir, ms: FR.crossover.burst * (sd.btb ? MV.btbBurstMul : 1), kind: 'crossover', btb: !!sd.btb }); checkAnkleBreak(p, sd.dir); }
         else if (st === 'hesitation') { p.setState('burst', { dir: sd.dir, ms: FR.hesitation.go, kind: 'go' }); checkAnkleBreak(p, sd.dir); }
-        else if (st === 'spin') { p.setState('move'); checkAnkleBreak(p, sd.dir); }
+        else if (st === 'spin') { p.setState('move'); checkAnkleBreak(p, sd.dir, sd.snatch ? MV.snatchAnkleMul : 1); if (sd.snatch) p.stepbackT = m.time - SH.stepbackWindowS + MV.snatchQuickS; } // V4: out of a Snatch-back the quick step-back gather is ready
         else if (st === 'stepback') { p.stepbackT = m.time; p.setState('move'); checkAnkleBreak(p, -sd.dir); }
         else if (st === 'dropstep') { p.setState('move'); checkAnkleBreak(p, sd.dir); }
         else p.setState('move');
@@ -4191,6 +4259,7 @@ function stepStateMachine(p, dt) {
     }
     case 'burst': {
       if (hasBall && p.grounded) {
+        if (sd.kind === 'crossover' && p.actionBuf > 0 && p.moves.snatch && p.moves.spin && p.stateT * 1000 <= MV.snatchWindowMs && !p.pickedUp) { p.actionBuf = 0; startNamedMove(p, 'spin', null, { snatch: true }); break; } // V4: Handles 8, the crossover into a spin
         if (p.shootBuf > 0) { p.shootBuf = 0; startShot(p); break; }
         if (p.passBuf > 0 && m.teammatesOf(p).length > 1) { p.passBuf = 0; startPass(p, I.holdPass >= CONFIG.pass.lobHoldMs / 1000); break; }
         if (p.passBuf > 0) { p.passBuf = 0; startShot(p, 'fade'); break; }
@@ -4258,7 +4327,7 @@ function startTipOrPutback(p) {
   else p.setState('tipin', { type: 'tip', released: false, wasAir: true });
 }
 // Five dunk styles, gated by Hops and height: one-hand (anyone who can dunk), two-hand (more lift, or a big frame), tomahawk, windmill, 360.
-const DUNK_STYLES = ['onehand', 'spin360', 'windmill', 'twohand', 'tomahawk'];
+const DUNK_STYLES = ['onehand', 'spin360', 'windmill', 'twohand', 'tomahawk', 'reverse']; // (append only: replays keep the index; V4: 5 is the Reverse dunk, chosen in play, never at random)
 function dunkStylesFor(p) {
   const v = jumpVelOf(p), lift = reachOf(p) + v * v / (2 * G) - (RIM_Y + PC.dunkReachMargin), J = p.attrs.jmp, H = p.height, out = [0];
   if (lift >= SH.twoHandLift || H >= 2.0) out.push(3); if (J >= SH.tomahawkJmp) out.push(4);
@@ -4380,7 +4449,7 @@ function startMove(p) {
   else name = 'crossover';
   return startNamedMove(p, name, dir);
 }
-function startNamedMove(p, name, dir) {
+function startNamedMove(p, name, dir, extra) {
   const m = p.match, I = p.input;
   if (dir == null) dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > LX(0.5) ? sgn(p.vx) : p.dirToHoop());
   const repeat = p.lastMove === name && (m.time - p.lastMoveT) < MV.repeatWindowS;
@@ -4390,14 +4459,16 @@ function startNamedMove(p, name, dir) {
   if (name === 'stepback') sd.dir = p.dirToHoop();
   if (name === 'dropstep') { sd.dir = p.dirToHoop(); const d = postDefender(p); sd.def = d; sd.beat = !!d && m.rng.next() < dropStepChance(p, d); }
   if (name === 'upunder') { sd.dir = p.dirToHoop(); const d = postDefender(p); sd.def = d; sd.beat = !!d && m.rng.next() < (d.biteT > 0 || !d.grounded ? PG.upUnderBit : PG.upUnderBase); }
-  if (name === 'crossover') { sd.dir = dir; }
+  if (name === 'crossover') { sd.dir = dir; if (p.moves.btb) { const op = m.nearestOpponent(p), oq = op && (op.s0 || op); if (op && Math.abs(oq.x - p.x) < CONFIG.steal.reach + MV.btbReach && Math.abs(oq.z - p.z) < W.laneShare + 0.1) sd.btb = true; } } // V4: Handles 7, a crossover in a defender's reach goes behind the back
   if (name === 'hesitation') { sd.dir = Math.abs(p.vx) > LX(0.3) ? sgn(p.vx) : p.dirToHoop(); }
+  if (extra) Object.assign(sd, extra);
   p.setState(name, sd); p.lastMove = name; p.lastMoveT = m.time; p.facing = sd.dir; p.stats.moves++;
   m.bus.emit('MOVE', { player: p, move: name, dir: sd.dir, repeat });
+  const sig = sd.btb ? 'btb' : sd.snatch ? 'snatch' : null; if (sig) { p.stats.sigs++; m.bus.emit('SIGNATURE', { player: p, move: sig }); } // V4: a signature move
   return true;
 }
 // Ankle-breaker check at the moment a move changes the handler's direction.
-function checkAnkleBreak(p, newDir) {
+function checkAnkleBreak(p, newDir, mul) {
   const m = p.match, A = CONFIG.ankle, ops = m.opponentsOf(p);
   for (let i = 0; i < ops.length; i++) {
     const d = ops[i], q = d.s0 || d; if (Math.abs(q.x - p.x) > A.range || Math.abs(q.z - p.z) > W.laneShare || !q.grounded) continue; // the defender as he stood when this step began
@@ -4405,7 +4476,7 @@ function checkAnkleBreak(p, newDir) {
     const wrongWay = q.vx * newDir < -A.wrongWayVel; const recovering = d.recovering || d.biteT > 0;
     if (!wrongWay && !recovering) continue;
     let chance = clamp(A.base + A.ratingSlope * (p.attrs.han - d.attrs.def) + (recovering ? A.recoveringBonus : 0) + HT.anklePerM * (d.height - p.height) + (p.height < HT.smallGuard ? HT.smallAnkle : 0), 0, A.max) * trBiteMul(p);
-    if (p.sd && p.sd.repeat) chance *= MV.repeatAnkleMul;
+    if (p.sd && p.sd.repeat) chance *= MV.repeatAnkleMul; if (mul) chance = Math.min(A.max, chance * mul); // (V4: the Snatch-back's spin)
     const roll = m.rng.next();
     if (roll < chance) {
       const sit = roll < chance * A.sitDownFrac;
@@ -4437,6 +4508,7 @@ function stealExposure(h, defender) {
 function resolveSwipe(p) {
   const m = p.match, b = m.ball, h = b.owner, S = CONFIG.steal; if (!h || h.team === p.team) return false;
   const hs = h.s0 || h; if (hs.state === 'jumpshot' || hs.state === 'layup' || hs.state === 'dunk' || hs.state === 'floater' || hs.state === 'rimhang' || hs.state === 'tipin') return false;
+  if (hs.state === 'crossover' && hs.sd && hs.sd.btb) return false; // V4: the ball is behind the back: nothing to poke
   if (Math.abs(hs.z - p.z) > W.laneShare) return false;
   const bx = b.s0x != null ? b.s0x : b.x, by = b.s0y != null ? b.s0y : b.y; const x0 = p.x, x1 = p.x + p.facing * S.reach; // the handler and ball as they were when this step began (update order must not matter)
   const inBox = bx >= Math.min(x0, x1) - LX(0.1) && bx <= Math.max(x0, x1) + LX(0.1) && by >= S.boxLow && by <= S.boxHigh;
@@ -4543,8 +4615,9 @@ function startShot(p, variant) {
   else if (d <= SH.layupRange) type = 'layup';
   else if (d <= SH.floaterRange && toward >= SH.floaterMinSpeed) type = 'floater';
   const quick = (m.time - p.stepbackT) < SH.stepbackWindowS;
-  const gatherMs = (type === 'ft' ? FR.gather : (quick ? FR.gatherStepback : FR.gather)) * (type === 'ft' ? 1 : heightMul(p, -HT.gatherPerM));
-  p.setState('gather', { type, gatherMs, stepback: quick && type === 'jumper', euro: false, moveX0: p.input.moveX, vx0: p.vx, dir, botFake: false, fade, btn: fade ? 'pass' : 'shoot' });
+  const pullup = !quick && !fade && type === 'jumper' && p.moves.pullup && d >= SH.zoneThree && d < SH.heaveRange && Math.abs(p.vx) >= LX(MV.pullupMinSpeed); // V4: Shooting 8, the pull-up three off the dribble
+  const gatherMs = (type === 'ft' ? FR.gather : (quick || pullup ? FR.gatherStepback : FR.gather)) * (type === 'ft' ? 1 : heightMul(p, -HT.gatherPerM));
+  p.setState('gather', { type, gatherMs, stepback: quick && type === 'jumper', pullup, euro: false, moveX0: p.input.moveX, vx0: p.vx, dir, botFake: false, fade, btn: fade ? 'pass' : 'shoot', contestGuess: type === 'ft' ? 0 : computeContest(p, p.y + p.height + SH.releaseAbove).value }); // (V4: the meter shows the window under this contest)
   p.facing = dir;
   m.bus.emit('GATHER', { player: p, type });
 }
@@ -4553,17 +4626,18 @@ function launchShotJump(p) {
   const m = p.match, sd = p.sd, hoop = p.hoop, dir = sgn(hoop.x - p.x) || p.facing;
   const v = jumpVelOf(p) * (sd.type === 'jumper' || sd.type === 'ft' ? 0.92 : (sd.type === 'hook' ? SH.hookJumpMul : 1)); const tApex = v / G;
   p.grounded = false; p.coyote = 0; p.airT = 0; p.vy = v; p.stamina = Math.max(0, p.stamina - PC.stamina.jumpCost); p.anim.squash = 0.85;
-  if (sd.type === 'jumper' || sd.type === 'ft') { p.vx *= 0.25; if (sd.fade) p.vx = -dir * SH.fadeSpeed; p.setState('jumpshot', { type: sd.type, tApex, released: false, wasAir: true, stepback: sd.stepback, botRelease: false, quick: false, fade: !!sd.fade, btn: sd.btn }); }
+  if (sd.type === 'jumper' || sd.type === 'ft') { p.vx *= 0.25; if (sd.fade) p.vx = -dir * SH.fadeSpeed; p.setState('jumpshot', { type: sd.type, tApex, released: false, wasAir: true, stepback: sd.stepback, pullup: !!sd.pullup, botRelease: false, quick: false, fade: !!sd.fade, btn: sd.btn, contestGuess: sd.contestGuess || 0 }); if (sd.pullup) { p.stats.sigs++; m.bus.emit('SIGNATURE', { player: p, move: 'pullup' }); } }
   else if (sd.type === 'hook') { p.vx = dir * LX(0.5); p.setState('floater', { type: 'hook', tApex, released: false, wasAir: true, botRelease: false }); m.bus.emit('HOOK', { player: p }); }
-  else if (sd.type === 'floater') { p.vx = dir * clamp(Math.abs(p.vx) * 0.6, LX(1.5), LX(4)); p.setState('floater', { type: 'floater', tApex, released: false, wasAir: true, botRelease: false }); }
+  else if (sd.type === 'floater') { p.vx = dir * clamp(Math.abs(p.vx) * 0.6, LX(1.5), LX(4)); p.setState('floater', { type: 'floater', tApex, released: false, wasAir: true, botRelease: false, contestGuess: sd.contestGuess || 0 }); }
   else if (sd.type === 'layup') {
     p.zTarget = 0.5; const targetX = hoop.x - dir * 0.5; const vx = clamp((targetX - p.x) / tApex, -PC.sprintSpeed * 1.2, PC.sprintSpeed * 1.2); p.vx = vx;
-    if (sd.euro) { p.zTarget = p.z < 0.5 ? LANES[0] : LANES[2]; sd.zBack = true; }
+    if (sd.euro) { p.zTarget = p.z < 0.5 ? LANES[0] : LANES[2]; sd.zBack = true; p.stats.sigs++; m.bus.emit('SIGNATURE', { player: p, move: 'euro' }); }
     p.setState('layup', { type: 'layup', tApex, released: false, wasAir: true, euro: sd.euro, zBack: sd.zBack });
   }
   else if (sd.type === 'dunk') {
     p.zTarget = 0.5; const targetX = hoop.x - dir * 0.25; const vx = clamp((targetX - p.x) / tApex, -PC.sprintSpeed * 1.4, PC.sprintSpeed * 1.4); p.vx = vx;
-    p.setState('dunk', { style: pickDunkStyle(p), dueled: false, slammed: false, wasAir: true, tApex, approach: Math.abs(sd.vx0) });
+    const rev = !!p.moves.reverse && reverseBlocker(p); // V4: Hops 8, under a shot-blocker the dunk goes in backwards
+    p.setState('dunk', { style: rev ? 5 : pickDunkStyle(p), dueled: false, slammed: false, wasAir: true, tApex, approach: Math.abs(sd.vx0) }); if (rev) { p.stats.sigs++; m.bus.emit('SIGNATURE', { player: p, move: 'reverse' }); }
     m.bus.emit('DUNK_START', { player: p });
   }
   p.facing = dir; m.bus.emit('JUMP', { player: p });
@@ -4584,7 +4658,7 @@ function releaseShot(p, err, forced) {
   const ct = computeContest(p, y0); let contest = ct.value * (1 + trE(ct.by, 'microwave', 'effort')); if (sd.euro) contest *= SH.euroContestMul; if (sd.fade) contest *= SH.fadeContestMul; if (type === 'hook') contest *= SH.hookContestMul; if (type === 'ft') contest = 0;
   const timed = type === 'jumper' || type === 'ft' || type === 'floater';
   let w = 0, grade = -1;
-  if (timed) { if (p.arch === 'sharpshooter') err += SH.quickReleaseEarlyMs / 1000; w = perfectWindow(p, contest, d) * (sd.fade ? SH.fadeWindowMul : 1); grade = forced ? 3 : gradeOf(err, w); }
+  if (timed) { if (p.arch === 'sharpshooter') err += SH.quickReleaseEarlyMs / 1000; w = perfectWindow(p, contest, d) * (sd.fade ? SH.fadeWindowMul : 1) * (sd.pullup ? MV.pullupWindowMul : 1); grade = forced ? 3 : gradeOf(err, w); }
   const fire = !!(p.ex && p.ex.fireball); if (fire) { p.ex.fireball = false; if (timed) { grade = 0; err = 0; } } // L9 Fireball: a perfect release (the contest still counts)
   const mp = makeProbability(p, type === 'ft' ? 'ft' : type, zone, grade < 0 ? 0 : grade, contest, { stepback: sd.stepback, fade: sd.fade });
   const P = mp.P, green = mp.green; if (!green) trShotTally(p, P); // V3: what each trait added to this shot (Traits that helped)
@@ -4593,7 +4667,7 @@ function releaseShot(p, err, forced) {
   b.setOwner(null); b.mode = 'flight'; b.x = x0; b.y = y0; b.z = p.z; b.zTarget = 0.5; b.flightZ0 = p.z; b.armed = false; b.fromBelow = false; b.rimTouched = false; b.boardTouched = false; b.flightT = 0; b.touchedAfterShot = false; b.lastTouch = p; b.lastTouchTeam = p.team;
   const solve = launchShot(b, x0, y0, hoop, type, make, flavor, d, dir);
   const points = type === 'ft' ? 1 : m.pointBase + ((type === 'jumper' && zone !== 'mid') ? 1 : 0); // half court can score by 1s and 2s
-  const shot = { shooter: p, type, zone, grade, err, window: w, contest, contestBy: ct.by, P, roll, make, flavor, green, x0, y0, d, points, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, solver: solve.attempts, solverOk: solve.ok, solverFallback: solve.fallback, base: mp.base, forced: !!forced, stepback: !!sd.stepback, euro: !!sd.euro, fade: !!sd.fade, id: m.stepCount, fireball: fire };
+  const shot = { shooter: p, type, zone, grade, err, window: w, contest, contestBy: ct.by, P, roll, make, flavor, green, x0, y0, d, points, t: m.time, clockAtRelease: m.gameClock, resolved: false, touched: false, solver: solve.attempts, solverOk: solve.ok, solverFallback: solve.fallback, base: mp.base, forced: !!forced, stepback: !!sd.stepback, euro: !!sd.euro, fade: !!sd.fade, pullup: !!sd.pullup, id: m.stepCount, fireball: fire };
   b.shot = shot; m.lastShot = shot;
   if (type !== 'ft') { p.stats.fga++; if (points === 3) p.stats.tpa++; } else p.stats.fta++;
   const zk = type === 'layup' ? 'lay' : type === 'tip' ? 'tip' : type === 'dunk' ? 'dunk' : type === 'hook' ? 'hook' : zone; if (type !== 'ft') p.stats[zk + 'A']++; if (sd.fade) p.stats.fadeA++;
@@ -4720,13 +4794,15 @@ function doBlock(m, d, shooter) {
 // A goaltend counts the basket regardless of the roll.
 function forceScore(m, hoop, shot, reason) { const b = m.ball; b.x = hoop.x; b.y = RIM_Y - 0.25; b.vx = 0; b.vy = -2; b.armed = false; b.mode = 'flight'; onScore(m, HOOPS.indexOf(hoop), reason); }
 
+// V4: a shot-blocker near the rim, between the dunker and it (or under it): a dunker with the Reverse dunk goes up backwards.
+function reverseBlocker(p) { const m = p.match, dir = sgn(p.hoop.x - p.x) || p.facing, ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const o = ops[i], q = o.s0 || o; if (o.hidden || q.state === 'stumble' || q.state === 'knocked' || Math.abs(q.z - p.z) > W.laneShare + 0.2) continue; if (Math.abs(q.x - p.hoop.x) < LX(MV.reverseNear) && (q.x - p.x) * dir > -LX(0.2)) return true; } return false; }
 // --- rim duel: a leaping blocker's hand meets the dunker's ball hand ---
 function checkRimDuel(p) {
   const m = p.match, b = m.ball, D = CONFIG.duel, ops = m.opponentsOf(p);
   for (let i = 0; i < ops.length; i++) {
     const d = ops[i], q = d.s0 || d; if (q.grounded || q.state !== 'jump') continue; if (Math.abs(q.z - p.z) > W.laneShare + 0.2) continue;
     handPos0(d, _hp); const rr = CONFIG.block.handRadius + BALL.radius + D.reach; const dx = b.x - _hp.x, dy = b.y - _hp.y; if (dx * dx + dy * dy > rr * rr) continue;
-    p.sd.dueled = true;
+    p.sd.dueled = true; if (p.sd.style === 5 && m.rng.next() >= MV.reverseShield) return; // V4: a Reverse dunk: the rim shields the ball (the duel only happens this often)
     const dunkPower = p.attrs.fin + p.attrs.str + D.momentum + D.speedBonusPer * (p.sd.approach || 0) + D.heightBonusPer * (p.height - 2.0) + m.rng.range(-D.noise, D.noise);
     const tApex = (q.sd && q.sd.tApex) || 0.3; const timing = clamp01(1 - Math.abs(q.airT - tApex) / D.timingWindow) * D.timingBonusMax;
     const blockPower = d.attrs.def + d.attrs.jmp + timing + D.heightBonusPer * (d.height - 2.0) + m.rng.range(-D.noise, D.noise);
@@ -4756,7 +4832,7 @@ function dunkProtect(p) {
     const dx = Math.abs(_hp.x - b.x) + Math.abs(q.z - p.z) * C.lanePenalty; if (dx >= BK.rimRange) continue;
     const inFront = (q.x - p.x) * (p.hoop.x - p.x) > 0 || Math.abs(q.x - p.x) < C.posNear;
     const base = clamp(BK.rimBase + BK.defSlope * (d.attrs.def - 5) + BK.rimJmpSlope * (d.attrs.jmp - 5) + HT.blockPerM * (d.height - p.height), 0, BK.rimMax) * trBlockMul(d);
-    const chD = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * BK.rimDunkMul; trBlockTally(d, chD); if (m.rng.next() < chD) { stuffDunk(m, p, d); return true; }
+    const chD = base * (1 - dx / BK.rimRange) * (inFront ? 1 : BK.rimBehindMul) * BK.rimDunkMul * (p.sd.style === 5 ? MV.reverseShield : 1); /* (V4: a Reverse dunk's shield) */ trBlockTally(d, chD); if (m.rng.next() < chD) { stuffDunk(m, p, d); return true; }
   }
   return false;
 }
@@ -5281,7 +5357,8 @@ class PlayerBrain {
     m.bus.on('CUTOFF', e => { if (e.player === p) this.driveEMA = lerp(this.driveEMA, 0, 0.25); });
     m.bus.on('BLOW_BY', e => { if (e.player === p) this.driveEMA = lerp(this.driveEMA, 1, 0.3); });
     m.bus.on('SCORE', e => { if (e.player === p && (e.dunk || (e.shot && e.shot.type === 'layup'))) this.driveEMA = lerp(this.driveEMA, 1, 0.15); });
-    this.contactT = -9; this.recoverUntil = -9; this.plan = null;
+    this.contactT = -9; this.recoverUntil = -9; this.plan = null; this.euroWant = false; this.snatchTried = false;
+    this.tm = scoutAI(p.pers, p.tend); // V4 (2.0 §3): the personality and tendencies this bot plays to
     m.bus.on('POSSESSION_CHANGE', e => { this.plan = e.team === p.team && m.perSide === 1 ? this.pickPlan() : null; this.lastPlan = null; }); // play to the build: this possession's plan
     m.bus.on('SLIP', e => { if (e.defender === p) this.contactT = m.time; }); m.bus.on('BLOW_BY', e => { if (e.defender === p && !e.lane) this.contactT = m.time; }); // felt it go by
   }
@@ -5289,6 +5366,7 @@ class PlayerBrain {
   // 1v1 possession plan by build, tilted by the matchup: a big mismatch posts up more, a small quick one drives more
   pickPlan() {
     const p = this.p, w = Object.assign({}, AI.stylePlan[p.arch] || AI.stylePlan.lockdown), o = this.m.opponentsOf(p)[0]; const edge = o ? p.height - o.height : 0, extra = Math.abs(edge) - PG.minEdge;
+    const tm = this.tm; w.three = (w.three || 0) + tm.planThree; w.mid = (w.mid || 0) + tm.planMid; w.drive = (w.drive || 0) + tm.planDrive; w.post = (w.post || 0) + tm.planPost; // V4: tendencies tilt the plan
     if (extra > 0) { const add = Math.min(AI.planMismatchMax, extra * AI.planMismatch); if (edge > 0) w.post = (w.post || 0) + add; else w.drive = (w.drive || 0) + add; }
     return weightedPick(w, this.rng);
   }
@@ -5322,6 +5400,10 @@ class PlayerBrain {
     for (let g = 0; g < 4; g++) { Pm += pr[g] * makeProbability(shooter, 'jumper', zone, g, contest).P; }
     return { P: Pm, pts: zone === 'mid' ? 2 : 3, ev: Pm * (zone === 'mid' ? 2 : 3), zone };
   }
+  // V4: the Euro-step (a shot-blocker between the bot and the rim) and the Snatch-back (the defender still on it), when the bot has
+  // the move and the tier for it
+  wantEuro() { const p = this.p, m = this.m, P = this.params; if (!p.moves.euro || !P.moves.includes('euro')) return false; const dir = sgn(p.hoop.x - p.x) || p.facing, ops = m.opponentsOf(p); let blk = false; for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if (Math.abs(q.x - p.hoop.x) < LX(AI.euroBlockerDist) && (q.x - p.x) * dir > 0 && Math.abs(q.z - p.z) < W.laneShare + 0.1) blk = true; } return blk && this.rng.next() < AI.euroChance * this.tm.euro; }
+  wantSnatch() { const p = this.p, m = this.m, P = this.params; if (!p.moves.snatch || !p.moves.spin || !P.moves.includes('snatch')) return false; const d = m.nearestOpponent(p); if (!d || Math.abs(d.x - p.x) > MV.spinRange + LX(0.3) || Math.abs(d.z - p.z) > W.laneShare) return false; return this.rng.next() < AI.snatchChance * this.tm.snatch; }
   // ---------------- decisions ----------------
   think() {
     const p = this.p, m = this.m, b = m.ball; this.callingForBall = false;
@@ -5335,7 +5417,7 @@ class PlayerBrain {
     if (b.shot && b.mode === 'flight' && !b.rimTouched && !b.boardTouched) { this.thinkRebound(); return; }
     this.thinkLoose();
   }
-  setIntent(type, commit, data) { if (this.m.dev) { const k = type + (data && data.move ? ':' + data.move : ''); const c = this.m.intentCounts || (this.m.intentCounts = {}); c[k] = (c[k] || 0) + 1; } this.intent = { type, data: data || null }; this.commitT = commit + this.rng.next() * AI.commitJitter; this.debug.action = type + (data && data.move ? ':' + data.move : ''); }
+  setIntent(type, commit, data) { this.euroWant = false; this.snatchTried = false; if (this.m.dev) { const k = type + (data && data.move ? ':' + data.move : ''); const c = this.m.intentCounts || (this.m.intentCounts = {}); c[k] = (c[k] || 0) + 1; } this.intent = { type, data: data || null }; this.commitT = commit + this.rng.next() * AI.commitJitter; this.debug.action = type + (data && data.move ? ':' + data.move : ''); }
   thinkTipoff() {
     const p = this.p, m = this.m, b = m.ball; this.mv = 0; this.intent = { type: 'tipoff' };
     if (!p.tipoff || !p.grounded) return;
@@ -5376,7 +5458,7 @@ class PlayerBrain {
     if (p.attrs.sho <= 3 && d > SH.layupRange + LX(1.5)) shootEV *= 0.35; // bigs don't live outside
     if (d > SH.heaveRange) shootEV = 0; if (d > SH.zoneDeep && contest > 0.3) shootEV *= 0.3; if (contest > AI.goodLookContest && d > SH.layupRange) shootEV *= 0.55; else if (contest < 0.3 && d > SH.layupRange) shootEV *= 1.3; if (J.P < AI.minShotP && d > SH.layupRange && sc >= 3) shootEV = -50; if (d > SH.zoneDeep && sc >= 4 && shootEV > 0) shootEV *= AI.deepShotMul; shootEV *= 1 + pressure * 1.5; if (sc < AI.shotClockPanicS) shootEV += 5;
     if (sc < AI.planDropClock) this.plan = null; const pl = k => !this.plan ? 1 : (this.plan === k ? AI.planBoost : AI.planDamp); // the possession plan
-    const sm = AI.styleMix[p.arch] || AI.styleMix.lockdown; if (d > SH.layupRange) shootEV *= (J.pts === 3 ? sm.three : sm.jumper) * pl(J.pts === 3 ? 'three' : 'mid'); // play to the build
+    const sm = AI.styleMix[p.arch] || AI.styleMix.lockdown, tm = this.tm; if (d > SH.layupRange) shootEV *= (J.pts === 3 ? sm.three * tm.three : sm.jumper * tm.mid) * pl(J.pts === 3 ? 'three' : 'mid'); // play to the build (V4: and to the tendencies)
     const sizeEdge = !!def && p.height - def.height >= PG.minEdge - 1e-6; if (this.plan === 'post' && !sizeEdge && def) this.plan = 'drive'; // no size on him: attack instead
     _evNames[n] = 'shoot'; _evScores[n] = shootEV; _evData[n++] = null;
     // drive
@@ -5388,7 +5470,7 @@ class PlayerBrain {
       let driveEV = laneOpen * finishP * 2 * (1 - helpRisk) * (1 - stealRisk) * (1 + AI.personalityEVMul * (pr.driveRate - 0.5)) * (1 + pressure * 0.8);
       if (m.time - (p.lastBumpT || -9) < 2.0) driveEV *= 0.3;
       if (d < LX(2.8)) driveEV = finishP * 2 * (1 - helpRisk * 0.6) * (defSquare && defDist < LP(1) ? 0.5 : 1) * (1 + pressure);
-      if (walled) driveEV *= 0.3; driveEV *= sm.drive * pl('drive');
+      if (walled) driveEV *= 0.3; driveEV *= sm.drive * tm.drive * pl('drive');
       _evNames[n] = 'drive'; _evScores[n] = driveEV; _evData[n++] = null;
       // walk it up: get to a real shot zone before deciding again (1v1: walk the defender down while they give room)
       const solo = m.perSide === 1, postStyle = solo && this.plan === 'post' && sizeEdge; const spot = solo ? (postStyle ? PG.range : this.plan === 'three' ? Math.max(AI.soloSpotShooter, SH.zoneThree + LR(0.4)) : this.plan === 'mid' ? AI.soloSpotOther : (p.attrs.sho >= 7 ? AI.soloSpotShooter : AI.soloSpotOther)) : SH.zoneThree - LR(0.6);
@@ -5398,7 +5480,7 @@ class PlayerBrain {
         const moves = P.moves; const openAfter = 0.9 * finishP * 2 * (1 - helpRisk); const recent = m.time - this.lastMoveT < 1.5; const bumped = m.time - (p.lastBumpT || -9) < 2.0;
         const ankleBonus = 0.06 * (p.attrs.han - def.attrs.def); const flash = 1 + AI.personalityEVMul * (pr.flashiness - 0.5) * 0.5;
         const oppP = brainParams(m.teams[1 - p.team]); const biteGuess = def.controlled ? (m.memory ? m.memory.humanBite() : 0.4) : 0.5 * oppP.bite + 0.2;
-        const add = (mv, ev, mdir) => { if (m.perSide === 1 && mv !== 'pumpfake') ev *= AI.soloMoveMul; if (recent && this.lastMoveName === mv) ev *= 0.5; if (mv === 'pumpfake' && this.lastMoveName === 'pumpfake' && m.time - this.lastMoveT < AI.pumpFakeRepeatS) ev *= 0.15; if (bumped && !walled) ev *= 0.6; if (walled) ev *= 1.3; _evNames[n] = 'move'; _evScores[n] = ev * flash * sm.move; _evData[n++] = { move: mv, dir: mdir || dir }; };
+        const add = (mv, ev, mdir) => { if (m.perSide === 1 && mv !== 'pumpfake') ev *= AI.soloMoveMul; if (recent && this.lastMoveName === mv) ev *= 0.5; if (mv === 'pumpfake' && this.lastMoveName === 'pumpfake' && m.time - this.lastMoveT < AI.pumpFakeRepeatS) ev *= 0.15; if (bumped && !walled) ev *= 0.6; if (walled) ev *= 1.3; _evNames[n] = 'move'; _evScores[n] = ev * flash * sm.move * tm.move * (mv === 'stepback' ? tm.stepback : mv === 'pumpfake' ? tm.pumpfake : 1); _evData[n++] = { move: mv, dir: mdir || dir }; };
         const closing = defQ.vx * dir < -LX(1.0); // the defender is stepping toward me: cross him
         if (moves.includes('crossover') && (closing || Math.abs(defQ.vx) > LX(1.5))) add('crossover', 0.8 * openAfter + ankleBonus, P.readsMomentum && Math.abs(defQ.vx) > LX(1.5) ? (-sgn(defQ.vx) || dir) : dir);
         else if (moves.includes('crossover') && !defSquare) add('crossover', 0.45 * openAfter + ankleBonus);
@@ -5414,11 +5496,11 @@ class PlayerBrain {
     // post up: at least 3 in. taller than the man guarding you, back him down and finish with a hook, a drop step or an up-and-under
     if (def && defDist < LP(1.8) && d < LR(8.5) && d > LX(1.2) && !p.pickedUp && p.grounded && sc > 3.5 && p.height - def.height >= PG.minEdge - 1e-6 && m.time > (this.postCdT || -9)) {
       const edge = (p.height - def.height) * 5 + (p.attrs.str - def.attrs.str) * 0.35;
-      if (edge > AI.postEdgeMin) { const hookP = makeProbability(p, 'hook', 'mid', 0, clamp01(contest * SH.hookContestMul - (p.height - def.height) * 0.4)).P; const postEV = hookP * 2 * clamp(AI.postEVBase + edge * AI.postEVPerEdge, AI.postEVBase, AI.postEVMax) * (1 + AI.personalityEVMul * (pr.aggression - 0.5)) * (1 + pressure * 0.3) * sm.post * pl('post'); _evNames[n] = 'post'; _evScores[n] = postEV; _evData[n++] = { dir }; }
+      if (edge > AI.postEdgeMin) { const hookP = makeProbability(p, 'hook', 'mid', 0, clamp01(contest * SH.hookContestMul - (p.height - def.height) * 0.4)).P; const postEV = hookP * 2 * clamp(AI.postEVBase + edge * AI.postEVPerEdge, AI.postEVBase, AI.postEVMax) * (1 + AI.personalityEVMul * (pr.aggression - 0.5)) * (1 + pressure * 0.3) * sm.post * tm.post * pl('post'); _evNames[n] = 'post'; _evScores[n] = postEV; _evData[n++] = { dir }; }
     }
     // fadeaway over a tight defender (1v1: Pass is the fadeaway button)
     if (def && defDist < LP(1.4) && d > LX(2.8) && d < SH.zoneDeep && p.attrs.sho >= AI.fadeMinSho && m.teammatesOf(p).length === 1 && p.grounded) {
-      const JF = this.jumperEV(p, d + LX(0.8), contest * SH.fadeContestMul); if (JF.P >= AI.minShotP || sc < 3) { _evNames[n] = 'fade'; _evScores[n] = JF.ev * SH.fadeMakeMul * (1 + pressure * 1.2) * (JF.pts === 3 ? sm.three : sm.jumper) * pl(JF.pts === 3 ? 'three' : 'mid'); _evData[n++] = null; }
+      const JF = this.jumperEV(p, d + LX(0.8), contest * SH.fadeContestMul); if (JF.P >= AI.minShotP || sc < 3) { _evNames[n] = 'fade'; _evScores[n] = JF.ev * SH.fadeMakeMul * (1 + pressure * 1.2) * (JF.pts === 3 ? sm.three : sm.jumper) * tm.fade * pl(JF.pts === 3 ? 'three' : 'mid'); _evData[n++] = null; }
     }
     // passes
     const mates = m.teammatesOf(p);
@@ -5437,7 +5519,7 @@ class PlayerBrain {
       if (td < PS.alleyRange && open > 0.5 && Math.abs(q.x - p.x) > AI.lobMinDist && canDunk(t) && (q.grounded)) { const lev = 2 * 0.82 * open * (1 - risk * 0.5) * (1 + AI.personalityEVMul * pr.flashiness); _evNames[n] = 'pass'; _evScores[n] = lev; _evData[n++] = { target: t, lob: true }; }
     }
     // reset / back out
-    if (sc > AI.resetMinClock && !p.pickedUp) { _evNames[n] = 'reset'; _evScores[n] = AI.resetEV * (1 + (1 - pr.pace) * 0.5) * (def && defDist < LP(1.2) ? 1.2 : 0.7); _evData[n++] = null; }
+    if (sc > AI.resetMinClock && !p.pickedUp) { _evNames[n] = 'reset'; _evScores[n] = AI.resetEV * (1 + (1 - pr.pace) * 0.5) * (def && defDist < LP(1.2) ? 1.2 : 0.7) * tm.reset; _evData[n++] = null; }
     // a teammate calling for the ball gets it if the pass is reasonable (the human's Pass button off the ball)
     for (let i = 0; i < n; i++) { if (_evNames[i] === 'pass' && _evData[i] && _evData[i].target && _evData[i].target.callingForBall && !_evData[i].lob && _evScores[i] > AI.callForBallMinEV && _evData[i].risk < AI.callForBallMaxRisk && m.time - (this.lastCallPassT || -9) > 1.5) { this.lastCallPassT = m.time; this.setIntent('pass', AI.passCommitS, _evData[i]); return; } }
     // obviously bad options are never picked (a human wouldn't heave from half court with 10 s left)
@@ -5448,8 +5530,8 @@ class PlayerBrain {
     const dbg = this.debug.options; dbg.length = 0; for (let i = 0; i < n; i++) dbg.push({ name: _evNames[i] + (_evData[i] && _evData[i].move ? ':' + _evData[i].move : (_evData[i] && _evData[i].target ? ':' + _evData[i].target.nick + (_evData[i].lob ? '(lob)' : '') : '')), ev: _evScores[i] }); dbg.sort((a, b) => b.ev - a.ev); if (dbg.length > 3) dbg.length = 3;
     const name = _evNames[idx], data = _evData[idx];
     if ((name === 'post' && this.plan === 'post') || (name === 'drive' && this.plan === 'drive' && d < LR(7.5)) || (name === 'shoot' && (this.plan === 'three' || this.plan === 'mid') && d > SH.layupRange)) { this.lastPlan = this.plan; this.plan = null; } // ran the plan
-    if (name === 'shoot') { this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; }
-    else if (name === 'drive') { this.setIntent('drive', AI.driveCommitS, { dir, stopAt: 0 }); }
+    if (name === 'shoot') { this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; if (d <= SH.layupRange + LX(0.5)) this.euroWant = this.wantEuro(); }
+    else if (name === 'drive') { this.setIntent('drive', AI.driveCommitS, { dir, stopAt: 0, pull: this.tm.mid > 1.2 && this.rng.next() < this.tm.mid - 1 }); } // (V4: a pull-up shooter means to stop in the mid-range)
     else if (name === 'approach') { this.setIntent('drive', 1.5, data); }
     else if (name === 'move') { this.setIntent('move', AI.moveCommitS, data); this.lastMoveT = m.time; this.lastMoveName = data.move; }
     else if (name === 'pass') { this.setIntent('pass', AI.passCommitS, data); }
@@ -5461,8 +5543,8 @@ class PlayerBrain {
   refreshHandlerIntent() {
     // while committed, a drive that reaches the rim turns into a finish; a walled-off drive ends early
     const p = this.p, it = this.intent, m = this.m; if (!it) return; const hoop = p.hoop, d = Math.abs(p.x - hoop.x), dir = sgn(hoop.x - p.x) || p.facing;
-    if (it.type === 'drive' && (this.plan === 'mid' || (!this.plan && this.lastPlan === 'mid')) && !it.data.stopAt && p.grounded && !p.pickedUp && d <= AI.soloSpotOther + LR(0.3) && d > SH.layupRange + LX(1.2) && (p.state === 'move' || p.state === 'burst') && this.snap) { const c = this.estimateContest(p.x, p.y + p.height + SH.releaseAbove, p.z); if (c < AI.goodLookContest) { this.plan = null; this.lastPlan = null; this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; return; } } // mid-range plan: pull up off the drive
-    if (it.type === 'drive') { if (p.state === 'stagger' || (p.bodyUpT || 0) > AI.walledAfterS) { this.commitT = 0; if (this.plan === 'drive' && d > LR(6.5) && (AI.stylePlan[p.arch] || {}).mid > 0.1) this.plan = 'mid'; } if (it.data.stopAt && d <= it.data.stopAt) { this.commitT = 0; return; } if (it.data.stopAt) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > 0 && Math.abs(q.x - p.x) < (it.data.solo ? AI.soloApproachMinGap - LX(0.1) : LP(1.6)) && Math.abs(q.z - p.z) < W.laneShare + 0.1 && q.grounded) { this.commitT = 0; return; } } } const toward = p.vx * dir; if ((d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p)) || d <= SH.layupRange - LX(0.2)) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; } }
+    if (it.type === 'drive' && (this.plan === 'mid' || (!this.plan && this.lastPlan === 'mid') || it.data.pull) && !it.data.stopAt && p.grounded && !p.pickedUp && d <= AI.soloSpotOther + LR(0.3) && d > SH.layupRange + LX(1.2) && (p.state === 'move' || p.state === 'burst') && this.snap) { const c = this.estimateContest(p.x, p.y + p.height + SH.releaseAbove, p.z); if (c < AI.goodLookContest) { this.plan = null; this.lastPlan = null; this.setIntent('shoot', AI.shootCommitS); this.holdShoot = true; this.releasePlanned = false; this.mv = 0; return; } } // mid-range plan: pull up off the drive
+    if (it.type === 'drive') { if (p.state === 'stagger' || (p.bodyUpT || 0) > AI.walledAfterS) { this.commitT = 0; if (this.plan === 'drive' && d > LR(6.5) && (AI.stylePlan[p.arch] || {}).mid > 0.1) this.plan = 'mid'; } if (it.data.stopAt && d <= it.data.stopAt) { this.commitT = 0; return; } if (it.data.stopAt) { const ops = m.opponentsOf(p); for (let i = 0; i < ops.length; i++) { const q = this.perceived(ops[i]); if ((q.x - p.x) * dir > 0 && Math.abs(q.x - p.x) < (it.data.solo ? AI.soloApproachMinGap - LX(0.1) : LP(1.6)) && Math.abs(q.z - p.z) < W.laneShare + 0.1 && q.grounded) { this.commitT = 0; return; } } } const toward = p.vx * dir; if ((d <= SH.dunkRange && toward >= SH.dunkMinSpeed && canDunk(p)) || d <= SH.layupRange - LX(0.2)) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; if (!(d <= SH.dunkRange && canDunk(p))) this.euroWant = this.wantEuro(); } }
     if (it.type === 'post') {
       if ((p.state === 'move' || p.state === 'burst') && this.postActPressed) { this.setIntent('shoot', 0.8); this.holdShoot = true; this.releasePlanned = false; return; } // went around him: finish at the rim
       const df = m.nearestOpponent(p); const stuck = m.time - (this.postStartT || 0) > AI.postMaxS; const busy = p.inState('gather', 'floater', 'pumpfake', 'dropstep', 'upunder');
@@ -5494,7 +5576,7 @@ class PlayerBrain {
       let hx = hq.x + clamp(hq.vx || 0, -9, 9) * clamp(this.delay, 0, 0.45) * (P.anticipation != null ? P.anticipation : 0.6);
       if (Math.abs(hq.z - p.z) < W.laneShare && (p.x - hq.x) * dir > 0 && (p.x - hx) * dir < DF.contactDist) hx = p.x - dir * DF.contactDist; // a body in the way: the read stops at my chest
       // sag by shooting quality and memory
-      let shooterQ = clamp01((h.attrs.sho - 3) / 6); let sag = m.perSide === 1 ? lerp(AI.soloSagMax, AI.sagMin, shooterQ) : lerp(AI.sagMax, AI.sagMin, shooterQ);
+      let shooterQ = clamp01((h.attrs.sho - 3) / 6); let sag = (m.perSide === 1 ? lerp(AI.soloSagMax, AI.sagMin, shooterQ) : lerp(AI.sagMax, AI.sagMin, shooterQ)) + LX(this.tm.sag); // (V4: a sagger gives room, a presser picks you up close)
       sag += clamp((speedOf(h) * heightMul(h, HT.speedPerM) - speedOf(p) * heightMul(p, HT.speedPerM)) * AI.cushionPerSpeed, -LX(0.15), AI.cushionMax); // give a quicker handler a cushion (drop coverage for slow bigs)
       if (mem && memW > 0 && h.controlled) { const tp = mem.zonePct('three'); if (tp >= 0 && tp < AI.coldShooterPct) sag += LX(0.3) * memW; if (tp > AI.hotShooterPct) sag -= LX(0.25) * memW; }
       const hd = Math.abs(hx - myHoop.x); if (hd < LX(3)) sag = Math.min(sag, LP(0.8));
@@ -5506,7 +5588,7 @@ class PlayerBrain {
       if (hq.state === 'protect' && Math.abs(hx - p.x) < LP(1.0) && (p.x - hx) * dir > 0) targetX = p.x; // a big backing me down: hold ground with the body (Strength decides who gives)
       // when the handler is mid-move, disciplined defenders hold instead of chasing the jab
       const inMove = hq.state === 'crossover' || hq.state === 'hesitation';
-      if (inMove && !this.biteRolled) { this.biteRolled = true; this.biting = this.rng.next() < clamp(P.bite + PC.biteHanSlope * (h.attrs.han - p.attrs.def), 0.02, 0.9); if (!this.biting) this.freezeT = 0.35; else if (hq.state === 'hesitation') { p.biteT = 0.35; } else if (hq.state === 'crossover') { p.biteT = 0.3; this.lungeDir = sgn(hq.vx) || -dir; this.lungeT = 0.3; } }
+      if (inMove && !this.biteRolled) { this.biteRolled = true; this.biting = this.rng.next() < clamp(P.bite + this.tm.bite + PC.biteHanSlope * (h.attrs.han - p.attrs.def), 0.02, 0.9); if (!this.biting) this.freezeT = 0.35; else if (hq.state === 'hesitation') { p.biteT = 0.35; } else if (hq.state === 'crossover') { p.biteT = 0.3; this.lungeDir = sgn(hq.vx) || -dir; this.lungeT = 0.3; } }
       if (!inMove && hq.state !== 'gather' && hq.state !== 'pumpfake') this.biteRolled = false;
       if (this.freezeT > 0) targetX = p.x;
       if ((this.lungeT = (this.lungeT || 0) - this.interval) > 0) targetX = p.x + this.lungeDir * LX(1.2); // bit on the jab
@@ -5519,16 +5601,16 @@ class PlayerBrain {
       // contest: react to a jump shot; bite on a gather sometimes
       let jump = false;
       const finishing = hq.gType === 'layup' || hq.gType === 'dunk' || ((hq.state === 'layup' || hq.state === 'dunk') && hq.vy > 0) || ((hq.vx || 0) * dir > LX(3) && hq.grounded && hd < SH.layupRange && (hq.state === 'move' || hq.state === 'burst')); // read the drive: at this speed inside layup range, he's going up
-      if (hq.state === 'gather' && !finishing && !this.biteRolled) { this.biteRolled = true; let bite = P.bite; if (mem && memW > 0 && h.controlled && mem.pumpAbuse() > AI.pumpAbuse) bite *= (1 - 0.8 * memW); this.biting = this.rng.next() < bite; if (this.biting && dist < LP(1.8)) { jump = true; p.biteT = 0.45; } }
+      if (hq.state === 'gather' && !finishing && !this.biteRolled) { this.biteRolled = true; let bite = clamp(P.bite + this.tm.bite, 0.02, 0.9); if (mem && memW > 0 && h.controlled && mem.pumpAbuse() > AI.pumpAbuse) bite *= (1 - 0.8 * memW); this.biting = this.rng.next() < bite; if (this.biting && dist < LP(1.8)) { jump = true; p.biteT = 0.45; } }
       const underRim = Math.abs(p.x - myHoop.x) < LX(1.3) && hd > LX(2.5);
-      if ((hq.state === 'jumpshot' || hq.state === 'floater') && hq.stateT < 0.2 && dist < AI.flyCloseout && this.jumpCd <= 0 && !underRim) jump = true;
+      if ((hq.state === 'jumpshot' || hq.state === 'floater') && hq.stateT < 0.2 && dist < AI.flyCloseout * this.tm.closeout && this.jumpCd <= 0 && !underRim) jump = true;
       // rim protection: leave the floor as the finisher goes up (a gather seen late is still in time for the good ones)
-      if (finishing && hd < LX(3.4) && dist < AI.rimJumpDist && this.jumpCd <= 0 && (m.perSide === 1 || p.attrs.def + p.attrs.jmp >= 9 || p.height >= 2.0)) jump = true;
+      if (finishing && hd < LX(3.4) && dist < AI.rimJumpDist * this.tm.rimJump && this.jumpCd <= 0 && (m.perSide === 1 || p.attrs.def + p.attrs.jmp >= 9 || p.height >= 2.0)) jump = true;
       if (jump && p.grounded && this.jumpCd <= 0) { this.pulse.jump = 0.12 + this.rng.next() * 0.05; this.jumpCd = 0.9; }
       // steal
       let exposure = 0; const ballSideTowardMe = sgn(hq.ballSide) === sgn(p.x - hx); if (ballSideTowardMe) exposure += CONFIG.steal.expSide; if (hq.phase === 'startup') exposure += CONFIG.steal.expStartup; if (hq.pickedUp) exposure += CONFIG.steal.expPickedUp; if (hq.state === 'protect') exposure += CONFIG.steal.expProtect; exposure += HT.stealPerM * (h.height - HT.ref); if (hq.state === 'stagger') exposure *= 2;
       const ballX = hx + hq.ballSide * PC.dribble.sideOffset; const ballInReach = Math.abs(ballX - p.x) < CONFIG.steal.reach + LX(0.15);
-      if (exposure >= P.discipline + 0.05 && dist < LP(1.3) && ballInReach && this.stealCd <= 0 && p.grounded && Math.abs(hq.z - p.z) < W.laneShare && !beaten) { this.pulse.action = 0.05; this.stealCd = (2.8 + this.rng.next() * 1.5) * (1 + 0.35 * (m.perSide - 1)); }
+      if (exposure >= P.discipline + this.tm.discipline + 0.05 && dist < LP(1.3) && ballInReach && this.stealCd <= 0 && p.grounded && Math.abs(hq.z - p.z) < W.laneShare && !beaten) { this.pulse.action = 0.05; this.stealCd = (2.8 + this.rng.next() * 1.5) * (1 + 0.35 * (m.perSide - 1)) * this.tm.stealCd; } // (V4: a gambler reaches more, and sooner again)
       if (p.grounded) {
         const hl = laneOf(hq.z); let want = hl;
         if (beaten) { const cur = laneOf(p.zTarget); want = cur !== hl ? cur : (hl === 1 ? (p.z < 0.5 ? 0 : 2) : 1); } // chase in the next lane, cut back in a body ahead
@@ -5581,6 +5663,7 @@ class PlayerBrain {
     if (it) switch (it.type) {
       case 'shoot': {
         shoot = true; const st = p.state;
+        if (this.euroWant && p.hasBall && (st !== 'layup' && st !== 'dunk')) { const dd = sgn(p.hoop.x - p.x) || p.facing; mv = st === 'gather' ? (p.sd.type === 'layup' ? -dd : 0) : dd; } // V4: drive in, then the stick the other way in the gather: the Euro-step
         if (st === 'jumpshot' || st === 'floater') {
           if (!this.releasePlanned) { this.releasePlanned = true; const ideal = p.sd.tApex - (p.arch === 'sharpshooter' ? SH.quickReleaseEarlyMs / 1000 : 0) - AI.releaseLatencyS; this.releaseAt = Math.max(0.02, ideal + this.rng.gauss() * this.params.releaseSigma); }
           if (p.stateT >= this.releaseAt) { shoot = false; this.holdShoot = false; }
@@ -5636,6 +5719,7 @@ class PlayerBrain {
           else if (mvn === 'lane') { const target = it.data.dir; const cur = laneOf(p.zTarget); if (target < cur) this.pulse.laneUp = 0.03; else if (target > cur) this.pulse.laneDown = 0.03; this.movePressed = true; mv = sgn(p.hoop.x - p.x) || p.facing; sprint = true; }
           else { this.pulse.action = 0.03; this.movePressed = true; }
         } else if (mvn === 'spin') sprint = p.state === 'spin';
+        if (mvn === 'crossover' && this.movePressed && p.state === 'burst' && p.sd.kind === 'crossover' && p.stateT > 0.04 && !this.snatchTried) { this.snatchTried = true; if (this.wantSnatch()) this.pulse.action = 0.03; } // V4: the Snatch-back
         if (mvn === 'pumpfake' && this.movePressed && p.state !== 'gather' && p.state !== 'pumpfake' && this.pulse.shoot <= 0 && p.stateT > 0.05) { this.commitT = 0; }
         break;
       }
@@ -5801,7 +5885,7 @@ function freezeBallSoft(m) { const b = m.ball; if (b.owner) { b.setOwner(null); 
 function checkWin(m) {
   const f = m.format, a = m.teams[0].score, b = m.teams[1].score;
   if (f.type === 'first') { const t = f.target || RU.targetScore; const lead = Math.abs(a - b); if ((a >= t || b >= t) && (!f.winBy2 || lead >= 2)) return true; return false; }
-  if (m.overtime > 0 && m.arcade && a !== b) return true; // sudden death
+  if (m.overtime > 0 && a !== b) return true; // sudden death: the next basket wins (V4, 2.0 §3: every ruleset, so games stay close to one minute)
   return false;
 }
 
@@ -6406,25 +6490,55 @@ function portraitOf(def, teamColors, size, expr) {
 function drawPlayer(ctx, cam, p, alpha, ball, team, opts) { drawCharacter(ctx, cam, p, alpha, ball, team || { colors: ["#2E6FD8", "#F3F0FF"], pattern: "solid" }, opts); }
 
 // --- shot meter with feedback: timing grade, openness and the resulting chance ---
+// V4 (2.0 §3): the contest ring: for a moment after a shot leaves the hand, a ring on the floor around the shooter shows how
+// hard it was contested (green: open; yellow, orange, red: smothered), thicker and redder the closer the defense was.
+function contestColor(c) { return c < 0.15 ? '#4CE07A' : c < 0.4 ? '#D7F25A' : c < 0.7 ? '#FF9A3C' : '#FF4D4D'; }
+function drawContestRing(ctx, cam, m, alpha) {
+  const R = m.ring; if (!R || !R.p || R.p.hidden) return; const t = m.time - R.t, D = CONFIG.fx.contestRingS; if (t < 0 || t > D) return; const p = R.p;
+  const x = lerp(p.px, p.x, alpha), z = lerp(p.pz, p.z, alpha), s = cam.scale(z), sx = cam.sx(x), sy = cam.sy(lerp(p.py, p.y, alpha), z), u = t / D, /* at the shooter's feet, in the air too */ rx = s * (0.55 + 0.25 * u) * (drawHeightOf(p) / Math.max(1, p.height)), ry = rx * 0.32;
+  ctx.save(); ctx.globalAlpha = clamp01(1.3 - u * 1.3); ctx.strokeStyle = INK; ctx.lineWidth = 3 + 6 * R.c + 2; ctx.beginPath(); ctx.ellipse(sx, sy, rx, ry, 0, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = contestColor(R.c); ctx.lineWidth = 3 + 6 * R.c; ctx.beginPath(); ctx.ellipse(sx, sy, rx, ry, 0, 0, TAU); ctx.stroke(); ctx.restore();
+}
+// V4 (2.0 §3): the practice shot chart: the floor from the rim out in four zones (at the rim, mid-range, three, deep), each
+// colored by your percentage there with its makes/attempts; your last shots as dots by distance (a make filled, a miss
+// a ring, a perfect release ringed in gold); the share of perfect releases. Compact on the HUD, big on the pause menu.
+function drawPracticeChart(ctx, pr, x0, y0, w, h, big) {
+  if (!pr || !pr.byZone) return; const Z = pr.byZone, fs = big ? 16 : 11, pad = big ? 12 : 6, top = y0 + fs + pad + 4, bh = h - (top - y0) - pad;
+  ctx.fillStyle = 'rgba(12,10,36,0.82)'; ctx.fillRect(x0, y0, w, h); ctx.strokeStyle = 'rgba(243,240,255,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
+  const timed = (pr.marks || []).filter(s => s.grade >= 0), perf = timed.filter(s => s.grade === 0).length;
+  ctx.font = fontStr(fs, true); const tw = ctx.measureText('SHOT CHART').width; ctx.font = fontStr(fs - 1, false); let ps = timed.length ? 'PERFECT ' + perf + '/' + timed.length : 'rim to deep'; if (tw + ctx.measureText(ps).width + 10 > w - 2 * pad) ps = timed.length ? 'PERF ' + perf + '/' + timed.length : ''; // a narrow chart: the short form
+  ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(fs, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('SHOT CHART', x0 + pad, y0 + pad - 2); ctx.textAlign = 'right'; ctx.font = fontStr(fs - 1, false); ctx.fillStyle = UI_GOLD; ctx.fillText(ps, x0 + w - pad, y0 + pad - 1, Math.max(10, w - 2 * pad - tw - 8));
+  // four equal columns, rim to deep; a shot's dot sits in its zone's column at its distance within the zone
+  const zones = [['RIM', 0, SH.layupRange, ['lay', 'dunk']], ['MID', SH.layupRange, SH.zoneThree, ['mid']], ['3PT', SH.zoneThree, SH.zoneDeep, ['three']], ['DEEP', SH.zoneDeep, SH.heaveRange, ['deep', 'heave']]], cw = (w - 2 * pad) / zones.length;
+  const colOf = d => { for (let i = 0; i < zones.length; i++) if (d < zones[i][2] || i === zones.length - 1) return i; return zones.length - 1; }; let lines = 1;
+  zones.forEach(([name, d0, d1, keys], i) => { let mk = 0, at = 0; for (const k of keys) if (Z[k]) { mk += Z[k][0]; at += Z[k][1]; } const pct = at ? mk / at : -1, xa = x0 + pad + i * cw;
+    ctx.fillStyle = pct < 0 ? 'rgba(243,240,255,0.06)' : pct >= 0.5 ? 'rgba(76,224,122,0.42)' : pct >= 0.35 ? 'rgba(255,210,63,0.4)' : 'rgba(255,90,90,0.4)'; ctx.fillRect(xa + 1, top, cw - 2, bh);
+    ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(fs - 1, true); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; const lbl = name + (at ? ' ' + mk + '/' + at : '');
+    if (!at || ctx.measureText(lbl).width <= cw - 4) ctx.fillText(lbl, xa + cw / 2, top + bh - 2, cw - 4); else { ctx.fillText(name, xa + cw / 2, top + bh - 2, cw - 4); ctx.fillText(mk + '/' + at, xa + cw / 2, top + bh - 2 - fs, cw - 4); lines = 2; } }); // a narrow column: the count on its own line
+  const r = big ? 5 : 3; for (const s of (pr.marks || []).slice(big ? -80 : -40)) { const i = colOf(s.d), Zi = zones[i], u = clamp01((s.d - Zi[1]) / Math.max(0.01, Zi[2] - Zi[1])), px = x0 + pad + i * cw + r + 3 + u * (cw - 2 * r - 6), py = top + 4 + r + ((s.id * 7919) % 1000) / 1000 * Math.max(1, bh - fs * lines - 2 * r - 8); ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); if (s.make) { ctx.fillStyle = '#B8FF5A'; ctx.fill(); } else { ctx.strokeStyle = '#FF4FA3'; ctx.lineWidth = 1.5; ctx.stroke(); } if (s.grade === 0) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(px, py, r + 2, 0, TAU); ctx.stroke(); } }
+}
 function opennessLabel(c) { return c < 0.15 ? 'WIDE OPEN' : c < 0.4 ? 'OPEN' : c < 0.7 ? 'CONTESTED' : 'SMOTHERED'; }
-function drawShotMeter(ctx, cam, p, alpha, setting, lastShot, time) {
-  if (setting === 'off') return; const sd = p.sd; const st = p.state; const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha), z = lerp(p.pz, p.z, alpha); const s = cam.scale(z);
+// V4 (2.0 §3): the shot feedback after a timed shot: EARLY / GOOD / PERFECT / LATE and the make chance at release (a
+// setting of its own: it shows with the meter off too). The meter: 'on' draws the whole bar, 'minimal' its sweet spot only.
+function feedbackLabel(g, err) { return g === 0 ? 'PERFECT' : g === 1 ? 'GOOD' : err < 0 ? 'EARLY' : 'LATE'; }
+function drawShotMeter(ctx, cam, p, alpha, setting, lastShot, time, feedback) {
+  if (setting === 'off' && !feedback) return; const sd = p.sd; const st = p.state; const x = lerp(p.px, p.x, alpha), y = lerp(p.py, p.y, alpha), z = lerp(p.pz, p.z, alpha); const s = cam.scale(z);
   const DH = drawHeightOf(p), bx = cam.sx(x) - p.facing * s * 0.8 * DH / p.height, by0 = cam.sy(y, z) - s * DH * 1.3, hgt = s * DH * 0.95, w = Math.max(6, s * 0.11);
-  if ((st === 'jumpshot' || st === 'floater') && setting === 'on' && sd.type !== 'hook') {
+  if ((st === 'jumpshot' || st === 'floater') && (setting === 'on' || setting === 'minimal') && sd.type !== 'hook') { const full = setting === 'on';
     const tApex = sd.tApex || 0.3; const fill = clamp01(p.stateT / (2 * tApex)); const wFrac = clamp((perfectWindow(p, sd.contestGuess || 0, Math.abs(x - p.hoop.x)) / (2 * tApex)), 0.02, 0.3);
     ctx.fillStyle = 'rgba(10,10,30,0.75)'; ctx.beginPath(); roundRectPath(ctx, bx - w / 2 - 3, by0 - 3, w + 6, hgt + 6, 4); ctx.fill();
     const zone = (frac, col) => { ctx.fillStyle = col; ctx.fillRect(bx - w / 2, by0 + hgt * (0.5 - frac), w, hgt * frac * 2); };
-    zone(wFrac * 3.5, '#B8322D'); zone(wFrac * 2, '#FFD23F'); zone(wFrac, '#4CE07A');
+    if (full) { zone(wFrac * 3.5, '#B8322D'); zone(wFrac * 2, '#FFD23F'); } zone(wFrac, '#4CE07A');
     ctx.fillStyle = 'rgba(243,240,255,0.9)'; ctx.fillRect(bx - w / 2, by0 + hgt * (1 - fill) - 2, w, 4);
     ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(bx - w / 2, by0 + hgt * (1 - fill), w, hgt * fill);
     ctx.strokeStyle = '#F3F0FF'; ctx.lineWidth = 1.5; ctx.strokeRect(bx - w / 2, by0, w, hgt);
   }
-  if (lastShot && lastShot.shooter === p && lastShot.grade >= 0 && time - lastShot.t < 1.1) {
-    const t = time - lastShot.t; const label = lastShot.green ? 'GREEN' : gradeLabel(lastShot.grade, lastShot.err); const col = lastShot.green ? '#4CE07A' : lastShot.grade === 0 ? '#4CE07A' : lastShot.grade === 1 ? '#FFD23F' : '#FF6B6B';
+  if (feedback && lastShot && lastShot.shooter === p && lastShot.grade >= 0 && time - lastShot.t < 1.1) {
+    const t = time - lastShot.t; const label = feedbackLabel(lastShot.grade, lastShot.err); const col = lastShot.grade === 0 ? '#4CE07A' : lastShot.grade === 1 ? '#FFD23F' : lastShot.grade === 2 ? '#FF9A3C' : '#FF6B6B';
     ctx.globalAlpha = clamp01(1 - (t - 0.7) / 0.4); const px = Math.max(12, s * 0.22);
     stampText(ctx, label, bx, by0 - s * 0.3 - t * 14, px, col, INK, -3);
     ctx.font = fontStr(px * 0.62, true); ctx.fillStyle = '#F3F0FF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-    const sub = opennessLabel(lastShot.contest) + ' · ' + Math.round(lastShot.P * 100) + '%'; ctx.strokeText(sub, bx, by0 - s * 0.3 - t * 14 + px * 0.75); ctx.fillText(sub, bx, by0 - s * 0.3 - t * 14 + px * 0.75);
+    const sub = opennessLabel(lastShot.contest) + ' · ' + Math.round(lastShot.P * 100) + '%', sy = by0 - s * 0.3 - t * 14 + px * 1.05 + 2; ctx.strokeText(sub, bx, sy); ctx.fillText(sub, bx, sy); // under the stamp, clear of it (the pixel font's caps are tall)
     ctx.globalAlpha = 1;
   }
 }
@@ -8178,26 +8292,27 @@ function attachPresentation(m, game) {
   bus.on('LAND', e => { fx.spawn('puff', e.player.x, 0.06, e.player.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); /* 8 beige puffs drifting outward (§5) */ if (e.speed > 4) au.noise(0.05, 0.12, { filter: 'lowpass', freq: 500 }); });
   bus.on('BUMP', e => { au.noise(0.06, 0.2, { filter: 'lowpass', freq: 700 }); cam.addTrauma(0.1); });
   bus.on('BLOW_BY', e => { if (Math.random() < 0.6) au.squeak(); });
-  bus.on('SHOT_RELEASED', s => { if (s.type === 'dunk') return; au.noise(0.06, 0.08, { filter: 'highpass', freq: 3000 }); });
+  bus.on('SHOT_RELEASED', s => { if (s.type !== 'ft') m.ring = { p: s.shooter, c: s.contest, t: m.time }; /* V4 (2.0 §3): the contest ring */ if (s.type === 'dunk') return; au.noise(0.06, 0.08, { filter: 'highpass', freq: 3000 }); if (s.grade === 0 && s.shooter === m.human) au.perfect(); /* V4 (§6): a perfect release chimes */ });
+  bus.on('SIGNATURE', e => pushCallout(m, SIG_MOVE_CALLOUT[e.move] || 'SIGNATURE', '#FFD23F', false, true)); // V4: a signature move's name (small)
   bus.on('SCORE', e => {
     world.crowdHype = Math.min(1, world.crowdHype + 0.6); au.crowdSwell(e.dunk || e.three ? 0.6 : 0.35, 0.8);
     if (e.shot && e.shot.flavor === 'swish' && !e.dunk) { au.swish(); if (e.three || e.shot.green) pushCallout(m, e.shot.green ? 'GREEN' : 'SPLASH', CALLOUT.make); }
     else if (e.shot && e.shot.flavor === 'bank') { au.swish(); }
     if (e.shot && e.shot.type === 'hook' && !e.practice) pushCallout(m, 'HOOK', CALLOUT.make); else if (e.shot && e.shot.fade && !e.practice && !e.three) pushCallout(m, 'FADEAWAY', CALLOUT.make);
-    if (e.dunk) { au.dunk(); fx.hitStop(CONFIG.fx.hitStop.dunk); cam.addTrauma(0.5); cam.addPunch(); fx.spawn('shock', e.hoop.x, RIM_Y, 0.5, 1, '#FFFFFF'); game.input.rumble(0.8, 0.5, 180); if (e.player && e.player.stats.dunkM % 3 === 0 && !e.shot.poster) pushCallout(m, 'SLAM', CALLOUT.make); }
+    if (e.dunk) { au.dunk(); fx.hitStop(CONFIG.fx.hitStop.dunk); cam.addTrauma(0.5); cam.addPunch(); fx.spawn('shock', e.hoop.x, RIM_Y, 0.5, 1, '#FFFFFF'); game.input.rumble(0.8, 0.5, 180); vibrate('dunk', m); if (e.player && e.player.stats.dunkM % 3 === 0 && !e.shot.poster) pushCallout(m, 'SLAM', CALLOUT.make); }
     if (e.buzzer) { pushCallout(m, 'BUZZER BEATER', CALLOUT.make, true); au.stinger('buzzerbeater'); fx.slowMo(CONFIG.fx.slowMo.duration); fx.posterRequest = { headline: 'BUZZER BEATER', sub: e.player ? e.player.name.toUpperCase() : '', freeze: true }; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ }
     else if (e.clutch && !e.practice) { fx.slowMo(CONFIG.fx.slowMo.duration); au.crowdSwell(0.8, 1.2); }
     if (e.player && e.player.onFire > 0) { fx.spawn('flame', e.hoop.x, RIM_Y, 0.5, 12, ['#FF8A2A', '#FFD23F']); }
   });
   bus.on('MISS', e => { if (e.shot && e.reason !== 'block' && (e.shot.grade === 1 || e.shot.grade === 0) && (e.shot.flavor === 'rimOut' || e.shot.flavor === 'backRim')) { au.oooh(); } if (e.type === 'dunk') { cam.addTrauma(0.2); } });
-  bus.on('BLOCK', e => { au.block(); fx.hitStop(CONFIG.fx.hitStop.block); pushCallout(m, 'REJECTED', CALLOUT.defense); cam.addTrauma(0.45); cam.addPunch(); fx.spawn('impact', m.ball.x, m.ball.y, m.ball.z, 1, '#FFFFFF'); game.input.rumble(0.6, 0.4, 150); world.crowdHype = Math.min(1, world.crowdHype + 0.5); au.crowdSwell(0.5, 0.6); });
+  bus.on('BLOCK', e => { au.swat(); vibrate('block', m); fx.hitStop(CONFIG.fx.hitStop.block); /* V4: the swat */ pushCallout(m, 'REJECTED', CALLOUT.defense); cam.addTrauma(0.45); cam.addPunch(); fx.spawn('impact', m.ball.x, m.ball.y, m.ball.z, 1, '#FFFFFF'); game.input.rumble(0.6, 0.4, 150); world.crowdHype = Math.min(1, world.crowdHype + 0.5); au.crowdSwell(0.5, 0.6); });
   bus.on('GOALTEND', e => { pushCallout(m, 'GOALTEND', CALLOUT.defense); au.whistle(); });
   bus.on('INTERFERENCE', e => { pushCallout(m, 'INTERFERENCE', CALLOUT.defense); au.whistle(); });
   bus.on('CHARGE', e => { au.whistle(); pushCallout(m, 'CHARGE', CALLOUT.defense, true); cam.addTrauma(0.3); fx.spawn('impact', (e.player.x + e.defender.x) / 2, e.defender.y + e.defender.height * 0.55, e.defender.z, 1, '#FFFFFF'); fx.spawn('puff', e.defender.x, 0.06, e.defender.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); au.stumble(); world.crowdHype = Math.min(1, world.crowdHype + 0.4); au.crowdSwell(0.4, 0.6); });
-  bus.on('STEAL', e => { au.noise(0.08, 0.2, { filter: 'bandpass', freq: 1800 }); pushCallout(m, e.intercept ? 'PICKED' : 'STEAL', CALLOUT.defense); fx.spawn('dust', e.player.x, 0.05, e.player.z, 4, 'rgba(243,240,255,0.5)'); });
+  bus.on('STEAL', e => { au.steal(); vibrate('steal', m); /* V4: its own sound */ pushCallout(m, e.intercept ? 'PICKED' : 'STEAL', CALLOUT.defense); fx.spawn('dust', e.player.x, 0.05, e.player.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('SWIPE', e => au.noise(0.05, 0.08, { filter: 'highpass', freq: 4000 }));
   bus.on('POKE', e => { au.noise(0.04, 0.1, { filter: 'bandpass', freq: 2600 }); game.input.rumble(0.2, 0.1, 60); }); // V1: the deflection's tick (the steal, if any, sounds when the defense has it)
-  bus.on('POKED', e => { au.noise(0.05, 0.12, { filter: 'lowpass', freq: 900 }); pushCallout(m, 'POKED', '#9BA3C7', false, true); }); // V1 (§1.1): a small callout and no stat
+  bus.on('POKED', e => { au.poked(); /* V4: a tick unlike the steal's */ pushCallout(m, 'POKED', '#9BA3C7', false, true); }); // V1 (§1.1): a small callout and no stat
   bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
   bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
   bus.on('TRAIT_FX', e => { trBannerPush(m, e); const txt = e.big && TRAIT_FX_TEXT[e.id]; if (txt) pushCallout(m, txt, traitFrame(e.id)); }); // R3: a trait kicking in; V3 (§2.3): a banner under the HUD (Takeover gets a callout too)
@@ -8210,7 +8325,7 @@ function attachPresentation(m, game) {
   bus.on('FOUL', e => { au.whistle(); pushCallout(m, (e.kind.toUpperCase()) + ' FOUL', CALLOUT.call); });
   bus.on('TIPOFF_TOSS', e => au.whistle());
   bus.on('PERIOD_END', e => { au.buzzer(); if (m.period === 1 && m.periods === 2 && m.overtime === 0) pushCallout(m, 'HALFTIME', CALLOUT.call); });
-  bus.on('OVERTIME', e => pushCallout(m, m.arcade ? 'SUDDEN DEATH' : 'OVERTIME', CALLOUT.call, true));
+  bus.on('OVERTIME', e => pushCallout(m, 'NEXT BASKET WINS', CALLOUT.call, true)); // V4: overtime is sudden death in every ruleset
   bus.on('FINAL', e => { au.buzzer(); pushCallout(m, 'FINAL', CALLOUT.call, true); const wt = m.teams[e.winner]; if (wt && !m.practice && !m.contest3 && !m.drill) { const wc = wt.colors || ['#FFD23F', '#F3F0FF']; fx.spawn('confetti', cam.x.x, 7, 0.5, CONFIG.fx.confettiCount, [wc[0], wc[1], shadeHex(wc[0], 0.35), mixHex(wc[1], '#FFFFFF', 0.3)], { spread: cam.W / Math.max(20, cam.ppm || 60) + 2, spreadY: 2.5 }); } /* 120 pieces in the winner's colors (§5) */ if (e.winner === humanTeam) { au.stinger('win'); world.crowdHype = 1; au.crowdSwell(1, 2); } else if (humanTeam >= 0 && !m.practice && !m.contest3 && !m.drill) au.stinger('loss'); }); // R10: a win and a loss sound different
   bus.on('CONTEST_POINTS', e => { if (e.pts > 1) pushCallout(m, 'MONEY BALL', CALLOUT.make); au.ui('coin'); });
   bus.on('CONTEST_END', e => { au.buzzer(); pushCallout(m, 'TIME', CALLOUT.call, true); });
@@ -8334,7 +8449,10 @@ function settingsScreen(game, tab0) {
       H(btn('Remap keys…', 0, 0, 0, 0, () => game.ui.push(remapScreen(game))), 'Pick your own key for every action (it switches Keys to Custom).'),
       H(sld('Touch size', 0, 0, 0, 0, 0.7, 1.5, 0.1, () => S.touchSize, v => { S.touchSize = v; apply(); }, v => v.toFixed(1) + 'x'), 'The on-screen stick and buttons on a touch screen.'),
       H(sld('Touch opacity', 0, 0, 0, 0, 0.2, 1, 0.1, () => S.touchOpacity, v => { S.touchOpacity = v; apply(); }), 'How solid the touch controls look (they fade when idle).'),
-      H(tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }), 'The stick on the right and the buttons on the left.')],
+      H(tgl('Left-handed touch layout', 0, 0, 0, 0, () => S.leftHanded, v => { S.leftHanded = v; apply(); }), 'The stick on the right and the buttons on the left.'),
+      H(btn('Edit touch layout…', 0, 0, 0, 0, () => game.ui.push(touchLayoutScreen(game))), 'Drag the stick and the buttons to where your thumbs want them. Reset puts them back.'), /* V4 (2.0 §3) */
+      H(tgl('Auto-sprint (touch)', 0, 0, 0, 0, () => S.autoSprint !== false, v => { S.autoSprint = v; apply(); }), 'On: push the stick all the way to sprint. Off: a SPRINT button next to the stick.'),
+      H(tgl('Vibration', 0, 0, 0, 0, () => S.vibrate !== false, v => { S.vibrate = v; }), 'A short buzz on steals, blocks and dunks, on phones and tablets that can.')],
     [H(sel('Opponent difficulty', 0, 0, 0, 0, diffL, () => diffs.indexOf(S.difficulty), i => { S.difficulty = diffs[i]; }), 'How smart the computer plays in the games you play: reactions, reads and shot timing. (Its ratings come from the league.)'),
       H(tgl('Adaptive difficulty (quick games)', 0, 0, 0, 0, () => S.adaptive, v => { S.adaptive = v; }), 'Quick games only: the computer tightens up when you lead by 10 and eases off when you trail by 10.'),
       H(tgl('Charges (offensive fouls)', 0, 0, 0, 0, () => S.charges !== false, v => { S.charges = v; }), 'Sprint into a defender who is set and it can be a charge: their ball.'),
@@ -8342,6 +8460,7 @@ function settingsScreen(game, tab0) {
       H(sel('Career game length', 0, 0, 0, 0, CR.gameSecsOptions.map(n => fmtClock(n) + (n === CR.gameSecs ? ' (default)' : '')), () => Math.max(0, CR.gameSecsOptions.indexOf(careerSecs())), i => { S.gameLen = CR.gameSecsOptions[i]; }), 'Every career game is one timed period this long; a tie goes to sudden-death overtime (the first basket wins). Simulated games use it too.'),
       H(tgl('Career injuries', 0, 0, 0, 0, () => S.injuries !== false, v => { S.injuries = v; }), 'Injuries in the career (off: never injured, in played or simulated games).'),
       H(sel('Shot meter', 0, 0, 0, 0, ['On', 'Minimal', 'Off'], () => ['on', 'minimal', 'off'].indexOf(S.meter), i => { S.meter = ['on', 'minimal', 'off'][i]; }), 'On: the full meter over your head. Minimal: only its sweet spot. Off: shoot by feel.'),
+      H(tgl('Shot feedback', 0, 0, 0, 0, () => S.shotFeedback !== false, v => { S.shotFeedback = v; }), 'After every jump shot: your timing (EARLY, GOOD, PERFECT or LATE) and the make chance when the ball left your hand. It shows with the meter off too.'), /* V4 (2.0 §3) */
       H(tgl('Power-ups in Quick 1v1', 0, 0, 0, 0, () => S.arcadeExtras === 'quick', v => { S.arcadeExtras = v ? 'quick' : 'off'; }), 'The super meter, the specials and the power-ups, in Quick 1v1 games only (off by default). Never in the career or in practice.'),
       H(tgl('First-time tips', 0, 0, 0, 0, () => S.tips !== false, v => { S.tips = v; }), 'A short tip the first time you reach each part of the career. Turning it back on shows the ones you haven\'t seen.')],
     [H(sel('Text size', 0, 0, 0, 0, ['1×', '1.25×'], () => S.textSize === 1.25 ? 1 : 0, i => { S.textSize = i ? 1.25 : 1; apply(); }), 'Bigger text in the menus, the career and the match HUD. Long lines wrap or shrink to fit.'),
@@ -8360,7 +8479,7 @@ function settingsScreen(game, tab0) {
     tabs.forEach((b, i) => { b.primary = i === tab; });
     for (const r of rows) r.hidden = true; for (const p of pagers) p.prev.hidden = p.next.hidden = true;
     if (P) { const tw = (1200 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 40 + i * (tw + 8), y: 20, w: tw, h: th })); pagers[tab].sync(); }
-    else { const tw = (1060 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 110 + i * (tw + 8), y: 96, w: tw, h: 44 })); const g = groups[tab], n = g.filter(r => !r.off).length; column(g, 110, 164, 640, n > 8 ? 40 : 44, n > 8 ? 6 : 8); /* F5: nine rows still end above the buttons */ for (const r of g) r.hidden = !!r.off; Object.assign(erase, { x: 110, y: 590, w: 330, h: 46 }); Object.assign(credits, { x: 450, y: 590, w: 310, h: 46 }); Object.assign(back, { x: 770, y: 590, w: 400, h: 46 }); }
+    else { const tw = (1060 - 8 * (tabs.length - 1)) / tabs.length; tabs.forEach((b, i) => Object.assign(b, { x: 110 + i * (tw + 8), y: 96, w: tw, h: 44 })); const g = groups[tab], n = g.filter(r => !r.off).length; column(g, 110, 164, 640, n > 9 ? 36 : n > 8 ? 40 : 44, n > 9 ? 5 : n > 8 ? 6 : 8); /* F5: nine rows still end above the buttons (V4: ten too) */ for (const r of g) r.hidden = !!r.off; Object.assign(erase, { x: 110, y: 590, w: 330, h: 46 }); Object.assign(credits, { x: 450, y: 590, w: 310, h: 46 }); Object.assign(back, { x: 770, y: 590, w: 400, h: 46 }); }
   }
   const scr = { widgets: items, name: 'settings', onExit() { game.save.save(); game.applySettings(); },
     draw(ctx, ui) {
@@ -8399,6 +8518,32 @@ function remapScreen(game) {
       if (note) ui.para(ctx, note, 794, 470, 352, 15, UI_GOLD, 'left', 4); } };
 }
 
+// V4 (2.0 §3): the touch layout editor. A match frame's floor band with the stick and the buttons where they sit now;
+// drag any of them (a finger or the mouse) to place it. Each one's center is kept as a fraction of the screen
+// (S.touchLayout), so it fits any phone; Reset puts everything back.
+function touchBandFor(W, H, safe) { const sf = safe || { bottom: 0 }; return { y0: H * CONFIG.camera.legends.floorAt + CONFIG.fx.laneOffsetPx * (0.5 - CONFIG.world.lanes[0]) + ART.touchBandGap, y1: H - sf.bottom - 2 }; } // (below the near lane's feet)
+function touchLayoutScreen(game) {
+  const S = game.save.data.settings; let draft = S.touchLayout && typeof S.touchLayout === 'object' ? JSON.parse(JSON.stringify(S.touchLayout)) : {}; let drag = null, moved = false;
+  const tc = new TouchControls(game.input); tc.visible = true; tc.solo = true; tc.offense = true; tc.opacity = ART.touchOpacityRef / Math.max(0.05, ART.touchIdleA); // (fully visible while placing)
+  const relayout = () => { tc.size = S.touchSize; tc.leftHanded = S.leftHanded; tc.autoSprint = S.autoSprint !== false; tc.custom = draft; const W = game.W, H = game.H; tc.computeLayout(W, H, game.safe, W > H && S.camera !== 'classic' ? touchBandFor(W, H, game.safe) : null); };
+  const reset = btn('Reset', 0, 0, 0, 0, () => { draft = {}; relayout(); }), done = btn('DONE', 0, 0, 0, 0, () => { S.touchLayout = Object.keys(draft).length ? draft : null; game.save.save(); game.applySettings(); game.ui.pop(); }, { primary: true });
+  const P = game.ui.phone, bh = P ? tapH(game.ui, 44) : 46; Object.assign(reset, { x: 360, y: 128, w: 260, h: bh }); Object.assign(done, { x: 660, y: 128, w: 260, h: bh });
+  const ptr = () => { const I = game.input; for (const q of I.touch.pointers.values()) return { x: q.x, y: q.y }; return I.mouse.down ? { x: I.mouse.x, y: I.mouse.y } : null; };
+  const under = (x, y) => { const L = tc.layout; if (!L) return null; for (const b of L.buttons) { if (b.key === 'super') continue; if (dist2(x, y, b.x, b.y) < b.r * b.r) return { key: b.key, o: b }; } if (dist2(x, y, L.stick.x, L.stick.y) < L.stick.r * L.stick.r) return { key: 'stick', o: L.stick }; return null; };
+  let W0 = 0, H0 = 0; relayout();
+  return { widgets: [reset, done], name: 'touchlayout', noHots: true, onBack() { done.onPress(); },
+    update() { if (game.W !== W0 || game.H !== H0) { W0 = game.W; H0 = game.H; relayout(); } const p = ptr();
+      if (p && !drag) { const u = under(p.x, p.y); if (u) { drag = { key: u.key, dx: u.o.x - p.x, dy: u.o.y - p.y }; moved = false; } else drag = { key: null }; }
+      else if (p && drag && drag.key) { draft[drag.key] = [clamp01((p.x + drag.dx) / game.W), clamp01((p.y + drag.dy) / game.H)]; moved = true; relayout(); }
+      else if (!p && drag) drag = null; },
+    draw(ctx, ui) {
+      ctx.save(); ctx.setTransform(game.dpr, 0, 0, game.dpr, 0, 0); const W = game.W, H = game.H; ctx.fillStyle = '#0E1430'; ctx.fillRect(0, 0, W, H);
+      const B = W > H && S.camera !== 'classic' ? touchBandFor(W, H, game.safe) : null; if (B) { ctx.fillStyle = 'rgba(201,139,74,0.35)'; ctx.fillRect(0, H * CONFIG.camera.legends.floorAt - 40, W, B.y0 - H * CONFIG.camera.legends.floorAt + 40); ctx.fillStyle = 'rgba(8,12,36,0.6)'; ctx.fillRect(0, B.y0, W, H - B.y0); }
+      drawTouchControls(ctx, tc, true); if (drag && drag.key) { const L = tc.layout, o = drag.key === 'stick' ? L.stick : L.buttons.find(b => b.key === drag.key); if (o) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(o.x, o.y, o.r + 6, 0, TAU); ctx.stroke(); ctx.setLineDash([]); } }
+      ctx.restore();
+      ui.title(ctx, 'TOUCH LAYOUT', 360, 44, 34); ui.para(ctx, 'Drag the stick or a button to move it. Sizes: Settings → Touch size.', 640, 92, 760, 15, UI_TEXT, 'center', 2);
+    } };
+}
 // --- three save slots (R10 §4) ---
 // A slot's summary without loading it into the game: the career's player and where they are, the Hall of Fame, when.
 function slotSummary(n) {
@@ -9098,7 +9243,7 @@ function howToScreen(game) {
   const items = [btn('Tutorial (≈90 s)', 0, 0, 0, 0, () => game.startTutorial()), btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game)))]; for (const w of items) { w.y = 640; w.h = 46; } Object.assign(items[0], { x: 60, w: 300 }); Object.assign(items[2], { x: 372, w: 240 }); Object.assign(items[1], { x: 624, w: 190 }); // side by side under the tips, before ◀ Tip / Tip ▶ (F9: the stats guide)
   const P = game.ui.phone; let tip = 0;
   const rows = [['Action', 'Keys A', 'Keys B', 'Gamepad', 'Touch'], ['Move', 'A / D', '← / →', 'Stick', 'Stick'], ['Jump · block · rebound', 'W, Space', '↑, Space', 'A', 'JUMP'], ['Stance · post up (hold)', 'S', '↓', 'LT', 'Stick down'], ['Shoot · tap: pump fake', 'J', 'Z', 'X', 'SHOOT'], ['Fadeaway jumper', 'K', 'X', 'B', 'FADE'], ['Dribble move · steal', 'L', 'C', 'Y', 'MOVE'], ['Sprint · tap: hesitation', 'Shift', 'Shift', 'RT', 'Stick past 85%'], ['Pause', 'Esc, P', 'Esc, P', 'Start', 'Pause']];
-  const tips = ['Shots: hold Shoot and release at the top of the jump; the meter shows the window. A tap is a pump fake: it picks up your dribble. Fadeaway: the same with Fade.', 'Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.', 'Violations: once a pump fake picks up your dribble you can pivot, shoot or fade, but a dribble move is a double dribble and walking with the ball is a travel. Jump with it and land with it: a travel. Hold it 5 seconds while guarded: a held ball. Each one gives the ball away.'];
+  const tips = ['Shots: hold Shoot and release at the top of the jump; the meter shows the window. A tap is a pump fake: it picks up your dribble. Fadeaway: the same with Fade.', 'Shooting: every jumper is graded on release timing against the top of the jump. The meter shows the window. Afterward you see the grade, how open you were and the make chance.', 'Moves: crossover (Move), spin (Sprint + Move), step-back (away + Move), hesitation (tap Sprint), pump fake (tap Shoot). Some moves are learned as your ratings grow, and five signature moves come at 70 and 80: the Codex\'s Moves page has them all.', 'Post game: with 3 inches or more on your defender, hold Stance with the ball near the block to back them down. Then Shoot for a hook, Move for a drop step, or tap Shoot and then Move for an up-and-under. Size and Strength decide who gives ground.', 'Defense: hold Stance and stay between the ball and the hoop. Jump to contest. A set defender is a wall: getting past one takes a move, a quicker first step or better handles. Sprinting into one can be a charge. Beaten? Race to the rim in the next lane over and jump as they go up.', 'Height is measured, not chosen. Tall players contest, block, rebound and post up better. Small players are quicker, dribble lower and steal more.', 'Violations: once a pump fake picks up your dribble you can pivot, shoot or fade, but a dribble move is a double dribble and walking with the ball is a travel. Jump with it and land with it: a travel. Hold it 5 seconds while guarded: a held ball. Each one gives the ball away.'];
   if (P) { // phones: the touch column of the table, then one tip at a time in bigger type
     const h = tapH(game.ui, 44), y = UI_H - h - 12; const nav = [btn('◀', 40, y, 130, h, () => { tip = (tip + tips.length - 1) % tips.length; }), btn('▶', 178, y, 130, h, () => { tip = (tip + 1) % tips.length; })];
     Object.assign(items[0], { x: 316, y, w: 380, h }); Object.assign(items[2], { x: 704, y, w: 300, h }); Object.assign(items[1], { x: 1012, y, w: 228, h }); items.push(...nav); }
@@ -9120,7 +9265,9 @@ function pauseScreen(game) {
   items.push(btn('Controls', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))));
   if (!inCareer) items.push(btn('Quit to menu', 0, 0, 0, 0, () => game.quitToMenu()));
   column(items, UI_W / 2 - 170, 250, 340, 48, 12); const phoneBottom = phoneGrid(game.ui, items, UI_W / 2 - 300, 200, 600, 2, 1, 10);
-  return { widgets: items, overlay: true, name: 'pause', onBack() { game.resume(); }, draw(ctx, ui) { if (phoneBottom) { ui.panel(ctx, UI_W / 2 - 330, 90, 660, phoneBottom - 60, UI_PANEL2); ui.title(ctx, 'PAUSED', UI_W / 2 - 90, 140, 52); return; } ui.panel(ctx, UI_W / 2 - 240, 150, 480, 450, UI_PANEL2); ui.title(ctx, 'PAUSED', UI_W / 2 - 90, 200, 52); if (inCareer) ui.label(ctx, 'Career games always count. Simming finishes it with your ratings.', UI_W / 2, 570, 13, UI_DIM, 'center'); } };
+  const pr = game.match && game.match.practice && game.match.practice.chart ? game.match.practice : null; // V4: practice: the shot chart, big, beside the menu
+  if (pr && !game.ui.phone) for (const w of items) w.x -= 260;
+  return { widgets: items, overlay: true, name: 'pause', onBack() { game.resume(); }, draw(ctx, ui) { if (phoneBottom) { ui.panel(ctx, UI_W / 2 - 330, 90, 660, phoneBottom - 60, UI_PANEL2); ui.title(ctx, 'PAUSED', UI_W / 2 - 90, 140, 52); return; } if (pr) { ui.panel(ctx, UI_W / 2 - 500, 150, 480, 450, UI_PANEL2); ui.title(ctx, 'PAUSED', UI_W / 2 - 350, 200, 52); kitPanel(ctx, UI_W / 2 + 10, 150, 520, 450, UI_PANEL2); drawPracticeChart(ctx, pr, UI_W / 2 + 30, 170, 480, 300, true); ui.para(ctx, 'Practice: ' + pr.makes + ' of ' + pr.shots + ' made. Green zones are 50% or better, yellow 35%, red under.', UI_W / 2 + 30, 500, 480, 14, UI_TEXT, 'left', 4); return; } ui.panel(ctx, UI_W / 2 - 240, 150, 480, 450, UI_PANEL2); ui.title(ctx, 'PAUSED', UI_W / 2 - 90, 200, 52); if (inCareer) ui.label(ctx, 'Career games always count. Simming finishes it with your ratings.', UI_W / 2, 570, 13, UI_DIM, 'center'); } };
 }
 function keyboardScreen(game, initial, onDone) {
   let value = initial || ''; const rows = ['ABCDEFGHIJ', 'KLMNOPQRST', 'UVWXYZ .-\'', '⌫ ␣ OK']; let cx = 0, cy = 0;
@@ -9147,7 +9294,26 @@ const DIFF_IDS = ['rookie', 'pro', 'allstar', 'legend'], DIFF_LABELS = ['Rookie'
 // Sixteen starting faces that span the skin tones; every one is editable in the face editor.
 const PRESET_LOOKS = []; for (let i = 0; i < 16; i++) { const lk = randomLook(artRng(4242 + i * 97), { teen: true }); lk.skin = Math.min(11, Math.floor(i * 12 / 16)); lk.facialHair = 0; PRESET_LOOKS.push(lk); }
 function cloneLook(look, name) { return JSON.parse(JSON.stringify(normLook(look, name))); }
-const MOVE_NAMES = { crossover: 'Crossover', hesitation: 'Hesitation', stepback: 'Step-back', spin: 'Spin', euro: 'Euro-step', dunk360: '360 dunk', windmill: 'Windmill dunk' };
+const MOVE_NAMES = { crossover: 'Crossover', hesitation: 'Hesitation', stepback: 'Step-back', spin: 'Spin', euro: 'Euro-step', dunk360: '360 dunk', windmill: 'Windmill dunk', btb: 'Behind-the-back', snatch: 'Snatch-back', reverse: 'Reverse dunk', pullup: 'Pull-up three' };
+// V4 (2.0 §3): the move list: how to do each move and what it does. The signature moves (Handles 7 and 8, Finishing 7, Hops 8,
+// Shooting 8) are marked.
+const MOVE_ORDER = ['crossover', 'hesitation', 'stepback', 'spin', 'dunk360', 'windmill', 'btb', 'euro', 'snatch', 'reverse', 'pullup'];
+const MOVE_SIG = { btb: 1, euro: 1, snatch: 1, reverse: 1, pullup: 1 };
+const MOVE_INFO = {
+  crossover: ['Press Move', 'Crosses the ball to your other hand and bursts the other way. A defender leaning the wrong way can lose his ankles.'],
+  hesitation: ['Tap Sprint while dribbling slowly', 'A stop-and-go: the defender stops with you, then you burst past.'],
+  stepback: ['Move with the stick away from the hoop', 'A hop back into space. The jumper right after it comes out quick.'],
+  spin: ['Move while sprinting', 'Spins around a close defender; it beats them more often the better your Handles.'],
+  dunk360: ['Dunk at speed', 'A 360 dunk now and then (style only).'],
+  windmill: ['Dunk at speed', 'A windmill dunk now and then (style only).'],
+  btb: ['Move with a defender in your face', 'Your crossover goes behind your back: the ball can\'t be poked during it, and the burst lasts longer.'],
+  euro: ['Reverse the stick as you go up for a layup', 'Steps sideways around a shot-blocker: the contest is cut in half.'],
+  snatch: ['Press Move again during a crossover', 'Spins out of the crossover: a second, bigger chance at their ankles, then a quick step-back jumper.'],
+  reverse: ['Dunk with a shot-blocker by the rim', 'Goes up and finishes backwards: the rim shields the ball (half the block chance).'],
+  pullup: ['Shoot a three at full speed', 'Pulls up off the dribble: the quick gather and a 15% wider perfect window.'],
+};
+// A move's unlock in words: 'Handles 70' (or 'Shooting 50 or Handles 55'); with ratings r, each with the value now.
+function moveReqText(k, r) { const req = CR.moveUnlocks[k]; if (!req) return 'always'; return (req.any || [req]).map(o => Object.keys(o).map(a => RATING_LONG[a] + ' ' + o[a] + (r ? ' (' + Math.floor(r[a]) + ')' : '')).join(' and ')).join(' or '); }
 const NEUTRAL_KIT = { colors: ['#3D6EA8', '#F3F0FF'], pattern: 'solid' };
 function careerOf(game) { const c = game.save.data.career; return c && c.phase !== 'retired' ? c : null; }
 function amateurOf(game) { const s = game.save.data, a = s.c1; return a && !a.handedOff && !careerOf(game) ? a : null; }
@@ -9208,21 +9374,19 @@ function nextEventLabel(c) {
 function pregameScreen(game, g) {
   const s = game.save.data, c = careerOf(game); const me = meOf(c), opp = c.players[opponentOf(c, g)]; let t = 0;
   const items = [btn('TIP OFF', 470, 600, 220, 54, () => { proStartGame(c); game.save.save(); if (!isStarter(c)) { game.ui.clearTo(careerHub(game)); game.ui.toastMsg('You lost your spot in practice: your teammate starts.'); return; } const opts = careerMatchOpts(c, s, g, false); if (s.settings.colorblind) [opts.teams[0], opts.teams[1]] = colorblindTeams(opts.teams[0], opts.teams[1]); game.startMatch(opts, { kind: 'career' }); }, { primary: true }), btn('Back', 700, 600, 110, 54, () => game.ui.pop())]; phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12);
-  const dh = Math.round((me.h - opp.h) / 0.0254), inch = n => n + (n === 1 ? ' inch' : ' inches');
-  const edge = dh >= 3 ? 'You\'re ' + inch(dh) + ' taller: post up (hold Stance by the block), contest and block at the rim, win the boards. They\'re quicker off the dribble.' : dh >= 2 ? 'You\'re ' + inch(dh) + ' taller: you\'ll contest and rebound a little better. One more inch and you could post up.' : dh <= -3 ? 'They\'re ' + inch(-dh) + ' taller and can post you up: beat them off the dribble, keep it low, and use floaters and fadeaways over the length.' : dh <= -2 ? 'They\'re ' + inch(-dh) + ' taller: attack with quickness, keep the dribble low, use fadeaways over the length.' : 'Same size. Skill and hops decide it.';
+  const scout = scoutCard(opp, opp.r, opp.h, { film: c.me.plan === 'film' || !!(c.me.wk && c.me.wk.done === 'film'), junkie: hasTrait(c.me, 'filmjunkie'), boss: !g.playoff && proIsBoss(c, opp.id), salt: c.seed }); // V4
   return { widgets: items, name: 'pregame', update(dt) { t += dt; },
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'TALE OF THE TAPE', UI_W / 2 - 200, 56, 40);
       const sz = 380, floor = 640; heightScale(ctx, 60, floor, sz, 64, 1216, 'stance');
       drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 250, floor, sz, 'focused', 1, t, 'stance'); drawMannequin(ctx, drawDefOf(opp), clubOf(opp.club), 1030, floor, sz, 'focused', -1, t + 1, 'stance');
       ui.heading(ctx, me.name.toUpperCase(), 250, 100, 24, UI_GOLD, 'center'); ui.heading(ctx, opp.name.toUpperCase(), 1030, 100, 24, UI_TEXT, 'center');
-      weekChips(ctx, c.me, 250, 134, c.rivalId === opp.id);
-      { const T = traitsOf(c.me); if (T) { let tx = 250; const ids = trActive(c.me).filter(id => id !== T.hidden || T.found); ctx.font = fontStr(12, true); const ws = ids.map(id => traitChip(ctx, id, 0, 0, { B: c.me, size: 12, measure: true })); tx -= (ws.reduce((a, b) => a + b, 0) + 6 * (ws.length - 1)) / 2; ids.forEach((id, i) => { traitChip(ctx, id, tx, 164, { B: c.me, size: 12 }); tx += ws[i] + 6; }); } if (opp.tr) traitChip(ctx, opp.tr.sig, 1030, 134, { T: opp.tr, size: 12, align: 'center' }); } // V3 (§2.3): traits on the tale of the tape (the opponent's too)
+      const wy = weekChips(ctx, c.me, 250, 134, c.rivalId === opp.id);
+      { const T = traitsOf(c.me); if (T) { let tx = 250; const ids = trActive(c.me).filter(id => id !== T.hidden || T.found); ctx.font = fontStr(12, true); const ws = ids.map(id => traitChip(ctx, id, 0, 0, { B: c.me, size: 12, measure: true })); tx -= (ws.reduce((a, b) => a + b, 0) + 6 * (ws.length - 1)) / 2; ids.forEach((id, i) => { traitChip(ctx, id, tx, wy, { B: c.me, size: 12 }); tx += ws[i] + 6; }); } /* (V4: under the week's lines, not on them) */ if (opp.tr) traitChip(ctx, opp.tr.sig, 1030, 134, { T: opp.tr, size: 12, align: 'center' }); } // V3 (§2.3): traits on the tale of the tape (the opponent's too)
       const rows = [['OVR', recOvr(me), recOvr(opp)], ['AGE', me.age, opp.age, true], ['HEIGHT', fmtHeight(me.h), fmtHeight(opp.h), false, me.h, opp.h], ['WINGSPAN', fmtHeight(me.h * me.wing), fmtHeight(opp.h * opp.wing), false, me.h * me.wing, opp.h * opp.wing], ['RECORD', c.standings[me.id].w + '-' + c.standings[me.id].l, c.standings[opp.id].w + '-' + c.standings[opp.id].l], ['PPG', (c.stats[me.id].pts / Math.max(1, c.stats[me.id].g)).toFixed(1), (c.stats[opp.id].pts / Math.max(1, c.stats[opp.id].g)).toFixed(1)]];
       ctx.fillStyle = 'rgba(8,14,48,0.8)'; ctx.beginPath(); roundRectPath(ctx, 456, 90, 368, 500, 12); ctx.fill();
-      rows.forEach((r, i) => { const y = 118 + i * 32; const a = r[4] != null ? r[4] : parseFloat(r[1]), b = r[5] != null ? r[5] : parseFloat(r[2]); const better = r[3] ? 0 : (a > b ? 1 : b > a ? -1 : 0); ui.label(ctx, r[0], 640, y, 13, UI_DIM, 'center'); ui.heading(ctx, String(r[1]), 540, y, 20, better > 0 ? UI_GREEN : UI_TEXT, 'center'); ui.heading(ctx, String(r[2]), 740, y, 20, better < 0 ? UI_GREEN : UI_TEXT, 'center'); });
-      RATING_KEYS.forEach((k, i) => { const y = 316 + i * 25; const a = Math.floor(me.r[k]), b = Math.floor(opp.r[k]); ui.label(ctx, RATING_SHORT[k], 640, y, 12, UI_DIM, 'center'); const wA = Math.max(3, (a - 20) * 0.95), wB = Math.max(3, (b - 20) * 0.95); ctx.fillStyle = a >= b ? UI_GREEN : '#3D7BD6'; ctx.fillRect(576 - wA, y - 5, wA, 10); ctx.fillStyle = b >= a ? UI_GREEN : '#3D7BD6'; ctx.fillRect(704, y - 5, wB, 10); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(13, true); ctx.textAlign = 'right'; ctx.fillText(String(a), 576 - wA - 6, y); ctx.textAlign = 'left'; ctx.fillText(String(b), 704 + wB + 6, y); }); /* the bars start clear of the widest label (FINISHING at 2×) */
-      ui.para(ctx, edge, 640, 498, 340, 14, UI_GOLD, 'center', 4);
+      rows.forEach((r, i) => { const y = 114 + i * 30; const a = r[4] != null ? r[4] : parseFloat(r[1]), b = r[5] != null ? r[5] : parseFloat(r[2]); const better = r[3] ? 0 : (a > b ? 1 : b > a ? -1 : 0); ui.label(ctx, r[0], 640, y, 13, UI_DIM, 'center'); ui.heading(ctx, String(r[1]), 540, y, 20, better > 0 ? UI_GREEN : UI_TEXT, 'center'); ui.heading(ctx, String(r[2]), 740, y, 20, better < 0 ? UI_GREEN : UI_TEXT, 'center'); });
+      drawScoutCard(ctx, ui, scout, 456, 300, 368, { size: 13 }); /* V4 (2.0 §3): the scouting report, where the rating bars and the height note were */
     } };
 }
 
@@ -9290,7 +9454,7 @@ function playerScreen(game) {
       let y2 = 440; for (const l of ['The white sliver is progress toward the next +5. Orange bar ends: your genetic limits (Speed, Hops, Strength); skills go to ' + AMC.genes.skillCap + ' for anyone.', 'Games give XP for what you do in them: makes, rim finishes, rebounds, steals, blocks. Your practice focus gets 45%.', 'Height effect on your ratings: ' + amHeightFxText(me.h, true) + '. Young players learn fastest; after 30 the legs go first.']) y2 += ui.para(ctx, l, 560, y2, 660, 13, UI_DIM) + 4; }
     if (tab === 1) { const log = c.me.seasonLog.slice().reverse(); const pts = log.map(l => ({ s: l.season, v: l.ovr })).concat([{ s: c.season, v: recOvr(me), now: true }]); const x0 = 80, y0 = 180, w = 520, h = 300; ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; for (let v = 50; v <= 100; v += 10) { const y = y0 + h - (v - 50) / 50 * h; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + w, y); ctx.stroke(); ui.label(ctx, String(v), x0 - 8, y, 12, UI_DIM, 'right'); } if (pts.length) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 3; ctx.beginPath(); pts.forEach((p, i) => { const x = x0 + (pts.length === 1 ? w / 2 : i / (pts.length - 1) * w), y = y0 + h - (clamp(p.v, 50, 100) - 50) / 50 * h; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); pts.forEach((p, i) => { const x = x0 + (pts.length === 1 ? w / 2 : i / (pts.length - 1) * w), y = y0 + h - (clamp(p.v, 50, 100) - 50) / 50 * h; ctx.fillStyle = p.now ? UI_CYAN : UI_GOLD; ctx.beginPath(); ctx.arc(x, y, 5, 0, TAU); ctx.fill(); ui.label(ctx, 'S' + p.s, x, y0 + h + 18, 11, UI_DIM, 'center'); }); } ui.heading(ctx, 'OVR BY SEASON', x0, 150, 15, UI_CYAN);
       const cols = ['SEASON', 'AGE', 'OVR', 'W-L', 'PPG', 'RPG', 'FG%', '3P%', 'FINISH']; const cx = [650, 730, 780, 840, 910, 970, 1030, 1090, 1150]; ctx.font = fontStr(12, true); ctx.fillStyle = UI_CYAN; cols.forEach((h, i) => { ctx.textAlign = 'center'; ctx.fillText(h, cx[i], 150); }); c.me.seasonLog.slice(0, 14).forEach((l, r) => { const y = 176 + r * 30; const row = ['S' + l.season, l.age, l.ovr, l.w + '-' + l.l, l.ppg, l.rpg, l.fg, l.tp, l.playoff.replace('Lost in the ', '').replace('Missed playoffs', '—')]; ctx.font = fontStr(13, false); ctx.fillStyle = l.awards.length ? UI_GOLD : UI_TEXT; row.forEach((v, i) => { ctx.textAlign = 'center'; ctx.fillText(String(v), cx[i], y); }); }); if (!c.me.seasonLog.length) ui.label(ctx, 'Your first season is under way.', 900, 200, 15, UI_DIM, 'center'); }
-    if (tab === 2) { ui.heading(ctx, 'MOVES', 40, 150, 16, UI_CYAN); const mv = learnedMoves(me, c.me); let y = 180; ui.label(ctx, 'Crossover: always', 40, y, 15, UI_GREEN); y += 28; for (const k in CR.moveUnlocks) { const req = CR.moveUnlocks[k]; const eff = effRatings(me.r, me.h); const reqT = (req.any || [req]).map(o => Object.keys(o).map(a => RATING_SHORT[a].toLowerCase() + ' ' + o[a] + ' (' + Math.floor(eff[a]) + ')').join(', ')).join(' or '); ui.label(ctx, MOVE_NAMES[k] + ': ' + (mv[k] ? 'learned' : 'needs ' + reqT), 40, y, 15, mv[k] ? UI_GREEN : UI_TEXT, 'left', 580); y += 28; }
+    if (tab === 2) { ui.heading(ctx, 'MOVES', 40, 150, 16, UI_CYAN); ui.label(ctx, 'Codex → Moves: how to do each one', 600, 150, 12, UI_DIM, 'right', 300); const mv = learnedMoves(me, c.me), eff = effRatings(me.r, me.h); let y = 178; for (const k of MOVE_ORDER) { const sig = !!MOVE_SIG[k]; if (sig) kitChip(ctx, 'SIG', 40, y, { size: 10, fill: UI_GOLD, color: UI_INK, stroke: false }); const lx = sig ? 76 : 40; ui.label(ctx, MOVE_NAMES[k] + ': ' + (mv[k] ? 'learned' : 'needs ' + moveReqText(k, eff)), lx, y, 14, mv[k] ? UI_GREEN : UI_TEXT, 'left', 600 - lx); y += P ? 30 : 27; } /* V4: the signature moves */
       ui.heading(ctx, 'TRAITS', 640, 150, 16, UI_CYAN); drawTraitPair(ctx, c.me, 640, 172, 580, P ? 232 : 214); ui.heading(ctx, 'ROLE: ' + roleLabel(me.r, me.h).toUpperCase(), 640, P ? 430 : 414, 16, UI_GOLD); ui.para(ctx, 'Your role comes from your ratings this season. Your play style only set where you started.', 640, P ? 458 : 442, 580, 13, UI_DIM); }
     if (tab === 3) { const cols = ['SEASON', 'OPPONENT', 'RESULT', 'GRADE', 'PTS', 'FG', '3PT', 'REB', 'STL', 'BLK', 'TO']; const cx = [80, 220, 400, 490, 560, 630, 710, 790, 850, 910, 970]; ctx.font = fontStr(12, true); ctx.fillStyle = UI_CYAN; cols.forEach((h, i) => { ctx.textAlign = i === 1 ? 'left' : 'center'; ctx.fillText(h, cx[i] - (i === 1 ? 60 : 0), 150); }); c.me.log.slice(0, P ? 13 : 15).forEach((l, r) => { const y = 176 + r * 30; const o = c.players[l.opp]; const row = ['S' + l.s + (l.p ? ' PO' : ' W' + (l.w + 1)), (l.home ? 'vs ' : '@ ') + (o ? o.name : '?'), (l.win ? 'W ' : 'L ') + l.us + '-' + l.them, l.grade, l.pts, l.fg, l.tp, l.reb, l.stl, l.blk, l.to != null ? l.to : '—']; ctx.font = fontStr(13, false); ctx.fillStyle = l.win ? UI_TEXT : UI_DIM; row.forEach((v, i) => { ctx.textAlign = i === 1 ? 'left' : 'center'; ctx.fillText(String(v), cx[i] - (i === 1 ? 60 : 0), y); }); }); if (!c.me.log.length) ui.label(ctx, 'No games yet.', 640, 220, 15, UI_DIM, 'center'); }
     if (tab === 4) { const cs = c.me.careerStats, g = Math.max(1, cs.g); ui.heading(ctx, 'CAREER', 40, 150, 16, UI_CYAN); const lines = [cs.g + ' games · ' + cs.w + '-' + cs.l, (cs.pts / g).toFixed(1) + ' PPG · ' + (cs.reb / g).toFixed(1) + ' RPG · ' + (cs.stl / g).toFixed(1) + ' SPG · ' + (cs.blk / g).toFixed(1) + ' BPG', (cs.fga ? (100 * cs.fgm / cs.fga).toFixed(1) : '0') + '% FG · ' + (cs.tpa ? (100 * cs.tpm / cs.tpa).toFixed(1) : '0') + '% 3PT', cs.pts + ' points · ' + cs.dunk + ' dunks · ' + cs.ank + ' ankle breakers · ' + cs.posters + ' posters', 'Playoffs ' + cs.playoffW + '-' + cs.playoffL + ' · titles ' + cs.titles, 'Player of the Week ×' + c.me.potw + ' · career earnings ' + fmtMoney(c.me.earned || 0) + (c.me.earnedSince > 1 ? ' (since season ' + c.me.earnedSince + ')' : ''), 'Career highs: ' + c.me.records.pts + ' pts · ' + c.me.records.reb + ' reb · ' + c.me.records.stl + ' stl · ' + c.me.records.blk + ' blk · ' + c.me.records.tpm + ' threes'];
@@ -9456,7 +9620,7 @@ function hallOfFameScreen(game) {
 // ---------------- quick games and practice ----------------
 // Every league player you can pick in exhibitions: the original roster pool, plus your career player.
 function extrasPool(game) { const out = []; for (const k in ROSTER) for (const d of ROSTER[k]) out.push({ def: d, club: TEAMS.find(t => k.startsWith(t.id)) || (k.startsWith('rival') ? TEAMS[1] : TEAMS[(out.length) % 8]) }); const c = careerOf(game); if (c) out.unshift({ def: engineDef(c, c.meId), club: clubOf(meOf(c).club), me: true }); return out; }
-function soloTeam(entry, away) { const t = entry.club; const kit = Object.assign({}, t); if (away) kit.colors = [t.colors[1], t.colors[0]]; return Object.assign(kit, { name: entry.def.name, abbr: (entry.def.nick || entry.def.name).toUpperCase().slice(0, 4), personality: archPersonality(entry.def.arch), players: [entry.def] }); }
+function soloTeam(entry, away) { const t = entry.club; const kit = Object.assign({}, t); if (away) kit.colors = [t.colors[1], t.colors[0]]; return Object.assign(kit, { name: entry.def.name, abbr: (entry.def.nick || entry.def.name).toUpperCase().slice(0, 4), personality: archPersonality(entry.def.arch), players: [entry.me ? entry.def : Object.assign({}, entry.def, quickScout(entry.def))] }); } // V4: a bot plays its build's personality
 const HALF_SCORING = [{ label: '2s and 3s', v: '2s3s' }, { label: '1s and 2s', v: '1s2s' }];
 const FORMAT_OPTS = [{ label: 'One minute', f: { type: 'timed', half: 60, periods: 1, ot: CONFIG.career.otSecs } } /* F5: the default */, { label: 'Timed 1:30 halves', f: { type: 'timed', half: 90 } }, { label: 'Timed 2:00 halves', f: { type: 'timed', half: 120 } }, { label: 'Timed 3:00 halves', f: { type: 'timed', half: 180 } }, { label: 'First to 11', f: { type: 'first', target: 11, winBy2: false } }, { label: 'First to 21', f: { type: 'first', target: 21, winBy2: false } }, { label: 'First to 21 · win by 2', f: { type: 'first', target: 21, winBy2: true } }, { label: 'First to 11 · win by 2', f: { type: 'first', target: 11, winBy2: true } }, { label: 'First to 15 · win by 2', f: { type: 'first', target: 15, winBy2: true } }];
 function quickPlayScreen(game) {
@@ -10332,7 +10496,7 @@ function drawHub(ctx, ui, H, t) {
   kitPanel(ctx, 400, 90, 480, 616); const O = H.opp;
   if (O) {
     ui.label(ctx, O.label || 'NEXT', 640, 116, 13, H.bench ? UI_ORANGE : UI_CYAN, 'center', 460); const vs = 'vs ' + String(O.def.name || '').toUpperCase(); const vsz = fitFont(ctx, vs, 440, 30, true); kitStamp(ctx, vs, 640, 148, vsz, [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
-    let px = 640; const pills = []; if (H.bench) pills.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.rival) pills.push(['RIVAL', 'rgba(255,90,90,0.9)', '#FFFFFF']); if (O.playoff) pills.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.where) pills.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); if (pills.length) { ctx.font = fontStr(12, true); const tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + 12 * 1.3 + 6, -6); px = 640 - tw / 2; for (const p of pills) px += kitChip(ctx, p[0], px, 180, { size: 12, fill: p[1], color: p[2], stroke: false }) + 6; }
+    let px = 640; const pills = []; if (H.bench) pills.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.rival) pills.push(['RIVAL', 'rgba(255,90,90,0.9)', '#FFFFFF']); if (O.playoff) pills.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.boss) pills.push(['BOSS', '#FFD23F', UI_INK]); if (O.pers) pills.push([scoutPersName(O.pers).toUpperCase(), SCOUT_PERS_COLOR[O.pers] || UI_CYAN, UI_INK]); if (O.where) pills.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); /* V4: the Boss, the personality */ if (pills.length) { ctx.font = fontStr(12, true); const tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + 12 * 1.3 + 6, -6); px = 640 - tw / 2; for (const p of pills) px += kitChip(ctx, p[0], px, 180, { size: 12, fill: p[1], color: p[2], stroke: false }) + 6; }
     const cw = 176, ch = 246, cy = 198; drawTradingCard(ctx, 424, cy, cw, ch, H.myCard, { t }); drawTradingCard(ctx, 880 - 24 - cw, cy, cw, ch, H.oppCard, { t: t + 1.1 });
     kitStamp(ctx, 'VS', 640, cy + ch / 2, 34, [UI_GOLD, '#F2A91C'], { outline: 0.2 });
     const dh = Math.round((O.h - M.h) / 0.0254); ctx.font = fontStr(24, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fmtHeight(M.h), 424 + cw / 2, cy + ch + 26); ctx.fillText(fmtHeight(O.h), 880 - 24 - cw / 2, cy + ch + 26);
@@ -10380,7 +10544,7 @@ function hubWidgets(ui, actions, week, links, plan) {
 function amHub(game) {
   const s = game.save.data, c = amateurOf(game); if (!c) return careerOf(game) ? careerHub(game) : mainMenu(game);
   const ui = game.ui; let t = 0; const nx = amNext(c); const focusKeys = Object.keys(CR.trainFocus).filter(k => k !== 'recovery');
-  const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); return; } hsAutoResolve(c); amStartGame(c); if (!isStarter(c) || c.ineligible > 0) { game.save.save(); game.ui.replace(amHub(game)); return; } game.save.save(); /* a challenge settled at tip-off can cost you the start */ game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id }); };
+  const play = sim => { const g = amNext(c); if (!g || !g.opp) return; if (sim) { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); return; } game.ui.push(amPregameScreen(game)); }; // V4 (2.0 §3): the scouting report first; its TIP OFF starts the game
   const actions = []; if (c.stage === 'combine') actions.push(btn('PRO COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true })); else if (c.decision) actions.push(btn(c.decision.kind === 'college' ? 'CHOOSE YOUR COLLEGE' : c.decision.kind === 'portal' ? 'TRANSFER PORTAL' : 'TURN PRO?', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true })); else if (c.summer && c.summer.pending) actions.push(btn('YOUR SUMMER', 0, 0, 0, 0, () => game.ui.push(summerScreen(game)), { primary: true })); /* R5 */
   else if (c.tryout && c.tryout.step !== 'done') actions.push(btn('TRYOUTS', 0, 0, 0, 0, () => game.ui.push(tryoutScreen(game)), { primary: true })); /* R5 */
   else if (nx && nx.opp && (!isStarter(c) || c.ineligible > 0)) actions.push(btn('SIM THE GAME', 0, 0, 0, 0, () => { const r = amSimGame(c); game.save.save(); if (r) game.ui.replace(r.bench ? benchResultScreen(game, r) : amResultScreen(game, r, null)); }, { primary: true })); /* R4: on the bench: your teammate starts */
@@ -10397,9 +10561,10 @@ function amHub(game) {
       const H = { header: 'SEASON ' + c.season, sub: c.stage === 'combine' ? 'PRO PROSPECT' : (amStageLabel(c) + (c.team && c.team.mascot ? ' ' + c.team.mascot : '')).toUpperCase(), level: teamLevel(c) /* F11 */, weeks: L && !L.done ? L.schedule.length : 0, week: L ? Math.min(L.week, L.schedule.length) : 0, playoffs: !!(L && L.playoffs),
         me: { def, kit, ovr: amOvr(c), delta: last ? amOvr(c) - last.ovr : 0, h: c.height, hLast, age: c.age, style: roleLabel(c.r, c.height), r: c.r, tr: traitsOf(c), info: (c.age < 20 && c.heightFinal - c.height > 0.005 ? 'Growing · ' : '') + 'hype ' + Math.round(c.hype || 0) },
         last5: L ? L.games.slice(-5).map(g => g.won) : [], weekY: 198, statusY: items.statusY, B: c };
-      if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: L.format ? hsNextLabel(c, nx) : nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · FIRST TO ' + stg.target }; /* R5: district, JV and state labels */
+      if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.opp = { def: oppDef, h: o.height, rival: !!o.rival, playoff: !!nx.playoff, label: L.format ? hsNextLabel(c, nx) : nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · ' + fmtClock(careerSecs()) + ' GAME' } /* (V4: the games are timed; it said FIRST TO) */; /* R5: district, JV and state labels */
         H.myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school + (c.squad === 'jv' ? ' JV' : '') }; /* F11: JV on your card */
-        H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '', trait: o.tr ? o.tr.sig : null, trT: o.tr || null }; /* V3: their trait, tap for its card */
+        H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '', trait: o.tr ? (TR.list[o.tr.third] && amIsBoss(c, o) ? o.tr.third : o.tr.sig) : null, trT: o.tr || null }; /* V3: their trait, tap for its card (V4: the Boss's Legendary) */
+        H.opp.pers = scoutOf(o).pers; H.opp.boss = amIsBoss(c, o); /* V4 */
         H.scout = scoutLine(myR, effRatings(o.r, o.height), c.height, o.height, o.rival ? 'Your rival will' : 'They'); if (o.rival) H.scout = H.scout.replace('Your rival will own', 'Your rival owns').replace('Your rival will want', 'Your rival wants');
         const inel = c.ineligible > 0, sm = ladderStarterMate(c) || (inel ? hsSlotMate(c) : null); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = inel ? 'INELIGIBLE · ' + c.ineligible + ' GAME' + (c.ineligible > 1 ? 'S' : '') + ' · ' + sm.nick.toUpperCase() + ' PLAYS' : 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: inel ? 'plays for you' : 'starts this week' }; H.scout = inel ? 'Study weeks raise your GPA; you are eligible again after these games.' : 'Win a challenge in practice to take the spot back.'; } } // R4: benched (R5: or ineligible)
       else if (c.summer && c.summer.pending) { H.idleTitle = 'YOUR SUMMER'; H.idleText = 'Pick one: the AAU circuit (exposure), a skills camp ($' + HS.campCost + ', XP), rest, or a summer job ($' + HS.jobPay + ').'; }
@@ -10428,7 +10593,8 @@ function careerHub(game) {
         me: { def: drawDefOf(me, c), kit: club, ovr: recOvr(me), delta: prev ? recOvr(me) - prev.ovr : 0, h: me.h, hLast: null, age: me.age, style: roleLabel(me.r, me.h), r: me.r, tr: traitsOf(c.me), info: fmtMoney(c.me.money) + ' · hype ' + Math.round(c.me.hype || 0) }, // R8: hype on the card (fame is in Business)
         last5: c.me.log.slice(0, 5).reverse().map(l => l.win), weekY: 198, statusY: items.statusY, B: c.me };
       if (g && opp) { const meHome = g.h === c.meId; const oc = clubOf(opp.club), os = c.standings[opp.id]; H.opp = { def: drawDefOf(opp), h: opp.h, rival, playoff: !!g.playoff, where: meHome ? 'HOME' : 'AWAY', label: c.phase === 'playoffs' ? nextEventLabel(c) : 'NEXT · WEEK ' + (c.week + 1) + ' · ' + os.w + '-' + os.l };
-        H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = Object.assign(cardOfRec(opp, { sub: oc.name }), { trait: opp.tr ? opp.tr.sig : null, trT: opp.tr || null }); /* V3: their trait */
+        H.myCard = cardOfRec(me, { number: me.look.number }); H.oppCard = Object.assign(cardOfRec(opp, { sub: oc.name }), { trait: opp.tr ? (TR.list[opp.tr.third] && proIsBoss(c, opp.id) ? opp.tr.third : opp.tr.sig) : null, trT: opp.tr || null }); /* V3: their trait (V4: the Boss's Legendary) */
+        H.opp.pers = scoutOf(opp, c.seed).pers; H.opp.boss = !g.playoff && proIsBoss(c, opp.id); /* V4 */
         H.scout = rival ? RIVAL_LINES[Math.min(2, c.me.rivalGames || 0)][(c.week + c.season) % 3] : scoutLine(effRatings(me.r, me.h), effRatings(opp.r, opp.h), me.h, opp.h, 'They');
         const sm = ladderStarterMate(c); if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'pm-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: club.colors, ovr: tmMateOvr(sm), style: ARCHETYPES[sm.style] ? ARCHETYPES[sm.style].label : '', sub: 'starts this week' }; H.scout = 'Win a challenge in practice to take the spot back.'; } } // R4: benched
       else { H.idleTitle = c.phase === 'playoffs' ? 'PLAYOFFS' : 'NO GAME THIS WEEK'; }
@@ -10547,12 +10713,12 @@ function legacyScreen(game) {
 function careerKit(game) {
   const pro = careerOf(game);
   if (pro) { const c = pro, me = meOf(c);
-    const next = () => { const g = userGame(c); if (!g) return null; const id = opponentOf(c, g), p = c.players[id], st = c.standings[id]; return { id, name: p.name, h: p.h, r: p.r, arch: p.arch, look: p.look, colors: clubOf(p.club).colors, wl: st ? st.w + '-' + st.l : '', rival: id === c.rivalId, playoff: !!g.playoff, card: cardOfRec(p, { sub: clubOf(p.club).name }) }; };
+    const next = () => { const g = userGame(c); if (!g) return null; const id = opponentOf(c, g), p = c.players[id], st = c.standings[id]; return { id, name: p.name, h: p.h, r: p.r, arch: p.arch, look: p.look, colors: clubOf(p.club).colors, wl: st ? st.w + '-' + st.l : '', rival: id === c.rivalId, playoff: !!g.playoff, card: cardOfRec(p, { sub: clubOf(p.club).name }), rec: p, salt: c.seed, boss: !g.playoff && proIsBoss(c, id) }; }; // (V4: the record, for the scouting card)
     return { pro: true, c, B: c.me, name: me.name, h: me.h, r: me.r, caps: me.caps, xp: c.me.xp, age: me.age, arch: me.arch, colors: clubOf(me.club).colors, focus: () => c.me.focus, setFocus: f => { if (CR.trainFocus[f]) c.me.focus = f; }, ovr: () => recOvr(me), next,
       practice: (f, i, x) => proPractice(c, f, i, x), rest: () => proRest(c), film: () => proFilm(c), sessionXp: (f, i) => proSessionXp(c, f, i), drillXp: (f, i, s) => proDrillXp(c, f, i, s), mul: f => proTrainMul(c, f), hub: () => careerHub(game), myCard: () => cardOfRec(me, { number: me.look.number }) };
   }
   const a = amateurOf(game); if (!a) return null; const c = a;
-  const next = () => { const g = amNext(c); if (!g || !g.opp) return null; const o = g.opp; return { id: o.id, name: o.name, h: o.height, r: o.r, arch: o.style, look: o.look, colors: o.colors, wl: o.rec ? o.rec.w + '-' + o.rec.l : '', rival: !!o.rival, playoff: !!g.playoff, card: { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' } }; };
+  const next = () => { const g = amNext(c); if (!g || !g.opp) return null; const o = g.opp; return { id: o.id, name: o.name, h: o.height, r: o.r, arch: o.style, look: o.look, colors: o.colors, wl: o.rec ? o.rec.w + '-' + o.rec.l : '', rival: !!o.rival, playoff: !!g.playoff, card: { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' }, rec: o, salt: 0, boss: amIsBoss(c, o) }; }; // (V4: the record, for the scouting card)
   return { pro: false, c, B: c, name: c.name, h: c.height, r: c.r, caps: c.caps, xp: c.xp, age: c.age, arch: c.style, colors: c.colors, focus: () => c.focus, setFocus: f => { if (CR.trainFocus[f]) c.focus = f; }, ovr: () => amOvr(c), next,
     practice: (f, i, x) => amPractice(c, f, i, x), rest: () => amRest(c), film: () => amFilm(c), study: () => wkStudy(c), sessionXp: (f, i) => amSessionXp(c, i), drillXp: (f, i, s) => amDrillXp(c, f, i, s), mul: () => 1, hub: () => amHub(game),
     myCard: () => ({ key: 'am-me', name: c.name, look: Object.assign({}, c.look, { number: c.number }), height: c.height, colors: c.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school }) };
@@ -10615,6 +10781,7 @@ function weekChips(ctx, B, x, y) {
   chips.push(['FATIGUE ' + Math.round(B.fatigue || 0) + (cut ? ' · −' + cut + '% RATINGS' : ''), cut ? 'rgba(255,138,42,0.95)' : 'rgba(8,12,36,0.85)', cut ? UI_INK : UI_TEXT]);
   if (B.injury) chips.push([B.injury.name.toUpperCase() + ' · −' + WK.injurySpd + ' SPD', 'rgba(255,90,90,0.95)', '#FFFFFF']);
   chips.forEach((ch, i) => kitChip(ctx, ch[0], x, y + i * 28, { size: 12, align: 'center', fill: ch[1], color: ch[2], stroke: false }));
+  return y + chips.length * 28; // (V4: where the next line can go)
 }
 // R3 §3.2: what a session of `xp` does to the focus rating: steps, the XP the next step costs (it rises with the
 // rating: diminishing returns), and the limit.
@@ -10696,6 +10863,7 @@ function filmRoomScreen(game) {
   const plan = (AI.stylePlan && AI.stylePlan[o.arch]) || { post: 0.25, drive: 0.25, three: 0.25, mid: 0.25 };
   const mine = effRatings(K.r, K.h), theirs = effRatings(o.r, o.h), dh = Math.round((o.h - K.h) / 0.0254);
   const sorted = RATING_KEYS.slice().sort((a, b) => theirs[b] - theirs[a]); const mv = movesFor(theirs); const moves = Object.keys(MOVE_NAMES).filter(k => mv[k] && k !== 'crossover').map(k => MOVE_NAMES[k]);
+  const scout = o.rec ? scoutCard(o.rec, o.r, o.h, { film: true, boss: o.boss, salt: o.salt }) : null; // V4: the tape shows every tendency
   const tips = []; if (dh >= 3) tips.push('They can post you up (3″+ taller): body them early, don\'t let them catch it deep.'); else if (dh <= -3) tips.push('You can post them up: back them down by the block and finish with a hook.');
   if (theirs.sho >= mine.def + 8) tips.push('Their jumper beats your contest: crowd them on the catch.'); if (theirs.spd >= mine.spd + 8) tips.push('Quicker than you: give a step of cushion so they can\'t blow by.'); if (mine.spd >= theirs.spd + 8) tips.push('You\'re quicker: attack their first step.');
   if (mine.jmp >= theirs.jmp + 10) tips.push('You out-jump them: crash the glass.'); if (theirs.han <= 45) tips.push('Loose handle: reach when they dribble into you.'); if (!tips.length) tips.push('An even matchup. The better read wins.');
@@ -10709,8 +10877,9 @@ function filmRoomScreen(game) {
       ui.heading(ctx, 'THEIR WEAKNESS', x1, 392, 16, UI_CYAN); ui.label(ctx, RATING_LONG[sorted[sorted.length - 1]] + ' ' + Math.floor(theirs[sorted[sorted.length - 1]]), x1, 418, 15, UI_TEXT);
       ui.heading(ctx, 'MOVES', x1, 454, 16, UI_CYAN); ui.para(ctx, moves.length ? moves.join(', ') : 'Crossover only', x1, 480, 470, 15, UI_TEXT, 'left', 2); /* R10: wraps inside its column (it ran into THE PLAN) */
       ui.heading(ctx, 'SIZE', x1, 530, 16, UI_CYAN); ui.label(ctx, fmtHeight(K.h) + ' vs ' + fmtHeight(o.h) + (dh === 0 ? ' · same height' : dh > 0 ? ' · they have ' + dh + '″' : ' · you have ' + (-dh) + '″'), x1, 556, 15, UI_TEXT);
-      ui.heading(ctx, 'THE PLAN', 800, 146, 16, UI_GOLD); ctx.font = fontStr(15, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 170; for (const tip of tips.slice(0, 4)) { y += wrapTextH(ctx, '• ' + tip, 800, y, 420, 20) + 8; }
-      const ys = Math.max(y + 16, 450), hs = ui.para(ctx, 'Studying it: +' + trFilmBonus(K.B) + ' Defense and +' + trFilmBonus(K.B) + ' Shooting in this game.' + (trMul(K.B, 'film') > 1 ? ' (Film Junkie: double.)' : ''), 800, ys, 420, 14, UI_GOLD); ui.para(ctx, 'It is this week\'s plan (no practice XP, no rest).', 800, ys + hs + 4, 420, 13, UI_DIM);
+      let y = 170; if (scout) { const h = drawScoutCard(ctx, ui, scout, 784, 0, 440, { measure: true, T: o.rec.tr }); kitPanel(ctx, 784, 124, 440, h, 'rgba(8,12,36,0.85)'); drawScoutCard(ctx, ui, scout, 784, 124, 440, { T: o.rec.tr, title: 'The tape' }); y = 124 + h; } /* V4 (2.0 §3): the scouting card, all four tendencies */
+      else { ui.heading(ctx, 'THE PLAN', 800, 146, 16, UI_GOLD); ctx.font = fontStr(15, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; for (const tip of tips.slice(0, 4)) { y += wrapTextH(ctx, '• ' + tip, 800, y, 420, 20) + 8; } }
+      const ys = Math.max(y + 16, scout ? 0 : 450), hs = ui.para(ctx, 'Studying it: +' + trFilmBonus(K.B) + ' Defense and +' + trFilmBonus(K.B) + ' Shooting in this game, and the scouting card shows all four tendencies.' + (trMul(K.B, 'film') > 1 ? ' (Film Junkie: double.)' : ''), 800, ys, 420, 14, UI_GOLD); ui.para(ctx, 'It is this week\'s plan (no practice XP, no rest).', 800, ys + hs + 4, 420, 13, UI_DIM);
     } };
 }
 
@@ -11030,7 +11199,7 @@ function commitDayScreen(game, c, ev, done) {
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { graphics: 'retro', arcadeExtras: 'off', extrasF1: true, autoReplay: false, gameLen: 60, /* F5 */ difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {} },
+    settings: { graphics: 'retro', arcadeExtras: 'off', extrasF1: true, autoReplay: false, gameLen: 60, /* F5 */ difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {}, shotFeedback: true, autoSprint: true, vibrate: true, touchLayout: null }, // V4: shot feedback, auto-sprint, vibration, your touch layout
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -11262,10 +11431,12 @@ function startSeason(c, rng) {
   c.schedule = makeSchedule(c.active, c.seasonLength, rng);
   c.standings = {}; c.stats = {}; for (const id of c.active) { c.standings[id] = { w: 0, l: 0, pf: 0, pa: 0, strk: 0 }; c.stats[id] = emptySeasonStats(); }
   c.me.startOvr = recOvr(meOf(c)); c.preOvr = {}; for (const id of c.active) c.preOvr[id] = recOvr(c.players[id]);
+  proBossEnsure(c); // V4: this season's Boss
 }
 
 // ---------------- engine defs: what a player looks like to the match ----------------
 function movesFor(r, early) { const T = CR.moveUnlocks, out = { crossover: true }, e = early || 0; for (const k in T) { const t = T[k]; out[k] = t.any ? t.any.some(o => Object.keys(o).every(a => r[a] >= o[a] - e)) : Object.keys(t).every(a => r[a] >= t[a] - e); } return out; } // early: Quick Study's head start (rating points)
+function sigMovesOfAttrs(a) { const T = CR.moveUnlocks, out = {}; if (!a) return out; for (const k of ['btb', 'snatch', 'reverse', 'pullup']) out[k] = Object.keys(T[k]).every(r => (a[r] || 0) * 10 >= T[k][r]); return out; } // V4: a roster player's signature moves from its attributes
 function learnedMoves(p, B) { return movesFor(effRatings(p.r, p.h), trMoveEarly(B)); }
 function engineDef(c, id, opts) {
   const p = c.players[id]; opts = opts || {}; const eff = effRatings(p.r, p.h); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]);
@@ -11274,7 +11445,7 @@ function engineDef(c, id, opts) {
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
     look = proLook(c, look); // the Office's looks and your gear (F8)
   }
-  return { name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }; // R8: crowd: your hype's home crowd (make chance +)
+  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
 }
 function clubKit(clubId, away) { const t = clubOf(clubId); const kit = Object.assign({}, t); if (away) { kit.colors = [t.colors[1], t.colors[0]]; if (luminance(kit.colors[0]) < 0.25 && luminance(t.colors[0]) < 0.25) kit.colors = ['#F3F0FF', t.colors[0]]; } return kit; }
 function matchTeamDef(c, id, away, opts) { const p = c.players[id]; const kit = clubKit(p.club, away); return Object.assign({}, kit, { name: p.name, abbr: p.nick.toUpperCase().slice(0, 4), personality: archPersonality(p.arch), players: [engineDef(c, id, opts)] }); }
@@ -11301,7 +11472,7 @@ function careerMatchOpts(c, save, g, forSim) {
   const opp = opponentOf(c, g); const sameClub = c.players[opp].club === meOf(c).club; const G = mdGame(c.me, opp, opp === c.rivalId, g.h === c.meId); // R8: hype (the home crowd, a keyed defense), a trash-talked opponent, a fired-up rival
   const mine = matchTeamDef(c, c.meId, false, { week: true, oppId: opp, crowd: G.crowd }), theirs = matchTeamDef(c, opp, sameClub, { fire: G.ovr }); // teammates at the same club: the visitor wears the alternate kit
   const court = 'arena'; // every pro game is in the pro arena, dressed in the home club's colors (§4: venue by level)
-  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff) + G.tier, playoff: !!g.playoff, ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band
+  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff) + G.tier, playoff: !!g.playoff, boss: !forSim && proIsBoss(c, opp), ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band (V4: the Boss's game says so at tip-off)
 }
 
 // ---------------- the fast league model: AI-vs-AI games in a millisecond ----------------
@@ -11418,7 +11589,8 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const recs = []; for (const k of ['pts', 'reb', 'stl', 'blk', 'tpm']) if ((my[k] || 0) > (M.records[k] || 0)) { if (cs.g > 1 && my[k] >= 3) recs.push(k); M.records[k] = my[k]; }
   M.log.unshift({ s: c.season, w: c.week, opp, home: g.h === c.meId, us, them, win, grade, pts: my.pts, reb: my.reb, stl: my.stl, blk: my.blk, to: my.to, fg: my.fgm + '/' + my.fga, tp: my.tpm + '/' + my.tpa, p: !!g.playoff }); if (M.log.length > 80) M.log.length = 80;
   if (opp === c.rivalId) M.rivalGames = (M.rivalGames || 0) + 1;
-  const rec = { win, us, them, grade, xp, gains, learned, pay, fameGain: Math.round(fameGain * 10) / 10, ovrBefore, ovrAfter: recOvr(me), injury, wk, recs, opp, playoff: !!g.playoff, home: g.h === c.meId, ot: r.ot, oppLine: sOp, myLine: Object.assign({}, my) };
+  const rec = { win, us, them, grade, xp, gains, learned, pay, fameGain: Math.round(fameGain * 10) / 10, ovrBefore, ovrAfter: recOvr(me), injury, wk, recs, opp, playoff: !!g.playoff, home: g.h === c.meId, ot: r.ot, oppLine: sOp, myLine: Object.assign({}, my), boss: !g.playoff && proIsBoss(c, opp) };
+  if (rec.boss && win) { M.hype = Math.min(MD.hypeMax, (M.hype || 0) + SC.boss.hype); rec.bossWon = true; const BT = c.players[opp].tr; pushNews(c, 'Boss down: ' + me.name + ' beats ' + c.players[opp].name + (BT && TR.list[BT.third] ? ' and their ' + TR.list[BT.third].name : '') + '.', 'award'); } // V4: the Boss (+hype)
   // the story: hype and confidence, the rival, headlines (the press question waits for the playoff result below)
   storyFill(c); const md = mdAfterGame(M, win, us, them); rec.md = md; mdHighlights(M, my, len); const O = c.players[opp], oppOvr = recOvr(O), recList = recs.map(k => ({ k, v: M.records[k] }));
   if (opp === c.rivalId) h2hAdd(c, win); mdGrudgeDone(M, opp); // R8: a trash-talked opponent has had their shot
@@ -11474,7 +11646,7 @@ function hireStaff(c, role, level) { proHire(c, role, level); } // R7: the train
 function buyGym(c) { const lvl = (c.me.gym || 0) + 1; const cost = CR.gymCost[lvl]; if (!cost || c.me.money < cost) return false; c.me.money -= cost; c.me.gym = lvl; pushNews(c, meOf(c).name + ' builds a level ' + lvl + ' home gym.', 'money'); return true; }
 
 // ---------------- simming the user's game ----------------
-function simUserGame(save) { const c = save.career; const g = userGame(c); if (!g) return null; if (!isStarter(c) || (c.team && c.team.pending)) { proStartGame(c); ladderSettlePending(c); if (!isStarter(c)) return proSimBenchGame(c); } proStartGame(c); const opts = careerMatchOpts(c, save, g, true); const box = simulateMatch(opts, { render: false }); return careerAfterGame(save, box, 0, true); }
+function simUserGame(save) { const c = save.career; proBossEnsure(c); const g = userGame(c); if (!g) return null; if (!isStarter(c) || (c.team && c.team.pending)) { proStartGame(c); ladderSettlePending(c); if (!isStarter(c)) return proSimBenchGame(c); } proStartGame(c); const opts = careerMatchOpts(c, save, g, true); const box = simulateMatch(opts, { render: false }); return careerAfterGame(save, box, 0, true); }
 
 // R4: a week you don't start: the teammate on the top rung of the franchise's ladder plays your slot's game (simulated;
 // the standings count it, your stat line doesn't). You still get paid.
@@ -11775,7 +11947,8 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // R3: the hidden trait's story moment
   if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
   trAfterGame(c, st, { won, playoff: !!po, us: my, them: their, injured: !!wk.injury, ovr: amOvr(c), eng: simmed ? null : { clutch: st.trClutch || 0 } }); // V3: the traits' deeds (level-ups, the third trait)
-  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw, helped: simmed ? traitsHelpedSim(c, !!po) : null };
+  const boss = !po && amIsBoss(c, opp); if (boss && won) { c.hype = Math.min(MD.hypeMax, (c.hype || 0) + SC.boss.hype); const BT = opp.tr; storyNews(c, 'Boss down: ' + c.name + ' beats ' + opp.name + (BT && TR.list[BT.third] ? ' and their ' + TR.list[BT.third].name : '') + '.', 'record'); } // V4: the Boss (+hype)
+  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw, helped: simmed ? traitsHelpedSim(c, !!po) : null, boss, bossWon: boss && won };
 }
 function amSimGame(c) {
   hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c) || c.ineligible > 0) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id); const G = mdGame(c, g.opp.id, !!g.opp.rival, amHome(c, !!g.playoff)); // R8: hype, a trash-talked opponent, a fired-up rival
@@ -11787,7 +11960,7 @@ function amSimGame(c) {
 }
 // R4: a week you don't start: the teammate on the top rung plays the team's game (simulated); you practiced.
 function amSimBenchGame(c) {
-  const g = amNext(c); const inel = c.ineligible > 0; if (!g || !g.opp || (isStarter(c) && !inel)) return null; const m = ladderStarterMate(c) || hsSlotMate(c); if (!m) return null; // R5: ineligible (grades): the next rung plays
+  amBossEnsure(c); const g = amNext(c); const inel = c.ineligible > 0; if (!g || !g.opp || (isStarter(c) && !inel)) return null; const m = ladderStarterMate(c) || hsSlotMate(c); if (!m) return null; // R5: ineligible (grades): the next rung plays
   const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, poRound = po ? po.round : 0, stg = AMC.stages[c.stage] || AMC.stages.hs;
   const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + trSimEdge(opp, !!g.playoff)); const my = sc[0], their = sc[1], won = my > their; storyFill(c); mdHypeWeek(c, c.hype, false, false); if (c.sponsorCut > 0) c.sponsorCut--; /* R8: the teammate plays (your grudges wait for you); no big performance from the bench */ try { stBenchWeek(c); } catch (e) { /* the story is decoration */ } // R9
   if (c.team) { if (won) c.team.w++; else c.team.l++; }
@@ -11862,7 +12035,7 @@ function amCombine(c) {
 // ---------------- the match: you against one opponent ----------------
 function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c), traitLv: trLevels(c) }; } // F8: in your gear
 // fire: an opponent you trash-talked or a fired-up rival plays you this much better (every rating; R8)
-function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff), traits: traitIdsFor(o), traitLv: trLevels(o) }; } // V3: an opponent's trait plays (it showed on previews since V1)
+function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return Object.assign({ name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff), traits: traitIdsFor(o), traitLv: trLevels(o) }, scoutDef(o)); } // V4: and their personality and tendencies // V3: an opponent's trait plays (it showed on previews since V1)
 function amAbbr(name, other) { const parts = String(name).split(' '); const last = (parts[parts.length - 1] || String(name)).toUpperCase(); let a = last.slice(0, 3); if (other && other === a) a = ((parts[0] || 'X')[0] + last.slice(0, 2)).toUpperCase(); return a; }
 function amMatchOpts(game, c, opp, playoff) {
   const S = game.save.data.settings; const stg = AMC.stages[c.stage]; const mine = c.colors.slice(); let oc = opp.colors.slice(); if (oc[0] === mine[0]) oc = [oc[1], oc[0]];
@@ -11872,7 +12045,7 @@ function amMatchOpts(game, c, opp, playoff) {
   let B = { id: 'amopp', name: opp.name, abbr: a2, colors: oc, pattern: opp.pattern || 'solid', personality: archPersonality(opp.style), blurb: '', players: [amOppDef(opp, G.ovr)] };
   if (S.colorblind) { const r = colorblindTeams(A, B); A = r[0]; B = r[1]; }
   const shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(opp.r, opp.height), playoff) + G.tier;
-  return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, playoff: !!playoff, ruleset: S.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), /* F5: one minute */ court: stg.court, seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: false, ballSkin: 0 }; // career games never rubber-band
+  return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, playoff: !!playoff, ruleset: S.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), /* F5: one minute */ boss: amIsBoss(c, opp), /* V4 */ court: stg.court, seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: false, ballSkin: 0 }; // career games never rubber-band
 }
 
 // ---------------- saves from the first 1v1 career build (engine-scale attributes, five styles) ----------------
@@ -12147,7 +12320,7 @@ function amPractice(c, focus, intensity, xpIn) {
 function amRest(c) { return wkRest(c); }
 function amFilm(c) { const g = amNext(c); const ok = wkFilm(c, g && g.opp ? g.opp.id : null); if (ok) trFilmXp(c); return ok; }
 // Nobody skips a week: if you play without choosing, your standing plan runs (Practice is a simmed session).
-function amStartGame(c) { wkFill(c); ladderSettlePending(c); if (c.wk.done) return null; if (c.stage === 'hs' && hsFill(c).gpa < HS.autoStudyAt) return wkStudy(c); /* R5: grades first (the coach's rule) */ const p = c.plan === 'study' ? 'practice' : c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
+function amStartGame(c) { wkFill(c); amBossEnsure(c); /* V4: the season's Boss */ ladderSettlePending(c); if (c.wk.done) return null; if (c.stage === 'hs' && hsFill(c).gpa < HS.autoStudyAt) return wkStudy(c); /* R5: grades first (the coach's rule) */ const p = c.plan === 'study' ? 'practice' : c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
 
 // --- the pro week ---
 function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proCoachMul(c, focus) * proTrainerMul(c) * proXpMul(c) * /* R7: the private coach (your focus), the personal trainer (practice), the pro XP base */ (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
@@ -12163,7 +12336,7 @@ function proRest(c) { const M = c.me; return wkRest(M, WK.restPhysio * (proNutri
 function proFilm(c) { const g = userGame(c); const ok = wkFilm(c.me, g ? opponentOf(c, g) : null); if (ok) trFilmXp(c); return ok; }
 // V3: Film Junkie: a Film week also pays a share of a Practice week's XP (into your focus).
 function trFilmXp(c) { const B = holderOf(c), f = trMul(B, 'filmXp') - 1; if (!(f > 0)) return 0; const pro = isPro(c), me = pro ? meOf(c) : null, focus = pro ? c.me.focus : c.focus, F = CR.trainFocus[focus] || CR.trainFocus.shooting; const xp = f * (pro ? proSessionXp(c, focus, 'normal') : amSessionXp(c, 'normal')), add = {}; for (const k in F.split) add[k] = xp * F.split[k]; spendXp(pro ? me.r : c.r, pro ? c.me.xp : c.xp, pro ? me.caps : c.caps, add); const w = wkOf(B); w.xp = Math.round(xp); return xp; }
-function proStartGame(c) { const M = wkFill(c.me); ladderSettlePending(c); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
+function proStartGame(c) { const M = wkFill(c.me); proBossEnsure(c); /* V4 */ ladderSettlePending(c); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 5) — the story (§8): press questions after big games and what your answers do
@@ -12437,6 +12610,121 @@ function ovrByAge(c) {
   const pts = [], pro = isPro(c), am = pro ? c.amateur || {} : c; for (const e of am.log || []) pts.push({ age: e.age, ovr: e.ovr, level: e.stage === 'college' ? 'college' : 'hs' });
   if (pro) { for (const l of (c.me.seasonLog || []).slice().reverse()) pts.push({ age: l.age, ovr: l.ovr, level: 'pro' }); pts.push({ age: meOf(c).age, ovr: recOvr(meOf(c)), level: 'pro', now: true }); } else pts.push({ age: c.age, ovr: amOvr(c), level: c.stage === 'college' ? 'college' : 'hs', now: true });
   return pts;
+}
+
+// ============================================================================
+// SECTION: SCOUTING — V4 (2.0 §3): every career opponent has a personality (Lockdown, Gunner, Showman, Bully) and four
+// tendencies, two with the ball and two on defense. Bots play to all four. The scouting card before a game shows the
+// personality, their traits, two tendencies (all four after a Film week on them), their weakness and one tip. Each
+// season one opponent on your schedule is the Boss and plays you with a Legendary trait.
+// ============================================================================
+const SC = CONFIG.scout;
+const SIG_MOVE_CALLOUT = { btb: 'BEHIND THE BACK', snatch: 'SNATCH-BACK', euro: 'EURO-STEP', reverse: 'REVERSE DUNK', pullup: 'PULL-UP THREE' }; // V4: the in-game callouts of the signature moves
+const SCOUT_PERS = ['lockdown', 'gunner', 'showman', 'bully'];
+const SCOUT_TEND = Object.keys(SC.tend);
+const SCOUT_PERS_COLOR = { lockdown: '#5EE0FF', gunner: '#FF8A2A', showman: '#FF4FA3', bully: '#B8FF5A' }; // the personality chips
+// The brain's multipliers: options' values multiply; discipline, bite, sag (m) and the plan weights add.
+const SCOUT_AI0 = { three: 1, mid: 1, drive: 1, post: 1, fade: 1, move: 1, stepback: 1, pumpfake: 1, reset: 1, snatch: 1, euro: 1, stealCd: 1, rimJump: 1, closeout: 1, discipline: 0, bite: 0, sag: 0, planThree: 0, planMid: 0, planDrive: 0, planPost: 0 };
+const SCOUT_ADD = { discipline: 1, bite: 1, sag: 1, planThree: 1, planMid: 1, planDrive: 1, planPost: 1 };
+function scoutAI(pers, tend) {
+  const o = Object.assign({}, SCOUT_AI0), fold = ai => { if (!ai) return; for (const k in ai) { if (!(k in o)) continue; if (SCOUT_ADD[k]) o[k] += ai[k]; else o[k] *= ai[k]; } };
+  if (pers && SC.pers[pers]) fold(SC.pers[pers].ai); if (Array.isArray(tend)) for (const t of tend) if (SC.tend[t]) fold(SC.tend[t].ai);
+  return o;
+}
+// An opponent's personality and tendencies, rolled once from its id (and kept on the record): [offense, defense, offense,
+// defense]; the card shows the first two. A build leans to its personality; a short player rarely posts.
+function scoutOf(rec, salt) {
+  if (!rec) return null; const S0 = rec.scout; if (S0 && SC.pers[S0.pers] && Array.isArray(S0.tend) && S0.tend.length >= 2 && S0.tend.every(t => SC.tend[t])) return S0;
+  const rng = new RNG(hashString('scout|' + (rec.id != null ? rec.id : rec.name) + '|' + (rec.name || '') + '|' + (salt || 0)) || 11);
+  const arch = rec.style || rec.arch || 'lockdown', h = rec.height || rec.h || 1.95, lean = SC.archPers[arch] || 'lockdown';
+  const pers = rng.next() < SC.persByArch ? lean : SCOUT_PERS[Math.floor(rng.next() * SCOUT_PERS.length)];
+  const pool = SC.pers[pers].pool, got = [];
+  const pick = side => { const w = {}; for (const k of SCOUT_TEND) { const T = SC.tend[k]; if (T.side !== side || got.includes(k)) continue; let x = pool[k] || 0; if (T.minH && h < T.minH) x *= 0.15; if ((k === 'sagger' && got.includes('presser')) || (k === 'presser' && got.includes('sagger'))) x = 0; if (x > 0) w[k] = x; } return Object.keys(w).length ? weightedPick(w, rng) : null; };
+  for (const side of ['o', 'd', 'o', 'd']) { const k = pick(side); if (k) got.push(k); }
+  rec.scout = { pers, tend: got }; return rec.scout;
+}
+function scoutPersName(pers) { return SC.pers[pers] ? SC.pers[pers].name : ''; }
+// What the match def carries: the bot plays all four tendencies, shown or not.
+function scoutDef(rec, salt) { const S = scoutOf(rec, salt); return S ? { pers: S.pers, tend: S.tend.slice() } : {}; }
+// Quick Play: a bot's personality is its build's (its tendencies come from its name).
+function quickScout(def) { const pers = SC.archPers[def.arch] || 'lockdown'; const S = scoutOf({ id: 'quick|' + def.name, name: def.name, arch: def.arch, h: def.height }); return { pers, tend: S.tend.slice() }; }
+// Their weakness: the rating furthest under their own average (at least SC.weakGap), after height.
+function scoutWeak(r, h) { if (!r) return null; const e = effRatings(r, h); let avg = 0; for (const k of RATING_KEYS) avg += e[k]; avg /= RATING_KEYS.length; let worst = null, gap = SC.weakGap; for (const k of RATING_KEYS) { const g = avg - e[k]; if (g >= gap) { gap = g; worst = k; } } return worst; }
+// The card: { pers, persName, persWhat, tend: [shown ids], more: hidden count, weak, weakText, tip, boss, film }.
+// opts: { film: this opponent was filmed this week, junkie: Film Junkie (always reads all four) }
+function scoutCard(rec, r, h, opts) {
+  opts = opts || {}; const S = scoutOf(rec, opts.salt); if (!S) return null; const all = !!(opts.film || opts.junkie), n = all ? SC.filmShown : SC.shown;
+  const tend = S.tend.slice(0, n), weak = scoutWeak(r, h), W = weak ? SC.weak[weak] : null; const tipT = tend.find(t => SC.tend[t].side === 'o') || tend[0];
+  const tip = tipT ? SC.tend[tipT].tip : W ? W[1] : 'An even matchup. The better read wins.';
+  return { pers: S.pers, persName: scoutPersName(S.pers), persWhat: SC.pers[S.pers].what, tend, more: Math.max(0, S.tend.length - tend.length), weak, weakText: W ? W[0] : 'No clear weakness', weakTip: W ? W[1] : '', tip, film: all, boss: !!opts.boss };
+}
+// One line for the hub's matchup panel: "GUNNER · Loves the step-back three".
+function scoutLineOf(rec, salt) { const S = scoutOf(rec, salt); if (!S) return ''; return scoutPersName(S.pers).toUpperCase() + ' · ' + SC.tend[S.tend[0]].text; }
+
+// --- the Boss: once a season, the best regular-season opponent on your schedule who isn't your rival plays you with a
+// Legendary trait (its third slot, so every card, sim and game sees it) ---
+function bossTraitFor(key) { const L = SC.boss.legendary; return L[hashString('boss|' + key) % L.length]; }
+function amBossEnsure(c) {
+  const L = c && c.league; if (!L || !Array.isArray(L.schedule) || !L.schedule.length || ('boss' in L)) return; let best = null, bo = -1;
+  for (let w = Math.max(L.week || 0, SC.boss.minWeek); w < L.schedule.length; w++) { const o = amOppById(c, L.schedule[w]); if (!o || o.rival || o.id === 'rival') continue; const v = ovrOf(o.r, o.height); if (v > bo) { bo = v; best = o; } }
+  L.boss = best ? best.id : null; if (!best) return;
+  const T = best.tr || (best.tr = traitsGen((c.seed >>> 0) + '|' + best.id + '|' + best.name)); T.third = bossTraitFor((c.seed >>> 0) + '|' + c.season + '|' + best.id); best.boss = c.season;
+}
+function amIsBoss(c, o) { return !!(o && c && c.league && c.league.boss === o.id); }
+function proBossEnsure(c) {
+  if (!c || c.phase !== 'regular' || !Array.isArray(c.schedule)) return; if (c.boss && c.boss.season === c.season) return;
+  if (c.boss && c.players[c.boss.id]) { const T = c.players[c.boss.id].tr; if (T && T.third === c.boss.trait) delete T.third; } // last season's Boss plays as themselves again
+  const me = meOf(c); let best = null, bo = -1;
+  for (let w = Math.max(c.week || 0, SC.boss.minWeek); w < c.schedule.length; w++) { const g = (c.schedule[w] || []).find(x => x.h === c.meId || x.a === c.meId); if (!g) continue; const id = opponentOf(c, g), p = c.players[id]; if (!p || id === c.rivalId || p.club === me.club) continue; const v = recOvr(p); if (v > bo) { bo = v; best = id; } }
+  c.boss = { id: best, season: c.season, trait: best ? bossTraitFor(c.seed + '|' + c.season + '|' + best) : null }; if (!best) return;
+  const p = c.players[best]; if (!p.tr || !TR.list[p.tr.sig]) p.tr = traitsGen(c.seed + '|' + best); p.tr.third = c.boss.trait;
+}
+function proIsBoss(c, id) { return !!(c && c.boss && c.boss.season === c.season && c.boss.id === id); }
+
+// V4: an amateur game's tip-off (from the scouting report): the week's plan, then the game, unless a challenge settled
+// at tip-off cost you the start.
+function amTipOff(game) {
+  const c = amateurOf(game), g = c && amNext(c); if (!g || !g.opp) { game.ui.clearTo(amHub(game)); return; }
+  hsAutoResolve(c); amStartGame(c); if (!isStarter(c) || c.ineligible > 0) { game.save.save(); game.ui.clearTo(amHub(game)); game.ui.toastMsg('You lost your spot in practice: your teammate starts.'); return; }
+  game.save.save(); game.startMatch(amMatchOpts(game, c, g.opp, g.playoff), { kind: 'amateur', oppId: g.opp.id });
+}
+// The scouting report before an amateur game: both cards, then the card in the middle (2.0 §3). A Film week on this
+// opponent (or Film Junkie) shows all four tendencies.
+function amPregameScreen(game) {
+  const c = amateurOf(game), nx = c && amNext(c); if (!nx || !nx.opp) return amHub(game); const o = nx.opp, P = game.ui.phone; let t = 0;
+  const film = c.plan === 'film' || (c.wk && c.wk.done === 'film' && (c.wk.filmOpp == null || c.wk.filmOpp === o.id));
+  const D = scoutCard(o, o.r, o.height, { film, junkie: hasTrait(c, 'filmjunkie'), boss: amIsBoss(c, o) }), kit = amKit(c), def = amDrawDef(c);
+  const items = [btn('TIP OFF', 0, 0, 0, 0, () => amTipOff(game), { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
+  if (P) phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12); else { Object.assign(items[0], { x: 470, y: 616, w: 220, h: 54 }); Object.assign(items[1], { x: 700, y: 616, w: 110, h: 54 }); }
+  const myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age };
+  const oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '', trait: o.tr ? (TR.list[o.tr.third] && D.boss ? o.tr.third : o.tr.sig) : null, trT: o.tr || null };
+  return { widgets: items, name: 'ampregame', update(dt) { t += dt; },
+    draw(ctx, ui) {
+      ui.panel(ctx, 20, 14, 1240, 690); const lbl = nx.playoff ? 'PLAYOFFS' : 'GAME ' + ((c.league && c.league.week) + 1);
+      if (!P) { ui.label(ctx, lbl, 640, 40, 14, UI_CYAN, 'center'); kitStamp(ctx, 'vs ' + o.name.toUpperCase(), 640, 74, fitFont(ctx, 'vs ' + o.name.toUpperCase(), 640, 34, true), [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
+        drawTradingCard(ctx, 52, 120, 200, 280, myCard, { t }); drawTradingCard(ctx, 1028, 120, 200, 280, oppCard, { t: t + 1.1 });
+        ui.heading(ctx, fmtHeight(c.height), 152, 424, 22, UI_TEXT, 'center'); ui.heading(ctx, fmtHeight(o.height), 1128, 424, 22, UI_TEXT, 'center');
+        const w = 720, h = drawScoutCard(ctx, ui, D, 280, 0, w, { measure: true, T: o.tr }), y = Math.max(108, Math.min(150, 360 - h / 2)); kitPanel(ctx, 280, y, w, h, 'rgba(8,12,36,0.88)'); drawScoutCard(ctx, ui, D, 280, y, w, { T: o.tr }); }
+      else { const w = 1200, h = drawScoutCard(ctx, ui, D, 40, 0, w, { measure: true, T: o.tr }); const y = Math.max(24, Math.min(80, (UI_H - tapH(ui, 44) - 30 - h) / 2)); kitPanel(ctx, 40, y, w, h, 'rgba(8,12,36,0.9)'); drawScoutCard(ctx, ui, D, 40, y, w, { T: o.tr, title: 'vs ' + o.name }); }
+    } };
+}
+// --- the card ---
+// The scouting card at (x, y), w wide: the personality, their traits, the tendencies, the weakness and the tip; a phone
+// gets bigger text. Returns its height. D: scoutCard(); T: the opponent's traits (for the chips).
+function drawScoutCard(ctx, ui, D, x, y, w, opts) {
+  opts = opts || {}; if (!D) return 0; const P = ui.phone, fs = opts.size || (P ? 17 : 14), pad = 16, iw = w - pad * 2; let yy = y + pad + 4;
+  const draw = !opts.measure, persCol = SCOUT_PERS_COLOR[D.pers] || UI_CYAN;
+  const head = (opts.title || 'SCOUTING REPORT'); if (draw) kitHeader(ctx, head, x + pad, yy, iw * 0.55);
+  ctx.font = fontStr(fs - 1, true); const pw = ctx.measureText(D.persName.toUpperCase()).width + (fs - 1) * 1.3; if (draw) kitChip(ctx, D.persName.toUpperCase(), x + w - pad, yy, { size: fs - 1, align: 'right', fill: persCol, color: UI_INK, stroke: false });
+  if (D.boss && draw) kitChip(ctx, 'BOSS', x + w - pad - pw - 8, yy, { size: fs - 1, align: 'right', fill: '#FFD23F', color: UI_INK, stroke: false });
+  yy += fs + 8; if (draw) yy += ui.para(ctx, D.persWhat, x + pad, yy, iw, fs - 1, UI_DIM, 'left', 2); else { ctx.font = fontStr(fs - 1, false); yy += rbWrap(ctx, D.persWhat, iw).length * Math.max((fs - 1) * 1.35, rbLineH(ctx)); }
+  if (opts.T) { yy += 4; let tx = x + pad; const ids = trActive({ tr: opts.T }).filter(id => id !== opts.T.hidden || opts.T.found); for (const id of ids) { const cw = traitChip(ctx, id, tx, yy + fs * 0.4, { T: opts.T, size: fs - 2, measure: !draw, maxW: x + w - pad - tx }); tx += cw + 6; if (tx > x + w - pad - 40) break; } yy += fs + 12; }
+  yy += 4; ctx.font = fontStr(fs - 2, true); const slot = Math.max(ctx.measureText('BALL').width, ctx.measureText('DEF').width); // the side tags share one slot, so the lines start together
+  for (const id of D.tend) { const T = SC.tend[id], col = T.side === 'o' ? '#FF9A3C' : '#7DB8FF'; if (draw) ui.heading(ctx, T.side === 'o' ? 'BALL' : 'DEF', x + pad, yy, fs - 2, col, 'left'); const lx = x + pad + slot + 10; if (draw) ui.heading(ctx, T.text, lx, yy, fs, UI_TEXT, 'left', x + w - pad - lx); yy += fs + 10; }
+  if (D.more > 0) { const mt = D.more + ' more: watch their film this week.'; if (draw) yy += ui.para(ctx, mt, x + pad, yy, iw, fs - 2, UI_DIM, 'left', 2) - (fs - 2) * 1.35 + fs + 4; else yy += fs + 4; }
+  yy += 2; if (draw) { ui.heading(ctx, 'WEAKNESS', x + pad, yy, fs - 2, UI_CYAN); ctx.font = fontStr(fs - 2, true); const ww = ctx.measureText('WEAKNESS').width + 10; ui.heading(ctx, D.weakText, x + pad + ww, yy, fs - 1, D.weak ? UI_TEXT : UI_DIM, 'left', iw - ww); } yy += fs + 10;
+  if (draw) { ui.heading(ctx, 'TIP', x + pad, yy, fs - 2, UI_GOLD); ctx.font = fontStr(fs - 2, true); const tw = ctx.measureText('TIP').width + 10; yy += ui.para(ctx, D.tip, x + pad + tw, yy, iw - tw, fs - 1, UI_GOLD, 'left', 3); } else { ctx.font = fontStr(fs - 1, false); yy += rbWrap(ctx, D.tip, iw - 40).length * Math.max((fs - 1) * 1.35, rbLineH(ctx)); }
+  return yy - y + pad - 6;
 }
 
 // ============================================================================
@@ -14445,7 +14733,7 @@ function gearScreen(game) {
 // numbers (read from CONFIG, so the guide never drifts from the rules) and how to move it. From the Career menu, the
 // amateur Stats screen and How to play (general, when there is no career).
 // ============================================================================
-const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['buzz', 'Hype, fame, confidence'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']];
+const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['moves', 'Moves'], ['buzz', 'Hype, fame, confidence'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']]; // (V4: the move list)
 function guidePct(x, d) { let s = (x * 100).toFixed(d == null ? 1 : d); if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s + '%'; } // 0.0004 → 0.04%, 0.008 → 0.8%
 // The entries of one topic for career c (or none): { title, value, lines: [[text, color]] }.
 function guideEntries(game, topic) {
@@ -14457,6 +14745,10 @@ function guideEntries(game, topic) {
     add('The seven ratings', '', (c ? [['Yours: ' + RATING_KEYS.map(k => ({ sho: 'SHO', fin: 'FIN', han: 'HAN', spd: 'SPD', jmp: 'HOPS', def: 'DEF', str: 'STR' })[k] + ' ' + Math.floor(r[k])).join(' · '), UI_CYAN]] : []).concat(['Shooting: every jump shot and three. Finishing: layups, floaters and dunks. Handles: dribble moves, and keeping the ball.', 'Speed: your first step and staying in front. Hops: blocks, rebounds, dunks. Defense: contests and steals. Strength: post-ups and contact.']));
     const f = c ? (CR.trainFocus[(pro ? c.me.focus : c.focus)] || CR.trainFocus.shooting) : null, fk = f ? Object.keys(f.split)[0] : 'sho', fr = c ? Math.floor(r[fk]) : 60;
     add('XP', c ? 'next +1 ' + RATING_LONG[fk].toLowerCase() + ': ' + Math.round(xpNeed(fr)) + ' XP' : '', ['Games pay XP for what you do in them (makes, finishes, rebounds, steals, blocks); practice pays XP into your focus.', 'A +1 costs ' + CR.xpBase + ' + ' + CR.xpPer + ' × rating / 10 XP, and ' + Math.round(CR.xpTop * 100) + '% more per 10 points above ' + CR.xpTopFrom + '. You learn fastest young; after 30 the legs go first.']);
+  }
+  if (topic === 'moves') { // V4 (2.0 §3): every move, how to do it, what it does, and whether you have it (the signature moves marked)
+    const r = c ? (pro ? effRatings(meOf(c).r, meOf(c).h) : effRatings(c.r, c.height)) : null, mv = c ? (pro ? learnedMoves(meOf(c), c.me) : movesFor(r, trMoveEarly(c))) : null;
+    for (const k of MOVE_ORDER) add((MOVE_SIG[k] ? 'Signature: ' : '') + MOVE_NAMES[k], mv ? (mv[k] ? 'LEARNED' : 'needs ' + moveReqText(k, r)) : moveReqText(k), [[MOVE_INFO[k][0] + '.', UI_CYAN], MOVE_INFO[k][1]]);
   }
   if (topic === 'buzz') {
     const hy = B ? B.hype || 0 : 0;
@@ -14642,7 +14934,7 @@ class Game {
     window.HH = { game: this, artLabScreen, LAB_CAST, drawMatchScene, runBalanceHarness, formatHarnessTable, harnessGame, HARNESS_STRATEGIES, CONFIG, simulateMatch, runSims, shotLab, tunnelTest, formatSimTable, aggregateSims, Match, TEAMS, ROSTER, createCareerFromAmateur, amCreate, amSimGame, testProLeague, simUserGame, careerAfterGame, proPractice, proRest, proFilm, proStartGame, amPractice, amRest, amFilm, amStartGame, wkEff, careerKit, strengthOf, simBox, legacyOf };
   }
   applySettings() {
-    const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; applyKeyMap(S); this.input.setPreset(KEY_PRESETS[S.keyPreset] ? S.keyPreset : 'A'); RBF.textScale = S.textSize === 1.25 ? 1.25 : 1; /* R10: the Custom keys; text size 1× or 1.25× */ const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.computeLayout(this.W, this.H);
+    const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; applyKeyMap(S); this.input.setPreset(KEY_PRESETS[S.keyPreset] ? S.keyPreset : 'A'); RBF.textScale = S.textSize === 1.25 ? 1.25 : 1; /* R10: the Custom keys; text size 1× or 1.25× */ const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.autoSprint = S.autoSprint !== false; tc.custom = S.touchLayout || null; KEY_LABELS.touch.sprint = tc.autoSprint ? 'Push stick' : 'SPRINT'; tc.computeLayout(this.W, this.H); this._touchKey = null; /* V4: auto-sprint, your layout (and the match's floor band again next frame) */
   }
   resize() {
     const W = window.innerWidth, H = window.innerHeight; this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.ui.dprCap, this.lowRes ? CONFIG.perf.lowDpr : 99); this.W = W; this.H = H; this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(H * this.dpr); this.canvas.style.width = W + 'px'; this.canvas.style.height = H + 'px'; this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); RBF.minMain = RBF.kHUD = Math.max(2, Math.min(uiK(this.canvas), Math.round(2 * this.dpr))); /* F4: the HUD is laid out in CSS px, so its smallest text is never bigger than its 720p design (a 1080p or a tall window made it 1.5–3× too big for its boxes) */ RBF.textScale = this.save && this.save.data.settings.textSize === 1.25 ? 1.25 : 1;
@@ -14786,16 +15078,18 @@ class Game {
       ctx.font = fontStr(22, true); let w = ctx.measureText(l1).width; ctx.font = fontStr(16, false); if (l2) w = Math.max(w, Math.min(W_ - 40, ctx.measureText(l2).width)); w = Math.max(w, 200) + 40; const hh = l2 ? 124 : 100; ctx.fillStyle = 'rgba(8,12,40,0.78)'; ctx.beginPath(); roundRectPath(ctx, W_ / 2 - w / 2, 8, w, hh, 12); ctx.fill();
       stampText(ctx, fmtClockTenths(c.timeLeft), W_ / 2, 40, 44, '#F3F0FF', INK, 0); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(22, true); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(l1, W_ / 2, 88); if (l2) { ctx.font = fontStr(16, false); ctx.fillStyle = UI_GOLD; ctx.fillText(l2, W_ / 2, 114, W_ - 60); } }
     if (m.practice && m.practice.breakdown) { const pr = m.practice; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(10, 10, 230, 120); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(14, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; const z = pr.byZone; const line = (k, l) => l + ' ' + z[k][0] + '/' + z[k][1] + (z[k][1] ? ' (' + Math.round(100 * z[k][0] / z[k][1]) + '%)' : ''); [ 'PRACTICE · ' + pr.makes + '/' + pr.shots + ' made', line('lay', 'Layups'), line('mid', 'Mid'), line('three', 'Threes'), line('deep', 'Deep'), line('dunk', 'Dunks') ].forEach((l, i) => ctx.fillText(l, 18, 16 + i * 18)); }
-    if (m.practice && m.practice.chart) { const pr = m.practice; const hoop = m.human.hoop; const x0 = W_ - 250, y0 = 10, w = 240, h = 70; ctx.fillStyle = 'rgba(20,12,40,0.6)'; ctx.fillRect(x0, y0, w, h); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(12, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('SHOT CHART (distance)', x0 + 6, y0 + 4); for (const s of (pr.marks || []).slice(-60)) { const px = x0 + 10 + clamp01(s.d / 13) * (w - 20), py = y0 + 40 + ((s.id * 7) % 20); ctx.fillStyle = s.make ? '#B8FF5A' : '#FF4FA3'; ctx.beginPath(); ctx.arc(px, py, 3, 0, TAU); ctx.fill(); } ctx.fillStyle = '#F3F0FF'; ctx.fillText('0 m', x0 + 6, y0 + 56); ctx.textAlign = 'right'; ctx.fillText('13 m', x0 + w - 6, y0 + 56); }
+    if (m.practice && m.practice.chart) { const tc = this.input.touch, pz = tc.visible && tc.layout ? tc.layout.pause : null; drawPracticeChart(ctx, m.practice, Math.min(W_ - 310, pz ? pz.x - pz.r - 312 : W_), 10, 300, 116, false); } /* (left of a phone's pause button) */ /* V4 (2.0 §3): the zones, your percentages, the perfect releases */
     // shot meter for the controlled player (and any shooter when the meter is on)
-    for (const p of m.players) if (p.controlled || (p.inState('jumpshot', 'floater') && S.meter === 'on' && false)) drawShotMeter(ctx, cam, p, alpha, S.meter, m.lastShot, m.time);
+    if (m.ring) drawContestRing(ctx, cam, m, alpha); // V4: the contest ring
+    for (const p of m.players) if (p.controlled || (p.inState('jumpshot', 'floater') && S.meter === 'on' && false)) drawShotMeter(ctx, cam, p, alpha, S.meter, m.lastShot, m.time, S.shotFeedback !== false);
     drawCallouts(ctx, m, W_, H_, dt); // (L15: the display font in both modes)
     // off-screen arrow for high lobs / balls
     const b = m.ball; const bsx = cam.sx(b.x), bsy = cam.sy(b.y, b.z); if ((bsy < -10 || bsx < -10 || bsx > W_ + 10) && !b.owner && !LAY.legends) { const ax = clamp(bsx, 30, W_ - 30), ay = clamp(bsy, CONFIG.camera.lobArrowMargin + 70, H_ - 30); inkShape(ctx, c => c.arc(ax, ay, 14, 0, TAU), '#FF8A2A', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(ax, ay - 22); ctx.lineTo(ax - 8, ay - 12); ctx.lineTo(ax + 8, ay - 12); ctx.fill(); }
     { const me = m.controlledPlayer; if (me && !me.hidden && !LAY.legends) { const psx = cam.sx(me.x); if (psx < 6 || psx > W_ - 6) { const left = psx < 6, ax = left ? 28 : W_ - 28, ay = clamp(cam.sy(me.y + me.height * 0.6, me.z), 96, H_ - 120); inkShape(ctx, c => c.arc(ax, ay, 17, 0, TAU), '#FFD23F', INK, 2); ctx.fillStyle = INK; ctx.beginPath(); const tip = left ? ax - 26 : ax + 26, base = left ? ax - 16 : ax + 16; ctx.moveTo(tip, ay); ctx.lineTo(base, ay - 8); ctx.lineTo(base, ay + 8); ctx.fill(); ctx.font = fontStr(11, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('YOU', ax, ay + 1); } } } // off-screen marker for the player you control
     // inbound hold indicator, phase banners
     if (m.phase === 'freethrow' && m.ftState) { ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('FREE THROW ' + (m.ftState.index + 1) + ' of ' + m.ftState.count + ' · ' + m.ftState.shooter.nick, W_ / 2, 80); }
-    if (m.phase === 'pregame') kitStamp(ctx, m.drill ? DRILL_INFO[m.drill.focus].title : m.teams[0].name.toUpperCase() + '  vs  ' + m.teams[1].name.toUpperCase(), W_ / 2, H_ * 0.5, Math.min(34, W_ / 30), ['#FFFFFF', '#C9CCE0'], { tilt: -2, outline: 0.16 });
+    if (m.phase === 'pregame') { kitStamp(ctx, m.drill ? DRILL_INFO[m.drill.focus].title : m.teams[0].name.toUpperCase() + '  vs  ' + m.teams[1].name.toUpperCase(), W_ / 2, H_ * 0.5, Math.min(34, W_ / 30), ['#FFFFFF', '#C9CCE0'], { tilt: -2, outline: 0.16 });
+      const opp = !m.drill && m.human ? m.opponentsOf(m.human)[0] : null; if (opp && (opp.pers || m.boss)) { const px = Math.min(18, W_ / 50), txt = (m.boss ? 'BOSS GAME · ' : '') + (opp.pers ? scoutPersName(opp.pers).toUpperCase() : ''); kitChip(ctx, txt.replace(/ · $/, ''), W_ / 2, H_ * 0.5 + Math.min(34, W_ / 30) * 1.25, { size: px, align: 'center', fill: m.boss ? '#FFD23F' : (SCOUT_PERS_COLOR[opp.pers] || UI_CYAN), color: UI_INK, stroke: false }); } } /* V4: the opponent's personality and the Boss, at tip-off */
     if (this.tutorial) { const st = TUTORIAL_STEPS[this.tutorial.step]; const L = this.input.hintLabels(); const text = st.text.replace('{move}', L.move).replace('{jump}', L.jump).replace('{shoot}', L.shoot).replace('{action}', L.action).replace('{down}', L.down).replace('{pass}', L.pass); kitPanel(ctx, W_ / 2 - 360, 16, 720, 70, ART.uiPanel2, { accent: UI_GOLD }); ctx.fillStyle = UI_GOLD; ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('TUTORIAL ' + (this.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + '  (Esc to pause and quit)', W_ / 2 - 340, 26); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(18, false); ctx.fillText(text, W_ / 2 - 340, 50); }
     else if (m.phase !== 'final' && !m.ended && !this.ui.screen && m.humanTeam >= 0) { const offense = m.ball.owner ? m.ball.owner.team === m.humanTeam : m.possession === m.humanTeam; drawHints(ctx, m, this.input, W_, H_, offense); }
     if (this.overlays.f1) drawDebugF1(ctx, cam, m); if (this.overlays.f2) drawDebugF2(ctx, cam, m); if (this.overlays.f3) drawDebugF3(ctx, m, W_);
@@ -14811,8 +15105,7 @@ class Game {
   // line (70% of the screen) and the feet of a player in the near lane. The band comes from the camera's nominal layout,
   // so it never moves in play.
   touchBand() {
-    if (!this.match || !LAY.legends || !this.input.hasTouch || !(this.W > this.H)) return null; const sf = this.safe || { bottom: 0 };
-    return { y0: this.H * CONFIG.camera.legends.floorAt + CONFIG.fx.laneOffsetPx * (0.5 - CONFIG.world.lanes[0]) + ART.touchBandGap, y1: this.H - sf.bottom - 2 }; // (below the near lane's feet)
+    if (!this.match || !LAY.legends || !this.input.hasTouch || !(this.W > this.H)) return null; return touchBandFor(this.W, this.H, this.safe);
   }
   fitTouch() { const B = this.touchBand(), key = B ? B.y0.toFixed(1) + '|' + B.y1.toFixed(1) + '|' + this.W + 'x' + this.H : 'none|' + this.W + 'x' + this.H; if (key !== this._touchKey) { this._touchKey = key; this.input.touch.computeLayout(this.W, this.H, this.safe, B); } }
   drawRotate(ctx, W_, H_) { ctx.fillStyle = '#1E1633'; ctx.fillRect(0, 0, W_, H_); stampText(ctx, 'ROTATE', W_ / 2, H_ * 0.4, Math.min(80, W_ * 0.2), '#FF4FA3', '#F3F0FF', -4); stampText(ctx, 'YOUR PHONE', W_ / 2, H_ * 0.4 + Math.min(80, W_ * 0.2), Math.min(60, W_ * 0.11), '#FF8A2A', '#F3F0FF', 3); ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(18, false); ctx.textAlign = 'center'; ctx.fillText('Hoop Heads plays in landscape.', W_ / 2, H_ * 0.62); ctx.save(); ctx.translate(W_ / 2, H_ * 0.75); ctx.rotate(Math.sin(performance.now() / 500) * 0.4 + 0.8); ctx.strokeStyle = '#F3F0FF'; ctx.lineWidth = 4; ctx.strokeRect(-22, -38, 44, 76); ctx.restore(); }

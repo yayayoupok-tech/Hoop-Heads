@@ -3,6 +3,158 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V4 — 2.0 gameplay: scouting, signature moves, feedback, defense feel, phones, overtime, AI variety (§3)
+
+The fourth milestone of Hoop Heads 2.0. The career is still 1v1 only. No new modes, no power-ups in the career.
+
+**Opponent scouting.**
+
+- Every career opponent has a personality and four tendencies: two with the ball and two on defense. This covers
+  amateur opponents, pros, the rival and the Boss.
+- They are rolled once from the opponent's id and kept on the record (`rec.scout`), so the same player always plays
+  the same way and old saves need no migration step.
+- The personality follows the player's build 60% of the time (`scout.persByArch`); otherwise it is any of the four.
+- A tendency that needs size (backing smaller players down) is rare for anyone under 1.96 m.
+
+The scouting card shows:
+
+- the personality, with what it means;
+- their traits (with a Legendary chip on the Boss);
+- one tendency with the ball and one on defense;
+- their weakness: the rating furthest under their own average, at least 5 points under (`scout.weakGap`);
+- one tip, the answer to the tendency it shows.
+
+A Film week on that opponent shows all four tendencies, and so does Film Junkie. The film room shows the card with all
+four.
+
+Where the card appears:
+
+- **Amateur games:** PLAY now opens a scouting report screen (both trading cards and the card) with TIP OFF and Back.
+  SIM skips it.
+- **Pro games:** the tale of the tape has the card where the rating bars were.
+- **Hubs:** the next game shows the personality and BOSS as pills.
+- **Tip-off:** the match intro shows the personality (and BOSS GAME) under the matchup.
+
+**Bots play to the card.** Each personality and tendency multiplies the value of one of the AI's options (a shot, a
+drive, a move, a post-up, a fadeaway, a reset) or moves a defensive knob (how far they sag, how often they bite or
+reach, how early they jump at the rim). The bot plays all four tendencies, shown or not. Measured in bot-vs-bot games
+(All-Star, one minute, the same 24 games with and without, `tests/gameplay.js`):
+
+| Tendency or personality | Measured | Without | With | Change |
+| --- | --- | --- | --- | --- |
+| Loves the step-back three | step-backs a game | 0.00 | 0.33 | (from none) |
+| Fadeaway artist | fadeaways | 1.29 | 3.50 | +171% |
+| Pump-fakes a lot | pump fakes | 0.33 | 0.75 | +125% |
+| Lives at the rim | layups and dunks | 2.96 | 3.92 | +32% |
+| Pulls up from mid-range | mid-range jumpers | 0.58 | 0.88 | +50% |
+| Shakes you with moves | dribble moves | 11.88 | 16.75 | +41% |
+| Backs smaller players down | post-ups | 3.50 | 4.50 | +29% |
+| Gambles for steals | reaches | 0.13 | 0.21 | +67% |
+| Bites on pump fakes | bites | 1.50 | 4.04 | +169% |
+| Sags off shooters | room given (m) | 0.74 | 1.04 | +40% |
+| Picks you up close | room given (m) | 0.74 | 0.62 | −16% |
+| Gunner | threes | 1.46 | 2.54 | +74% |
+| Bully | post-ups | 3.50 | 4.58 | +31% |
+| Showman | dribble moves | 9.04 | 10.88 | +20% |
+| Lockdown | reaches | 0.13 | 0.00 | −100% |
+
+Quick Play bots take the personality of their build: Sharpshooter → Gunner, Slasher and Playmaker → Showman, Post and
+Rim Protector → Bully, Lockdown → Lockdown. The balance gate's teams carry none, so the gate measures the plain engine.
+
+**The Boss.** Once a season the best regular-season opponent on your schedule plays you with a Legendary trait (in the
+trait's third slot, so every card, simulation and game sees it). The Boss is never your rival and never in the first two
+weeks. Beating them adds 3 hype and a "Boss down" headline. The next season has a new Boss, and the old one plays as
+themselves again.
+
+**Signature moves.** They unlock at ratings 70 and 80 (7 and 8 on the engine's scale). Quick Study unlocks them a step
+early.
+
+| Move | Unlock | How | What it does |
+| --- | --- | --- | --- |
+| Behind-the-back | Handles 70 | Press Move with a defender in your face | Your crossover goes behind your back: the ball can't be poked during it, and the burst lasts 20% longer |
+| Snatch-back | Handles 80 | Press Move again during a crossover's burst | You spin out of the crossover: a second ankle check at 1.5× the chance, then the quick step-back jumper |
+| Euro-step | Finishing 70 (was 60) | Reverse the stick as you go up for a layup | You step sideways around a shot-blocker; the contest is halved (the bots now use it too) |
+| Reverse dunk | Hops 80 | Dunk with a shot-blocker by the rim | You turn on the way up and finish backwards; the rim shields the ball (half the duel and block chances) |
+| Pull-up three | Shooting 80 | Shoot a three at full speed | The quick gather and a 15% wider perfect window |
+
+Every signature move says its name in a small gold callout. The results count them (`stats.sigs`). The move list
+explains every move: how to do it, what it does and whether you have it. It lives on a new Codex page (Moves) and on the
+pro player screen. All-Star and Legend bots that have the moves use the Euro-step, the Snatch-back and the
+Behind-the-back (in 30 bot games: 14 Euro-steps, 9 Snatch-backs and 49 Behind-the-backs).
+
+**Shot feedback.** After every jump shot you see your timing (EARLY, GOOD, PERFECT or LATE) and the make chance when the
+ball left your hand, with the shot meter on or off. A Settings toggle, Gameplay → Shot feedback, turns it off. The meter
+now knows the contest when you gather, so its window is the real one. Minimal draws only the sweet spot, as its help
+always said.
+
+**Practice shot chart.** The chart (on by default) shows four zones, at the rim, mid-range, three and deep, each colored
+by your percentage there with its makes and attempts. It shows your last shots as dots, with perfect releases ringed in
+gold, and your perfect-release count. The pause menu in practice shows it big beside the menu.
+
+**Defense feel.**
+
+- A contest ring shows around the shooter's feet for 0.6 s after the release: green when open, then yellow and orange,
+  red when smothered, thicker the closer the defense was.
+- A block plays a swat, a hard slap and then a thud, with the hit-stop.
+- A poke plays its own two-tone tick. A steal plays a snatch.
+- A perfect release chimes (§6).
+
+**Phones.**
+
+- In-game buttons are at least 80 px across (`ui.touchGamePx`; the menus' 64 px stays).
+- A layout editor (Settings → Controls → Edit touch layout…) lets you drag the stick and any button. Positions are kept
+  as fractions of the screen, so they fit any phone. Reset puts them back.
+- Auto-sprint is a setting. On (as before), a full push sprints. Off, a SPRINT button sits by the stick.
+- Short vibrations on steals, blocks and dunks (`ui.vibrate`), on devices that have them, with a setting.
+
+**Overtime.** The next basket wins in every ruleset; Street Sim used to play a timed overtime. The callout says NEXT
+BASKET WINS.
+
+**Also.** The amateur hub's "FIRST TO 11" label (a leftover from before timed games) now shows the game's length. On the
+tale of the tape, the trait chips sat on the week's lines; they now go under them. How to play points to the move list.
+The timing label and the make chance after a jumper no longer overlap. The practice HUD chart fits a narrow screen: a
+short header (PERF 6/18) and each column's count on its own line.
+
+**The balance gate** (the engine with the new moves and the AI's new reads; its teams carry no personality) is where it was:
+
+| Legends View | V3 | V4 | Target |
+| --- | --- | --- | --- |
+| Pro mirror PPP | 1.17 | 1.17 | 0.95–1.25 ✓ |
+| Mirror: team A wins | 47% | 50% | 45–55% ✓ |
+| Legend beats Pro | 83% | 81% | 75–95% ✓ |
+| Brute force vs Pro (PPP) | 0.94 | 0.91 | ≤ 1.30 ✓ |
+| Best read vs Pro (PPP) | 1.59 | 1.59 | above brute force ✓ |
+
+**Tests.**
+
+- `tests/gameplay.js` is new: scouting (600 opponents), the scouting report and TIP OFF, tendencies and personalities in
+  bot-vs-bot games, the signature moves' unlocks and their engine effects, the bots' signature moves, shot feedback, the
+  contest ring and the defense sounds, overtime in every ruleset, the Boss, and the phone controls.
+- The text audits cover the new screens: the scouting report (with a Film week), the film room, the Codex's Moves
+  page (in parts on a phone), the layout editor and practice's pause chart.
+- Smoke's phone check holds the in-game buttons to 80 px. Smoke, modes and the full career press TIP OFF on the new
+  scouting report (the full career: 1,099 actions, a whole career to the Hall of Fame).
+
+New tuning numbers:
+
+| Constant | Value | Why |
+| --- | --- | --- |
+| `career.moveUnlocks` | btb han 70, snatch han 80, euro fin 70 (was 60), reverse jmp 80, pullup sho 80 | §3's signature moves at 7 and 8 |
+| `moves.btbReach`, `btbBurstMul` | 0.5 m, 1.2 | a crossover within steal reach + 0.5 m goes behind the back; its burst |
+| `moves.snatchWindowMs`, `snatchAnkleMul`, `snatchQuickS` | 260, 1.5, 0.6 | the Snatch-back's window in the burst, its ankle chance, the quick gather after it |
+| `moves.reverseShield`, `reverseNear` | 0.5, 1.6 m | the rim's shield on a Reverse dunk; how near the rim the blocker must be |
+| `moves.pullupMinSpeed`, `pullupWindowMul` | 2.6 m/s, 1.15 | a three at this speed is a Pull-up; its wider window |
+| `scout.shown`, `filmShown`, `persByArch`, `weakGap` | 2, 4, 0.6, 5 | the card's tendencies (and after film), the personality's lean to the build, the weakness's gap |
+| `scout.pers` | Lockdown, Gunner, Showman, Bully | each: the brain's multipliers and the tendencies it leans to |
+| `scout.tend` | 12 tendencies | each: the card's words, the tip and the brain's multipliers |
+| `scout.boss` | Legendary pool, +3 hype, from week 2 | the Boss |
+| `ai.euroChance`, `euroBlockerDist`, `snatchChance` | 0.7, 1.8 m, 0.3 | the bots' Euro-step and Snatch-back |
+| `ai.difficulties.*.moves` | Pro +euro; All-Star and Legend +euro, +snatch | which tiers use them |
+| `ui.touchGamePx` | 80 | the smallest in-game touch button (the menus keep `touchMinPx` 64) |
+| `ui.vibrate` | steal 35, block 50, dunk 30/40/60 ms | the vibrations |
+| `fx.contestRingS` | 0.6 s | the contest ring |
+| settings `shotFeedback`, `autoSprint`, `vibrate`, `touchLayout` | on, on, on, none | new settings (old saves get the defaults) |
+
 ## V3 — 2.0 traits: rarer is stronger, levels, and everything explained (§2)
 
 The third milestone of Hoop Heads 2.0. Every trait got new numbers by rarity, levels that grow by doing the trait's

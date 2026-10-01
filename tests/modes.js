@@ -46,7 +46,7 @@ const { launch, openPage, runner } = require('./lib');
   }, P);
   await R.step('career, high school: a live game to the end, the result, back to the hub', async () => {
     await ev(() => { const g = HH.game, c = g.save.data.c1; ladderInit(c, 1); c.events.length = 0; g.save.save(); g.ui.clearTo(amHub(g)); }); await drain(); /* the starter plays the week's game */
-    await waitScreen(/^amhub$/); await press(/^PLAY$/); const r = await finish(); await waitScreen(/^amresult$/); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/); await frames(); console.log('     ' + r.score + ' in ' + r.secs + ' s');
+    await waitScreen(/^amhub$/); await press(/^PLAY$/, /^ampregame$/); await press(/TIP OFF/); const r = await finish(); /* V4: the scouting report before the game */ await waitScreen(/^amresult$/); await press(/^CONTINUE$/); await drain(); await waitScreen(/^amhub$/); await frames(); console.log('     ' + r.score + ' in ' + r.secs + ' s');
   }, P);
   await R.step('career drill: practice → PLAY THE DRILL → 60 s → the drill result → hub', async () => {
     await ev(() => { const g = HH.game; g.save.data.c1.plan = 'practice'; g.ui.clearTo(amHub(g)); g.ui.push(practiceScreen(g)); }); await waitScreen(/^practice$/); await press(/PLAY THE DRILL/); const r = await finish(100);
