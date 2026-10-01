@@ -3,6 +3,252 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V6 — Part 2: a climb that's actually hard: the XP curve, hidden potential, setbacks, scarcity (Part 2 §1)
+
+The first milestone of Part 2 ("Hoop Heads 2.0, Part 2"). The career is still 1v1 only, and old saves load as they
+are: a save from before V6 rolls its hidden potential from its own seed (never under a rating it already has), and
+everything else fills in on load.
+
+**The §1.1 table.** `tests/difficulty.js` runs the career simulator over 600 careers per policy (3 seeds × 200) and prints
+the table. Every row is in its band:
+
+| Milestone | Typical: target | Typical: measured | Great: target | Great: measured |
+| --- | --- | --- | --- | --- |
+| Makes varsity | sophomore or junior (freshman 20–25%) | freshman 22%, median year 2 | freshman | freshman 56% |
+| Recruit stars at graduation | 2–3★ | 2–3★ 81%, median 3★ | 4–5★ | 4–5★ 58%, median 4★ |
+| Starts in college | year 2–3 | year 2–3 95%, median year 2 | year 1 | year 1 85% |
+| First pro offer | 1–2★ or undrafted | 1–2★ 82%, median 1★ | 3★ | median 3★ |
+| Reaches a 3★ team | by 26–28 in 50% | by 28 70%, median age 26 | by 24 | by 24 83% |
+| Reaches a 5★ team | 15–25% | 17.5% | about 60% | 64.0% |
+| Championships per career | about 0.3 | 0.35 | 1–3 | 1.95 |
+| Hall of Fame | 3–8% | 3.7% | about 35% | 38.2% |
+
+Before V6 (the V5 build, the same two policies and seeds; the great policy had no edge to apply in V5, but its games
+counted as played), 10 of the 16 rows missed:
+
+| Milestone | Typical, V5 | Typical, V6 | Great, V5 | Great, V6 |
+| --- | --- | --- | --- | --- |
+| Makes varsity as a freshman | 83% | 22% | 83% | 56% |
+| Recruit stars | 2–3★ 78% | 2–3★ 81% | 4–5★ 22% | 4–5★ 58% |
+| Starts in college | year 1 (year 2–3 10%) | year 2 (year 2–3 95%) | year 1 91% | year 1 85% |
+| First pro offer, median | 2★ | 1★ | 2★ | 3★ |
+| A 3★ team | median age 22 | median age 26 | by 24 84% | by 24 83% |
+| A 5★ team | 75.2% | 17.5% | 92.5% | 64.0% |
+| Titles per career | 1.46 | 0.35 | 2.65 | 1.95 |
+| Hall of Fame | 30.7% | 3.7% | 61.5% | 38.2% |
+
+How the pro league's settings got there (600 careers per policy, seeds 1–3; the XP, potential, setback and amateur
+changes already in):
+
+| Step | Typical: 5★ · titles · Hall of Fame at 85 | Great: 5★ · titles · Hall of Fame at 85 |
+| --- | --- | --- |
+| `keep` 0.7, star edge 1.0, one-game semifinals, great edge 3 | 16.2% · 0.41 · 3.8% | 66.7% · 2.09 · 45.2% |
+| great edge 2.5 | (same) | 61.5% · 1.70 · 37.3% |
+| `keep` 0.6, star edge 1.3 | 20.7% · 0.41 · 4.8% | 64.2% · 1.81 · 41.0% |
+| + best-of-3 semifinals (V6) | 17.5% · 0.35 · 4.7% | 64.0% · 1.95 · 42.5% |
+| the same with star edge 1.0 | 20.8% · 0.40 · 4.3% | 66.8% · 1.88 · 43.5% |
+
+Then the Hall of Fame line moved from 85 to 92: typical 3.7%, great 38.2%.
+
+A per-season breakdown (`careersim.js --seasons`, run at `keep` 0.7 and a star edge of 1.0) explained the titles. They
+come from the team's stars at the start of the season, more than from your OVR. A typical player wins 3.4% of 3★ seasons, 9.4% of 4★ seasons and 19.6% of 5★
+seasons. A great one wins 4.8%, 12.8% and 28.0%.
+
+- **The two policies.** Both make sensible choices: rest when tired, film for big games, take the offer with the most
+  stars, ask for a trade up.
+  - **Typical** sims everything.
+  - **Great** plays every game: no simmed-game cut. Its box scores and depth-chart games carry an edge of 2.5 OVR (a
+    player who plays a little better than their rating), and it takes the strongest college offer short of a blue blood.
+- **Where the bands were judged.** "About" was read as 52–68% (5★, about 60%), 0.2–0.4 titles (about 0.3) and 30–40% (the
+  Hall of Fame, about 35%). Seeds 4–6 were held out of the tuning: they land in the same bands (typical 5★ 18.7%,
+  titles 0.38, Hall of Fame 3.2%; great 65.0%, 1.81, 37.5%).
+
+**XP (§1.2).**
+
+- **The curve.** The next +1 costs 20 × 1.11^(rating − 40) XP (`career.xpCurve`). Ratings still grow 5 at a time, and a
+  step of 5 sums its five points.
+
+  | Stretch | XP |
+  | --- | --- |
+  | 40 → 60 | 1,284 |
+  | 60 → 70 | 2,696 |
+  | 80 → 90 | 21,739 |
+
+  The spec's prose says 80 → 90 costs "about 3×" the 60 → 70 stretch. Its formula gives 8.1×; 3× would need a growth of
+  1.056. The formula was kept and the ratio is printed (the Codex says 8.1×). A run at 1.056 made careers narrower, not
+  harder.
+- **Every XP source is rescaled.** `career.xpEarn` goes from 0.85 to 9: games, practice, drills, the bench and camps all
+  pay ×9 for the bigger costs. It was fitted with the two policies. F6's `xpBase`, `xpPer`, `xpTop` and `xpTopFrom` are
+  gone.
+- **Grades.** Game XP is multiplied by your grade (`career.gradeXp`). The result screens show it ("GAME XP GRADE B ×1.2 ·
+  SIMMED ×0.5").
+
+  | Grade | A+, A | B+, B | C | D | F |
+  | --- | --- | --- | --- | --- | --- |
+  | XP | ×1.5 | ×1.2 | ×1 | ×0.6 | ×0.3 |
+
+- **Simmed games pay ×0.5** (`career.xpGame.simmed`, was 0.75). Playing your games matters.
+
+**Hidden potential (§1.2).** Every skill (Shooting, Finishing, Handles, Defense) has a hidden potential. Past it, every
++1 costs ×3 (`career.potMul`): a soft ceiling, not a wall.
+
+- **The roll** (`amateur.pot`). One talent roll is shared by the four skills (mean 76, sd 6), plus 4 more spread for each.
+  It stays within 60–95 and is never under the rating you have.
+- Speed, Hops and Strength keep their genetic caps.
+- Late Bloomer's cap bonus raises it.
+- **What you see.** The scouts' grade shows it on the practice screen, the recruiting screen and the Codex. It's now the
+  grade of your skills at their potential and your body at the scouts' band (`amPotentialText`); before, it graded the
+  hard caps alone.
+- The pros keep it (`c.me.pot`). The CEILING chip on your player screen uses it.
+
+**The practice load cap (§1.2).** A week's practice pays at most 1.25× a normal week (`week.loadCap`). The rest turns
+into fatigue: 8 for each normal week's worth (`week.loadFatigue`).
+
+- **What counts as a normal week.** A simmed session is measured against a simmed normal session. A played drill, and the
+  practice game of a depth-chart challenge, is measured against the drill played to an average score: half of a great
+  score (`week.loadDrillRef`).
+- **Examples.** A hard simmed session pays the cap and adds +2 fatigue (on top of hard work's +3). A great drill at hard
+  intensity, 1,430 XP, pays 745 and adds +9 fatigue.
+- **On screen.** The practice screen shows the capped numbers ("the load cap: the rest is fatigue"). The session's result
+  says how much turned into fatigue.
+
+**Setbacks (§1.2).**
+
+- **Injuries can cost rating points for good** (`week.injuryLoss`). The loss hits Speed for an ankle, a hamstring or a
+  foot, and Hops for a knee or a calf. Nutrition & physio cut the odds (×0.6, like injuries).
+
+  | Injury | Odds | Points |
+  | --- | --- | --- |
+  | 1 game | 25% | 1 |
+  | 2 games | 50% | 1–2 |
+  | 3 games | 85% | 2–3 |
+
+  The result screens and the news say "−2 Hops for good".
+- **Slumps** (`media.slump`). Three straight games graded D or F are a slump: confidence drops to −2, and Shooting −2,
+  until a game graded B or better.
+  - Ice Veins never slumps.
+  - The news says when it starts and ends; so do the result screens.
+  - The Train tab and the pregame chips show it.
+- Aging still declines after 30, as before.
+
+**The competition (§1.2).** The levels already sat near the spec. V6 moves the pros down and measures every level:
+
+| Level | Measured | Spec |
+| --- | --- | --- |
+| High school opponents | 44 as freshmen to 59 as seniors (51.5 across the four years); each league's best about 6 over its middle | about 50 (stars about 58) |
+| College opponents | 59–74 by year and program (63.5 for years 1–2 at a mid-major or power program) | about 63 (stars about 71) |
+| The pros | median 75 when the league is generated, each league's top three 83.5 | about 74 (stars 82–90) |
+
+The pro figures come from 20 leagues. The league settles near 76 as it turns over.
+
+| Setting | New | Old |
+| --- | --- | --- |
+| `career.proMean`: generated veterans | 80 | 83 |
+| `career.prospectMean`: the other rookies | 72 | 75 |
+
+**High school and college.**
+
+| Setting | New | Old | What it does |
+| --- | --- | --- | --- |
+| `hs.tryoutBar` | 0.9 / 0.55 | 0.6 / 0.5 | The tryout grade that makes varsity as a freshman / a sophomore |
+| `hs.tryoutOvr` | 8 | 2 | ...or an OVR this far over your level |
+| `hs.promoteAfter` | 6 | 4 | JV games before a call-up |
+| `hs.promoteWin` | 0.85 | 0.75 | The JV win share for a call-up |
+| `hs.callupFrom` | 2 | — (new) | Call-ups start in year 2 |
+| `team.ladderStart` | 1, 2, 3, 4 | 1, 1, 2, 3 | Your first rung by program tier: a college freshman sits behind someone, deeper at a bigger program |
+| `college.seatAhead` | 7 | 4 | The teammates ahead of you are 1 to this many OVR better |
+
+**The depth chart.** A challenge you win takes the spot only if you're within 2 OVR of the teammate (`team.takeGap`).
+Further back, the coach keeps them in front: the result says NOT QUITE, and how far you have to go. Your trust still
+goes up.
+
+**Scarcity (§1.3).**
+
+- **Bars.** A 1–5★ franchise wants a value of 0, 66, 72, 78 or 84 before it offers (`franchise.bar`; was 71, 76 and 83 for
+  3–5★).
+- **Value.** OVR + fame ÷ 20 (`fameDiv`, was 15) + hype ÷ 30 + 1 for each playoff series won in your last two seasons
+  (`playoffVal`, at most 3: `playoffMax`).
+- **The 5★ condition.** A 5★ franchise also wants a playoff series won or an All-League team in your last two seasons
+  (`need5`). Without it, your offers stop at 4★.
+- **Stars stay in their spots.** Each offseason a 5★ franchise opens one rotation spot half the time (`spot5Odds` 0.5),
+  never more. A veteran retired, a trade, or a free agent left.
+  - 2–3 named free agents chase it (`spot5Rivals`), with values around 84 (`rivalVal` 84 ± 2.5).
+  - You get it only by beating the best of them.
+  - The free agency screen names the open spots, their best rival and your value. The news says who filled the ones you
+    didn't take.
+- **Trades.** A trade request that a 5★ franchise would take finds one 35% of the time (`trade5Odds`), else a 4★ one.
+
+**The pro league.**
+
+| Setting | New | Old | Why |
+| --- | --- | --- | --- |
+| `league.starEdge` | 1.3 | — (new) | Simulated pro games: margin points per franchise star (a 5★ team's player +5.2 over a 1★ team's; one star is worth about 5 OVR). At 1.0, typical careers won 0.41 titles |
+| `franchise.keep` | 0.6 | 0.8 | Prestige kept each offseason (the rest comes from the finish), so stars move more. At 0.8, 11% of typical careers reached a 5★ team |
+| `career.semisBestOf` | 3 | 1 | The semifinals are a series. A one-game semifinal gave mid-table players 40% more titles than the table allows, and §1.3's "playoff series" wants a series. Part 2 §6's top 8 comes with the pro team system |
+| `career.hofScore` | 92 | 85 | The Hall of Fame line: 3.7% of typical careers, 38% of great ones (at 85: 4.7% and 42%) |
+
+The legacy formula stays. A search over its weights found none that put typical careers at 5% and great ones at 35%
+together; the best kept 3.8% at 35%.
+
+**Fixes.**
+
+- **The semifinal is a series now, and the labels follow.** The hub's next-game label names the round and the game ("SEMIFINAL ·
+  GAME 2 (best of 3)"; it called any series THE FINAL). The rival's FINALS REMATCH card checks for the final. The
+  league's rules text says how long each round is.
+- **Phones.**
+  - The free agency intro fits one line, so the 5★ spots line no longer overlaps it.
+  - The practice result's load-cap and injury lines wrap.
+
+**Tests.**
+
+- `tests/difficulty.js` is new: the §1.1 table (600 careers per policy across 3 seeds, both policies), each row against
+  its band, plus the seeds' own columns and the XP curve's ratio. It exits 1 on a miss.
+- `tests/climb.js` is new, with 9 steps:
+  - the XP curve and the soft ceiling;
+  - potential (rolled, never under a rating, migrated);
+  - game XP by grade and the simmed half;
+  - the load cap (sessions, drills, the pros);
+  - injury losses (odds by length, nutrition);
+  - slumps (Ice Veins);
+  - the competition at each level;
+  - scarcity (bars, the 5★ condition, one spot a season over 150 seasons, named rivals, the news);
+  - the depth chart's take gap.
+- `tests/careersim.js` has new options and output:
+  - `--policy=typical|great` and `--edge=2.5`;
+  - a DIFFICULTY line;
+  - titles by the team's stars;
+  - `--seasons`, a per-season record for diagnosis;
+  - its TARGETS line is now §1.1's.
+- `tests/traitbalance.js` runs the great policy now (`--policy=typical` for the other).
+  - **Why.** Under V6 a typical career's legacy is mostly its seasons plus points ÷ 250. Half of all typical careers
+    score 29–36 whatever their trait, so the median stopped moving: every rarity read +0–9%, three of four out of band.
+  - **With the great policy** the careers spread over titles, MVPs and All-League teams, as V5's typical ones did. Every
+    rarity is back in its band: Common +5%, Uncommon +11%, Rare +27%, Legendary +55% (600 careers per trait, seed 1).
+- The phone audit has the new screens: a slump and a lasting injury on the result screen, the SLUMP status on the Train
+  tab, hard practice under the cap and its result, NOT QUITE on the depth chart, free agency with open 5★ spots, and the
+  Codex's later pages.
+- Smoke follows the V6 rules: the XP scale, the 5★ condition in free agency, call-ups from year 2, and the college seats.
+- The audits page the Codex after its screen has drawn (its pages are measured as it draws). Before, parts 2 and 3 of
+  the move list showed the next topic instead.
+
+**Suite.** Everything passed on the commit's build:
+
+- smoke (desktop and phone), every mode, old saves, the dev tools, the phone audit and the Art Lab;
+- climb, difficulty (the §1.1 table), flow, gameplay, traits, steals, fixes, the HUD audit and the style mix;
+- the full career (776 actions), and the desktop and 1.25× text audits (no flags);
+- the balance gate, the balance run, the career simulator (40 careers, none stuck, the §1.1 targets) and the trait
+  balance (great policy, every rarity in its band).
+
+Three tests were fixed during the run, and each passed on a rerun on the same build:
+
+- **Smoke's perf-guard step** waited 300 ms. The guard holds a new resolution for 0.75 s, so the step now polls for up
+  to 2 s.
+- **Gameplay's pregame step** needs a starter. The harder tryout benches its player, so it now promotes them first.
+- **The trait balance** now runs the great policy (above).
+
+One miss is older than V6 and still open: the style mix's Slashers drive on 46% of possessions against a 60% target.
+M7 measured 59%; the miss dates from V4. V14's balance pass takes it.
+
 ## V5 — 2.0 career flow: pace, the week, playing time, the Road, sim ahead, a five-tab hub, the PBL (§4.1, 4.2, 4.6–4.8, §5)
 
 The fifth milestone of Hoop Heads 2.0. The career is still 1v1 only, and old saves load as they are. New fields fill in

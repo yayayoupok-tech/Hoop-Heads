@@ -826,7 +826,7 @@ const CONFIG = {
     simRefSecs: { hs: 119, college: 169, pro: 240 }, // the game clock that scores like each old format (first to 15, first to 21, two 2:00 halves): per-game numbers fitted to those scale by length ÷ this
     playoffSeeds: 4,           // players who make the playoffs (semifinals, then the final)
     finalsBestOf: 3,           // the final is a best-of series
-    semisBestOf: 1,            // ...and so are the earlier rounds
+    semisBestOf: 3,            // ...and so are the earlier rounds (V6: was 1; a one-game semifinal let a mid-table player win 40% more titles than the §1.1 table allows, and §1.3's "playoff series" wants a series)
     mvpWin: 20,                // MVP vote (see CHANGES.md M8): points for a perfect record (then per game: 1.1 per point, 0.4 per rebound, 1.5 per steal or block, 20 × FG%, −1 per turnover)
     retireMinAge: 30,          // you may retire from this age
     retireForcedAge: 39,       // nobody plays past this
@@ -834,18 +834,17 @@ const CONFIG = {
     retireFadeOvr: 62,         // ...this OVR
     ratingMin: 10,             // lowest rating (engine attribute 1)
     ratingMax: 100,            // highest rating (engine attribute 10)
-    proMean: 83,               // pro league OVR mean for generated veterans (spec 76; the league settles near 78.5 as veterans age out, see CHANGES.md M8)
+    proMean: 80,               // pro league OVR mean for generated veterans (V6, Part 2 §1.2: pros about 74, stars 82–90: the league settles near 76 with its best near 87; was 83 and 78.5)
     proSd: 8,                  // ...spread (spec 6.5: a wider spread gives the league real stars, see CHANGES.md M8)
-    prospectMean: 75,          // OVR mean of the other rookies in a draft class
+    prospectMean: 72,          // OVR mean of the other rookies in a draft class (V6: was 75)
     prospectSd: 5,             // ...spread
     xpStep: 5,                 // ratings grow in steps of 5 (half an engine point)
-    xpBase: 20,                // XP for the next step = xpBase + xpPer × (rating / 10)
-    xpPer: 7,
-    xpEarn: 0.85,              // F6 (the user: "xp should get harder to earn"): every XP source (games, practice, drills, the bench, camps) pays × this (0.8 with the old ages: peak 78 → 74)
-    xpTop: 0.05,               // F6: ...and a step above xpTopFrom costs × (1 + xpTop × (rating − xpTopFrom) / 10) more (a step at 90: +15%)
-    xpTopFrom: 60,
+    xpCurve: { base: 20, growth: 1.11, from: 40 }, // V6 (Part 2 §1.2): the next +1 costs base × growth^(rating − from) XP (a step of 5 sums its five points): 40→60 is quick, and 80→90 costs 8.1× the 60→70 stretch (the spec's formula; its prose says "about 3×", which needs growth 1.056). Replaced F6's xpBase 20 + xpPer 7 × rating/10 with +5% a 10 points above 60
+    potMul: 3,                 // V6 (§1.2): past your hidden potential every +1 costs × this (a soft ceiling)
+    xpEarn: 9,                 // every XP source (games, practice, drills, the bench, camps) pays × this (V6: for xpCurve's bigger costs, fitted with the career simulator's typical and great policies to Part 2 §1.1; F6 had 0.85)
+    gradeXp: { 'A+': 1.5, A: 1.5, 'B+': 1.2, B: 1.2, C: 1, D: 0.6, F: 0.3 }, // V6 (§1.2): game XP × this by your grade in it
     ageXpMul: [[17, 1.5], [21, 1.35], [25, 1.4], [28, 0.8], [31, 0.45], [99, 0.22]], // XP multiplier by age (up to and including): teens learn fastest (F6: 22–25 1.15 → 1.4, 26–28 0.65 → 0.8, 29–31 0.4 → 0.45, 32+ 0.2 → 0.22, so that with xpEarn the pro years pay about what they did and the climb is slower, not shorter; R3: 26–28 0.8 → 0.65, 29–31 0.45 → 0.4: with skills open to 95 for anyone, careers peaked at 82; the career simulator's targets need about 78)
-    xpGame: { base: 14, win: 12, perfCap: 24, pts: 0.4, reb: 0.5, stops: 1.5, simmed: 0.75, focusShare: 0.45 }, // XP per game = (base + win + min(perfCap, pts·p + reb·r + (stl+blk)·s)) × age × (simmed); focusShare goes to the training focus
+    xpGame: { base: 14, win: 12, perfCap: 24, pts: 0.4, reb: 0.5, stops: 1.5, simmed: 0.5, focusShare: 0.45 }, // XP per game = (base + win + min(perfCap, pts·p + reb·r + (stl+blk)·s)) × age × grade (gradeXp) × (simmed: V6 §1.2 0.5, was 0.75); focusShare goes to the training focus
     usage: { sho3: 3, shoMid: 1.5, rim: 2, reb: 0.4, blk: 1, stops: 2, floor: 0.5, move: 1, body: 0.3 }, // where the rest of the XP goes: makes → Shooting, rim finishes → Finishing, rebounds → Strength and Hops, steals and blocks → Defense (floor/move/body: baseline shares)
     trainFocus: { shooting: { label: 'Shooting', staff: 'shooting', split: { sho: 1 } }, finishing: { label: 'Finishing', staff: 'skills', split: { fin: 1 } }, handles: { label: 'Handles', staff: 'skills', split: { han: 1 } }, speed: { label: 'Speed', staff: 'strength', split: { spd: 1 } }, hops: { label: 'Hops', staff: 'strength', split: { jmp: 1 } }, defense: { label: 'Defense', staff: 'skills', split: { def: 1 } }, strength: { label: 'Strength', staff: 'strength', split: { str: 1 } } }, // training focuses, one drill per rating (R3 §3.2; was six, two of them split): the week's Practice works on one; it also takes 45% of every game's XP
     facilityBonus: 0.1,        // training XP +10% per club facility star above one
@@ -867,7 +866,7 @@ const CONFIG = {
     payRef: 55,
     payMin: 0.9,
     legacy: { title: 12, mvp: 12, allLeague: 3, season: 1, ptsPer: 250 }, // legacy = 12·titles + 12·MVPs + 3·All-League 1st teams + pro seasons + points/250
-    hofScore: 85,              // legacy score for the Hall of Fame (F7: 90 → 85; after F6's slower growth and F7's franchises, 90 let in 6% of 200 simulated careers, 85 lets in about 8%)
+    hofScore: 92,              // legacy score for the Hall of Fame (F7: 90 → 85; V6: 85 → 92, fitted to Part 2 §1.1: 3.7% of typical careers and 38% of great ones in tests/difficulty.js; at 85, 4.7% and 42%)
     firstBallotMul: 1.5,       // a legacy this many times the line is a first-ballot induction
     newsMax: 40,               // news items kept
   },
@@ -886,11 +885,15 @@ const CONFIG = {
     fatigueOt: 1.5,            // ...plus this after overtime (V5: was 3)
     fatigueFreeAt: 50,         // above this, every effective rating drops by (fatigue − this)%
     restAt: 70,                // V5 (2.0 §4.2): above this the next week's plan defaults to Rest (you can change it)
+    loadCap: 1.25,             // V6 (§1.2): a week's practice pays at most this × a normal session's XP (yours, with every bonus): hard sessions and great drills hit it...
+    loadFatigue: 8,            // ...and the rest turns into fatigue: this much per normal session's worth
+    loadDrillRef: 0.5,         // V6: a played drill (or a depth-chart game) is measured against the drill at this share of a great score (a simmed session against a simmed normal one)
     injuryBase: 0.008,         // injury chance per game = injuryBase + injuryPerFatigue × fatigue (Settings can turn injuries off)
     injuryPerFatigue: 0.0004,
     injuryGames: [1, 3],       // an injury lasts this many games...
     injurySpd: 5,              // ...and costs this much Speed (−0.5 engine) until it heals
     injuryNames: ['Sprained ankle', 'Tight hamstring', 'Bruised knee', 'Sore foot', 'Strained calf'], // what the injury is called (all cost Speed)
+    injuryLoss: { odds: [0.25, 0.5, 0.85], pts: [[1, 1], [1, 2], [2, 3]] }, // V6 (§1.2): an injury of 1, 2 or 3 games costs that many rating points for good (pts: min, max) with these odds: an ankle, a hamstring or a foot from Speed, a knee or a calf from Hops (the physio cuts it, V10)
   },
   media: {                     // press questions after big games, hype and confidence, the rival's grudges (§8; R8 §3.8–3.9: hype 0–100, four answers)
     hypeMax: 100,              // R8: hype runs 0–100 (0–10 before: old saves' hype × 10)
@@ -939,6 +942,7 @@ const CONFIG = {
     blowoutMinPts: 4,          // F5: ...and by at least this many points (a 5–2 minute isn't a blowout)
     confSho: 1,                // effective Shooting + this per point of confidence (career scale)...
     confShoMax: 2,             // ...up to ± this (±0.2 engine)
+    slump: { games: 3, conf: -2, sho: -2, endAt: ['A+', 'A', 'B+', 'B'] }, // V6 (§1.2): this many straight games graded D or F is a slump: confidence drops to at most conf and Shooting −2 (−0.2 engine) until a game graded B or better
     bigPts: 35,                // pro press questions: a 35-point game (and half again your season average)...
     bigNight: 1.2,             // R8: a big performance (hype): a pro night of this × your season average (and bigPts), or a blowout win (blowoutFrac)
     upset: 5,                  // ...or a result against an opponent this many OVR better (or worse, for a bad loss)
@@ -960,6 +964,7 @@ const CONFIG = {
     heightFx: { sho: 0, fin: 3, han: -4, spd: -5, jmp: -1, def: 3.5, str: 6 }, // rating shift per 10 cm above the mean height, applied in every game (and to OVR)
     genes: { mean: 62, sd: 7, min: 45, max: 80, gifted: 5, room: 20, roomStr: 30, skillCap: 95 }, // R3 §3.2: Speed, Hops and Strength have a genetic base (mean, sd, min, max, and +5 for gifted genes) rolled at creation and top out at base + room (roomStr for Strength), and every skill can reach skillCap for anyone. Style no longer moves a ceiling, and height moves every rating on top (heightFx)
     capMin: 40,                // lowest ceiling
+    pot: { mean: 76, sd: 6, spread: 4, min: 60, max: 95 }, // V6 (§1.2): your hidden potential in each skill (Shooting, Finishing, Handles, Defense): a talent roll (sd) shared by the four plus spread each, mean ± (min, max); past it every +1 costs × CR.potMul. Speed, Hops and Strength keep their genetic caps
     genesOdds: 0.3,            // chance of gifted genes: Speed, Hops and Strength bases +5
     stages: { hs: { label: 'High school', league: 'Metro High School 1v1 League', size: 8, target: 15, court: 'gym', years: 4 }, college: { label: 'College', league: 'Collegiate 1v1 Conference', size: 8, target: 21, court: 'college', years: 4 } }, // leagues (players, first-to score)
     stageMean: { hs: 44, hsPerYear: 5, college: 59, collegePerYear: 3, collegePerTier: 2 }, // opponent OVR mean by level and year (R6: college 61 → 59; the new season adds marquee games at +3 and a tournament field up to +7, and at 61 the career simulator's teams won 38% of their games)
@@ -985,6 +990,7 @@ const CONFIG = {
     pts: { c: 26.86, o_sho: 0.463, o_fin: 0.214, o_han: 0.638, o_spd: 0.231, o_jmp: 0.928, o_def: -0.243, o_str: 0.075, d_sho: -0.332, d_fin: 0.139, d_han: 0.279, d_spd: 0.380, d_jmp: -0.098, d_def: -0.781, d_str: 0.096, h: 2.68, oh: -6.18 }, // points scored from own (o_) and opponent (d_) attributes
     ptsNoise: 6.5,             // points noise per side (fitted residual)
     homeEdge: 0.5,             // home court edge (points)
+    starEdge: 1.3,             // V6 (Part 2 §1, §6 early): simulated pro games: margin points per franchise star (a 5★ team's player gets +5.2 over a 1★ team's: the roster and the facilities; one star is worth about 5 OVR). In tests/difficulty.js at 1.0 a typical career won 0.40 titles and reached a 5★ team 20.8% of the time; at 1.3, 0.35 and 17.5% (§1.1: about 0.3, 15–25%)
     rebShare: 0.228,           // rebound share per meter of height edge
     tpa: { c: -0.593, sho: 0.016, fin: -0.0104, spd: 0.0182, h: -0.0509, oh: 0.375 }, // share of shots that are threes
     tp: { c: 0.238, sho: 0.0452, odef: -0.0104, ospd: -0.0048, hdiff: -0.2 },          // three-point percentage
@@ -1133,7 +1139,7 @@ const CONFIG = {
     growOdds: 0.35,            // each summer every rating of a returning teammate goes up a step with this chance
     proBench: -14,             // a pro franchise's bench players sit this far under the league's veteran mean OVR (R4: at -8 the career simulator's players sat 65 pro weeks a career on the bench, at -14 40)
     tierGap: [-6, -2, 2, 6],   // R4: a team's teammates average this far from your OVR when you join, by program tier (a small school: you're the best; a blue blood: they are)
-    ladderStart: [1, 1, 2, 3], // R4: the depth-chart rung you start on, by program tier (high school teams are tier 0: the top). R6: [1, 2, 3, 4] became this: mid-majors start you (§3.5); with the old rosters most freshmen sat their whole first season and 7 of 8 careers went to the transfer portal
+    ladderStart: [1, 2, 3, 4], // V6 (Part 2 §1.1: a typical freshman starts in year 2–3): was [1, 1, 2, 3]. R4: the depth-chart rung you start on, by program tier (high school teams are tier 0: the top). R6: [1, 2, 3, 4] became this: mid-majors start you (§3.5); with the old rosters most freshmen sat their whole first season and 7 of 8 careers went to the transfer portal
     proStartTop: 30,           // R4: a first-round pick starts at the top of the franchise's ladder; later picks start a rung down
     challengeTarget: 7,        // R4: a ladder challenge is a practice game to 7 (2s and 3s)
     challengeOdds: 0.2,        // R4: after each week's game the teammate a rung below you challenges you with this chance... (0.3 kept rookies benched half their first pro season in the career simulator)
@@ -1145,6 +1151,7 @@ const CONFIG = {
     spotUpGrades: ['A+', 'A', 'B+', 'B'], // ...and a spot start graded A or B moves you up a rung
     tradeBenchWeeks: 4,        // V5 (2.0 §4.6): a pro may ask for a trade after this many bench weeks in a season
     challengeScale: 9,         // R4: a simulated practice game to 7 is closer to a coin flip than a full game: win chance = 1 / (1 + e^(−ΔOVR / this)) (games use AMC.winScale 5.5)
+    takeGap: 2,                // V6 (Part 2 §1): a challenge you win takes the spot only if you're within this much OVR of them (else the coach keeps them in front: trust still goes up)
     benchXp: 1.0,              // R4: a week on the bench still pays scrimmage XP: this share of an average simmed game's pool (without it the career simulator's benched players stopped developing: peak OVR 65; at 0.75 OVR at 25 fell to 73). The bench costs the game itself: stats, highlights, the box score
     benchRecovery: 10,         // R4: a week on the bench takes this much fatigue off (you practiced, you didn't play)
     trustStart: { hs: 45, college: 40, pro: 40 }, // R4: coach trust (0–100) when you join a team
@@ -1164,14 +1171,15 @@ const CONFIG = {
     tryoutYears: 2,            // freshmen try out, and so do sophomores still on JV; juniors and seniors are varsity
     tryoutGood: 16,            // a shootout score this good counts in full at tryouts (the 60 s shootout: 25 balls, 30 points at most)
     tryoutDrillW: 0.4,         // the tryout grade: this share from the shootout, the rest from the 1v1 against a senior
-    tryoutBar: [0.6, 0.5],     // a tryout grade this high makes varsity (a freshman, a sophomore)...
-    tryoutOvr: 2,              // ...and so does an OVR this much over your level's mean (the coach has seen enough)
+    tryoutBar: [0.9, 0.55],    // a tryout grade this high makes varsity (a freshman, a sophomore)... (V6: was 0.6, 0.5)
+    tryoutOvr: 8,              // ...and so does an OVR this much over your level's mean (the coach has seen enough) (V6: was 2)
     tryoutTarget: 7,           // the 1v1 against a senior is a game to 7 (2s and 3s)
     jvGap: 6,                  // JV opponents are this much under the varsity level's mean OVR
     jvRoster: 5,               // JV teammates (freshmen and sophomores)
     jvBase: -3,                // JV teammates center this far from your OVR when you join
-    promoteAfter: 4,           // after this many JV games...
-    promoteWin: 0.75,          // ...a win share this high gets you called up to varsity mid-season
+    promoteAfter: 6,           // after this many JV games... (V6: was 4)
+    promoteWin: 0.85,          // ...a win share this high gets you called up to varsity mid-season (V6: was 0.75)
+    callupFrom: 2,             // V6 (Part 2 §1.1: a typical freshman makes varsity 20–25% of the time): call-ups start in this year of high school
     district: 6,               // teams in a district, you included: a double round robin is 10 games
     districtSeeds: 4,          // the top four play the district playoffs (semifinals, final)
     mvpWins: 0.8,              // District MVP: first in the district with this share of its games won (a six-team district is easier to top than the old eight-player league, where 0.7 did)
@@ -1240,7 +1248,7 @@ const CONFIG = {
     nilOdds: 0.25,             // after a big game (nilPts points or a marquee win) a deal comes with this chance
     nilPts: 20,
     portalShare: 0.5,          // the transfer portal opens after a season on the bench for this share of your games or more
-    seatAhead: 4,              // a college depth chart when you arrive: the teammates ahead of you are 1 to this many OVR better; everyone else is at least 1 under you
+    seatAhead: 7,              // a college depth chart when you arrive: the teammates ahead of you are 1 to this many OVR better; everyone else is at least 1 under you (V6: was 4)
     agentFee: 0.04,            // an agent takes this share of your salary...
     agentRaise: 0.1,           // ...and gets you this much more on every contract
   },
@@ -1281,10 +1289,17 @@ const CONFIG = {
   },
   franchise: {                 // F7 (the user: the goal of the game is getting onto a really good pro team; teams instead of drafts)
     starsDist: [2, 2, 3, 3, 2], // the twelve franchises by stars: two 1★, two 2★, three 3★, three 4★, two 5★ (a franchise's stars are its prestige's rank)
-    keep: 0.8,                 // each offseason a franchise's prestige keeps this much and takes the rest from its finish (so stars move, slowly; at 0.6 six franchises changed stars a season)
+    keep: 0.6,                 // each offseason a franchise's prestige keeps this much and takes the rest from its finish (so stars move; at 0.6 about six franchises change stars a season). V6: 0.8 → 0.6, with starEdge 1.3: a typical career reaches a 5★ team in 17.5% (Part 2 §1.1: 15–25%); at 0.8 (with 1.0), about 11%
     titleBoost: 0.3,           // ...and a title adds this to the finish (1 = first place)
-    bar: [0, 66, 71, 76, 83],  // the value a franchise of 1–5★ wants before it offers you a deal (value = OVR + fame ÷ fameDiv + hype ÷ hypeDiv). The career simulator's players (who chase stars) reach a 5★ team 55–65% of the time, at a median 29; at 64/69/74/79 it was 80% at 26
-    fameDiv: 15,               // see bar
+    bar: [0, 66, 72, 78, 84],  // V6 (Part 2 §1.3): the value a 1–5★ franchise wants before it offers you a deal (value = OVR + fame ÷ fameDiv + hype ÷ hypeDiv + playoffVal a playoff series won in the last two seasons, at most playoffMax). Was 0/66/71/76/83 (F7)
+    playoffVal: 1,             // V6 (§1.3): value per playoff series won in the last two seasons...
+    playoffMax: 3,             // ...at most this much
+    need5: true,               // V6 (§1.3): a 5★ franchise also wants a playoff series won or an All-League team in the last two seasons
+    spot5Odds: 0.5,            // V6 (§1.3): stars stay put: each offseason a 5★ franchise opens one rotation spot with this chance (a veteran ages out, is traded or walks), never more than one
+    spot5Rivals: [2, 3],       // ...and this many named free agents (fewest, most) chase it with you...
+    rivalVal: [84, 2.5],       // ...their value: mean, spread; the best value gets the spot (you, if yours is higher than theirs)
+    trade5Odds: 0.35,          // V6 (§1.3): a trade request that a 5★ franchise would take (its bar, the 5★ condition) finds one that trades a rotation player for you this often (else a 4★ one)
+    fameDiv: 20,               // see bar (V6: was 15; fame counts a little less)
     hypeDiv: 30,               // see bar
     rookieBar: [0, 99, 106, 112, 118], // pro offers out of college or high school: the scouts' score (the old draft score) a 1–5★ franchise wants (most start at 1–3★)
     benchStar: 3,              // a franchise's bench OVR + this per star above 3 (a 5★ depth chart is harder to top)
@@ -9372,7 +9387,7 @@ function moveReqText(k, r) { const req = CR.moveUnlocks[k]; if (!req) return 'al
 const NEUTRAL_KIT = { colors: ['#3D6EA8', '#F3F0FF'], pattern: 'solid' };
 function careerOf(game) { const c = game.save.data.career; return c && c.phase !== 'retired' ? c : null; }
 function amateurOf(game) { const s = game.save.data, a = s.c1; return a && !a.handedOff && !careerOf(game) ? a : null; }
-function progressOf(r, xp) { const o = {}; for (const k of RATING_KEYS) o[k] = clamp01(((xp && xp[k]) || 0) / xpNeed(r[k])); return o; }
+function progressOf(r, xp, pots) { const o = {}; for (const k of RATING_KEYS) o[k] = clamp01(((xp && xp[k]) || 0) / xpNeed(r[k], pots ? pots[k] : null)); return o; } // pots (V6): potsOf(holder, caps)
 
 // The face editor: looks only (skin, hair, facial hair, eyes, accessories and the face shape). Height is never here.
 function lookEditorWidgets(st, onChange) {
@@ -9422,7 +9437,7 @@ function amCombineScreen(game) {
 // ---------------- the weekly hub ----------------
 function nextEventLabel(c) {
   if (c.phase === 'regular') return 'WEEK ' + (c.week + 1) + ' OF ' + c.schedule.length;
-  if (c.phase === 'playoffs') { const g = userGame(c); if (!g) return 'PLAYOFFS'; const s = g.series; const r = c.playoffs.round; const name = s.bestOf > 1 ? 'THE FINAL · GAME ' + (s.wa + s.wb + 1) + ' (best of ' + s.bestOf + ')' : (c.playoffs.series.length >= 4 ? 'QUARTERFINAL' : c.playoffs.series.length >= 2 ? 'SEMIFINAL' : 'THE FINAL'); return name; }
+  if (c.phase === 'playoffs') { const g = userGame(c); if (!g) return 'PLAYOFFS'; const s = g.series; const r = c.playoffs.round; const rn = c.playoffs.series.length >= 4 ? 'QUARTERFINAL' : c.playoffs.series.length >= 2 ? 'SEMIFINAL' : 'THE FINAL'; return s.bestOf > 1 ? rn + ' · GAME ' + (s.wa + s.wb + 1) + ' (best of ' + s.bestOf + ')' : rn; } /* V6: the semifinals can be a series too */
   if (c.phase === 'offseason') return 'OFFSEASON'; return '';
 }
 // ---------------- tale of the tape before tip-off ----------------
@@ -9464,7 +9479,7 @@ function careerResultScreen(game, rec, m) { game.hubTab = 'play'; // V5: back to
       const L = rec.myLine || last; const myRow = [me.name, L.pts, L.fgm != null ? L.fgm + '/' + L.fga : L.fg, L.tpm != null ? L.tpm + '/' + L.tpa : L.tp, L.reb, L.stl, L.blk, L.to != null ? L.to : '']; ctx.font = fontStr(16, true); ctx.fillStyle = UI_GOLD; myRow.forEach((v, i) => { ctx.textAlign = i ? 'center' : 'left'; ctx.fillText(String(v), cx[i], 178); });
       if (rec.oppLine) { const o = rec.oppLine; const row = [opp.name, o.pts, o.fgm + '/' + o.fga, o.tpm + '/' + o.tpa, o.reb, o.stl, o.blk, o.to]; ctx.font = fontStr(16, false); ctx.fillStyle = UI_TEXT; row.forEach((v, i) => { ctx.textAlign = i ? 'center' : 'left'; ctx.fillText(String(v), cx[i], 206); }); }
       // what happened
-      const notes = []; if (rec.potw) notes.push(['PLAYER OF THE WEEK', UI_GOLD]); if (rec.champion) notes.push(['CHAMPIONS!', UI_GOLD]); if (rec.eliminated) notes.push(['Eliminated from the playoffs.', UI_RED]); for (const k of rec.recs || []) notes.push(['Career high: ' + ({ pts: 'points', reb: 'rebounds', stl: 'steals', blk: 'blocks', tpm: 'threes' })[k] + ' (' + c.me.records[k] + ')', UI_CYAN]); if (rec.injury) notes.push([rec.injury.name + ': −' + WK.injurySpd + ' SPD for ' + rec.injury.games + ' game' + (rec.injury.games > 1 ? 's' : '') + '.', UI_RED]); else if (rec.wk && rec.wk.healed) notes.push(['Healthy again.', UI_GREEN]); for (const mv of rec.learned || []) notes.push(['New move learned: ' + MOVE_NAMES[mv], UI_GREEN]); if (rec.rivalWon && opp) notes.push([opp.name.split(' ')[0] + ' will never let you forget this one.', UI_DIM]);
+      const notes = []; if (rec.potw) notes.push(['PLAYER OF THE WEEK', UI_GOLD]); if (rec.champion) notes.push(['CHAMPIONS!', UI_GOLD]); if (rec.eliminated) notes.push(['Eliminated from the playoffs.', UI_RED]); for (const k of rec.recs || []) notes.push(['Career high: ' + ({ pts: 'points', reb: 'rebounds', stl: 'steals', blk: 'blocks', tpm: 'threes' })[k] + ' (' + c.me.records[k] + ')', UI_CYAN]); if (slumpText(rec.slump)) notes.push([slumpText(rec.slump), rec.slump === 'start' ? UI_ORANGE : UI_GREEN]); /* V6 */ if (rec.injury) notes.push([rec.injury.name + ': −' + WK.injurySpd + ' SPD for ' + rec.injury.games + ' game' + (rec.injury.games > 1 ? 's' : '') + injLossText(rec.injury) + '.', UI_RED]); else if (rec.wk && rec.wk.healed) notes.push(['Healthy again.', UI_GREEN]); for (const mv of rec.learned || []) notes.push(['New move learned: ' + MOVE_NAMES[mv], UI_GREEN]); if (rec.rivalWon && opp) notes.push([opp.name.split(' ')[0] + ' will never let you forget this one.', UI_DIM]);
       if (rec.myLine) { const q = rec.myLine; const kinds = [['Dunks', q.dunkM, q.dunkA], ['Layups', (q.layM || 0) + (q.tipM || 0), (q.layA || 0) + (q.tipA || 0)], ['Hooks', q.hookM, q.hookA], ['Mid-range', q.midM, q.midA], ['Threes', q.tpm, q.tpa], ['Fadeaways', q.fadeM, q.fadeA]].filter(x => x[2] > 0);
         ui.heading(ctx, 'HOW YOU SCORED', 60, 246, 14, UI_CYAN); let x = 60; for (const [n, mk, at] of kinds) x += pill(ctx, n + ' ' + (mk || 0) + '/' + at, x, 272, 'rgba(255,255,255,0.1)', UI_TEXT, 13) + 8; if (!kinds.length) ui.label(ctx, 'No shots.', 60, 272, 14, UI_DIM);
         const extra = []; if (q.ankles) extra.push(q.ankles + ' ankle breaker' + (q.ankles > 1 ? 's' : '')); if (q.posters) extra.push(q.posters + ' poster' + (q.posters > 1 ? 's' : '')); if (q.green) extra.push(q.green + ' perfect release' + (q.green > 1 ? 's' : '')); if (q.moves) extra.push(q.moves + ' dribble move' + (q.moves > 1 ? 's' : '')); if (extra.length) ui.label(ctx, extra.join(' · '), 60, 300, 14, UI_TEXT); }
@@ -9476,8 +9491,8 @@ function careerResultScreen(game, rec, m) { game.hubTab = 'play'; // V5: back to
       { const W_ = rec.wk || {}; ui.para(ctx, 'Fatigue now ' + Math.round(c.me.fatigue || 0) + ' (+' + WK.fatiguePerGame + ' a game)' + (W_.practiceXp ? ' · practice paid ' + W_.practiceXp + ' XP' : '') + '. Past ' + WK.fatigueFreeAt + ' every rating drops: rest before then.', 60, 596, 700, 13, (c.me.fatigue || 0) > WK.fatigueFreeAt ? UI_ORANGE : UI_DIM); }
       // progression
       ui.panel(ctx, 780, 100, 440, 400); ui.heading(ctx, 'PROGRESSION', 800, 128, 18, UI_GOLD); ui.label(ctx, 'OVR ' + rec.ovrBefore + ' → ' + rec.ovrAfter, 1200, 128, 16, rec.ovrAfter > rec.ovrBefore ? UI_GREEN : UI_TEXT, 'right');
-      ui.para(ctx, 'Bars show XP toward the next +5. Playing pays more than simming.', 800, 154, 400, 12, UI_DIM);
-      const k2 = clamp01(t / 1.2); RATING_KEYS.forEach((k, i) => { const y = 196 + i * 41; const xp = rec.xp[k] || 0; ui.label(ctx, RATING_SHORT[k], 800, y + 10, 13, UI_TEXT, 'left', 118); ui.heading(ctx, String(Math.floor(me.r[k])), 950, y + 10, 16, ratingColor(me.r[k]), 'right'); if (rec.gains[k]) pill(ctx, '+' + rec.gains[k], 956, y + 10, 'rgba(76,224,122,0.35)', UI_GREEN, 12); const f = clamp01(((c.me.xp && c.me.xp[k]) || 0) / xpNeed(me.r[k])); meterBar(ctx, 1004, y + 4, 112, 12, f * k2 + (1 - k2) * Math.max(0, f - 0.3), UI_CYAN); ui.label(ctx, '+' + Math.round(xp * k2) + ' XP', 1200, y + 10, 13, UI_DIM, 'right'); });
+      ui.para(ctx, rec.grade ? 'Game XP: ' + xpMulText(rec.grade, rec.simmed) + '. Bars: XP to the next +5.' : 'Bars show XP toward the next +5. Playing pays more than simming.', 800, 154, 400, 12, UI_DIM, 'left', 2); /* V6: the grade's multiplier first */
+      const k2 = clamp01(t / 1.2); RATING_KEYS.forEach((k, i) => { const y = 196 + i * 41; const xp = rec.xp[k] || 0; ui.label(ctx, RATING_SHORT[k], 800, y + 10, 13, UI_TEXT, 'left', 118); ui.heading(ctx, String(Math.floor(me.r[k])), 950, y + 10, 16, ratingColor(me.r[k]), 'right'); if (rec.gains[k]) pill(ctx, '+' + rec.gains[k], 956, y + 10, 'rgba(76,224,122,0.35)', UI_GREEN, 12); const f = clamp01(((c.me.xp && c.me.xp[k]) || 0) / xpNeed(me.r[k], (potsOf(c.me, me.caps) || {})[k])); meterBar(ctx, 1004, y + 4, 112, 12, f * k2 + (1 - k2) * Math.max(0, f - 0.3), UI_CYAN); ui.label(ctx, '+' + Math.round(xp * k2) + ' XP', 1200, y + 10, 13, UI_DIM, 'right'); });
     } };
 }
 
@@ -9503,7 +9518,7 @@ function playerScreen(game) {
   return { widgets: items, name: 'player', draw(ctx, ui) {
     ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, me.name.toUpperCase(), 40, 52, 34); ui.label(ctx, 'Age ' + me.age + ' · ' + fmtHeightFull(me.h) + ' · wingspan ' + fmtHeight(me.h * me.wing), 1240, 40, 15, UI_DIM, 'right', 700); ui.label(ctx, ARCHETYPES[me.arch].label + ' · ' + clubOf(me.club).name, 1240, 64, 15, UI_DIM, 'right', 700); /* F7: two lines (one was cut) */
     const tab = st.tab;
-    if (tab === 0) { drawTradingCard(ctx, 40, 140, 180, 252, cardOfRec(me, { number: me.look.number }), { t: ui.t }); kitChip(ctx, 'CEILING ' + potGrade(potOf(me)), 240, 160, { size: 14, fill: 'rgba(255,210,63,0.2)', stroke: 'rgba(255,210,63,0.6)', color: UI_GOLD }); ratingRows(ctx, me.r, 560, 110, 560, 44, { progress: progressOf(me.r, c.me.xp), caps: me.caps, labelW: 150 });
+    if (tab === 0) { drawTradingCard(ctx, 40, 140, 180, 252, cardOfRec(me, { number: me.look.number }), { t: ui.t }); kitChip(ctx, 'CEILING ' + potGrade(potOf(me, c.me)), 240, 160, { size: 14, fill: 'rgba(255,210,63,0.2)', stroke: 'rgba(255,210,63,0.6)', color: UI_GOLD }); ratingRows(ctx, me.r, 560, 110, 560, 44, { progress: progressOf(me.r, c.me.xp), caps: me.caps, labelW: 150 });
       const sw = strengthsText(me.r); ctx.font = fontStr(15, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = UI_TEXT; let y = 190; y += wrapTextH(ctx, sw.strengths, 240, y, 290, 20) + 6; ctx.fillStyle = UI_RED; y += wrapTextH(ctx, sw.weaknesses, 240, y, 290, 20);
       ui.heading(ctx, 'YOUR SIZE', 40, 420, 15, UI_CYAN); ctx.font = fontStr(14, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; y = 436; for (const n of sizeNotes(me.h)) y += wrapTextH(ctx, '• ' + n, 40, y, 490, 18) + 4;
       let y2 = 440; for (const l of ['The white sliver is progress toward the next +5. Orange bar ends: your genetic limits (Speed, Hops, Strength); skills go to ' + AMC.genes.skillCap + ' for anyone.', 'Games give XP for what you do in them: makes, rim finishes, rebounds, steals, blocks. Your practice focus gets 45%.', 'Height effect on your ratings: ' + amHeightFxText(me.h, true) + '. Young players learn fastest; after 30 the legs go first.']) y2 += ui.para(ctx, l, 560, y2, 660, 13, UI_DIM) + 4; }
@@ -9542,7 +9557,7 @@ function leagueScreen(game) {
           ctx.fillStyle = fc.colors[0]; ctx.fillRect(cx[1] - 12, y - 8, 6, 16); ctx.font = fontStr(14, mine); ctx.fillStyle = mine ? UI_GOLD : UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(r + 1), cx[0], y); ctx.font = fontStr(12, mine); ctx.textAlign = 'left'; ctx.fillText(fc.name, cx[1], y, 300); drawStarsShort(ctx, frStars(c, p.club), cx[2], y, 12, 'right');
           ctx.font = fontStr(14, mine); ctx.fillStyle = mine ? UI_GOLD : id === c.rivalId ? '#FF8A8A' : UI_TEXT; ctx.textAlign = 'left'; ctx.fillText(starter, cx[3], y, 272);
           const row = [s.w, s.l, (s.pf - s.pa > 0 ? '+' : '') + (s.pf - s.pa), s.strk > 0 ? 'W' + s.strk : s.strk < 0 ? 'L' + (-s.strk) : '—', mine && sm ? tmMateOvr(sm) : recOvr(p)]; ctx.textAlign = 'center'; ctx.fillStyle = mine ? UI_GOLD : UI_TEXT; row.forEach((v, k) => ctx.fillText(String(v), cx[4 + k], y)); });
-        ctx.font = fontStr(13, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Twelve franchises, one starter each. Top ' + CR.playoffSeeds + ' make the playoffs (below the dashed line you\'re out). ' + (CR.playoffSeeds >= 8 ? 'Quarterfinals and semifinals are one game' : 'The semifinals are one game') + '; the final is best of ' + CR.finalsBestOf + '. Ties go to point difference. Your rival is in red.', 1050, 160, 180, 18); }
+        ctx.font = fontStr(13, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Twelve franchises, one starter each. Top ' + CR.playoffSeeds + ' make the playoffs (below the dashed line you\'re out). ' + (CR.playoffSeeds >= 8 ? 'Quarterfinals and semifinals are ' : 'The semifinals are ') + (CR.semisBestOf > 1 ? 'best of ' + CR.semisBestOf : 'one game') + '; the final is best of ' + CR.finalsBestOf + '. Ties go to point difference. Your rival is in red.', 1050, 160, 180, 18); }
       if (tab === 1 && game.ui.phone) { const T = frTable(c), v = frValue(c), me = meOf(c); frRank(T).forEach((id, r) => { const y = 112 + r * 42, F = T[id], fc = clubOf(id), pid = c.active.find(x => c.players[x].club === id), p = pid ? c.players[pid] : null, mine = id === me.club, bar = FRN.bar[F.stars - 1], ok = v >= bar; if (mine) { ctx.fillStyle = 'rgba(255,214,63,0.12)'; ctx.fillRect(34, y - 19, 1212, 38); } ctx.fillStyle = fc.colors[0]; ctx.fillRect(40, y - 12, 14, 24); ui.label(ctx, fc.name, 64, y, 17, mine ? UI_GOLD : UI_TEXT, 'left', 420); drawStarsTxt(ctx, F.stars, 600, y, 14, 'right'); ui.label(ctx, p ? p.name.split(' ').slice(-1)[0] + ' ' + recOvr(p) : '—', 620, y, 16, UI_TEXT, 'left', 300); ui.label(ctx, mine ? 'yours' : ok ? 'calls you' : 'needs +' + (bar - v).toFixed(1), 1236, y, 16, mine ? UI_GOLD : ok ? UI_GREEN : UI_DIM, 'right', 300); }); } /* F7, phones: the franchises in big rows */
       else if (tab === 1) { const T = frTable(c), v = frValue(c), me = meOf(c), ids = frRank(T); ui.label(ctx, 'Stars follow prestige and move with the standings. Your value: ' + v.toFixed(1) + '.', 60, 142, 13, UI_DIM, 'left', 1160); /* F7: the franchises */
         const cols = ['FRANCHISE', '', 'STARTER', 'OVR', 'XP', 'CALLS AT', ''], cx = [96, 450, 470, 750, 830, 930, 1010]; ctx.font = fontStr(12, true); ctx.fillStyle = UI_CYAN; cols.forEach((h, i) => { ctx.textAlign = i === 0 || i === 2 || i === 6 ? 'left' : 'center'; ctx.fillText(h, cx[i], 172); });
@@ -9655,7 +9670,7 @@ function offseasonScreen(game) {
         ui.heading(ctx, 'NEW IN THE LEAGUE', 60, 290, 16, UI_CYAN); if (!Mv.drafted.length) ui.para(ctx, 'No openings: rookies only come in when veterans retire.', 60, 316, 620, 13, UI_DIM); Mv.drafted.slice(0, P ? 3 : 4).forEach((d, i) => { const p = c.players[d.id]; if (!p) return; recPortrait(ctx, p, 60, 310 + i * 76, 64); ui.heading(ctx, d.name, 136, 330 + i * 76, 17, UI_TEXT); ui.label(ctx, ARCHETYPES[d.arch].label + ' · ' + fmtHeight(d.h) + ' · OVR ' + d.ovr + ' · potential ' + potGrade(d.pot) + ' · ' + clubOf(d.club).abbr + ' ' + frStars(c, d.club) + '★', 136, 356 + i * 76, 14, UI_DIM, 'left', 550); });
         ui.heading(ctx, 'CLUB MOVES', 700, 110, 16, UI_CYAN); if (!Mv.moved.length) ui.label(ctx, 'Quiet summer.', 700, 136, 15, UI_DIM); Mv.moved.slice(0, 10).forEach((m, i) => ui.label(ctx, m.name + ' → ' + clubOf(m.to).name, 700, 136 + i * 24, 15, UI_TEXT)); if (c.rivalId) ui.label(ctx, 'Your rival: ' + c.players[c.rivalId].name, 700, 420, 15, UI_GOLD); }
       if (O.step === 3) { if (O.fa && !O.fa.done) { const txt = 'Your deal is up. Market value: ' + fmtMoney(O.fa.value) + ' a season (OVR, fame and hype). Your club, the best franchise that wants you, or one a star lower that starts you: pick one, then negotiate the years and the role.'; ui.heading(ctx, 'CONTRACT YEAR · FREE AGENCY', 60, 110, 22, UI_GOLD);
-          if (P) { ctx.font = fontStr(19, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Your deal is up. Market value: ' + fmtMoney(O.fa.value) + ' a season. Pick an offer, then negotiate.', 60, 132, 1160, 25); } /* a phone: the short version (facilities are on each offer) */ else { ui.para(ctx, txt, 60, 150, 1160, 16, UI_TEXT); O.fa.offers.forEach((o, i) => { const k = o.kind ? proOfferKind(o) + ' · ' + (o.promise ? 'starts you' : 'earn the start') : ''; if (k) ui.label(ctx, k, 840, 327 + i * 66 - 14, 14, o.promise ? UI_GREEN : UI_GOLD, 'left', 390); ui.label(ctx, 'Facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) + ' · ' + clubCourt(o.club).short + ' court', 840, 327 + i * 66 + (k ? 10 : -4), 13, UI_DIM, 'left', 390); }); } }
+          if (P) { ctx.font = fontStr(19, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'Your deal is up: ' + fmtMoney(O.fa.value) + ' a season. Pick an offer.', 60, 132, 1160, 25); /* V6: one line, so the 5★ spots line fits under it */ try { const S5 = frSpots5(c), n5 = Object.keys(S5.open).filter(id => !S5.open[id].taken).length; ui.label(ctx, (n5 ? n5 + ' open 5★ spot' + (n5 > 1 ? 's' : '') + ' · ' : 'No open 5★ spots · ') + 'your value ' + frValue(c).toFixed(1), 60, 172, 17, UI_CYAN, 'left', 1160); } catch (e) { /* decoration */ } } /* a phone: the short version (facilities are on each offer) */ else { ui.para(ctx, txt, 60, 150, 1160, 16, UI_TEXT); try { drawSpots5(ctx, ui, c, 60, 300 + O.fa.offers.length * 66 + 4, 1160); } catch (e) { /* the spots list is decoration */ } /* V6 (§1.3): under the offers */ O.fa.offers.forEach((o, i) => { const k = o.kind ? proOfferKind(o) + ' · ' + (o.promise ? 'starts you' : 'earn the start') : ''; if (k) ui.label(ctx, k, 840, 327 + i * 66 - 14, 14, o.promise ? UI_GREEN : UI_GOLD, 'left', 390); ui.label(ctx, 'Facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) + ' · ' + clubCourt(o.club).short + ' court', 840, 327 + i * 66 + (k ? 10 : -4), 13, UI_DIM, 'left', 390); }); } }
         else ui.label(ctx, O.fa && O.fa.done ? 'Signed: ' + clubOf(me.club).name + ', ' + fmtMoney(c.me.contract.salary) + ' a season for ' + c.me.contract.years + '.' : 'You\'re under contract: ' + c.me.contract.years + ' more season' + (c.me.contract.years === 1 ? '' : 's') + ' with the ' + clubOf(me.club).name + ' at ' + fmtMoney(c.me.contract.salary) + '.', 60, 130, 17, UI_TEXT, 'left', 1180); }
       if (O.step === 4) { ui.heading(ctx, 'SEASON ' + (c.season + 1) + ' AWAITS', 60, 120, 26, UI_GOLD); ui.label(ctx, 'Age ' + me.age + ' · OVR ' + recOvr(me) + ' · ' + clubOf(me.club).name, 60, 160, 18, UI_TEXT); const L = legacyOf(c); ui.label(ctx, 'Legacy score ' + L.score + ' (Hall of Fame line ' + CR.hofScore + ')', 60, 190, 16, UI_DIM); if (mustRetire(c)) ui.label(ctx, 'At ' + me.age + ', it\'s time. Every career ends.', 60, 230, 18, UI_RED); else if (canRetire(c)) ui.label(ctx, 'You can retire now, or play on.', 60, 230, 16, UI_TEXT); drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 900, P ? 570 : 640, P ? 380 : 420, 'hyped', -1, t); }
     } };
@@ -9852,17 +9867,17 @@ function amResultScreen(game, rec, m) { game.hubTab = 'play'; // V5: back to the
       ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? amRoundTag(rec.playoff) : rec.tag === 'rivalry' ? 'Rivalry game · ' : rec.tag === 'senior' ? 'Senior night · ' : rec.tag === 'marquee' ? 'Marquee game · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
       const q = rec.line || {}; const tiles = [['POINTS', q.pts || 0, {}], ['FG', (x, r) => countUp(q.fgm || 0, x, r) + '/' + (q.fga || 0), {}], ['THREES', (x, r) => countUp(q.tpm || 0, x, r) + '/' + (q.tpa || 0), {}], ['REBOUNDS', q.reb || 0, {}], ['STL · BLK', (x, r) => countUp(q.stl || 0, x, r) + ' · ' + countUp(q.blk || 0, x, r), {}]]; tiles.forEach((tl, i) => statTile(ctx, 60 + i * 146, 128, 134, 92, tl[0], tl[1], t - 0.08 * i, tl[2]));
       if (rec.note) ui.heading(ctx, rec.note, 60, 250, 24, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed|Out in/.test(rec.note) ? UI_RED : UI_CYAN);
-      ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); const g = Array.isArray(rec.gains) ? rec.gains : []; /* (a bench week's gains are a map: never drawn here) */ if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
+      ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); if (rec.grade) ui.label(ctx, 'GAME XP ' + xpMulText(rec.grade, rec.simmed).toUpperCase(), 800, 290, 13, UI_DIM, 'right', 420); /* V6 (§1.2) */ const g = Array.isArray(rec.gains) ? rec.gains : []; /* (a bench week's gains are a map: never drawn here) */ if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
       g.slice(0, 8).forEach((x, i) => pill(ctx, RATING_LONG[x.k] + ' ' + x.from + ' → ' + x.to, 60 + (i % 3) * 260, 322 + Math.floor(i / 3) * 36, 'rgba(76,224,122,0.3)', UI_GREEN, 15));
       hexBadge(ctx, 96, 470, 32, rec.ovrAfter, {}); ui.heading(ctx, rec.ovrAfter > rec.ovrBefore ? '▲ ' + (rec.ovrAfter - rec.ovrBefore) + ' OVR' : 'OVR ' + rec.ovrAfter, 144, 470, 22, rec.ovrAfter > rec.ovrBefore ? UI_GREEN : UI_TEXT);
       drawTraitsHelped(ctx, ui, traitsHelpedFor(m, rec), 330, 446, 470, 2, c); // V3 (§2.3)
       { const W_ = rec.wk || {}; let y = 530; const f = Math.round(c.fatigue || 0);
         ui.heading(ctx, 'THE WEEK', 60, y, 15, UI_CYAN); y += 26; /* V1 (§1.7): the plan and the fatigue on their own lines (one line cut the fatigue warning short on phones) */
         if (W_.plan) { ui.label(ctx, WEEK_PLAN_LABEL[W_.plan].charAt(0) + WEEK_PLAN_LABEL[W_.plan].slice(1).toLowerCase() + (W_.plan === 'practice' ? ' (+' + (W_.practiceXp || 0) + ' XP, focus XP ×' + WK.practiceFocusMul + ')' : W_.plan === 'film' ? ' (+' + trFilmBonus(c) + ' DEF and SHO)' : ''), 60, y, 15, UI_TEXT, 'left', 740); y += 26; }
-        ui.label(ctx, 'Fatigue now ' + f + (f > WK.fatigueFreeAt ? ': tired, rest this week' : ''), 60, y, 15, f > WK.fatigueFreeAt ? UI_ORANGE : UI_TEXT, 'left', 740); y += 26;
-        if (W_.injury) { ui.heading(ctx, 'Hurt: ' + W_.injury.name + ' · −' + WK.injurySpd + ' SPD for ' + W_.injury.games + ' game' + (W_.injury.games > 1 ? 's' : ''), 60, y, 16, UI_RED); y += 26; } else if (W_.healed) { ui.heading(ctx, 'Healthy again.', 60, y, 16, UI_GREEN); y += 26; }
+        ui.label(ctx, 'Fatigue now ' + f + (f > WK.fatigueFreeAt ? ': tired, rest this week' : ''), 60, y, 15, f > WK.fatigueFreeAt ? UI_ORANGE : UI_TEXT, 'left', 740); y += 26; if (slumpText(rec.slump)) { ui.label(ctx, slumpText(rec.slump), 60, y, 15, rec.slump === 'start' ? UI_ORANGE : UI_GREEN, 'left', 740); y += 26; } /* V6 */
+        if (W_.injury) { ui.heading(ctx, 'Hurt: ' + W_.injury.name + ' · −' + WK.injurySpd + ' SPD for ' + W_.injury.games + ' game' + (W_.injury.games > 1 ? 's' : '') + (W_.injury.loss && W_.injury.loss.pts > 0 ? ' · −' + W_.injury.loss.pts + ' ' + RATING_SHORT[W_.injury.loss.k] + ' for good' : ''), 60, y, 16, UI_RED, 'left', 700); /* V6: a lasting loss */ y += 26; } else if (W_.healed) { ui.heading(ctx, 'Healthy again.', 60, y, 16, UI_GREEN); y += 26; }
         for (const mv of rec.learned || []) { ui.heading(ctx, 'New move learned: ' + MOVE_NAMES[mv], 60, y, 16, UI_GREEN); y += 26; } }
-      ui.panel(ctx, 820, 100, 400, 480); ui.heading(ctx, 'PROGRESS', 840, 128, 18, UI_GOLD); ratingRows(ctx, c.r, 840, 150, 360, 40, { progress: progressOf(c.r, c.xp), caps: c.caps, bands: amScoutSeen(c) < 1 ? amCapBand(c) : null, labelW: 124 });
+      ui.panel(ctx, 820, 100, 400, 480); ui.heading(ctx, 'PROGRESS', 840, 128, 18, UI_GOLD); ratingRows(ctx, c.r, 840, 150, 360, 40, { progress: progressOf(c.r, c.xp, potsOf(c, c.caps)), caps: c.caps, bands: amScoutSeen(c) < 1 ? amCapBand(c) : null, labelW: 124 });
     } };
 }
 
@@ -10756,12 +10771,12 @@ function careerKit(game) {
   if (pro) { const c = pro, me = meOf(c);
     const next = () => { const g = userGame(c); if (!g) return null; const id = opponentOf(c, g), p = c.players[id], st = c.standings[id]; return { id, name: p.name, h: p.h, r: p.r, arch: p.arch, look: p.look, colors: clubOf(p.club).colors, wl: st ? st.w + '-' + st.l : '', rival: id === c.rivalId, playoff: !!g.playoff, card: cardOfRec(p, { sub: clubOf(p.club).name }), rec: p, salt: c.seed, boss: !g.playoff && proIsBoss(c, id) }; }; // (V4: the record, for the scouting card)
     return { pro: true, c, B: c.me, name: me.name, h: me.h, r: me.r, caps: me.caps, xp: c.me.xp, age: me.age, arch: me.arch, colors: clubOf(me.club).colors, focus: () => c.me.focus, setFocus: f => { if (CR.trainFocus[f]) c.me.focus = f; }, ovr: () => recOvr(me), next,
-      practice: (f, i, x) => proPractice(c, f, i, x), rest: () => proRest(c), film: () => proFilm(c), sessionXp: (f, i) => proSessionXp(c, f, i), drillXp: (f, i, s) => proDrillXp(c, f, i, s), mul: f => proTrainMul(c, f), hub: () => careerHub(game), myCard: () => cardOfRec(me, { number: me.look.number }) };
+      practice: (f, i, x, d) => proPractice(c, f, i, x, d), loadRef: (f, d) => proLoadRef(c, f, d), rest: () => proRest(c), film: () => proFilm(c), sessionXp: (f, i) => proSessionXp(c, f, i), drillXp: (f, i, s) => proDrillXp(c, f, i, s), mul: f => proTrainMul(c, f), hub: () => careerHub(game), myCard: () => cardOfRec(me, { number: me.look.number }) };
   }
   const a = amateurOf(game); if (!a) return null; const c = a;
   const next = () => { const g = amNext(c); if (!g || !g.opp) return null; const o = g.opp; return { id: o.id, name: o.name, h: o.height, r: o.r, arch: o.style, look: o.look, colors: o.colors, wl: o.rec ? o.rec.w + '-' + o.rec.l : '', rival: !!o.rival, playoff: !!g.playoff, card: { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '' }, rec: o, salt: 0, boss: amIsBoss(c, o) }; }; // (V4: the record, for the scouting card)
   return { pro: false, c, B: c, name: c.name, h: c.height, r: c.r, caps: c.caps, xp: c.xp, age: c.age, arch: c.style, colors: c.colors, focus: () => c.focus, setFocus: f => { if (CR.trainFocus[f]) c.focus = f; }, ovr: () => amOvr(c), next,
-    practice: (f, i, x) => amPractice(c, f, i, x), rest: () => amRest(c), film: () => amFilm(c), study: () => wkStudy(c), sessionXp: (f, i) => amSessionXp(c, i), drillXp: (f, i, s) => amDrillXp(c, f, i, s), mul: () => 1, hub: () => amHub(game),
+    practice: (f, i, x, d) => amPractice(c, f, i, x, d), loadRef: (f, d) => amLoadRef(c, f, d), rest: () => amRest(c), film: () => amFilm(c), study: () => wkStudy(c), sessionXp: (f, i) => amSessionXp(c, i), drillXp: (f, i, s) => amDrillXp(c, f, i, s), mul: () => 1, hub: () => amHub(game),
     myCard: () => ({ key: 'am-me', name: c.name, look: Object.assign({}, c.look, { number: c.number }), height: c.height, colors: c.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school }) };
 }
 
@@ -10810,6 +10825,7 @@ function drawWeekStatus(ctx, ui, B, x, y, w, small) {
   if (B.injury) lines.push([B.injury.name + ': −' + WK.injurySpd + ' SPD, ' + B.injury.games + ' game' + (B.injury.games > 1 ? 's' : ''), UI_RED]);
   lines.push([cut > 0 ? 'Tired: ratings −' + cut + '%.' + ((B.wk || {}).done ? '' : ' Rest!') : f >= WK.fatigueFreeAt - WK.fatiguePerGame ? 'One more game and it costs you.' : 'Fresh: no effect below ' + WK.fatigueFreeAt + '.', cut > 0 ? UI_ORANGE : UI_DIM]);
   if (autoPlan(B)) lines.push(['Play now: ' + WEEK_PLAN_LABEL[autoPlan(B)] + ' runs.', UI_DIM]);
+  if (B.slump && B.slump.on) { lines.splice(B.injury ? 1 : 0, 0, ['Slump: Shooting ' + MD.slump.sho + ' until a B or better.', UI_ORANGE]); if (small && B.injury) lines[0] = [lines[0][0] + ' · in a slump', UI_RED]; } /* V6 (§1.2) */
   ctx.font = fontStr(small ? 11 : 12, false); const lh = Math.max(18, rbLineH(ctx));
   lines.slice(0, small ? 1 : 2).forEach((l, i) => { ui.label(ctx, l[0], x, y + 30 + i * lh, small ? 11 : 12, l[1], 'left', w); }); /* a phone has room for one line (its AUTO tag is on the button) */
 }
@@ -10823,6 +10839,7 @@ function weekChips(ctx, B, x, y) {
   if (w.done === 'rest') chips.push(['RESTED', 'rgba(76,224,122,0.9)', UI_INK]);
   chips.push(['FATIGUE ' + Math.round(B.fatigue || 0) + (cut ? ' · −' + cut + '% RATINGS' : ''), cut ? 'rgba(255,138,42,0.95)' : 'rgba(8,12,36,0.85)', cut ? UI_INK : UI_TEXT]);
   if (B.injury) chips.push([B.injury.name.toUpperCase() + ' · −' + WK.injurySpd + ' SPD', 'rgba(255,90,90,0.95)', '#FFFFFF']);
+  if (B.slump && B.slump.on) chips.push(['SLUMP · ' + MD.slump.sho + ' SHO UNTIL A B', 'rgba(180,140,255,0.95)', UI_INK]); // V6 (§1.2)
   chips.forEach((ch, i) => kitChip(ctx, ch[0], x, y + i * 28, { size: 12, align: 'center', fill: ch[1], color: ch[2], stroke: false }));
   return y + chips.length * 28; // (V4: where the next line can go)
 }
@@ -10831,8 +10848,8 @@ function weekChips(ctx, B, x, y) {
 function projectDrill(K, focus, xp) {
   const F = CR.trainFocus[focus] || CR.trainFocus.shooting, k = Object.keys(F.split)[0], cap = K.caps[k], lab = RATING_LONG[k]; let r = K.r[k], bank = (K.xp[k] || 0) + xp, steps = 0;
   if (r >= cap) return lab + ' is at its ' + (PHYS_KEYS.includes(k) ? 'genetic ' : '') + 'limit (' + cap + '): train something else.';
-  while (r < cap && bank >= xpNeed(r) && steps < 20) { bank -= xpNeed(r); r = Math.min(cap, r + CR.xpStep); steps++; }
-  const need = r < cap ? Math.ceil(xpNeed(r) - bank) : 0;
+  const pk = (potsOf(K.B, K.caps) || {})[k]; while (r < cap && bank >= xpNeed(r, pk) && steps < 20) { bank -= xpNeed(r, pk); r = Math.min(cap, r + CR.xpStep); steps++; }
+  const need = r < cap ? Math.ceil(xpNeed(r, pk) - bank) : 0;
   return 'Projected: ' + lab + ' ' + Math.floor(K.r[k]) + (steps ? ' → ' + Math.floor(r) : ' (no step yet)') + (r < cap ? ' · the next +' + CR.xpStep + ' needs ' + need + ' more XP (each step costs more)' : ' · that is your limit') + ' · limit ' + cap + (PHYS_KEYS.includes(k) ? ' (genes)' : '') + '.';
 }
 // --- practice: pick a focus and an intensity, then play the 60 s drill or sim the session ---
@@ -10856,11 +10873,12 @@ function practiceScreen(game) {
       focusBtns.forEach((b, i) => { if (i === st.focus) { ctx.strokeStyle = UI_CYAN; ctx.lineWidth = 3; ctx.beginPath(); roundRectPath(ctx, b.x - 5, b.y - 5, b.w + 10, b.h + 10, 11); ctx.stroke(); } }); // the week's focus (a cyan outline and a check), apart from the keyboard focus (gold)
       const k = keys[st.focus], F = CR.trainFocus[k], I = WK.intensity[ints[st.intensity]], x0 = P ? 490 : 520;
       ui.panel(ctx, P ? 470 : 490, 20, P ? 790 : 760, P ? UI_H - tapH(ui, 44) - 50 : 680); ui.heading(ctx, F.label.toUpperCase(), x0, 60, 28, UI_GOLD);
-      const lines = ['Practice week: this week\'s game pays its focus XP × ' + WK.practiceFocusMul + '.', 'Sim the session: about ' + Math.round(K.sessionXp(k, ints[st.intensity])) + ' XP now.' + (DRILL_FOCUS[k] ? '  Play the drill: ' + Math.round(K.drillXp(k, ints[st.intensity], 0)) + '–' + Math.round(K.drillXp(k, ints[st.intensity], 999)) + ' XP by your score.' : ''),
+      const sx = K.sessionXp(k, ints[st.intensity]), capS = WK.loadCap * K.loadRef(k, false), capD = WK.loadCap * K.loadRef(k, true), dHi = K.drillXp(k, ints[st.intensity], 999); /* V6 (§1.2): the load cap */
+      const lines = ['Practice week: this week\'s game pays its focus XP × ' + WK.practiceFocusMul + '.', 'Sim the session: about ' + Math.round(Math.min(sx, capS)) + ' XP now' + (sx > capS ? ' (the load cap: the rest is fatigue)' : '') + '.' + (DRILL_FOCUS[k] ? '  Play the drill: ' + Math.round(Math.min(capD, K.drillXp(k, ints[st.intensity], 0))) + '–' + Math.round(Math.min(capD, dHi)) + ' XP by your score' + (dHi > capD ? ' (capped: past it, fatigue)' : '') + '.' : ''),
         (I.fatigue ? 'Hard work: +' + I.fatigue + ' fatigue' + (I.risk ? ', ' + (I.risk * 100).toFixed(0) + '% injury risk' : '') + ', XP ×' + I.xp + '.' : 'XP ×' + I.xp + ' at this intensity.') + (practiceAgeMul(K.age) < 1 ? ' Past 25 you learn slower (×' + practiceAgeMul(K.age).toFixed(2) + ').' : '') + (K.pro ? ' Staff and facilities: ×' + K.mul(k).toFixed(2) + '.' : '')];
-      const pj = projectDrill(K, k, K.sessionXp(k, ints[st.intensity])); lines.push(pj);
+      const pj = projectDrill(K, k, Math.min(sx, capS)); lines.push(pj);
       const tw = P ? 740 : 700; let y = 96; lines.forEach((l, i) => { y += ui.para(ctx, l, x0, y, tw, P ? 13 : 14, i === 0 ? UI_TEXT : i === lines.length - 1 ? UI_GOLD : UI_DIM); }); /* the text flows; the ratings go under it */
-      const bands = !K.pro && amScoutSeen(K.c) < 1 ? amCapBand(K.c) : null, ry = Math.max(P ? 172 : 180, y + 6), rh = P ? 29 : (ry > 190 ? 32 : 36); ratingRows(ctx, K.r, x0, ry, P ? 380 : 420, rh, { progress: progressOf(K.r, K.xp), caps: K.caps, bands, labelW: 120 });
+      const bands = !K.pro && amScoutSeen(K.c) < 1 ? amCapBand(K.c) : null, ry = Math.max(P ? 172 : 180, y + 6), rh = P ? 29 : (ry > 190 ? 32 : 36); ratingRows(ctx, K.r, x0, ry, P ? 380 : 420, rh, { progress: progressOf(K.r, K.xp, potsOf(K.B, K.caps)), caps: K.caps, bands, labelW: 120 });
       let yb = ry + 7 * rh + (P ? 4 : 8); yb += ui.para(ctx, bands ? 'Red bands: where scouts think your genetic limits are (' + amPotentialText(K.c) + '). They narrow every season.' : 'Orange bar ends: Speed, Hops and Strength stop at your genes. Red marks: skills go to ' + AMC.genes.skillCap + ' for anyone.', x0, yb, tw, 12, UI_DIM);
       const D = DRILL_FOCUS[k] ? DRILL_INFO[k] : null; ui.heading(ctx, D ? 'THE DRILL: ' + D.title : 'WEIGHT ROOM', x0, yb + 10, 16, UI_CYAN); ctx.font = fontStr(14, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, D ? D.how : 'Strength and athleticism are built in the weight room: no drill, sim the session.', x0, yb + 26, tw, 19);
       if (!P) ui.para(ctx, 'One plan a week: Practice, Rest or Film. The game after it starts a new week.', x0, 672, tw, 13, UI_DIM);
@@ -10875,10 +10893,11 @@ function practiceResultScreen(game, res, focus, drill) {
       ui.label(ctx, (CR.trainFocus[focus] || {}).label + (drill ? ' · ' + drill.title + ' · score ' + drill.score : ' · simmed') + ' · +' + (res ? res.xp : 0) + ' XP', 280, 142, 16, UI_TEXT);
       if (!res) { ui.label(ctx, 'You already had a plan this week.', 280, 190, 16, UI_TEXT); return; }
       ui.label(ctx, 'OVR ' + res.ovrBefore + ' → ' + res.ovrAfter + ' · fatigue ' + Math.round(K ? K.B.fatigue : 0), 1000, 142, 16, res.ovrAfter > res.ovrBefore ? UI_GREEN : UI_TEXT, 'right');
-      if (K) ratingRows(ctx, K.r, 280, 180, 520, 38, { progress: progressOf(K.r, K.xp), gains: res.gains, labelW: 140 });
+      if (K) ratingRows(ctx, K.r, 280, 180, 520, 38, { progress: progressOf(K.r, K.xp, potsOf(K.B, K.caps)), gains: res.gains, labelW: 140 });
       let y = 468; ui.label(ctx, 'This week\'s game also pays its focus XP × ' + WK.practiceFocusMul + '.', 280, y, 14, UI_DIM); y += 30;
+      if (res.loadFatigue) y += ui.para(ctx, 'Load cap: ' + res.loadXp + ' XP past ' + WK.loadCap + '× a normal week turned into +' + res.loadFatigue + ' fatigue.', 280, y, 720, 14, UI_ORANGE) + 6; // V6 (§1.2): it wraps on a phone
       for (const mv of res.learned || []) { ui.heading(ctx, 'New move learned: ' + MOVE_NAMES[mv], 280, y, 18, UI_GREEN); y += 28; }
-      if (res.injury) ui.heading(ctx, 'Hurt in practice: ' + res.injury.name + ' (' + res.injury.games + ' game' + (res.injury.games > 1 ? 's' : '') + ', −' + WK.injurySpd + ' SPD).', 280, y, 18, UI_RED);
+      if (res.injury) ui.para(ctx, 'Hurt in practice: ' + res.injury.name + ' (' + res.injury.games + ' game' + (res.injury.games > 1 ? 's' : '') + ', −' + WK.injurySpd + ' SPD' + injLossText(res.injury) + ').', 280, y, 720, 16, UI_RED); /* V6: a lasting loss makes it long */
     } };
 }
 // The drill: the shootout for Shooting, a 60 s half-court drill against a practice partner for the rest.
@@ -10894,7 +10913,7 @@ function startCareerDrill(game, focus, intensity) {
 }
 function drillPostScreen(game, m, after) {
   const K = careerKit(game); const score = m.contest3 ? m.contest3.score : drillScore(m); const info = DRILL_INFO[after.focus] || DRILL_INFO.handles;
-  const res = K ? K.practice(after.focus, after.intensity, K.drillXp(after.focus, after.intensity, score)) : null; game.save.save();
+  const res = K ? K.practice(after.focus, after.intensity, K.drillXp(after.focus, after.intensity, score), true) : null; game.save.save();
   return practiceResultScreen(game, res, after.focus, { title: info.title, score });
 }
 
@@ -11674,6 +11693,7 @@ function proUpgrade5(c, a) {
 function repairCareer(c) {
   const me = c.me || (c.me = {}); const d = defaultMeShape(); proStaffMigrate(me); /* R7: the old four staff roles become the trainer, the private coach and nutrition & physio */
   for (const k in d) if (me[k] == null) me[k] = d[k];
+  if ((!me.pot || typeof me.pot !== 'object') && c.players && c.players.me) me.pot = potRoll(c.seed, c.players.me.r); /* V6: a pro save from before the hidden potential */
   me.staff = Object.assign({}, d.staff, me.staff || {}); me.cosmetics = Object.assign({}, d.cosmetics, me.cosmetics || {}); me.careerStats = Object.assign({}, d.careerStats, me.careerStats || {}); me.records = Object.assign({}, d.records, me.records || {});
   if (!c.players || !c.active || !c.schedule) return null;
   for (const id of c.active) { if (!c.players[id]) return null; if (!c.standings[id]) c.standings[id] = { w: 0, l: 0, pf: 0, pa: 0, strk: 0 }; if (!c.stats[id]) c.stats[id] = emptySeasonStats(); }
@@ -11747,7 +11767,7 @@ function genProspect(c, rng, used, id) {
   return { id, name, nick: name.split(' ')[0], arch, h, wing: +clamp(CONFIG.amateur.wingMean + CONFIG.amateur.wingSd * rng.gauss(), 0.97, 1.1).toFixed(3), age, r, caps: capsAbove(r, age, rng), look: genLook(rng), club: null, contract: { years: CR.rookieYears, salary: 0 }, since: c.season || 1, isMe: false, rookie: true };
 }
 function recOvr(p) { return ovrOf(p.r, p.h); }
-function potOf(p) { return ovrOf(p.caps || p.r, p.h); }
+function potOf(p, B) { const P = B ? potsOf(B, p.caps) : null; if (!P) return ovrOf(p.caps || p.r, p.h); const r = {}; for (const k of RATING_KEYS) r[k] = P[k] != null ? Math.min(P[k], p.caps[k]) : p.caps[k]; return ovrOf(r, p.h); } // the ceiling: caps (V6: with B, your skills at your potential)
 function meOf(c) { return c.players[c.meId]; }
 function playerOf(c, id) { return c.players[id]; }
 function clubOf(id) { return TEAMS.find(t => t.id === id) || TEAMS[0]; }
@@ -11782,7 +11802,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
     rec.caps = capsAbove(rec.r, age, rng); used.add(rv.name); c.players[id] = rec; c.active.push(id); rookies.push(rec); c.rivalId = id; }
   while (c.active.length < CR.leagueSize - 1) { const id = 'p' + c.nextId++; const rec = genProspect(c, rng, used, id); c.players[id] = rec; c.active.push(id); rookies.push(rec); }
   const me = { id: 'me', name: a.name, nick: a.name.split(' ')[0], arch: a.style, h: a.height, wing: a.wing, age: a.age, r: Object.assign({}, a.r), caps: Object.assign({}, a.caps), look: Object.assign({}, a.look, { number: a.number }), club: null, contract: { years: CR.rookieYears, salary: 0 }, since: 1, isMe: true, rookie: true, hFinal: a.heightFinal, bloom: a.bloom, combine: amCombine(a) };
-  c.players.me = me; c.active.push('me'); rookies.push(me); c.me.xp = Object.assign({}, a.xp); c.me.hype = a.hype || 0; c.me.hypeScale = a.hypeScale; /* R8: the amateur's scale (a save from before R8 migrates on the next fill) */ c.me.confidence = a.confidence || 0; c.events = []; c.story = { h2h: Object.assign({ w: 0, l: 0 }, a.story && a.story.h2h) }; c.timeline = []; c.amateur.timeline = (a.timeline || []).slice(); c.amateur.records = Object.assign({}, a.records || {}); c.me.focus = CR.trainFocus[a.focus] && a.focus !== 'recovery' ? a.focus : 'shooting';
+  c.players.me = me; c.active.push('me'); rookies.push(me); c.me.xp = Object.assign({}, a.xp); c.me.pot = Object.assign({}, a.pot || potRoll(a.seed, a.r)); /* V6: your potential comes along */ c.me.hype = a.hype || 0; c.me.hypeScale = a.hypeScale; /* R8: the amateur's scale (a save from before R8 migrates on the next fill) */ c.me.confidence = a.confidence || 0; c.events = []; c.story = { h2h: Object.assign({ w: 0, l: 0 }, a.story && a.story.h2h) }; c.timeline = []; c.amateur.timeline = (a.timeline || []).slice(); c.amateur.records = Object.assign({}, a.records || {}); c.me.focus = CR.trainFocus[a.focus] && a.focus !== 'recovery' ? a.focus : 'shooting';
   // F7: no draft for you (the offer you took); the other rookies' order still sets their rookie pay
   me.draftPick = null; me.signed = { club: offer.club, stars: offer.stars, kind: offer.kind };
   for (const p of rookies) if (!p.isMe) p.draftPick = amPickFrom(recOvr(p) * D.ovr + (D.ageRef - p.age) * D.age + D.wing * p.h * (p.wing - 1) + D.aiResume + D.noise * rng.gauss());
@@ -11858,12 +11878,14 @@ function careerMatchOpts(c, save, g, forSim) {
 // ---------------- the fast league model: AI-vs-AI games in a millisecond ----------------
 // Fitted by least squares to thousands of headless engine games (see the dev menu's model check),
 // so simulated games and played games follow the same ratings.
+// V6 (Part 2 §6, early): the stars of the franchise a league player plays for (3 for a league without franchises).
+function simStarsOf(c, id) { try { const p = c.players[id]; return p && c.fr ? frStars(c, p.club) : 3; } catch (e) { return 3; } }
 function strengthOf(p, c, bonus) { const w = LG.marginW, e = effAttrs(p, c, bonus); let s = 0; for (const k of RATING_KEYS) s += w[k] * e[k]; return s + w.h * p.h + w.wing * (p.wing || 1.03); }
 function linPts(o, d, c, bo, bd) { const W_ = LG.pts, eo = effAttrs(o, c, bo), ed = effAttrs(d, c, bd); let v = W_.c; for (const k of RATING_KEYS) { v += W_['o_' + k] * eo[k] + W_['d_' + k] * ed[k]; } return v + W_.h * o.h + W_.oh * d.h; }
 function simBox(c, hId, aId, rng) {
   const H = c.players[hId], A = c.players[aId], len = gameScale('pro'); /* F5 */ const mine = !!(c.me && !c._benchSub && (hId === c.meId || aId === c.meId)), oId = mine ? (hId === c.meId ? aId : hId) : null, G = mine ? mdGame(c.me, oId, oId === c.rivalId, hId === c.meId, true) : null, po = c.phase === 'playoffs', meB = c._benchSub || c.me;
   const fH = (G ? (hId === c.meId ? G.simMe : G.simOpp) : 0) + trSimEdge(hId === c.meId ? meB : H, po), fA = (G ? (aId === c.meId ? G.simMe : G.simOpp) : 0) + trSimEdge(aId === c.meId ? meB : A, po); // R8: your hype (the home crowd; a keyed defense), a trash-talked opponent, a fired-up rival; everyone's traits' in-game effects (R3)
-  const margin = strengthOf(H, c, fH) - strengthOf(A, c, fA) + LG.homeEdge; const baseH = linPts(H, A, c, fH, fA), baseA = linPts(A, H, c, fA, fH);
+  const margin = strengthOf(H, c, fH) - strengthOf(A, c, fA) + LG.starEdge * (simStarsOf(c, hId) - simStarsOf(c, aId)) + LG.homeEdge; /* V6 (Part 2 §1, §6): a franchise's stars count (its roster, its facilities) */ const baseH = linPts(H, A, c, fH, fA), baseA = linPts(A, H, c, fA, fH);
   let hs = Math.round((baseH + (margin - (baseH - baseA)) * 0.5 + LG.ptsNoise * rng.gauss()) * len), as = Math.round((baseA - (margin - (baseH - baseA)) * 0.5 + LG.ptsNoise * rng.gauss()) * len);
   const fl = Math.round(6 * len); hs = simPts(Math.max(fl, hs)); as = simPts(Math.max(fl, as)); let ot = 0; if (hs === as) { ot = 1; const pH = 0.5 + 0.5 * (CR.otSimEdge * erf(margin / (LG.ptsNoise * 1.4 * Math.SQRT2))); const b = rng.next() < 0.25 ? 3 : 2; if (rng.next() < pH) hs += b; else as += b; } // F5: a sudden-death overtime: one basket, so the better player's edge counts less
   const bx = {}; bx[hId] = boxFor(H, A, hs, rng, c, fH, fA, len); bx[aId] = boxFor(A, H, as, rng, c, fA, fH, len);
@@ -11903,34 +11925,42 @@ function recordResult(c, r, playoff, skipId) { // skipId: a slot whose stat line
 function topLine(r) { const bh = r.box[r.h], ba = r.box[r.a]; return bh.pts >= ba.pts ? { id: r.h, pts: bh.pts, reb: bh.reb } : { id: r.a, pts: ba.pts, reb: ba.reb }; }
 function gameScore(s) { return s.pts + 0.4 * s.reb + 1.5 * s.stl + 1.5 * s.blk - s.to - 0.4 * Math.max(0, s.fga - s.fgm) + 0.5 * (s.dunk || 0) + 1.5 * (s.ank || 0); }
 function gradeFor(s, win, len) { const v = gameScore(s) / (len || 1) + (win ? 3 : 0); /* F5: per the old game length */ return v >= 34 ? 'A+' : v >= 28 ? 'A' : v >= 23 ? 'B+' : v >= 18 ? 'B' : v >= 13 ? 'C' : v >= 8 ? 'D' : 'F'; }
+// V6 (Part 2 §1.2): what a game's XP was multiplied by, in words ('grade A ×1.5 · simmed ×0.5').
+function xpMulText(grade, simmed) { const g = grade ? CR.gradeXp[grade] : null, out = []; if (g != null) out.push('grade ' + grade + ' ×' + g); if (simmed) out.push('simmed ×' + CR.xpGame.simmed); return out.join(' · '); }
+// ...and what a slump result says (null when nothing changed).
+function slumpText(s) { return s === 'start' ? 'SLUMP: ' + MD.slump.games + ' D or F games in a row. Shooting ' + MD.slump.sho + ' until a B or better.' : s === 'end' ? 'Out of the slump!' : null; }
 const NO_STANDING = { w: 0, l: 0, pf: 0, pa: 0, strk: 0 };
 function standingsSorted(c) { return c.active.slice().sort((x, y) => { const A = c.standings[x] || NO_STANDING, B = c.standings[y] || NO_STANDING; const pa = A.w / Math.max(1, A.w + A.l), pb = B.w / Math.max(1, B.w + B.l); return (pb - pa) || ((B.pf - B.pa) - (A.pf - A.pa)) || (recOvr(c.players[y]) - recOvr(c.players[x])); }); }
 function leaders(c, key, n, minG) { const rows = c.active.map(id => { const s = c.stats[id]; const g = Math.max(1, s.g); let v; if (key === 'fg') v = s.fga >= 5 * s.g && s.g ? s.fgm / s.fga : -1; else if (key === 'tp') v = s.tpa >= 1.5 * s.g && s.g ? s.tpm / s.tpa : -1; else v = s[key] / g; return { id, v, g: s.g }; }).filter(r => r.g >= (minG || 1) && r.v >= 0); rows.sort((a, b) => b.v - a.v); return rows.slice(0, n || 5); }
 
 // ---------------- progression: XP from games and training, level-ups, learned moves ----------------
-// A rating grows in steps of 5; the next step costs xpBase + xpPer × (rating / 10) XP. Ceilings (caps) come from your
-// play style, your height and your genes. Teens learn fastest; after 30 the legs go first.
-function xpNeed(r) { r = Number(r) || 0; return (CR.xpBase + CR.xpPer * r / 10) * (1 + CR.xpTop * Math.max(0, r - CR.xpTopFrom) / 10); } // F6: steeper at the top
+// A rating grows in steps of 5. V6 (Part 2 §1.2): each +1 costs CR.xpCurve.base × growth^(rating − from) XP, so a step
+// sums its five points; past your hidden potential (pot) every +1 costs × CR.potMul. Ceilings (caps) come from your play
+// style, your height and your genes. Teens learn fastest; after 30 the legs go first.
+function xpPointCost(p, pot) { const X = CR.xpCurve; return X.base * Math.pow(X.growth, p - X.from) * (pot != null && p >= pot ? CR.potMul : 1); }
+function xpNeed(r, pot) { r = Number(r) || 0; let s = 0; for (let i = 0; i < CR.xpStep; i++) s += xpPointCost(r + i, pot); return s; }
+// V6: the holder's soft ceilings (skills only: the body keeps its genetic caps): the rolled potential + a trait's head.
+function potsOf(B, caps) { const P = B && B.pot; if (!P) return null; const o = {}; for (const k of RATING_KEYS) o[k] = P[k] == null ? null : Math.min(caps && caps[k] != null ? caps[k] : CR.ratingMax, P[k] + trHead(B, k)); return o; }
 function ageXpMul(age) { for (const [a, m] of CR.ageXpMul) if (age <= a) return m; return 0.2; }
-function spendXp(r, xp, caps, add) {
-  const gains = []; for (const k of RATING_KEYS) { if (!(add[k] > 0)) continue; xp[k] = (xp[k] || 0) + add[k]; let guard = 0;
-    while (r[k] < caps[k] && xp[k] >= xpNeed(r[k]) && guard++ < 40) { xp[k] -= xpNeed(r[k]); const was = r[k]; r[k] = Math.min(caps[k], r[k] + CR.xpStep); gains.push({ k, from: was, to: r[k] }); }
+function spendXp(r, xp, caps, add, pots) { // pots (V6): potsOf(holder, caps), the soft ceilings
+  const gains = []; for (const k of RATING_KEYS) { if (!(add[k] > 0)) continue; xp[k] = (xp[k] || 0) + add[k]; let guard = 0; const pk = pots ? pots[k] : null;
+    while (r[k] < caps[k] && xp[k] >= xpNeed(r[k], pk) && guard++ < 40) { xp[k] -= xpNeed(r[k], pk); const was = r[k]; r[k] = Math.min(caps[k], r[k] + CR.xpStep); gains.push({ k, from: was, to: r[k] }); }
     if (r[k] >= caps[k]) xp[k] = 0; }
   return gains;
 }
 // XP from one game: a pool that grows with winning and production (× age, × 0.75 if simmed). 45% goes to the
 // training focus (× focusMul in a Practice week); the rest follows what you did: makes → Shooting, rim finishes →
 // Finishing, boards → Strength and Hops, steals and blocks → Defense.
-function developFromGame(r, xp, caps, split, age, st, won, simmed, focusMul, poolMul, B, len) { // B: the trait holder (R3: XP traits); len (F5): the game length over the old format's
+function developFromGame(r, xp, caps, split, age, st, won, simmed, focusMul, poolMul, B, len, grade) { // B is the trait holder (R3: XP traits), len (F5) the game length over the old format's, grade (V6) your grade, which pays CR.gradeXp
   const X = CR.xpGame, U = CR.usage; st = st || {};
   const perf = Math.min(X.perfCap, ((st.pts || 0) * X.pts + (st.reb || 0) * X.reb + ((st.stl || 0) + (st.blk || 0)) * X.stops) / (len || 1)); // F5: a line from a one-minute game counts per the old length
-  const pool = (X.base + (won ? X.win : 0) + perf) * ageXpMul(age) * (simmed ? X.simmed : 1) * (poolMul || 1) * trXpMul(B, age) * trMul(B, 'gameXp') * CR.xpEarn; // F6; V3: Quick Study's game XP
+  const pool = (X.base + (won ? X.win : 0) + perf) * ageXpMul(age) * (simmed ? X.simmed : 1) * (grade && CR.gradeXp[grade] != null ? CR.gradeXp[grade] : 1) * (poolMul || 1) * trXpMul(B, age) * trMul(B, 'gameXp') * CR.xpEarn; // F6; V3: Quick Study's game XP; V6: × your grade
   const rim = (st.dunkM || 0) + (st.layM || 0) + (st.hookM || 0) + (st.tipM || 0);
   const use = { sho: (st.tpm || 0) * U.sho3 + Math.max(0, (st.fgm || 0) - (st.tpm || 0) - rim) * U.shoMid + U.floor, fin: rim * U.rim + U.floor, han: U.move, spd: U.move, jmp: (st.reb || 0) * U.reb + (st.blk || 0) * U.blk + U.body, def: ((st.stl || 0) + (st.blk || 0)) * U.stops + U.floor, str: (st.reb || 0) * U.reb + U.body };
   const tot = RATING_KEYS.reduce((a, k) => a + use[k], 0); split = split || {}; const sw = RATING_KEYS.reduce((a, k) => a + (split[k] || 0), 0);
   const statMul = trMul(B, 'statXp'); const add = {}; for (const k of RATING_KEYS) add[k] = pool * (sw > 0 ? 1 - X.focusShare : 1) * use[k] / tot * statMul + (sw > 0 ? pool * X.focusShare * (focusMul || 1) * (split[k] || 0) / sw : 0); // Glue Guy: −8% of the stat share
   for (const k of RATING_KEYS) add[k] *= trRatingXpMul(B, k); // V3: a trait's rating XP (Floor General's −3% Shooting, Microwave's +18%, ...)
-  const gains = spendXp(r, xp, caps, add); gains.add = add; gains.pool = pool; return gains;
+  const gains = spendXp(r, xp, caps, add, potsOf(B, caps)); gains.add = add; gains.pool = pool; return gains;
 }
 function gainsMap(list) { const m = {}; for (const g of list || []) m[g.k] = (m[g.k] || 0) + (g.to - g.from); return m; }
 // One offseason for anyone: focus ratings grow (until 27), the body fills out (until 20), the young round out their
@@ -11956,20 +11986,20 @@ function careerAfterGame(save, box, meTeam, simmed) {
   const sMe = { pts: my.pts, fgm: my.fgm, fga: my.fga, tpm: my.tpm, tpa: my.tpa, reb: my.reb, stl: my.stl, blk: my.blk, to: my.to, dunk: my.dunkM, ank: my.ankles };
   const sOp = { pts: their.pts, fgm: their.fgm, fga: their.fga, tpm: their.tpm, tpa: their.tpa, reb: their.reb, stl: their.stl, blk: their.blk, to: their.to, dunk: their.dunkM, ank: their.ankles };
   const r = { h: g.h, a: g.a, hs: g.h === c.meId ? us : them, as: g.h === c.meId ? them : us, ot: box.overtime || 0, box: {} }; r.box[c.meId] = sMe; r.box[opp] = sOp;
-  const me = meOf(c), movesBefore = learnedMoves(me, c.me), ovrBefore = recOvr(me), len = gameScale('pro'); const grade = gradeFor(sMe, win, len); /* F5 */ const spot = !!(c.team && !isStarter(c)); // V5: a spot start
-  const dev = developFromGame(me.r, c.me.xp, me.caps, (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, proXpMul(c), c.me, len); /* R7: the personal trainer */ const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me)); trDeed(c.me, 'moves', learned.length);
+  const me = meOf(c), movesBefore = learnedMoves(me, c.me), ovrBefore = recOvr(me), len = gameScale('pro'); const grade = gradeFor(sMe, win, len); /* F5 */ const slump = slumpAfterGame(c, grade); /* V6 (§1.2) */ const spot = !!(c.team && !isStarter(c)); // V5: a spot start
+  const dev = developFromGame(me.r, c.me.xp, me.caps, (CR.trainFocus[c.me.focus] || CR.trainFocus.shooting).split, me.age, my, win, !!simmed, c.me.wk && c.me.wk.done === 'practice' ? WK.practiceFocusMul : 1, proXpMul(c), c.me, len, grade); /* R7: the personal trainer; V6: × your grade */ const xp = dev.add, gains = gainsMap(dev); const learned = newMovesSince(movesBefore, learnedMoves(me, c.me)); trDeed(c.me, 'moves', learned.length);
   // money, fame, then the week: fatigue and injuries
   const M = c.me; let pay = 0; if (!g.playoff) pay += salaryWeek(c); else pay += LG.playoffGamePay;
   const fameGain = (win ? CR.fame.win : CR.fame.loss) + CR.fame.perPt * Math.max(0, my.pts / len - 20) + CR.fame.highlight * trMul(M, 'highlight') * ((my.dunkM || 0) * 0.3 + (my.posters || 0) + (my.ankles || 0)) / len + (g.playoff ? CR.fame.playoff : 0);
   M.fame = clamp(M.fame + fameGain * (fameGain > 0 ? FRN.fameByStars[frMine(c) - 1] * trMul(M, 'fame') : 1), 0, 100); /* V3: Showman */ earn(c, pay); /* F7: a bigger stage by stars (R7: a big market) */
   const wk = wkAfterGame(M, careerRng(c), { ot: r.ot, nutrition: proNutrition(c) }); const injury = wk.injury; trustAfterGame(c, win, us, them); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
-  if (injury) pushNews(c, me.name + ' is playing through a ' + injury.name.toLowerCase() + ' (' + injury.games + ' game' + (injury.games > 1 ? 's' : '') + ').', 'injury'); else if (wk.healed) pushNews(c, me.name + ' is back to full health.', 'injury');
+  if (injury) { injuryLossApply(c); /* V6 (§1.2) */ pushNews(c, me.name + ' is playing through a ' + injury.name.toLowerCase() + ' (' + injury.games + ' game' + (injury.games > 1 ? 's' : '') + injLossText(injury) + ').', 'injury'); } else if (wk.healed) pushNews(c, me.name + ' is back to full health.', 'injury');
   // career totals and records
   const ss0 = c.stats[c.meId], ppgBefore = ss0 && ss0.g ? ss0.pts / ss0.g : 0; const cs = M.careerStats; cs.g++; if (win) cs.w++; else cs.l++; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk', 'to']) cs[k] += my[k] || 0; cs.ptsN = (cs.ptsN != null ? cs.ptsN : cs.pts - (my.pts || 0)) + (my.pts || 0) / len; /* F5: points per the old game length (the legacy) */ cs.dunk += my.dunkM || 0; cs.ank += my.ankles || 0; cs.posters += my.posters || 0; if (g.playoff) { if (win) cs.playoffW++; else cs.playoffL++; }
   const recs = []; for (const k of ['pts', 'reb', 'stl', 'blk', 'tpm']) if ((my[k] || 0) > (M.records[k] || 0)) { if (cs.g > 1 && my[k] >= 3) recs.push(k); M.records[k] = my[k]; }
   M.log.unshift({ s: c.season, w: c.week, opp, home: g.h === c.meId, us, them, win, grade, pts: my.pts, reb: my.reb, stl: my.stl, blk: my.blk, to: my.to, fg: my.fgm + '/' + my.fga, tp: my.tpm + '/' + my.tpa, p: !!g.playoff }); if (M.log.length > 80) M.log.length = 80;
   if (opp === c.rivalId) M.rivalGames = (M.rivalGames || 0) + 1;
-  const rec = { win, us, them, grade, xp, gains, learned, pay, fameGain: Math.round(fameGain * 10) / 10, ovrBefore, ovrAfter: recOvr(me), injury, wk, recs, opp, playoff: !!g.playoff, home: g.h === c.meId, ot: r.ot, oppLine: sOp, myLine: Object.assign({}, my), boss: !g.playoff && proIsBoss(c, opp) };
+  const rec = { win, us, them, grade, slump, simmed: !!simmed, /* V6 */ xp, gains, learned, pay, fameGain: Math.round(fameGain * 10) / 10, ovrBefore, ovrAfter: recOvr(me), injury, wk, recs, opp, playoff: !!g.playoff, home: g.h === c.meId, ot: r.ot, oppLine: sOp, myLine: Object.assign({}, my), boss: !g.playoff && proIsBoss(c, opp) };
   if (rec.boss && win) { M.hype = Math.min(MD.hypeMax, (M.hype || 0) + SC.boss.hype); rec.bossWon = true; const BT = c.players[opp].tr; pushNews(c, 'Boss down: ' + me.name + ' beats ' + c.players[opp].name + (BT && TR.list[BT.third] ? ' and their ' + TR.list[BT.third].name : '') + '.', 'award'); } // V4: the Boss (+hype)
   // the story: hype and confidence, the rival, headlines (the press question waits for the playoff result below)
   storyFill(c); const md = mdAfterGame(M, win, us, them); rec.md = md; mdHighlights(M, my, len); const O = c.players[opp], oppOvr = recOvr(O), recList = recs.map(k => ({ k, v: M.records[k] }));
@@ -12078,7 +12108,7 @@ function startPlayoffs(c) {
 }
 function advancePlayoffGame(c, s, winner, rec) {
   if (winner === s.a) s.wa++; else s.wb++; const need = Math.ceil(s.bestOf / 2);
-  if (s.wa >= need || s.wb >= need) { s.done = true; s.winner = s.wa >= need ? s.a : s.b; }
+  if (s.wa >= need || s.wb >= need) { s.done = true; s.winner = s.wa >= need ? s.a : s.b; if (s.winner === c.meId && c.me) { const H = c.me.poWins || (c.me.poWins = {}); H[c.season] = (H[c.season] || 0) + 1; } } // V6 (§1.3): your slot's series wins (value, the 5★ condition)
   // the other series in this round play one game each
   const rng = careerRng(c); let guard = 0; do { for (const o of c.playoffs.series) { if (o === s || o.done) continue; const gi = o.wa + o.wb; const home = gi % 2 === 0 ? o.a : o.b; const r = simBox(c, home, home === o.a ? o.b : o.a, rng); recordResult(c, r, true); const w = r.hs > r.as ? r.h : r.a; if (w === o.a) o.wa++; else o.wb++; if (o.wa >= Math.ceil(o.bestOf / 2) || o.wb >= Math.ceil(o.bestOf / 2)) { o.done = true; o.winner = o.wa > o.wb ? o.a : o.b; } } } while (s.done && c.playoffs.series.some(o => !o.done) && guard++ < 10); // once your series is over, the rest of the round finishes
   c.week++;
@@ -12157,10 +12187,11 @@ function offseasonContract(c) {
   const offers = proFreeAgency(c, rng, val); // R7: your club, a big market, a club that starts you; you negotiate the years and the role
   c.offseason.fa = { offers, value: val }; return offers;
 }
-function acceptContract(c, i, years, promise) { const fa = c.offseason && c.offseason.fa; if (!fa) return; const o = fa.offers[i]; if (!o) return; const me = meOf(c); const moved = o.club !== me.club; if (moved) { const mate = c.active.find(id => id !== c.meId && c.players[id].club === o.club); const oldClub = me.club; if (mate) c.players[mate].club = oldClub; me.club = o.club; }
+function acceptContract(c, i, years, promise) { const fa = c.offseason && c.offseason.fa; if (!fa) return; const o = fa.offers[i]; if (!o) return; const me = meOf(c); const moved = o.club !== me.club; if (moved) { const sp = frSpots5(c).open[o.club]; if (sp && !sp.taken) sp.taken = 'me'; } /* V6: you took the open 5★ spot */ if (moved) { const mate = c.active.find(id => id !== c.meId && c.players[id].club === o.club); const oldClub = me.club; if (mate) c.players[mate].club = oldClub; me.club = o.club; }
   if (o.base) { o.years = clamp(years || o.years, 1, o.maxYears || PR.yearsMul.length); o.promise = promise == null ? o.promise : (!!promise || !!o.promised); o.salary = proOfferSalary(o, o.years, o.promise); } /* R7: the negotiation: years and the role */
   c.me.contract = { club: me.club, salary: o.salary, years: o.years, rookie: false, promise: !!o.promise, kind: o.kind || 'yours' }; me.contract = { years: o.years, salary: o.salary }; c.me.bigMarket = null; /* F7: stars replace the big market */ fa.done = true; storyFill(c); tlAdd(c, 'contract', (moved ? 'Signed with the ' : 'Re-signed with the ') + clubOf(me.club).name + ': ' + fmtMoney(o.salary) + ' × ' + o.years); try { socialPost(c, 'sign', moved ? stFirst(me.name) + ' to the ' + clubOf(me.club).name + '! ' + fmtMoney(o.salary) + ' a season. Worth every cent.' : stFirst(me.name) + ' stays. ' + o.years + ' more seasons. Love to see loyalty.', 2); } catch (e) { /* decoration */ } /* R9 */ pushNews(c, moved ? meOf(c).name + ' signs with the ' + clubOf(me.club).name + ': ' + fmtMoney(o.salary) + ' a season for ' + o.years + '.' : meOf(c).name + ' re-signs with the ' + clubOf(me.club).name + '.', 'money'); }
 function newSeason(c) {
+  try { frSpotsSettle(c, null); } catch (e) { /* the league's news */ } /* V6 (§1.3): the 5★ spots you didn't take go to their rivals */
   c.season++; for (const id of c.active) { const p = c.players[id]; if (p.rookie && p.since < c.season) p.rookie = false; }
   const me = meOf(c); me.rookie = false; wkNewSeason(c.me); c.me.playoffResult = null; c.offseason = null; c.me.ovrSeasonStart = recOvr(me); // V1: the season's practice gains start here
   try { tmSyncPro(c); if (c.team) { c.team.seasons++; c.team.stars = frMine(c); } proApplyPromise(c); frCheckGoals(c, 'sign'); } catch (e) { /* the franchise is decoration */ } /* R7: a promised start; F7: this season's stars, the goals */
@@ -12211,6 +12242,9 @@ function amHeightAt(c, age) { const t = hasTrait(c, 'latebloomer') ? AMC.growth.
 // every rating on top, in every game (effRatings), so it isn't in the ceilings.
 function amGenesRng(c) { return new RNG(((((c.seed >>> 0) ^ 0x9E3779B9) >>> 0) * 2246822519 + 7) >>> 0 || 13); } // genes and traits roll from their own stream: the career's other draws are the same as before R3
 function amRollGenes(rng, gifted) { const G = AMC.genes, o = {}; for (const k of PHYS_KEYS) o[k] = Math.round(clamp(G.mean + G.sd * rng.gauss() + (gifted ? G.gifted : 0), G.min, G.max)); return o; }
+// V6 (Part 2 §1.2): the hidden potential in each skill: one talent roll shared by the four, a spread each (AMC.pot), from
+// the career's seed; never under a rating you already have. Speed, Hops and Strength keep their genetic caps (potsOf).
+function potRoll(seed, r) { const P = AMC.pot, rng = new RNG((((seed >>> 0) * 2654435761) ^ 0x9E37) >>> 0 || 7), t = rng.gauss(), out = {}; for (const k of RATING_KEYS) { if (PHYS_KEYS.includes(k)) continue; const v = Math.round((P.mean + P.sd * t + P.spread * rng.gauss()) / CR.xpStep) * CR.xpStep; out[k] = clamp(Math.max(v, (r && r[k]) || 0), P.min, P.max); } return out; }
 function capOf(k, genes, holder) { const G = AMC.genes; const base = PHYS_KEYS.includes(k) ? (genes && genes[k] > 0 ? genes[k] : G.mean) + (k === 'str' ? G.roomStr : G.room) : G.skillCap; return clamp(Math.round((base + trHead(holder, k)) / CR.xpStep) * CR.xpStep, AMC.capMin, CR.ratingMax); }
 // r: never a ceiling under a rating you already have (older saves).
 function capsFrom(genes, holder, r) { const o = {}; for (const k of RATING_KEYS) { o[k] = capOf(k, genes, holder); if (r && r[k] > o[k]) o[k] = r[k]; } return o; }
@@ -12251,7 +12285,7 @@ function amCreate(save, form) {
   const grng = amGenesRng(c); c.tr = traitsNew(grng); c.genes = amRollGenes(grng, c.gifted);
   if (Array.isArray(form.traits) && TR.list[form.traits[0]]) c.tr = { sig: form.traits[0], hidden: TR.list[form.traits[1]] ? form.traits[1] : null, found: !TR.list[form.traits[1]] }; // tests: forced traits (the trait balance test)
   if (hasTrait(c, 'latebloomer')) { const LB = TR.list.latebloomer; c.bloom = 'late'; c.heightFinal = Math.round(Math.min(AMC.heightMax + LB.height, c.heightFinal + LB.height) * 100) / 100; for (const k of RATING_KEYS) c.r[k] = Math.max(CR.ratingMin, c.r[k] + LB.down.start); } // Late Bloomer: +3 cm, grows late, starts 4 lower
-  c.height = amHeightAt(c, AMC.startAge); c.caps = capsFrom(c.genes, c); c.growthLog.push({ age: c.age, h: c.height }); proLegacyStart(save, c, grng); /* R7: a youth academy from the last career */
+  c.height = amHeightAt(c, AMC.startAge); c.caps = capsFrom(c.genes, c); c.pot = potRoll(c.seed, c.r); /* V6 (§1.2): the hidden potential */ c.growthLog.push({ age: c.age, h: c.height }); proLegacyStart(save, c, grng); /* R7: a youth academy from the last career */
   const rv = amMakeOpp(c, rng, 'hs', amOvr(c) + 2, 'rival'); rv.rival = true; rv.age = AMC.startAge; c.rival = rv;
   { const pool = AM_SCHOOLS.filter(n => n !== c.school); rv.school = pool[tmHash(c.seed + ':rival') % pool.length]; } // R3: the rival plays for a rival school
   amNewSeason(c, rng);
@@ -12309,8 +12343,9 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); // R6: marquee games count overall, not in the conference
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0, marquee: !!opp.marquee });
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
-  const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c) * colXpMul(c), c, gameScale(c.stage)); // F5: a one-minute line counts per the old length
-  if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add)) gains.push(g2); } // the college coach's specialty
+  const grade = gradeFor(st, won, gameScale('pro')); /* V6: the grade pays XP (CR.gradeXp); the pro scale, like the league's lines */ L.games[L.games.length - 1].grade = grade; const slump = slumpAfterGame(c, grade); /* V6 (§1.2) */
+  const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c) * colXpMul(c), c, gameScale(c.stage), grade); // F5: a one-minute line counts per the old length
+  if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add, potsOf(c, c.caps))) gains.push(g2); } // the college coach's specialty
   const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trDeed(c, 'moves', learned.length); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
   storyFill(c); const md = mdAfterGame(c, won, my, their); { const hv = mdHighlights(c, st, gameScale(c.stage)); if (tag === 'rivalry' && hv > 0) c.hype = Math.min(MD.hypeMax, c.hype + hv * (HS.rivalryHype - 1)); } /* R5: the rivalry game's highlights count half again */ const recs = checkRecords(c.records, st, T.g - 1); const oppOvr = ovrOf(opp.r, opp.height);
@@ -12319,24 +12354,24 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   const hw = mdHypeWeek(c, md.hype0, won, mdBigPerf(x)); if (c.sponsorCut > 0) c.sponsorCut--; /* R8: the week's hype; a sponsor pulling back */ const press = pressFor(c, x); if (press) c.events.push(press); try { stAfterGame(c, Object.assign({}, x, { injury: wk.injury, healed: wk.healed, home: !po && !!(L.home && L.home[L.week - 1]) })); socialAfterGame(c, x, st); } catch (e) { /* the story is decoration */ } /* R9 */ { const tb = traitStoryAfterGame(c, { playoff: !!po, won, us: my, them: their }); if (tb) c.events.push(tb); } // R3: a trait's story beat
   storyNews(c, (po ? 'Playoffs: ' : opp.rival ? 'Rivalry: ' : '') + (won ? c.name + ' beats ' + opp.name + ' ' + my + '–' + their : opp.name + ' beats ' + c.name + ' ' + their + '–' + my) + ((st.pts || 0) >= Math.ceil(my * 0.9) && won ? ', scoring ' + st.pts : '') + '.', opp.rival ? 'rival' : 'result');
   for (const r of recs) storyNews(c, c.name + ' sets a career high: ' + r.v + ' ' + REC_WORDS[r.k] + '.', 'record');
-  if (wk.injury) { storyNews(c, c.name + ' is playing through a ' + wk.injury.name.toLowerCase() + ' (' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '') + ').', 'injury'); tlAdd(c, 'injury', wk.injury.name + ', ' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '')); }
+  if (wk.injury) { injuryLossApply(c); /* V6 (§1.2) */ storyNews(c, c.name + ' is playing through a ' + wk.injury.name.toLowerCase() + ' (' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '') + injLossText(wk.injury) + ').', 'injury'); tlAdd(c, 'injury', wk.injury.name + ', ' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '')); }
   if (T.g === 1) { tlAdd(c, 'first', 'First game: ' + (won ? 'beat ' : 'lost to ') + opp.name + ' ' + my + '–' + their); amStoryAfterFirstGame(c, won); }
   if (md.boastCost) storyNews(c, 'So much for "just getting started": ' + c.name + ' loses and the hype cools.', 'media');
   let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng); else note = hsAfterWeek(c, rng) || '';
   amRivalMoments(c);
   if (traitRevealDue(c)) c.events.push(traitRevealCard(c)); // R3: the hidden trait's story moment
-  const spotR = spotStartDone(c, spot, gradeFor(st, won, gameScale('pro'))); /* V5 (2.0 §4.6) */ roadCheck(c); /* V5 (2.0 §4.1) */ if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
+  const spotR = spotStartDone(c, spot, grade); /* V5 (2.0 §4.6) */ roadCheck(c); /* V5 (2.0 §4.1) */ if (!L.done && !c.decision) ladderMaybeChallenge(c, rng); // R4: the teammate below you may want your spot
   trAfterGame(c, st, { won, playoff: !!po, us: my, them: their, injured: !!wk.injury, ovr: amOvr(c), eng: simmed ? null : { clutch: st.trClutch || 0 } }); // V3: the traits' deeds (level-ups, the third trait)
   const boss = !po && amIsBoss(c, opp); if (boss && won) { c.hype = Math.min(MD.hypeMax, (c.hype || 0) + SC.boss.hype); const BT = opp.tr; storyNews(c, 'Boss down: ' + c.name + ' beats ' + opp.name + (BT && TR.list[BT.third] ? ' and their ' + TR.list[BT.third].name : '') + '.', 'record'); } // V4: the Boss (+hype)
-  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw, helped: simmed ? traitsHelpedSim(c, !!po) : null, boss, bossWon: boss && won, spot: spotR };
+  return { won, my, their, opp: opp.name, oppId: opp.id, rival: !!opp.rival, gains, learned, note, grade, slump, /* V6 */ ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, press: !!press, tag, hype: hw, helped: simmed ? traitsHelpedSim(c, !!po) : null, boss, bossWon: boss && won, spot: spotR };
 }
 function amSimGame(c) {
   hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!playsThisWeek(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!playsThisWeek(c) || c.ineligible > 0) return amSimBenchGame(c); } /* V5: a spot start plays */ amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id); const G = mdGame(c, g.opp.id, !!g.opp.rival, amHome(c, !!g.playoff)); // R8: hype, a trash-talked opponent, a fired-up rival
-  const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff) + G.simMe, ovrOf(g.opp.r, g.opp.height) + G.simOpp + trSimEdge(g.opp, !!g.playoff)); const a = sc[0], b = sc[1], f = gameScale(c.stage); // traits: what their in-game effects are worth; f (F5): the game length over the old format's
+  const E = simEdgeOf(c); /* V6: the simulator's great policy */ const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff) + G.simMe + E, ovrOf(g.opp.r, g.opp.height) + G.simOpp + trSimEdge(g.opp, !!g.playoff)); const a = sc[0], b = sc[1], f = gameScale(c.stage); // traits: what their in-game effects are worth; f (F5): the game length over the old format's
   const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62), sl = simShotLine(a, a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3, 0.36, pct); const tpm = sl.tpm, twos = sl.fgm - sl.tpm; // V1 (§1.6): a line that adds up (3PA first, FGA ≥ 3PA + 2PA)
   const st = { pts: sl.pts, fgm: sl.fgm, fga: sl.fga, tpm, tpa: sl.tpa, ftm: sl.ftm, fta: sl.fta, reb: Math.round((2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12) * f), stl: Math.floor(rng.next() * 3 * f + 0.3 * rng.next()), blk: Math.floor((rng.next() * 2 + Math.max(0, c.height - 1.95) * 6) * f + 0.3 * rng.next()), dunkM: 0, layM: Math.round(twos * 0.5) };
   st.dunkM = Math.min(st.layM, Math.round(twos * clamp((eff.jmp / 10 - 5) * 0.07 + (c.height - 1.9) * 0.6, 0, 0.45))); st.layM -= st.dunkM; st.ankles = Math.floor(rng.next() * clamp(eff.han / 10 - 3, 0, 6) * 0.45 * f + 0.3 * rng.next()); // highlights of a simmed game (R3: hype)
-  return amApplyResult(c, g.opp, a, b, st, true);
+  return amApplyResult(c, g.opp, a, b, st, !E); // (the great policy's games count as played)
 }
 // R4: a week you don't start: the teammate on the top rung plays the team's game (simulated); you practiced.
 function amSimBenchGame(c) {
@@ -12472,6 +12507,7 @@ function amUpgrade5(c) {
 }
 function amRepair(c) {
   if (!c.r || !c.caps || !c.stage) return null; for (const k of RATING_KEYS) { if (!(c.r[k] > 0)) c.r[k] = 30; if (!(c.caps[k] > 0)) c.caps[k] = 75; if (!(c.xp[k] >= 0)) c.xp[k] = 0; }
+  if (!c.pot || typeof c.pot !== 'object') c.pot = potRoll(c.seed, c.r); /* V6: a save from before the hidden potential rolls one (never under a rating it already has) */
   if (!Array.isArray(c.events)) c.events = []; if (!Array.isArray(c.log)) c.log = []; if (!Array.isArray(c.awards)) c.awards = []; if (!Array.isArray(c.growthLog)) c.growthLog = [];
   if (c.stage === 'college' && !c.program) c.program = { name: c.college, tier: c.collegeTier || 0, fac: 1, focus: null, coach: 'Coach' }; if (c.decision && c.decision.kind === 'college' && !(c.decision.visits >= 0)) c.decision.visits = RCT.visits;
   wkFill(c); storyFill(c); if (!CR.trainFocus[c.focus]) c.focus = FOCUS_R3[c.focus] || 'shooting'; // saves from before the week loop: fresh legs, Practice as the standing plan; no hype, no headlines yet
@@ -12516,10 +12552,39 @@ function drawStarsShort(ctx, n, x, y, size, align) { n = clamp(n | 0, 0, 5); ctx
 
 // ---------------- your value, and who calls ----------------
 // Value: what a front office sees (OVR, then fame and hype). A franchise of s stars calls when it reaches FRN.bar[s − 1].
-function frValue(c) { const me = meOf(c), M = c.me; return recOvr(me) + (M.fame || 0) / FRN.fameDiv + (M.hype || 0) / FRN.hypeDiv; }
+function frValue(c) { const me = meOf(c), M = c.me; return recOvr(me) + (M.fame || 0) / FRN.fameDiv + (M.hype || 0) / FRN.hypeDiv + Math.min(FRN.playoffMax, FRN.playoffVal * frPoWins(c, 2)); } // V6 (§1.3): + playoff performance
+// V6 (Part 2 §1.3): playoff series your slot won in the last n seasons (the one that just ended counts in the offseason),
+// an All-League team in them, and the 5★ condition (one or the other).
+function frPoWins(c, n) { const H = (c.me && c.me.poWins) || {}; let t = 0; for (let s = c.season - (n || 2) + 1; s <= c.season; s++) t += H[s] || 0; return t; }
+function frAllLeague(c, n) { return ((c.me && c.me.awards) || []).some(a => a && a.s > c.season - (n || 2) && /^All-League (1st|2nd) Team$/.test(a.name)); }
+function frElite(c) { return frPoWins(c, 2) > 0 || frAllLeague(c, 2); }
+// The most stars that would sign you: the value bars, and a 5★ franchise also wants frElite (FRN.need5).
+function frCapOf(c) { const cap = frCap(frValue(c)); return cap >= 5 && FRN.need5 && !frElite(c) ? 4 : cap; }
+// V6 (§1.3): stars stay put. Each offseason a 5★ franchise opens at most one rotation spot (FRN.spot5Odds: a veteran ages
+// out, is traded or walks), chased by named free agents; the best value gets it. Keyed by the season the spot is for.
+function frSpotSeason(c) { return c.season + (c.phase === 'offseason' || c.phase === 'retired' ? 1 : 0); }
+function frSpots5(c) {
+  const key = frSpotSeason(c), S = c.frSpots; if (S && S.season === key) return S;
+  const rng = new RNG((((c.seed >>> 0) * 977) ^ (key * 7919)) >>> 0 || 3), T = frTable(c), used = new Set(c.active.map(id => c.players[id] && c.players[id].name)), out = { season: key, open: {} };
+  for (const id of frByStars(T, 5)) { if (rng.next() >= FRN.spot5Odds) continue; const [lo, hi] = FRN.spot5Rivals, n = lo + rng.int(hi - lo + 1), rivals = []; for (let i = 0; i < n; i++) { const nm = genName(rng, used, new Set()); used.add(nm); rivals.push({ name: nm, val: Math.round((FRN.rivalVal[0] + FRN.rivalVal[1] * rng.gauss()) * 10) / 10 }); } rivals.sort((a, b) => b.val - a.val); out.open[id] = { reason: rng.pick(['a veteran retired', 'a trade', 'a free agent left']), rivals, taken: null }; }
+  return (c.frSpots = out);
+}
+// A 5★ franchise with an open spot you would win (your value over its best rival), or null.
+function frSpotWin(c, skip) { const O = frSpots5(c).open, v = frValue(c); for (const id of Object.keys(O)) { const sp = O[id]; if (sp.taken || (skip || []).includes(id)) continue; if (v > (sp.rivals[0] ? sp.rivals[0].val : 0)) return id; } return null; }
+// V6: the free-agency line about this offseason's 5★ spots: who opened one, the rival to beat, your value.
+function frSpotsLine(c) { const S = frSpots5(c), ids = Object.keys(S.open).filter(id => !S.open[id].taken), v = frValue(c).toFixed(1); const need = FRN.need5 && !frElite(c) ? ' A 5★ team also wants a playoff series won or an All-League team in your last two seasons.' : '';
+  if (!ids.length) return 'No 5★ franchise has an open spot this offseason (stars stay put). Your value ' + v + '.' + need;
+  return 'Open 5★ spots: ' + ids.map(id => { const sp = S.open[id], r = sp.rivals[0]; return clubOf(id).name + ' (' + sp.reason + '; ' + (r ? r.name + ' ' + r.val.toFixed(1) : 'no rival') + ')'; }).join(' · ') + '. Your value ' + v + ': beat the best rival to get one.' + need; }
+// V6: the open 5★ spots as a list (desktop free agency): each team, why it opened, its best rival; your value; the condition.
+function drawSpots5(ctx, ui, c, x, y, w) { const S = frSpots5(c), ids = Object.keys(S.open).filter(id => !S.open[id].taken), v = frValue(c).toFixed(1); ui.heading(ctx, 'OPEN 5★ SPOTS · YOUR VALUE ' + v, x, y + 10, 15, UI_CYAN); let yy = y + 36;
+  if (!ids.length) { ui.label(ctx, 'None this offseason: stars stay put until a veteran retires, is traded or leaves.', x, yy, 14, UI_DIM, 'left', w); yy += 24; }
+  for (const id of ids.slice(0, 3)) { const sp = S.open[id], r = sp.rivals[0]; ui.label(ctx, clubOf(id).name + ' · ' + sp.reason + ' · best rival ' + (r ? r.name + ' ' + r.val.toFixed(1) : 'none') + (r && +v > r.val ? ' · yours to take' : ''), x, yy, 14, r && +v > r.val ? UI_GREEN : UI_TEXT, 'left', w); yy += 24; }
+  if (FRN.need5 && !frElite(c)) ui.para(ctx, 'A 5★ team also wants a playoff series won or an All-League team in your last two seasons.', x, yy, w, 13, UI_ORANGE, 'left', 2); }
+// After free agency: the spots you didn't take go to their best rival (the news names them).
+function frSpotsSettle(c, mine) { const S = frSpots5(c); for (const id of Object.keys(S.open)) { const sp = S.open[id]; if (sp.taken) continue; if (id === mine) { sp.taken = 'me'; continue; } const r = sp.rivals[0]; sp.taken = r ? r.name : 'a free agent'; if (r) pushNews(c, 'The ' + clubOf(id).name + ' (5★) fill their open spot with ' + r.name + ' (value ' + r.val.toFixed(1) + ').', 'league'); } }
 function FRNbarOf(k) { return FRN.bar[clamp(k | 0, 1, 5) - 1]; }
 function frCap(v, bars) { bars = bars || FRN.bar; let s = 1; for (let k = 1; k <= 5; k++) if (v >= bars[k - 1]) s = k; return s; }
-function frNextBar(c) { const v = frValue(c), cap = frCap(v); return cap >= 5 ? { stars: 5, need: FRN.bar[4], have: v, top: true } : { stars: cap + 1, need: FRN.bar[cap], have: v }; }
+function frNextBar(c) { const v = frValue(c), cap = frCap(v); return cap >= 5 ? { stars: 5, need: FRN.bar[4], have: v, top: true, elite: frElite(c) } : { stars: cap + 1, need: FRN.bar[cap], have: v, elite: frElite(c) }; } // elite (V6): the 5★ condition met
 function frByStars(T, s, skip) { return frRank(T).filter(id => T[id].stars === s && !(skip || []).includes(id)); }
 // Three offers from a table: the best franchise that wants you (a spot, not a promise), one a star lower that starts
 // you, and one that rebuilds around you (it starts you and pays FRN.rookieMore more). Each takes the first free
@@ -12607,7 +12672,7 @@ function careerMenuScreen(game) {
 // franchise already meets (their cards wait for the hub).
 function frUpgrade(c) { if (!c || !c.players || !c.me || c.fr) return; frMigrate(c); if (c.team) c.team.stars = frMine(c); if (!c.me.goals && c.phase !== 'retired') { c.me.goals = {}; frCheckGoals(c, 'sign'); } }
 // A trade request: the best franchise you can move to (stars at most your cap and FRN.tradeUp above yours, not yours).
-function frTradeDest(c, rng) { const T = frTable(c), me = meOf(c), cap = Math.min(frCap(frValue(c)), frMine(c) + FRN.tradeUp); for (let s = cap; s >= 1; s--) { const ids = frByStars(T, s, [me.club]); if (ids.length) return ids[(rng ? rng.int(ids.length) : 0)]; } return frIds().find(k => k !== me.club); }
+function frTradeDest(c, rng) { const T = frTable(c), me = meOf(c), cap = Math.min(frCapOf(c), frMine(c) + FRN.tradeUp); for (let s = cap; s >= 1; s--) { if (s === 5) { const id = frSpotWin(c, [me.club]); if (id) return id; const ids5 = frByStars(T, 5, [me.club]); if (ids5.length && rng && rng.next() < FRN.trade5Odds) return ids5[rng.int(ids5.length)]; continue; } /* V6 (§1.3): a 5★ franchise takes you into an open spot you'd win, or now and then trades a rotation player for you */ const ids = frByStars(T, s, [me.club]); if (ids.length) return ids[(rng ? rng.int(ids.length) : 0)]; } return frIds().find(k => k !== me.club); }
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 4) — the career week, shared by the amateur years and the pros (§8). Before each
@@ -12638,7 +12703,7 @@ function wkEff(r, h, B, oppId) {
   const gb = gearBonus(B); for (const k in gb) e[k] += gb[k]; // F8: gear, in games only
   if (B.injury) e.spd -= WK.injurySpd;
   if (w.done === 'film' && (w.filmOpp == null || oppId == null || w.filmOpp === oppId)) { const fb = trFilmBonus(B); e.def += fb; e.sho += fb; } // Film Junkie: double
-  e.sho += confShoOf(B); // confidence: ±0.2 Shooting at most (the press room)
+  e.sho += confShoOf(B) + (B.slump && B.slump.on ? MD.slump.sho : 0); // confidence: ±0.2 Shooting at most (the press room); V6 (§1.2): a slump −0.2 until you snap out of it
   const cut = fatigueCut(B.fatigue); for (const k of RATING_KEYS) e[k] = clamp(e[k] * (1 - cut), CR.ratingMin, CR.ratingMax);
   return e;
 }
@@ -12654,7 +12719,14 @@ function wkSummary(B) {
   if (cut > 0) parts.push('Tired: −' + cut + '% to every rating');
   return parts.join(' · ');
 }
-function wkInjure(B, rng) { const n = WK.injuryGames; B.injury = { name: rng.pick(WK.injuryNames), games: n[0] + rng.int(n[1] - n[0] + 1) }; return B.injury; }
+function wkInjure(B, rng) { const n = WK.injuryGames; B.injury = { name: rng.pick(WK.injuryNames), games: n[0] + rng.int(n[1] - n[0] + 1) };
+  const L = WK.injuryLoss, i = clamp(B.injury.games - 1, 0, L.odds.length - 1); if (rng.next() < L.odds[i] * injuryLossMul(B)) { const [lo, hi] = L.pts[i]; B.injury.loss = { k: /knee|calf/i.test(B.injury.name) ? 'jmp' : 'spd', pts: lo + rng.int(hi - lo + 1) }; } // V6 (§1.2): a setback for good (injuryLossApply takes it off the ratings)
+  return B.injury; }
+// V6 (Part 2 §1.2): the odds an injury costs rating points for good (nutrition & physio cut them like they cut injuries).
+function injuryLossMul(B) { return B && B.staff && B.staff.nutrition ? PR.nutritionInjury : 1; }
+// Takes a fresh injury's lasting cost off your ratings, once, and gives it back (null if there is none).
+function injuryLossApply(c) { const B = holderOf(c), inj = B && B.injury, L = inj && inj.loss; if (!L || L.done) return null; const r = isPro(c) ? meOf(c).r : c.r; const before = r[L.k]; r[L.k] = Math.max(CR.ratingMin, before - L.pts); L.done = true; L.pts = before - r[L.k]; return L.pts > 0 ? L : null; }
+function injLossText(inj) { const L = inj && inj.loss; return L && L.pts > 0 ? ', and −' + L.pts + ' ' + RATING_LONG[L.k] + ' for good' : ''; }
 // --- the three plans ---
 function wkRest(B, extra) {
   const w = wkOf(B); if (w.done) return null; const before = B.fatigue || 0; B.fatigue = Math.max(0, before - (WK.restFatigue + (extra || 0)) * trMul(B, 'recovery')); let healed = false; // Gym Rat recovers 10% slower
@@ -12667,7 +12739,7 @@ function wkFilm(B, oppId) { const w = wkOf(B); if (w.done) return false; w.done 
 function wkPractice(B, r, xpBank, caps, focus, xpIn, intensity, rng) {
   const w = wkOf(B); if (w.done) return null; const F = CR.trainFocus[focus] || CR.trainFocus.shooting, I = WK.intensity[intensity] || WK.intensity.normal;
   const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k] * trRatingXpMul(B, k); // V3: a trait's rating XP
-  const gains = gainsMap(spendXp(r, xpBank, caps, add));
+  const gains = gainsMap(spendXp(r, xpBank, caps, add, potsOf(B, caps))); // V6: past your potential it costs more
   w.done = 'practice'; w.xp = Math.round(xpIn); B.plan = 'practice'; B.fatigue = clamp((B.fatigue || 0) + I.fatigue * trMul(B, 'fatigue'), 0, 100); trDeed(B, 'practice', 1); // V3: Iron Man and Unbreakable tire slower; Gym Rat's deed
   let injury = null; if (I.risk && injuriesOn() && !B.injury && rng.next() < I.risk * trMul(B, 'injury')) injury = wkInjure(B, rng); // Iron Man ×0.6, Unbreakable never
   return { gains, xp: Math.round(xpIn), injury };
@@ -12692,9 +12764,16 @@ function wkNewSeason(B) { B.fatigue = 0; B.injury = null; wkNew(B); }
 // --- the amateur week ---
 function amSessionXp(c, intensity) { return CR.xpEarn /* F6 */ * WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); }
 function amDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(c.age) * trPracticeMul(c, c.age) * trustXpMul(c) * hsXpMul(c) * colXpMul(c); } // R4: coach trust pays up to +20%
-function amPractice(c, focus, intensity, xpIn) {
+// V6 (Part 2 §1.2): a week's practice load is capped at WK.loadCap × a normal session (yours, every bonus in): past it,
+// practice turns into fatigue instead of XP. Returns { xp, fatigue } (the XP kept; the extra fatigue).
+// The normal week a practice is measured against: a simmed normal session, or for a played drill (and a depth-chart
+// game) the drill at WK.loadDrillRef of a great score, at normal intensity.
+function amLoadRef(c, focus, drill) { return drill ? amDrillXp(c, focus, 'normal', (WK.drillGreat[focus] || 10) * WK.loadDrillRef) : amSessionXp(c, 'normal'); }
+function proLoadRef(c, focus, drill) { return drill ? proDrillXp(c, focus, 'normal', (WK.drillGreat[focus] || 10) * WK.loadDrillRef) : proSessionXp(c, focus, 'normal'); }
+function wkLoadCap(xpIn, normal) { const cap = WK.loadCap * Math.max(1e-6, normal || 0); if (!(xpIn > cap)) return { xp: xpIn, fatigue: 0 }; return { xp: cap, fatigue: WK.loadFatigue * (xpIn - cap) / Math.max(1e-6, normal) }; }
+function amPractice(c, focus, intensity, xpIn, drill) { // drill (V6): xpIn is a played drill's (the load cap's measure)
   if (CR.trainFocus[focus]) c.focus = focus; c.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = amOvr(c), movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c));
-  const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, xpIn, c.intensity, amRng(c)); if (!res) return null;
+  const L = wkLoadCap(xpIn, amLoadRef(c, c.focus, drill)); const res = wkPractice(c, c.r, c.xp, c.caps, c.focus, L.xp, c.intensity, amRng(c)); if (!res) return null; if (res.injury) injuryLossApply(c); /* V6 */ if (L.fatigue > 0) { c.fatigue = clamp((c.fatigue || 0) + L.fatigue, 0, 100); res.loadFatigue = Math.round(L.fatigue); res.loadXp = Math.round(xpIn - L.xp); }
   res.ovrBefore = ovrBefore; res.ovrAfter = amOvr(c); res.learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trDeed(c, 'moves', res.learned.length); trDeed(c, 'ovr', res.ovrAfter, true); return res;
 }
 function amRest(c) { return wkRest(c); }
@@ -12706,16 +12785,16 @@ function amStartGame(c) { wkFill(c); amBossEnsure(c); /* V4: the season's Boss *
 function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proCoachMul(c, focus) * proTrainerMul(c) * proXpMul(c) * /* R7: the private coach (your focus), the personal trainer (practice), the pro XP base */ (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
 function proSessionXp(c, focus, intensity) { return CR.xpEarn /* F6 */ * WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
-function proPractice(c, focus, intensity, xpIn) {
+function proPractice(c, focus, intensity, xpIn, drill) {
   const M = c.me, me = meOf(c); if (CR.trainFocus[focus]) M.focus = focus; M.intensity = WK.intensity[intensity] ? intensity : 'normal'; const ovrBefore = recOvr(me), movesBefore = learnedMoves(me, M);
-  const res = wkPractice(M, me.r, M.xp, me.caps, M.focus, xpIn, M.intensity, careerRng(c)); if (!res) return null;
+  const L = wkLoadCap(xpIn, proLoadRef(c, M.focus, drill)); const res = wkPractice(M, me.r, M.xp, me.caps, M.focus, L.xp, M.intensity, careerRng(c)); if (!res) return null; if (res.injury) injuryLossApply(c); /* V6 */ if (L.fatigue > 0) { M.fatigue = clamp((M.fatigue || 0) + L.fatigue, 0, 100); res.loadFatigue = Math.round(L.fatigue); res.loadXp = Math.round(xpIn - L.xp); } // V6: the load cap
   M.xpSeason = (M.xpSeason || 0) + res.xp; if (res.injury) pushNews(c, me.name + ' got hurt in practice: ' + res.injury.name.toLowerCase() + ' (' + res.injury.games + ' game' + (res.injury.games > 1 ? 's' : '') + ').', 'injury');
   res.ovrBefore = ovrBefore; res.ovrAfter = recOvr(me); res.learned = newMovesSince(movesBefore, learnedMoves(me, M)); trDeed(M, 'moves', res.learned.length); trDeed(M, 'ovr', res.ovrAfter, true); return res;
 }
 function proRest(c) { const M = c.me; return wkRest(M, WK.restPhysio * (proNutrition(c) ? 2 : 0) + WK.restGym * (M.gym || 0)); } // R7: nutrition & physio count as the old two physio stars
 function proFilm(c) { const g = userGame(c); const ok = wkFilm(c.me, g ? opponentOf(c, g) : null); if (ok) trFilmXp(c); return ok; }
 // V3: Film Junkie: a Film week also pays a share of a Practice week's XP (into your focus).
-function trFilmXp(c) { const B = holderOf(c), f = trMul(B, 'filmXp') - 1; if (!(f > 0)) return 0; const pro = isPro(c), me = pro ? meOf(c) : null, focus = pro ? c.me.focus : c.focus, F = CR.trainFocus[focus] || CR.trainFocus.shooting; const xp = f * (pro ? proSessionXp(c, focus, 'normal') : amSessionXp(c, 'normal')), add = {}; for (const k in F.split) add[k] = xp * F.split[k]; spendXp(pro ? me.r : c.r, pro ? c.me.xp : c.xp, pro ? me.caps : c.caps, add); const w = wkOf(B); w.xp = Math.round(xp); return xp; }
+function trFilmXp(c) { const B = holderOf(c), f = trMul(B, 'filmXp') - 1; if (!(f > 0)) return 0; const pro = isPro(c), me = pro ? meOf(c) : null, focus = pro ? c.me.focus : c.focus, F = CR.trainFocus[focus] || CR.trainFocus.shooting; const xp = f * (pro ? proSessionXp(c, focus, 'normal') : amSessionXp(c, 'normal')), add = {}; for (const k in F.split) add[k] = xp * F.split[k]; spendXp(pro ? me.r : c.r, pro ? c.me.xp : c.xp, pro ? me.caps : c.caps, add, potsOf(B, pro ? me.caps : c.caps)); const w = wkOf(B); w.xp = Math.round(xp); return xp; }
 function proStartGame(c) { const M = wkFill(c.me); proBossEnsure(c); /* V4 */ ladderSettlePending(c); if (M.wk.done) return null; const p = M.plan; return p === 'rest' ? proRest(c) : p === 'film' ? proFilm(c) : proPractice(c, M.focus, M.intensity, proSessionXp(c, M.focus, M.intensity)); }
 
 // ============================================================================
@@ -12731,6 +12810,16 @@ function mdFill(B) {
   if (!(B.hype >= 0)) B.hype = 0; if (B.hypeScale !== 100) { B.hype = Math.round(Math.min(MD.hypeMax, B.hype * 10) * 10) / 10; B.hypeScale = 100; } /* R8: hype ran 0–10 before */ B.hype = Math.min(MD.hypeMax, B.hype);
   if (!(Math.abs(B.confidence) <= MD.confMax)) B.confidence = 0; B.boast = !!B.boast; if (!(B.pressGap >= 0)) B.pressGap = 0;
   if (!B.grudge || typeof B.grudge !== 'object' || Array.isArray(B.grudge)) B.grudge = {}; if (!(B.sponsorCut >= 0)) B.sponsorCut = 0; B.quiet = !!B.quiet; return B; // R8: opponents you trash-talked, a sponsor pulling back (weeks), No comment's quiet week
+}
+// V6 (Part 2 §1.2): a slump: MD.slump.games straight games graded D or F drop your confidence to MD.slump.conf and cost
+// Shooting (MD.slump.sho) until a game graded B or better. Ice Veins (confidence never drops) never slumps. Returns
+// 'start', 'end' or null for the story.
+function slumpAfterGame(c, grade) {
+  const B = holderOf(c), M = MD.slump; if (!B || !grade) return null; const S = B.slump || (B.slump = { n: 0, on: false }); const bad = grade === 'D' || grade === 'F'; S.n = bad ? S.n + 1 : 0;
+  const name = isPro(c) ? meOf(c).name : c.name;
+  if (!S.on && S.n >= M.games && !trConfHold(B)) { S.on = true; B.confidence = Math.min(B.confidence || 0, M.conf); try { storyNews(c, name + ' is in a slump: ' + M.games + ' rough games in a row.', 'league'); } catch (e) { /* the news is decoration */ } return 'start'; }
+  if (S.on && M.endAt.includes(grade)) { S.on = false; S.n = 0; try { storyNews(c, name + ' snaps out of the slump with a ' + grade + '.', 'league'); } catch (e) { /* decoration */ } return 'end'; }
+  return null;
 }
 function confShoOf(B) { return clamp((Number(B && B.confidence) || 0) * MD.confSho, -MD.confShoMax, MD.confShoMax); }
 function storyFill(c) {
@@ -12870,7 +12959,7 @@ function amRivalMoments(c) {
 }
 function proRivalMoments(c) {
   storyFill(c); const g = userGame(c); if (!g || !c.rivalId || opponentOf(c, g) !== c.rivalId) return; const rv = c.players[c.rivalId], S = c.story, key = 'final' + c.season;
-  if (g.playoff && g.series && g.series.bestOf > 1 && !S[key]) { S[key] = true; stCount(c); const h = c.story.h2h || { w: 0, l: 0 }; (c.events || (c.events = [])).push(rivalCard('final', 'FINALS REMATCH', ['The final is you against ' + rv.name + '. You have been doing this since you were fourteen.', h2hText(h.w, h.l), 'Best of ' + g.series.bestOf + '. Nobody in this league has a rivalry like yours.'])); }
+  if (g.playoff && g.series && c.playoffs && c.playoffs.series.length === 1 && !S[key]) { /* the final (V6: the semifinals are a series too) */ S[key] = true; stCount(c); const h = c.story.h2h || { w: 0, l: 0 }; (c.events || (c.events = [])).push(rivalCard('final', 'FINALS REMATCH', ['The final is you against ' + rv.name + '. You have been doing this since you were fourteen.', h2hText(h.w, h.l), 'Best of ' + g.series.bestOf + '. Nobody in this league has a rivalry like yours.'])); }
 }
 function h2hAdd(c, won) { storyFill(c); const h = c.story.h2h || (c.story.h2h = { w: 0, l: 0 }); if (won) h.w++; else h.l++; }
 
@@ -12928,7 +13017,7 @@ function amChooseCollege(c, o) {
 // --- hidden potential: the genetic limits (Speed, Hops, Strength) show as a band that narrows as scouts learn more ---
 function amScoutSeen(c) { if (!c || c.stage === 'combine' || c.stage === 'pro' || c.handedOff) return 1; const S = AMC.scoutSeen; const hs = c.stage === 'hs' ? c.stageYear - 1 : 4, col = c.stage === 'college' ? c.stageYear - 1 : 0; return clamp(S[0] + S[1] * hs + S[2] * col, 0, 1); }
 function amCapBand(c) { const seen = amScoutSeen(c), out = {}; for (const k of RATING_KEYS) { const W = PHYS_KEYS.includes(k) ? (1 - seen) * AMC.scoutBand : 0; /* R3: only the genetic limits are unknown; skills are open to anyone */ const u = ((hashString(String(c.seed) + ':' + k) % 1000) / 1000) - 0.5; const mid = c.caps[k] + u * W; out[k] = { lo: clamp(Math.round(mid - W / 2), c.r[k], CR.ratingMax), hi: clamp(Math.round(mid + W / 2), c.r[k], CR.ratingMax) }; } return out; }
-function amPotentialText(c) { const b = amCapBand(c), lo = {}, hi = {}; for (const k of RATING_KEYS) { lo[k] = b[k].lo; hi[k] = b[k].hi; } const h = c.heightFinal || c.height, a = potGrade(ovrOf(lo, h)), z = potGrade(ovrOf(hi, h)); return a === z ? 'potential ' + a : 'potential ' + a + ' to ' + z; }
+function amPotentialText(c) { const b = amCapBand(c), P = potsOf(c, c.caps), lo = {}, hi = {}; for (const k of RATING_KEYS) { const p = P && P[k] != null ? Math.max(c.r[k], P[k]) : null; lo[k] = p != null ? Math.min(b[k].lo, p) : b[k].lo; hi[k] = p != null ? Math.min(b[k].hi, p) : b[k].hi; } /* V6 (§1.2): skills at their hidden potential (the soft ceiling), the body at the scouts' band */ const h = c.heightFinal || c.height, a = potGrade(ovrOf(lo, h)), z = potGrade(ovrOf(hi, h)); return a === z ? 'potential ' + a : 'potential ' + a + ' to ' + z; }
 function amScoutLine(c) { const eff = effRatings(c.caps, c.heightFinal || c.height); const keys = RATING_KEYS.slice().sort((x, y) => eff[y] - eff[x]); return 'Scouts: ' + amPotentialText(c) + '. “' + RATING_LONG[keys[0]] + ' could be special. ' + RATING_LONG[keys[keys.length - 1]] + ' will always be work.”'; }
 
 // --- the first ten minutes: the first game, the week, the first growth spurt ---
@@ -13464,16 +13553,20 @@ function trustOf(c) { return c && c.team ? Math.round(c.team.trust || 0) : 0; }
 function trustAdd(c, v) { const T = c && c.team; if (!T || !v) return 0; const d = v > 0 ? v * trMul(holderOf(c), 'trust') : v; const before = T.trust || 0; T.trust = clamp(before + d, 0, 100); return T.trust - before; } // Glue Guy: gains ×1.5
 function trustXpMul(c) { return 1 + TM.trustXp * trustOf(c) / 100; }
 // Your effective OVR for a practice challenge (this week's fatigue and injury count; traits as in simmed games).
-function myChallengeOvr(c) { const B = holderOf(c); if (isPro(c)) { const me = meOf(c); return effOvr(wkEff(me.r, me.h, B)) + trSimEdge(B, false); } return effOvr(wkEff(c.r, c.height, c)) + trSimEdge(c, false); }
+function myChallengeOvr(c) { const B = holderOf(c), E = 2 * simEdgeOf(B); /* (a game to 7 rewards the great policy's skill twice over) */ if (isPro(c)) { const me = meOf(c); return effOvr(wkEff(me.r, me.h, B)) + trSimEdge(B, false) + E; } return effOvr(wkEff(c.r, c.height, c)) + trSimEdge(c, false) + E; }
+// V6: the career simulator's 'great' policy (a player who plays every game well): simulated games count as played, with
+// this many OVR points of edge (twice that in a practice game to 7 and in shootout points). Only the simulator sets it
+// (B.simEdge); a real career never has one.
+function simEdgeOf(B) { return B && B.simEdge > 0 ? B.simEdge : 0; }
 // A challenge's result. who: 'you' (you challenged the teammate above) or 'them' (the one below challenged you).
 function ladderResolve(c, mateId, won, who) {
   const m = ladderMate(c, mateId); if (!m) return null; const rank0 = ladderRank(c); let dt = 0;
-  if (who === 'you') { if (won && ladderOf(c).indexOf(mateId) >= 0 && ladderOf(c).indexOf(mateId) < ladderOf(c).indexOf('me')) { ladderTakeSpot(c, mateId); /* V5: the starter, or any teammate above you */ dt = trustAdd(c, TM.trust.challengeWin); } else dt = trustAdd(c, TM.trust.challengeLoss); }
+  let held = false; if (who === 'you') { if (won && ladderOf(c).indexOf(mateId) >= 0 && ladderOf(c).indexOf(mateId) < ladderOf(c).indexOf('me')) { if (myChallengeOvr(c) < tmMateOvr(m) - TM.takeGap) { held = true; dt = trustAdd(c, TM.trust.challengeWin); } /* V6 (Part 2 §1): a win takes the spot only within TM.takeGap OVR of them: the coach has to believe it */ else { ladderTakeSpot(c, mateId); /* V5: the starter, or any teammate above you */ dt = trustAdd(c, TM.trust.challengeWin); } } else dt = trustAdd(c, TM.trust.challengeLoss); }
   else { const L = ladderOf(c); if (!won && ladderBelowId(c) === mateId) { const i = L.indexOf('me'); L[i] = mateId; L[i + 1] = 'me'; dt = trustAdd(c, TM.trust.lostSpot); } else dt = trustAdd(c, TM.trust.defended); }
   { const R = c.chalRec && c.chalRec.season === c.season ? c.chalRec : (c.chalRec = { season: c.season, w: 0, l: 0 }); if (won) R.w++; else R.l++; } // V1 (§1.12): this season's challenge record (a bench season's recap)
   if (c.team.pending === mateId) c.team.pending = null; const rank1 = ladderRank(c); ladderStory(c, rank0, rank1, m);
-  const nm = isPro(c) ? meOf(c).name : c.name; storyNews(c, who === 'you' ? (won ? nm + ' beats ' + m.name + ' in practice and takes the #' + rank1 + ' spot.' : m.name + ' holds off ' + nm + ' in a practice challenge.') : (won ? nm + ' holds off a challenge from ' + m.name + '.' : m.name + ' beats ' + nm + ' in practice and takes the #' + rank0 + ' spot.'), 'league');
-  return { mate: m.name, mateId, won, who, rankBefore: rank0, rankAfter: rank1, trust: dt, starter: rank1 === 1 };
+  const nm = isPro(c) ? meOf(c).name : c.name; storyNews(c, who === 'you' ? (won ? (held ? nm + ' beats ' + m.name + ' in practice, but ' + m.name.split(' ')[0] + ' keeps the spot for now.' : nm + ' beats ' + m.name + ' in practice and takes the #' + rank1 + ' spot.') : m.name + ' holds off ' + nm + ' in a practice challenge.') : (won ? nm + ' holds off a challenge from ' + m.name + '.' : m.name + ' beats ' + nm + ' in practice and takes the #' + rank0 + ' spot.'), 'league');
+  return { mate: m.name, mateId, won, who, rankBefore: rank0, rankAfter: rank1, trust: dt, starter: rank1 === 1, held, gap: held ? Math.ceil(tmMateOvr(m) - TM.takeGap - myChallengeOvr(c)) : 0 }; // held (V6): won, but not close enough yet
 }
 // Simulated challenge (the SIM button, the career simulator, and a challenge left unplayed at the next game).
 function ladderSimChallenge(c, mateId, who, rng) { const m = ladderMate(c, mateId); if (!m) return null; rng = rng || tmRng(c); const won = rng.next() < 1 / (1 + Math.exp(-(myChallengeOvr(c) - tmMateOvr(m) - trSimEdge(m, false)) / TM.challengeScale)); return ladderResolve(c, mateId, won, who); }
@@ -13639,7 +13732,7 @@ function startLadderChallenge(game, mateId, who) {
   game.startMatch({ mode: '1v1', teams: [myPracticeTeam(c), mateTeam(c, m)], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, ruleset: 'half', half: { scoring: '2s3s', makeItTakeIt: false }, format: { type: 'first', target: TM.challengeTarget, winBy2: false }, court: isPro(c) ? 'gym' : (AMC.stages[c.stage] || AMC.stages.hs).court, seed: (Date.now() % 100000) >>> 0, controlMode: 'lock', adaptive: false, extras: false }, { kind: 'ladder', mateId, who });
 }
 // The week's practice from a challenge you started: its XP goes to your focus (a win pays like a good drill).
-function challengePractice(game, won) { const K = careerKit(game); if (!K) return null; const f = K.focus(), i = 'normal'; const xp = K.drillXp(f, i, 0) + (K.drillXp(f, i, 999) - K.drillXp(f, i, 0)) * (won ? 0.75 : 0.3); return K.practice(f, i, xp); }
+function challengePractice(game, won) { const K = careerKit(game); if (!K) return null; const f = K.focus(), i = 'normal'; const xp = K.drillXp(f, i, 0) + (K.drillXp(f, i, 999) - K.drillXp(f, i, 0)) * (won ? 0.75 : 0.3); return K.practice(f, i, xp, true); }
 function ladderPostScreen(game, m, after) {
   const c = careerOf(game) || amateurOf(game); const won = m.winner === 0; const res = c ? ladderResolve(c, after.mateId, won, after.who) : null; const prac = after.who === 'you' && c ? challengePractice(game, won) : null; game.save.save();
   return ladderResultScreen(game, res, prac, true, m);
@@ -13649,10 +13742,10 @@ function ladderResultScreen(game, res, prac, overlay, m) {
   return { widgets: items, name: 'ladderres', overlay: !!overlay, onBack() { if (overlay) game.quitToMenu(); else game.ui.pop(); },
     draw(ctx, ui) {
       ui.panel(ctx, 200, 40, 880, 640, UI_PANEL2); if (!res) { ui.title(ctx, 'PRACTICE', 240, 100, 40); return; }
-      const up = res.rankAfter < res.rankBefore, down = res.rankAfter > res.rankBefore; ui.title(ctx, res.won ? (res.who === 'you' ? (up ? 'SPOT TAKEN' : 'YOU WIN') : 'SPOT KEPT') : (down ? 'SPOT LOST' : 'NOT YET'), 240, 100, 44);
+      const up = res.rankAfter < res.rankBefore, down = res.rankAfter > res.rankBefore; ui.title(ctx, res.won ? (res.who === 'you' ? (up ? 'SPOT TAKEN' : res.held ? 'NOT QUITE' : 'YOU WIN') : 'SPOT KEPT') : (down ? 'SPOT LOST' : 'NOT YET'), 240, 100, 44);
       const score = m ? m.teams[0].score + ' – ' + m.teams[1].score : ''; ui.label(ctx, 'Practice challenge vs ' + res.mate + (score ? ' · ' + score : ' · simmed'), 240, 146, 17, UI_TEXT);
       ui.heading(ctx, 'DEPTH CHART: #' + res.rankBefore + ' → #' + res.rankAfter, 240, 196, 26, up ? UI_GREEN : down ? UI_RED : UI_GOLD);
-      const lines = [res.rankAfter === 1 ? 'You start the next game.' : 'The teammate on the top rung starts the next game. Challenge the one above you in practice.', 'Coach trust ' + (res.trust >= 0 ? '+' : '') + Math.round(res.trust) + ' → ' + trustOf(c) + '.'];
+      const lines = [res.held ? 'You won, but the coach keeps ' + res.mate + ' in front: get within ' + TM.takeGap + ' OVR of them (' + res.gap + ' to go) and a win takes the spot.' : res.rankAfter === 1 ? 'You start the next game.' : 'The teammate on the top rung starts the next game. Challenge the starter in practice.', 'Coach trust ' + (res.trust >= 0 ? '+' : '') + Math.round(res.trust) + ' → ' + trustOf(c) + '.'];
       if (prac) lines.push('It was this week\'s practice: +' + prac.xp + ' XP (' + (CR.trainFocus[careerKit(game).focus()] || {}).label + ').');
       let y = 246; for (const l of lines) y += ui.para(ctx, l, 240, y, 800, 17, UI_TEXT) + 10;
       drawLadderList(ctx, ui, c, 240, y + 16, 800, Math.max(1, Math.min(7, (ladderOf(c) || []).length, Math.floor((590 - y - 16) / 36))), 36);
@@ -14240,7 +14333,7 @@ function roadBanner(c) {
     else if (next.id === 'colstart') line = 'Win the depth chart: you are #' + ladderRank(c) + '.';
     else if (next.id === 'prooffer') line = 'Pro interest: ' + amProStars(c) + '★ franchises.';
     else if (next.id === 'rotation') line = 'Win the depth chart: you are #' + ladderRank(c) + '.';
-    else if (next.id === 'team3' || next.id === 'team4' || next.id === 'team5') { const st = next.id === 'team3' ? 3 : next.id === 'team4' ? 4 : 5, bar = FRN.bar[st - 1], v = Math.floor(frValue(c)); line = st + '★ teams sign at value ' + bar + ' · you: ' + v + ' (now ' + frMine(c) + '★).'; frac = Math.max(frac, clamp01(v / bar) * 0.999); }
+    else if (next.id === 'team3' || next.id === 'team4' || next.id === 'team5') { const st = next.id === 'team3' ? 3 : next.id === 'team4' ? 4 : 5, bar = FRN.bar[st - 1], v = Math.floor(frValue(c)); line = st + '★ teams sign at value ' + bar + ' · you: ' + v + ' (now ' + frMine(c) + '★)' + (st === 5 && FRN.need5 && !frElite(c) ? ', and a playoff series or All-League first.' : '.'); /* V6 (§1.3) */ frac = Math.max(frac, clamp01(v / bar) * 0.999); }
     else if (next.id === 'title') line = 'Win the playoffs. A better team helps.';
     else if (next.id === 'hof') line = 'Legacy ' + legacyOf(c).score + ' of ' + CR.hofScore + ' for the Hall of Fame.';
   } catch (e) { line = next ? next.what : ''; }
@@ -14362,7 +14455,7 @@ function hsNextLabel(c, nx) {
 
 // ---------------- tryouts: the shootout, then a 1v1 against a senior ----------------
 function hsTryoutSenior(c) { const V = hsVarsityTeam(c); if (!V || !V.mates || !V.mates.length) return null; const srs = V.mates.filter(m => m.cls === 4); return (srs.length ? srs : V.mates).slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a))[0]; }
-function hsSimShootout(c, rng) { const e = wkEff(c.r, c.height, c); return Math.round(clamp(4 + 0.2 * e.sho + rng.gauss() * 3, 0, 30)); }
+function hsSimShootout(c, rng) { const e = wkEff(c.r, c.height, c); return Math.round(clamp(4 + 0.2 * e.sho + 2 * simEdgeOf(c) + rng.gauss() * 3, 0, 30)); } // (V6: the simulator's great policy shoots twice its edge in points)
 function hsTryoutDrill(c, score) { const T = c.tryout; if (!T || T.step !== 'drill') return null; T.drill = Math.max(0, Math.round(Number(score) || 0)); T.step = 'game'; return T; }
 function hsTryoutGame(c, won, my, their) { const T = c.tryout; if (!T || T.step !== 'game') return null; T.game = { won: !!won, my: my | 0, their: their | 0 }; return hsTryoutDecide(c); }
 function hsSimTryoutGame(c, rng) { const m = hsTryoutSenior(c); const p = m ? 1 / (1 + Math.exp(-(myChallengeOvr(c) - tmMateOvr(m) - trSimEdge(m, false)) / TM.challengeScale)) : 1; const won = rng.next() < p; const lose = Math.floor(HS.tryoutTarget * (0.3 + rng.next() * 0.6)); return hsTryoutGame(c, won, won ? HS.tryoutTarget : lose, won ? lose : HS.tryoutTarget); }
@@ -14395,7 +14488,7 @@ function hsToJv(c) {
 // JV: win three of every four after four games and the varsity coach calls you up; the varsity's first weeks are on
 // the books already (its top rung played them).
 function hsMaybeCallUp(c, rng) {
-  const L = c.league; if (!L || L.format !== 'jv' || L.done || L.playoffs || L.week < HS.promoteAfter || L.week >= L.schedule.length) return null; const g = L.me.w + L.me.l; if (!g || L.me.w / g < HS.promoteWin) return null;
+  const L = c.league; if (!L || L.format !== 'jv' || L.done || L.playoffs || L.week < HS.promoteAfter || L.week >= L.schedule.length || c.stageYear < HS.callupFrom) return null; /* V6: freshmen earn varsity at tryouts only */ const g = L.me.w + L.me.l; if (!g || L.me.w / g < HS.promoteWin) return null;
   const week = L.week, jv = { w: L.me.w, l: L.me.l, games: L.games.slice() }; c.seasonJv = jv; hsToVarsity(c, 'callup'); const V = hsBuildLeague(c, rng, week); const coach = (c.team && c.team.coach && c.team.coach.name) || c.coach || 'Coach';
   c.events.push({ kind: 'story', who: 'coach', title: 'CALLED UP!', lines: ['JV ' + jv.w + '-' + jv.l + ': that was enough. You are on varsity for the rest of the season.', coach + ': "You earned it on JV. Now you are #' + ladderRank(c) + ' on the depth chart here. Climb."', 'The varsity is ' + V.me.w + '-' + V.me.l + ' in the district so far; ' + (V.schedule.length - V.week) + ' games left, then the district playoffs.'] });
   tlAdd(c, 'callup', 'Called up to varsity after a ' + jv.w + '-' + jv.l + ' JV start'); storyNews(c, c.name + ' is called up to the ' + c.school + ' varsity after a ' + jv.w + '-' + jv.l + ' start on JV.', 'league'); return V;
@@ -14475,9 +14568,9 @@ function hsSummerChoose(c, kind) {
   const S = c.summer; if (!S || !S.pending) return null; hsFill(c); if (!HS_SUMMER_INFO[kind]) kind = 'rest'; if (kind === 'camp' && c.cash < HS.campCost) kind = 'rest';
   const rng = amRng(c), lines = [], split = (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split;
   if (kind === 'aau') { const mean = amStageMean(c) + HS.aauOvr; let W = 0, Lw = 0; for (const nm of HS_CIRCUIT) { let w = 0, l = 0; for (let g = 0; g < 6 && l < 2; g++) { if (rng.next() < amWinP(amOvr(c), mean + AMC.oppSd * rng.gauss())) w++; else l++; } W += w; Lw += l; lines.push(nm.charAt(0).toUpperCase() + nm.slice(1) + ': ' + w + '-' + l + (l < 2 ? ', champions!' : '.')); }
-    c.exposure += HS.aauExposure; const add = {}; for (const k of RATING_KEYS) add[k] = Math.round(HS.aauXp * CR.xpEarn) / RATING_KEYS.length; spendXp(c.r, c.xp, c.caps, add); c.fatigue = Math.max(c.fatigue || 0, HS.aauFatigue); let hurt = null; if (injuriesOn() && !c.injury && rng.next() < HS.aauInjury * trMul(c, 'injury')) hurt = wkInjure(c, rng);
+    c.exposure += HS.aauExposure; const add = {}; for (const k of RATING_KEYS) add[k] = Math.round(HS.aauXp * CR.xpEarn) / RATING_KEYS.length; spendXp(c.r, c.xp, c.caps, add, potsOf(c, c.caps)); c.fatigue = Math.max(c.fatigue || 0, HS.aauFatigue); let hurt = null; if (injuriesOn() && !c.injury && rng.next() < HS.aauInjury * trMul(c, 'injury')) hurt = wkInjure(c, rng);
     lines.push('Scouts saw you: recruiting score +' + HS.aauExposure + '. You start the season at fatigue ' + Math.round(c.fatigue) + (hurt ? ', with a ' + hurt.name.toLowerCase() + ' (' + hurt.games + ' game' + (hurt.games > 1 ? 's' : '') + ').' : '.')); storyNews(c, c.name + ' goes ' + W + '-' + Lw + ' on the AAU circuit.', 'league'); }
-  else if (kind === 'camp') { c.cash -= HS.campCost; const add = {}; for (const k in split) add[k] = Math.round(HS.campXp * CR.xpEarn) * split[k]; const got = gainsMap(spendXp(c.r, c.xp, c.caps, add)); c.exposure += HS.campExposure; const gl = Object.keys(got).filter(k => got[k] > 0).map(k => RATING_SHORT[k] + ' +' + got[k]); lines.push(Math.round(HS.campXp * CR.xpEarn) + ' XP into ' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + (gl.length ? ': ' + gl.join(', ') : '') + '. $' + HS.campCost + ' spent ($' + Math.round(c.cash) + ' left).'); }
+  else if (kind === 'camp') { c.cash -= HS.campCost; const add = {}; for (const k in split) add[k] = Math.round(HS.campXp * CR.xpEarn) * split[k]; const got = gainsMap(spendXp(c.r, c.xp, c.caps, add, potsOf(c, c.caps))); c.exposure += HS.campExposure; const gl = Object.keys(got).filter(k => got[k] > 0).map(k => RATING_SHORT[k] + ' +' + got[k]); lines.push(Math.round(HS.campXp * CR.xpEarn) + ' XP into ' + ((CR.trainFocus[c.focus] || {}).label || 'your focus') + (gl.length ? ': ' + gl.join(', ') : '') + '. $' + HS.campCost + ' spent ($' + Math.round(c.cash) + ' left).'); }
   else if (kind === 'job') { c.cash += HS.jobPay; for (const k of RATING_KEYS) c.xp[k] = Math.max(0, (c.xp[k] || 0) - HS.jobXpLoss / RATING_KEYS.length); lines.push('You earned $' + HS.jobPay.toLocaleString() + ' ($' + Math.round(c.cash).toLocaleString() + ' saved). Less gym time: −' + HS.jobXpLoss + ' XP of progress.'); }
   else { c.fatigue = 0; if (c.injury) c.injury = null; storyFill(c); c.confidence = Math.min(MD.confMax, (c.confidence || 0) + HS.restConf); lines.push('Rested and healed. Confidence +' + HS.restConf + '.'); }
   S.pending = false; S.kind = kind; c.summers.push({ season: S.season, year: S.year, kind }); const r = hsUpdateRank(c, 'summer');
@@ -14836,7 +14929,7 @@ function proOfferSalary(o, years, promise) { const y = clamp(years | 0, 1, PR.ye
 // F7: three franchises: yours (your role stays), the best that wants you (its stars capped by your value; you compete for
 // the start) and one a star lower that promises the start. Pay × the franchise's stars.
 function proFreeAgency(c, rng, val) {
-  const me = meOf(c), T = frTable(c), cap = frCap(frValue(c)), maxY = proMaxYears(me.age), picks = frPickOffers(T, cap, rng, [me.club]);
+  const me = meOf(c), T = frTable(c); let cap = frCapOf(c); const spot = cap >= 5 ? frSpotWin(c, [me.club]) : null; if (cap >= 5 && !spot) cap = 4; /* V6 (§1.3): a 5★ offer needs an open spot you win */ const maxY = proMaxYears(me.age), picks = frPickOffers(T, cap, rng, [me.club]); if (spot) { const b = picks.find(o => o.kind === 'best'); if (b) { b.club = spot; b.stars = T[spot].stars; } }
   const mk = (club, kind, mul, promised) => { const s = T[club].stars, o = { club, kind, stars: s, base: Math.round(val * mul * FRN.payByStars[s - 1] * rng.range(0.97, 1.03) / 1000) * 1000, promised, facilities: FRN.facByStars[s - 1], current: club === me.club, maxYears: maxY }; o.years = Math.min(CR.contractYears, maxY); o.promise = promised; o.salary = proOfferSalary(o, o.years, o.promise); return o; };
   const out = [mk(me.club, 'yours', PR.faYours, ladderRank(c) === 1)], best = picks.find(o => o.kind === 'best'), st = picks.find(o => o.kind === 'starter');
   if (best) out.push(mk(best.club, 'best', PR.faBig, false)); if (st) out.push(mk(st.club, 'starter', PR.faStarter, true)); return out;
@@ -15263,6 +15356,7 @@ function gearScreen(game) {
 // ============================================================================
 const GUIDE_TOPICS = [['you', 'OVR & ratings'], ['moves', 'Moves'], ['season', 'The season'], ['buzz', 'Hype, fame, confidence'], ['body', 'Fatigue, injuries, gear'], ['team', 'Team & pro value'], ['money', 'Money & school']]; // (V4: the move list; V5: the season)
 function guidePct(x, d) { let s = (x * 100).toFixed(d == null ? 1 : d); if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, ''); return s + '%'; } // 0.0004 → 0.04%, 0.008 → 0.8%
+function guidePts(p) { return p[0] === p[1] ? p[0] + ' point' + (p[0] === 1 ? '' : 's') : p[0] + '–' + p[1] + ' points'; } // V6: an injury's lasting cost, [min, max]
 // The entries of one topic for career c (or none): { title, value, lines: [[text, color]] }.
 function guideEntries(game, topic) {
   const pro = careerOf(game), am = !pro ? amateurOf(game) : null, c = pro || am, B = c ? holderOf(c) : null, T = c && c.team, dim = UI_DIM, good = UI_GREEN, bad = '#FF8A8A', out = [];
@@ -15272,7 +15366,11 @@ function guideEntries(game, topic) {
     add('OVR', c ? String(ovr) : '', ['The average of your seven ratings after your height shifts them (tall players trade Speed for Strength).', 'It decides your games and your depth chart; in the pros it is most of your value to the franchises.']);
     add('The seven ratings', '', (c ? [['Yours: ' + RATING_KEYS.map(k => ({ sho: 'SHO', fin: 'FIN', han: 'HAN', spd: 'SPD', jmp: 'HOPS', def: 'DEF', str: 'STR' })[k] + ' ' + Math.floor(r[k])).join(' · '), UI_CYAN]] : []).concat(['Shooting: every jump shot and three. Finishing: layups, floaters and dunks. Handles: dribble moves, and keeping the ball.', 'Speed: your first step and staying in front. Hops: blocks, rebounds, dunks. Defense: contests and steals. Strength: post-ups and contact.']));
     const f = c ? (CR.trainFocus[(pro ? c.me.focus : c.focus)] || CR.trainFocus.shooting) : null, fk = f ? Object.keys(f.split)[0] : 'sho', fr = c ? Math.floor(r[fk]) : 60;
-    add('XP', c ? 'next +1 ' + RATING_LONG[fk].toLowerCase() + ': ' + Math.round(xpNeed(fr)) + ' XP' : '', ['Games pay XP for what you do in them (makes, finishes, rebounds, steals, blocks); practice pays XP into your focus.', 'A +1 costs ' + CR.xpBase + ' + ' + CR.xpPer + ' × rating / 10 XP, and ' + Math.round(CR.xpTop * 100) + '% more per 10 points above ' + CR.xpTopFrom + '. You learn fastest young; after 30 the legs go first.']);
+    { const P = c ? potsOf(holderOf(c), pro ? meOf(c).caps : c.caps) : null, sk = ['sho', 'fin', 'han', 'def'], seen = c ? (pro ? 1 : amScoutSeen(c)) : 0; // V6 (Part 2 §1.2): the hidden potential, as the scouts see it
+      add('Potential', P ? 'grade ' + potGrade(sk.reduce((a, k) => a + (P[k] || 0), 0) / sk.length) : '', ['Every skill (Shooting, Finishing, Handles, Defense) has a hidden potential, rolled when you start: past it each +1 costs ' + CR.potMul + '× the XP, so it is a soft ceiling, not a wall. Speed, Hops and Strength stop at their genetic caps.', c ? (seen < 1 ? 'The scouts\' grade sharpens every season.' : 'Your skill potential: ' + sk.map(k => RATING_LONG[k] + ' ' + (P[k] || '?')).join(' · ') + '.') : '']);
+      const A = AMC.stageMean; add('The competition', '', ['High school: about ' + A.hs + ' as freshmen, ' + (A.hs + 3 * A.hsPerYear) + ' as seniors. College: ' + A.college + '–' + (A.college + 3 * A.collegePerYear + 3 * A.collegePerTier) + ' by year and program. The pros: veterans about ' + CR.proMean + ', rookies about ' + CR.prospectMean + ', so a league sits near 75.', 'Every level\'s best sit about 8 over its middle, and every season brings new players.']); }
+    { const X = CR.xpCurve, span = (a, b) => { let t = 0; for (let p = a; p < b; p++) t += xpPointCost(p, null); return t; }, ratio = span(80, 90) / span(60, 70), B = c ? holderOf(c) : null, pk = c ? (potsOf(B, pro ? meOf(c).caps : c.caps) || {})[fk] : null, G = CR.gradeXp; // V6 (Part 2 §1.2)
+      add('XP', c ? 'next +' + CR.xpStep + ' ' + RATING_LONG[fk].toLowerCase() + ': ' + Math.round(xpNeed(fr, pk)) + ' XP' : '', ['Games pay XP for what you do in them (makes, finishes, rebounds, steals, blocks); practice pays XP into your focus. You learn fastest young; after 30 the legs go first.', 'Each +1 costs ' + X.base + ' × ' + X.growth + '^(rating − ' + X.from + ') XP, so ' + X.from + ' → 60 is quick and 80 → 90 costs ' + ratio.toFixed(1) + '× the 60 → 70 stretch. Ratings grow ' + CR.xpStep + ' at a time.', 'Past your hidden potential (the scouts\' grade) every +1 costs ' + CR.potMul + '×.', 'Game XP × your grade: A ' + G.A + ', B ' + G.B + ', C ' + G.C + ', D ' + G.D + ', F ' + G.F + '. A simmed game pays ' + CR.xpGame.simmed + '×: playing your games matters.', 'A week\'s practice pays at most ' + WK.loadCap + '× a normal week (a simmed normal session, or a drill played to an average score); past that it turns into fatigue.']); }
   }
   if (topic === 'moves') { // V4 (2.0 §3): every move, how to do it, what it does, and whether you have it (the signature moves marked)
     const r = c ? (pro ? effRatings(meOf(c).r, meOf(c).h) : effRatings(c.r, c.height)) : null, mv = c ? (pro ? learnedMoves(meOf(c), c.me) : movesFor(r, trMoveEarly(c))) : null;
@@ -15296,7 +15394,8 @@ function guideEntries(game, topic) {
   if (topic === 'body') {
     const fa = B ? B.fatigue || 0 : 0, cut = fatigueCut(fa), ch = WK.injuryBase + WK.injuryPerFatigue * fa;
     add('Fatigue', c ? Math.round(fa) + ' / 100' : '', ['Above ' + WK.fatigueFreeAt + ', every rating drops by (fatigue − ' + WK.fatigueFreeAt + ')% in games' + (c ? ' (now: ' + (cut > 0 ? '−' + guidePct(cut, 0) : 'none') + ').' : '.'), 'A game adds ' + WK.fatiguePerGame + (B && gearRegen(B) ? ' (your recovery kit takes ' + gearRegen(B) + ' off)' : '') + '; a Rest week takes ' + WK.restFatigue + ' off; a week on the bench, ' + TM.benchRecovery + '.']);
-    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. Ankle braces, nutrition & physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.']);
+    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. Ankle braces, nutrition & physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.', 'An injury can also cost rating points for good: a 1-game knock ' + guidePct(WK.injuryLoss.odds[0], 0) + ' of the time (' + guidePts(WK.injuryLoss.pts[0]) + '), 2 games ' + guidePct(WK.injuryLoss.odds[1], 0) + ' (' + guidePts(WK.injuryLoss.pts[1]) + '), 3 games ' + guidePct(WK.injuryLoss.odds[2], 0) + ' (' + guidePts(WK.injuryLoss.pts[2]) + '): Speed for an ankle, a hamstring or a foot, Hops for a knee or a calf. Nutrition & physio cut those odds too.']);
+    add('Slumps', B && B.slump && B.slump.on ? 'in a slump' : '', [MD.slump.games + ' games graded D or F in a row is a slump: confidence drops to ' + MD.slump.conf + ' and Shooting ' + MD.slump.sho + ' until a game graded B or better. Ice Veins never slumps.']); // V6 (Part 2 §1.2)
     add('Gear', B ? gearSummary(B) || 'none yet' : '', ['Six pieces in the gear shop (Team → Gear shop; in the pros, the Office): +' + GEAR.rating + ' a level to one rating in games, fewer injuries, less fatigue.', 'Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']);
   }
   if (topic === 'team') {
@@ -15304,9 +15403,9 @@ function guideEntries(game, topic) {
     if (lv && lv.kind === 'hs') add('Your team', lv.at === 0 ? 'JV' : lv.at === 1 ? 'Varsity' : 'tryouts', ['Varsity is the school\'s top team: the district, its playoffs and state. JV (junior varsity) is the second team, for freshmen and sophomores; tryouts decide.', 'JV opponents are about ' + HS.jvGap + ' OVR weaker and JV has no playoffs. Win ' + Math.round(HS.promoteWin * 4) + ' of every 4 JV games (after ' + HS.promoteAfter + ') and varsity calls you up; juniors and seniors play varsity.']);
     else if (lv && lv.kind === 'college') add('Your program', AMC.tiers[lv.at], ['Four levels, best last: ' + AMC.tiers.join(', ').toLowerCase() + '. Your offers decide yours; the transfer portal offers your level or one below.', 'A level up: opponents about ' + AMC.stageMean.collegePerTier + ' OVR better, a likelier national tournament bid, bigger NIL deals and +' + AMC.draft.tier + ' pro stock. Teammates average ' + sg(TM.tierGap[0]) + ' OVR from you at a small school and ' + sg(TM.tierGap[TM.tierGap.length - 1]) + ' at a blue blood: a harder depth chart.']);
     const TT = TM.trust; add('Coach trust', T ? trustOf(c) + ' / 100' : '', ['Practice XP up to +' + Math.round(TM.trustXp * 100) + '% at full trust' + (T ? ' (now +' + Math.round(100 * (trustXpMul(c) - 1)) + '%)' : '') + '. In high school colleges ask your coach about you; in college, scouts do.', 'A win +' + TT.win + ', a loss ' + TT.loss + ' (a blowout ' + TT.blowout + '); a practice week +' + TT.practice + '; a challenge won +' + TT.challengeWin + ', lost ' + TT.challengeLoss + '; your spot defended +' + TT.defended + ', lost ' + TT.lostSpot + '; resting when fresh ' + TT.restFresh + '.']);
-    add('Depth chart', T ? '#' + ladderRank(c) + ' of ' + (ladderOf(c) || []).length : '', ['Only the top rung plays the week\'s game; the rest practice.', 'Beat the teammate above you in a practice challenge (first to 7) to take their spot; the one below you can challenge you too.']);
+    add('Depth chart', T ? '#' + ladderRank(c) + ' of ' + (ladderOf(c) || []).length : '', ['Only the top rung plays the week\'s game; the rest practice.', 'Beat the starter in a practice challenge (first to 7): if you are within ' + TM.takeGap + ' OVR of them, the spot is yours; further back, the coach keeps them in front (your trust still goes up). The one below you can challenge you too.']);
     if (pro) { const v = frValue(c), s = frMine(c), fac = FRN.facByStars[s - 1];
-      add('Your value', v.toFixed(1), ['OVR + fame / ' + FRN.fameDiv + ' + hype / ' + FRN.hypeDiv + '. A franchise calls when it reaches its bar: ' + [2, 3, 4, 5].map(k => k + '★ ' + FRN.bar[k - 1]).join(', ') + '.', 'Free agency brings three offers when your deal ends; a trade request goes at most a star up, every ' + FRN.tradeGap + ' seasons.']);
+      add('Your value', v.toFixed(1), ['OVR + fame / ' + FRN.fameDiv + ' + hype / ' + FRN.hypeDiv + ' + ' + FRN.playoffVal + ' a playoff series won in your last two seasons (at most ' + FRN.playoffMax + '). A franchise calls when it reaches its bar: ' + [2, 3, 4, 5].map(k => k + '★ ' + FRN.bar[k - 1]).join(', ') + '.', 'A 5★ franchise also wants a playoff series won or an All-League team in your last two seasons' + (frElite(c) ? ' (you have one).' : ' (not yet).') + ' Stars stay put: each offseason a 5★ franchise opens one spot at most (' + guidePct(FRN.spot5Odds, 0) + ' of the time), and named free agents chase it with you: the best value gets it.', 'Free agency brings three offers when your deal ends; a trade request goes at most a star up, every ' + FRN.tradeGap + ' seasons (a 5★ franchise trades for you ' + guidePct(FRN.trade5Odds, 0) + ' of the time).']); // V6 (Part 2 §1.3)
       add('Your franchise', s + '★ · #' + lv.rank + ' of ' + TEAMS.length, ['Practice XP +' + Math.round(CR.facilityBonus * 100 * (fac - 1)) + '%, pay ×' + FRN.payByStars[s - 1] + ', fame ×' + FRN.fameByStars[s - 1] + ' a game; a deeper bench at 4★ and 5★ (a harder depth chart).', 'Stars move every offseason with the standings: a title lifts a franchise, a bad season drops it.']); }
     else { const sc = c ? Math.round(amDraftScore(c)) : 0, cap = c ? frCap(sc, FRN.rookieBar) : 1;
       add('Your pro stock', c ? 'score ' + sc + ' · ' + cap + '★ offers' : '', ['At the end of your amateur years three franchises make offers; the scouts\' score caps their stars: ' + [2, 3, 4, 5].map(k => k + '★ at ' + FRN.rookieBar[k - 1]).join(', ') + '.', 'Your OVR, your college games (marquee and tournament games count twice), titles, hype and your coach\'s word raise it.']); }
