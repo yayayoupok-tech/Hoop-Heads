@@ -3,6 +3,149 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V2 — 2.0 performance at 4× CPU (§1, item 2)
+
+The second milestone of Hoop Heads 2.0: the lag on slower devices. The targets, with Chrome's CPU throttled 4× (about a
+mid-range phone): a median frame of 25 ms or less, no frame over 50 ms during dunks, blocks or celebrations, and a frame
+guard that steps down within 0.5 s on a slow device. The new test, `tests/perf4x.js`, plays a live pro-arena 1v1 (AI
+against AI) with 5 forced dunks and 3 forced blocks and times every frame, back to back, with a 1-pixel readback so the
+canvas rasterizes inside the timing.
+
+The test has two clocks. The **device clock** is the pass/fail one: frames land on a 60 Hz screen's vsyncs (a 20 ms
+frame shows on the second one, so the game sees 33 ms go by), so the guards see the slow frames and shed cost. The CPU
+is slow from before the match opens. The **fixed clock** advances exactly 1/60 s a frame: the guards see 60 fps and
+never shed, so it shows full quality on a slow CPU (reported, not a pass condition).
+
+**Where the time went (V1 at 4×).** Profiles of the dunk path found:
+
+- **Per-frame pixel work.** Each character's sprite was repainted 20 times a second of game time, and at once on every
+  new move: a vector paint at 3×, then pixelize (a box filter, a readback and four per-pixel passes). One paint costs
+  about 17 ms at 4×, and a dunk (the gather, the jump, the rim hang, the landing) asked for one on most frames.
+- **Faces painted mid-play.** A head that changed size by a few pixels picked a new face-cache size and painted every
+  expression again. The score bug's portraits painted a new size on every pop. The jumbotron painted its own faces, and
+  the replay it shows after a dunk redrew both players twice, 8 times a second.
+- **The crowd** was redrawn every frame, and a dunk's camera shake made each frame a full redraw.
+- **The posterizer** built its poster card in the middle of the dunk.
+- **Garbage.** Each frame made about 45 browser objects (a transform read for every string of the pixel font, the
+  score bug's 15 strings, the touch controls' labels). Worse, a match's start dropped about 1,330 canvases (the fan
+  atlas pixelized each fan into a new canvas and copied it). A dropped canvas runs a finalizer inside a later full
+  garbage collection's pause: two pauses ran 20 and 41 ms at 4×.
+- **The frame guard** needed 2 s of slow frames to shed each level.
+
+**What changed.**
+
+- **Character sprites are cached by pose and frame (§1.2).** Every painted pose is kept, up to 160 a player (least
+  recently used first out). Its key is the rig's joints in whole sprite pixels, the expression, the eyes, the held
+  ball's spot and frame, and the size. A pose painted before (a dribble, a stance, a dunk the second time) is drawn
+  from the cache. A pose that leaves the cache lends its canvas to the next paint. At most one sprite is painted a
+  frame: a second player due the same frame rides their last sprite one frame longer. A repaint due on a heavy frame
+  (one that redraws the crowd, or whose work before the players is 1.5× the usual) waits a frame, at most two. On a
+  slow device (a guard two levels down) a repaint is split over two frames: the paint and its box filter (which makes
+  the browser rasterize it) in one, the readback and the pixel passes in the next. The player rides their last
+  sprite in between, and no other repaint starts while one is half done. It's the same pixels, pose for pose.
+- **Cheaper paints, the same pixels.** Match sprites are painted at 2× instead of 3×: an exact 2×2 box filter, 2.25× fewer
+  pixels. A sprite's face canvas is painted at 1× its size (was 2×), with the brows baked in, and blitted bilinear. Each
+  shoe is a baked image per kit, side and half-octave size. Each jersey letter and number is one composed sprite (its
+  two outlines and fill) instead of three draws. The trail ghosts, 8–25% opaque and under the pixel art's alpha cut,
+  aren't painted into sprites. Pixelize writes into one shared image buffer and reads its neighbours directly in the
+  common cases.
+- **The pose rate follows the guards:** 20 / 15 / 12 / 10 poses a second at pixel-guard levels 0–3. A frame guard two
+  levels down slows the poses too.
+- **Faces stay put.** A player keeps their face-cache size until their head is well outside it (15% over, 40% under).
+  A match's first frame paints every expression of both faces at the size their sprites use, the ball's rotation frames
+  at each lane's size, and one sprite of each player. A warm-up paint is rasterized then, not at its first use in play.
+  The reflections and the jumbotron show one neutral face each, painted at the start. The score bug's grin scales the
+  painted portrait instead of painting a new size. The phone's face cache holds 40 faces (was 24): a match uses about 28.
+- **The crowd at 15 Hz (§1.2).** The fans are drawn into layers 15 times a second of game time (and at once when the
+  camera moves). A layer is drawn without the shake, a few pixels wider than the screen, and moved by the shake. The
+  back tiers and the front tiers are two layers that redraw on alternate frames, each still 15 times a second, so a
+  frame that redraws the crowd costs half.
+- **The net is baked (§1.2, "pre-bake effect sprites").** At rest, each side of each net is one sprite, blitted until the
+  net moves (a shot near the rim, a dunk's snap). A camera shake (whole pixels) only moves the sprite. It replaces
+  about 1,000 one-pixel rectangles a frame. The dunk's other effects (the shockwave ring, landing dust, sparks) cost 0.03 ms a frame at 4× on average, so
+  they're drawn as before.
+- **The jumbotron's replay** is dropped from frame-guard level 2 on: it shows the score instead.
+- **Posters.** A posterizer's frame only snaps a 480-px copy of the screen. The card (its headline, frame and score) is
+  built when the game ends.
+- **The score bug is two layers.** The parts that never change mid-game (the panels, the sheen, the stripes, the
+  names) are painted once. The changing parts (heat, scores, possession, the clock, the period, the shot clock, the
+  half-court call) are painted into a second layer only when one of them changes (the clock: 10 times a second).
+  A score's pop after a basket is drawn over the layer: each frame of a pop used to repaint the whole layer (27% of
+  the perf test's frames; now 3%). The portraits are drawn over both every frame. A number is drawn a character at a time from cached sprites, so a
+  new clock reading makes no new sprite. The layers keep their strings' ink boxes, so the text audits still see them
+  every frame. It's the same pixels as V1's score bug (checked in three game states, desktop and phone).
+- **Fewer allocations.** Parsed colors are kept: the renderers ask for the same few dozen every frame, and each answer
+  was a new array.
+- **Fewer browser objects.** A caller that draws several strings under one transform reads it once and lends it to
+  the pixel font: the touch controls, the jersey lettering and the score bug's portraits. Per frame on a phone: about
+  45 objects → 12.
+- **No dropped canvases.** A pixelized result that is copied at once (into the fan atlas, a ball frame, a portrait, a
+  warm-up paint) goes through one scratch canvas. The ball frames share one paint canvas. Canvases dropped in a
+  match: about 1,330 → 22. Every full GC after a match's first second now takes 8–16 ms at 4× (it was up to 39).
+- **The frame guard (§1.2: "within 0.5 s").** It sheds a level after 0.2 s of slow frames (was 2 s). It ignores a
+  match's first 0.75 s (its bakes) and the same after a resize. Once its average runs slow (over 20 ms), it counts slow
+  time until the average is back under 17.8 ms: it used to stop counting between the two, so a phone at about 19 ms
+  took over a second. It restores a level only while a frame's own work averages under 10 ms (room to spare). A level
+  it has to shed again within 12 s of restoring it stays shed. At its last level a desktop at 1× gets bigger world
+  pixels (at most 270 rows; it had nothing left to lower). It never restores its last level mid-match: the higher
+  resolution coming back means a full re-bake, about a second on a slow device. It tries one level back at the next
+  match's start, which bakes anyway. One long frame (a garbage collection, a tab coming back) counts as at most 50 ms
+  in its average, and after it sheds a level the next one is judged on that level's own frames: a single 0.3 s stall on
+  a fast desktop used to shed every level, the last one included, for the rest of the match. The pixel guard steps up after 0.35 s over its budget (was
+  90 frames, 4 s on a slow phone) and counts a character's whole paint, not only its pixel passes.
+
+New tuning numbers:
+
+| Constant | Value | Why |
+| --- | --- | --- |
+| `ART.rtSuperMatch` | 2 | match sprites are painted at 2× (menus and portraits keep `rtSuper`): 2.25× fewer pixels, an exact box filter |
+| `ART.rtDown2` | 'low' | the 2× downscale's smoothing: at exactly half size, bilinear is the exact 2×2 average |
+| `ART.rtPoseCacheN` | 160 | painted poses kept per player (least recently used first out) |
+| `ART.rtPoseHzBy` | [20, 15, 12, 10] | the pose rate at each pixel-guard level (replaces F3's `rtPoseHz` 20 and `rtPoseHzLow` 12) |
+| `ART.rtPaintWaits` | 2 | a due repaint waits at most this many frames for a lighter one |
+| `ART.rtSplitFrom` | 2 | from this guard level (the pixel guard's, or the frame guard's minus one) a repaint is split over two frames |
+| `ART.rtHeavyFrame` | 1.5 | a frame is heavy once its work before the players is this many times the usual (+1 ms), or it redraws the crowd |
+| `ART.rtLod` | faceX 1, faceQ 'low', brow, shoe, shoeX 2, shoeQ 'low' | a match sprite's paint (box-filtered right after) takes cheaper ways to the same look |
+| `ART.rtCrowdHz` | 15 | §1.2: the fans are redrawn this many times a second of game time |
+| `ART.rtGuardUpS` | 0.35 | the pixel guard steps up after this long over its budget (s) |
+| `ART.rtGuardDownS` | 4 | ...and back down after this long under half of it (s) |
+| `ART.rtLowRows` | 270 | at the frame guard's last level the pixel world has at most this many rows |
+| `ART.bucketKeepUp`, `bucketKeepDown` | 1.15, 0.6 | a player keeps their face-cache size while the head is within these shares of it |
+| `ART.cachePhone` | 40 (was 24) | face canvases kept on a phone: a match uses about 28 |
+| `CONFIG.perf.frameCapMs` | 50 | one frame counts at most this long (3 vsyncs) in the guard's average: a single hitch isn't the device's speed |
+| `CONFIG.perf.slowSeconds` | 0.2 (was 2) | §1.2: slow frames for this long shed a level |
+| `CONFIG.perf.fastFrameMs` | 17.8 | an average under this is smooth; once slow, the guard counts slow time until it's back under this |
+| `CONFIG.perf.recoverWorkMs` | 10 | a level is restored only while a frame's own work averages under this (ms) |
+| `CONFIG.perf.relapseSeconds` | 12 | a level shed again this soon after restoring it stays shed |
+| `CONFIG.perf.holdSeconds` | 0.75 | the guard ignores a match's first seconds (its bakes) and the same after a resize |
+| `CONFIG.perf.jumboReplayUntil` | 2 | the jumbotron replays highlights below this guard level |
+| `CONFIG.fx.posterSnapW` | 480 | a posterizer's screen is snapped this wide (px) |
+
+**Tests.** `tests/perf4x.js` is new (above; a forced dunk the play didn't take is tried again, at most 3 times). Two smoke checks follow V2's changes: the posterizer's check accepts the
+snapped screen waiting for the final buzzer (its card is built then, and the same check still sees it saved), and the
+faces check looks at the size the sprites paint faces (1× the head now, so 96–128 px, not 160 and up). A new smoke step
+stalls the page for 0.3, 0.6 and 0.9 s in a match on a desktop that keeps up: the guard sheds no level.
+
+**The numbers** (`tests/perf4x.js`; Chrome's CPU throttled 4×, device clock; V2 is the committed build, three runs):
+
+| | V1 phone | V2 phone (3 runs) | V1 desktop | V2 desktop (3 runs) |
+| --- | --- | --- | --- | --- |
+| median frame | 32.1 ms | 13.9–14.9 ms | 40.1 ms | 11.7–13.6 ms |
+| p95 | 56.6 ms | 25.3–26.3 ms | 72.3 ms | 20.1–23.7 ms |
+| worst frame, dunks and celebrations | 112.6 ms (110 over 50) | 55.6–129.9 ms (1–4 over 50) | 157.3 ms (334 over 50) | 37.2–44.2 ms (none over 50) |
+| worst frame, blocks | 83.7 ms (90 over 50) | 38.3–55.8 ms (0–1 over 50) | 112.7 ms (152 over 50) | 33.4–45.2 ms (none over 50) |
+| frame guard's first shed, after the frames run slow | 2.38 s | 0.15–0.17 s | 2.28 s | 0.17–0.22 s |
+
+At full quality (the fixed clock: the guards see 60 fps and never shed), the phone's median frame is 24.6 ms (V1 30.0)
+and the desktop's 17.8 ms (V1 23.0).
+
+**Not met.** On the phone profile (844×390 at 2×) every run still has 1–5 single frames over 50 ms in its dunks and
+blocks (55–130 ms). The median, the p95 and the guard's 0.5 s are met there. On the desktop profile every target is
+met (one run lost a forced dunk to the test's own setup: a handler caught mid-move; the test now tries that dunk again).
+Timing every event listener over the dunks found no slow handler (the worst call: 1.5 ms at 4×). A slow frame's time
+lands in different places from run to run (once 27 ms inside the simulation step, where the same step usually takes
+2), which looks like the throttler's stalls rather than one piece of work.
+
 ## V1 — 2.0 must-fix bugs (§1, items 1 and 3–12)
 
 The first milestone of Hoop Heads 2.0: the eleven bugs the two rounds of automated play found (item 2, the lag, is V2).

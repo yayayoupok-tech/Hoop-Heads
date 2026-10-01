@@ -703,6 +703,7 @@ const CONFIG = {
     particleBudget: 400,       // max live particles
     reducedBudget: 120,        // particle budget after the perf guard trips
     posterMs: 1400,            // poster card duration (ms)
+    posterSnapW: 480,          // V2: a posterizer's screen is snapped this wide (px): the card it becomes is 240 (Retro) or 480 (Smooth) wide
     posterInPlay: false,       // F3: a poster card no longer freezes the game for posterMs; the posters show after the game
     calloutMs: 1100,           // callout duration (ms)
     calloutTilt: 4,            // callout tilt (degrees)
@@ -774,10 +775,16 @@ const CONFIG = {
   },
   perf: {
     slowFrameMs: 20,           // frames over this are "slow"
-    slowSeconds: 2,            // this many seconds of slow frames trips the guard (one level at a time: crowd at 15 Hz and half resolution, then no reflections, then no bloom or beam dust, then a lower resolution)
+    fastFrameMs: 17.8,         // V2: ...and an average under this is smooth (60 Hz with a little room). Once the average runs slow, the guard counts slow time until it is back under this (it used to stop counting between the two, so a phone at ~19 ms took over a second to shed)
+    frameCapMs: 50,            // V2: one frame counts at most this long (3 vsyncs) in the guard's average: a single hitch (a garbage collection, a tab coming back) isn't the device's speed, and a 0.5 s one used to shed every level
+    slowSeconds: 0.2,          // V2 (§1.2: within 0.5 s on slow devices; was 2): this many seconds of slow frames trips the guard (one level at a time: crowd at 15 Hz and half resolution, then no reflections, then no bloom or beam dust, then a lower resolution); its frame average needs 0.1–0.25 s to cross first
     maxLevel: 4,               // the guard's last level: a match renders at lowDpr
     lowDpr: 1.25,              // pixel ratio of a match at guard level 4 (normally the device's, capped at ui.dprCap): 39% of the pixels at 2×
-    recoverSeconds: 6,         // this many seconds of smooth frames restores one level
+    recoverSeconds: 6,         // this many seconds of smooth frames restores one level...
+    recoverWorkMs: 10,         // V2: ...while a frame's own work averages under this (ms): room to spare, so a slow phone that sheds a level doesn't climb back and shed it again every few seconds...
+    relapseSeconds: 12,        // V2: ...and a level it has to shed again this soon after restoring it stays shed (no more restoring this session)
+    holdSeconds: 0.75,         // V2: the guard ignores a match's first this-many seconds (its bakes) and the same after a resize (the re-bake)
+    jumboReplayUntil: 2,       // V2: the arena jumbotron replays highlights below this guard level (each replay frame redraws both players); from it on, it shows the score
     fpsGraphLen: 120,          // frame-time graph samples
   },
   career: {                    // the pro career. A rating is the engine attribute × 10 (so 10–100), the same scale as the amateur years
@@ -1337,7 +1344,11 @@ function softmaxPick(scores, n, temperature, rng) {
 // Weighted choice from an object of {key: weight}.
 function weightedPick(weights, rng) { let sum = 0; for (const k in weights) sum += weights[k]; let r = rng.next() * sum; let last = null; for (const k in weights) { last = k; r -= weights[k]; if (r <= 0) return k; } return last; }
 
-function hexToRgb(hex) { if (typeof hex !== 'string' || hex[0] !== '#') return [128, 128, 128]; if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]; const n = parseInt(hex.slice(1, 7), 16); if (!isFinite(n)) return [128, 128, 128]; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; } // never throws: bad input paints gray
+// V2 (§1.2): parsed colors are kept (the renderers ask for the same few dozen every frame; each answer was a new array).
+// Callers only read the array.
+const _hexRgb = new Map();
+function hexToRgb(hex) { let c = _hexRgb.get(hex); if (c) return c; c = hexToRgbParse(hex); if (typeof hex === 'string') { if (_hexRgb.size > 2000) _hexRgb.clear(); _hexRgb.set(hex, c); } return c; }
+function hexToRgbParse(hex) { if (typeof hex !== 'string' || hex[0] !== '#') return [128, 128, 128]; if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3]; const n = parseInt(hex.slice(1, 7), 16); if (!isFinite(n)) return [128, 128, 128]; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; } // never throws: bad input paints gray
 function rgbToHex(r, g, b) { return '#' + ((1 << 24) | (clamp(r | 0, 0, 255) << 16) | (clamp(g | 0, 0, 255) << 8) | clamp(b | 0, 0, 255)).toString(16).slice(1); }
 function mixHex(a, b, t) { const A = hexToRgb(a), B = hexToRgb(b); return rgbToHex(lerp(A[0], B[0], t), lerp(A[1], B[1], t), lerp(A[2], B[2], t)); }
 function shadeHex(hex, amt) { return amt >= 0 ? mixHex(hex, '#ffffff', amt) : mixHex(hex, '#000000', -amt); }
@@ -1377,8 +1388,10 @@ const ART = {
   earring: '#FFD23F',        // earring stud
   undertone: 0.1,            // strength of each face's warm/cool undertone shift on the skin palette
   buckets: [96, 128, 160, 224, 320, 384], // face-cache sizes (pixels per head width); a face is cached at ≥ 2× its on-screen width (§9: 384 for Legends View)
+  bucketKeepUp: 1.15,          // V2: a player keeps their face cache size while 2× the head is at most this much over it...
+  bucketKeepDown: 0.6,         // ...and at least this share of it
   cacheDesktop: 48,          // LRU size for face canvases on desktop
-  cachePhone: 24,            // LRU size on coarse-pointer (touch) devices
+  cachePhone: 40,            // LRU size on coarse-pointer (touch) devices (V2: was 24; a match uses ~28: 7 expressions per player for the sprites, the score bug's, the jumbotron's and the reflections'; each eviction was a canvas dropped and a face repainted mid-play)
   canvasW: 1.7,              // face canvas width in head widths (room for hair volume); the head's center sits on a pixel edge in the middle (L14: the mirror axis)
   canvasH: 2.15,             // face canvas height in head widths
   originY: 1.12,             // head center inside the canvas, in head widths from the top
@@ -2112,9 +2125,9 @@ function mirrorHalf(dst, src, ox, dx, box) {
 }
 function rightHalfClip(g) { g.beginPath(); g.rect(0, -3, 3, 6); g.clip(); } // only the kept half is painted (head units: x ≥ 0)
 function mirrorInPlace(g, ox) { const c = g.canvas, H = c.height; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, ox, H); g.setTransform(-1, 0, 0, 1, 2 * ox, 0); g.drawImage(c, ox, 0, c.width - ox, H, ox, 0, c.width - ox, H); g.restore(); }
-function getFaceCanvas(L, expr, age, bucket, team, force, front) {
+function getFaceCanvas(L, expr, age, bucket, team, force, front, brows) {
   const tk = (L.acc.headband || L.hair === 8 || L.hair === 9) ? (team ? team[0] + team[1] : '') : '';
-  const key = lookKey(L) + '|' + expr + '|' + ageStageOf(age) + '|' + bucket + '|' + tk + (front ? '|front' : ''); const hit = _faceCache.get(key);
+  const key = lookKey(L) + '|' + expr + '|' + ageStageOf(age) + '|' + bucket + '|' + tk + (front ? '|front' : '') + (brows ? '|b' : ''); const hit = _faceCache.get(key);
   if (hit) { _faceCache.delete(key); _faceCache.set(key, hit); return hit; }
   // painting budget: past it, reuse any cached expression of this face for one more frame
   const frame = (typeof performance !== 'undefined' ? Math.floor(performance.now() / 16) : 0); if (frame !== _faceFrame) { _faceFrame = frame; _facePaintMs = 0; }
@@ -2126,6 +2139,7 @@ function getFaceCanvas(L, expr, age, bucket, team, force, front) {
   const fr = faceFrame(L), bx = Math.max(0, Math.floor(ox - ART.plateBox[0] * bucket)), by = Math.max(0, Math.floor(oy + (fr.eyeY - ART.plateBox[1]) * bucket)), box = [bx, by, 2 * (ox - bx), Math.min(Hh - by, Math.ceil((fr.chin - fr.eyeY + ART.plateBox[1] + ART.plateBox[2]) * bucket))];
   let s = symScratch(W, Hh, ox, oy, bucket, box); s.save(); rightHalfClip(s); paintFeatureLayer(s, P); s.restore(); mirrorHalf(g, s.canvas, ox, dx, box);
   if (P.hs === 10) { g.save(); g.setTransform(bucket, 0, 0, bucket, ox, oy); g.lineJoin = 'round'; g.lineCap = 'round'; hairVolume(g, P, 10); g.restore(); } // the side part: the one asymmetric style
+  if (brows) { g.save(); g.setTransform(bucket, 0, 0, bucket, ox, oy); g.lineJoin = 'round'; g.lineCap = 'round'; drawEyesLive(g, L, expr, 1, 0, 0.5, 1e-9, bucket, age2, undefined, dx / bucket, 'brows'); g.restore(); } // V2: a match sprite's brows, painted once (they only change with the expression)
   let fcv = null; if (P.hs === 12) { s = symScratch(W, Hh, ox, oy, bucket); if (paintHairFront(s, P, 12)) { fcv = document.createElement('canvas'); fcv.width = W; fcv.height = Hh; mirrorHalf(fcv.getContext('2d'), s.canvas, ox, 0); } }
   const entry = { canvas: cv, front: fcv, ox, oy, px: bucket, slide: dx / bucket };
   _faceCache.set(key, entry); const cap = faceCacheCap(); while (_faceCache.size > cap) _faceCache.delete(_faceCache.keys().next().value);
@@ -2135,13 +2149,15 @@ function clearFaceCache() { _faceCache.clear(); _faceWarmed.clear(); _faceWarmQ.
 // §9 warm-up: the first time a live player's face is drawn at a size, every expression of it is queued and painted one per
 // frame inside the paint budget, so the first dunk, yell or laugh of a match never paints on the spot.
 const _faceWarmQ = [], _faceWarmed = new Set();
-function faceWarmQueue(L, age, bucket, team) {
-  const key = lookKey(L) + '|' + ageStageOf(age) + '|' + bucket + '|' + (team ? team.join('') : ''); if (_faceWarmed.has(key)) return;
-  if (_faceWarmed.size > 64) _faceWarmed.clear(); _faceWarmed.add(key); for (const e of EXPRS) _faceWarmQ.push([L, e, age, bucket, team]);
+function faceWarmQueue(L, age, bucket, team, brows) {
+  const key = lookKey(L) + '|' + ageStageOf(age) + '|' + bucket + '|' + (team ? team.join('') : '') + (brows ? '|b' : ''); if (_faceWarmed.has(key)) return;
+  if (_faceWarmed.size > 64) _faceWarmed.clear(); _faceWarmed.add(key); for (const e of EXPRS) _faceWarmQ.push([L, e, age, bucket, team, brows]);
 }
-function faceWarmTick() {
-  if (!_faceWarmQ.length) return 0; const frame = Math.floor(performance.now() / 16); if (frame === _faceFrame && _facePaintMs > ART.paintBudgetMs * 0.5) return _faceWarmQ.length;
-  const [L, e, age, bucket, team] = _faceWarmQ.shift(); try { getFaceCanvas(L, e, age, bucket, team, true); } catch (err) { console.warn('[face] warm-up paint failed:', err && err.message); } return _faceWarmQ.length;
+// V2: a warm-up paint is rasterized now (a canvas paints when it is first drawn: that used to land mid-play)
+let _faceFlushCv = null; function faceFlush(cv) { if (!_faceFlushCv) { _faceFlushCv = document.createElement('canvas'); _faceFlushCv.height = 1; } _faceFlushCv.width = 1; _faceFlushCv.getContext('2d').drawImage(cv, 0, 0, 1, 1); } // (the source paints when it is drawn; resetting the 1-px canvas drops what it recorded)
+function faceWarmTick(now) {
+  if (!_faceWarmQ.length) return 0; const frame = Math.floor(performance.now() / 16); if (!now && frame === _faceFrame && _facePaintMs > ART.paintBudgetMs * 0.5) return _faceWarmQ.length; // now: paint regardless of the frame's budget (a match's first frame)
+  const [L, e, age, bucket, team, brows] = _faceWarmQ.shift(); try { const fc = getFaceCanvas(L, e, age, bucket, team, true, false, brows); faceFlush(fc.canvas); if (fc.front) faceFlush(fc.front); } catch (err) { console.warn('[face] warm-up paint failed:', err && err.message); } return _faceWarmQ.length;
 }
 
 // --- live eyes, brows and the panting mouth (head units; the caller has set the head transform) ---
@@ -2150,8 +2166,11 @@ function faceWarmTick() {
 // into crescents.
 // blink: every 2.8–5.2 s, per player (0 open … 1 shut)
 function eyeBlinkOf(t, blinkSeed) { const per = ART.blinkMin + (ART.blinkMax - ART.blinkMin) * ((blinkSeed * 0.6180339) % 1); const ph = (t + blinkSeed * 1.37) % per; return ph < ART.blinkMs / 1000 ? Math.sin(Math.PI * ph / (ART.blinkMs / 1000)) : 0; }
-function drawEyesLive(ctx, L, expr, lookX, lookY, t, blinkSeed, u, age, hairDarkOverride, slide, browsOnly) {
+// mode: falsy = the eyes, the brows and a tired mouth; true = no eyes (R1: a retro sprite stamps pixel eyes); 'mouth' = only a
+// tired mouth (V2: a match sprite's brows are baked into its face canvas); 'brows' = only the brows (that bake).
+function drawEyesLive(ctx, L, expr, lookX, lookY, t, blinkSeed, u, age, hairDarkOverride, slide, mode) {
   slide = slide || 0; // §L14: the eyes slide with the face plate
+  const showEyes = !mode, showBrows = !mode || mode === true || mode === 'brows', showMouth = mode !== 'brows';
   const T = skinToneOf(L), INK = ART.inkLine; const EX = EYE_EXPR[expr] || EYE_EXPR.neutral, BX = BROW_EXPR[expr] || BROW_EXPR.neutral; const minLw = ART.minLinePx / Math.max(1, u);
   const lw = v => Math.max(v, minLw);
   const bl = eyeBlinkOf(t, blinkSeed);
@@ -2160,7 +2179,7 @@ function drawEyesLive(ctx, L, expr, lookX, lookY, t, blinkSeed, u, age, hairDark
   for (const e of eyeGeom(L)) {
     const w = e.w, h = e.h, d = e.dir; const openU = EX[0] * (1 - bl), openL = EX[1]; const tilt = EX[2];
     const ix = -d * w / 2, iy = 0.1 * h + tilt, ox = d * w / 2, oy = -0.08 * h - 2 * (e.tilt || 0); // inner and outer corners (the face's tilt lifts both outer corners)
-    if (!browsOnly) { // (R1: a retro sprite stamps pixel eyes instead and keeps only the brows)
+    if (showEyes) { // (R1: a retro sprite stamps pixel eyes instead and keeps only the brows)
     ctx.save(); ctx.translate(e.x + slide, e.y); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (laugh) {
       ctx.strokeStyle = INK; ctx.lineWidth = lw(0.03); ctx.beginPath(); ctx.moveTo(ix, iy + 0.012); ctx.quadraticCurveTo(0, -0.95 * h, ox, oy + 0.012); ctx.stroke();                 // a happy crescent
@@ -2188,13 +2207,14 @@ function drawEyesLive(ctx, L, expr, lookX, lookY, t, blinkSeed, u, age, hairDark
       if (expr === 'tired') { ctx.strokeStyle = rgba(T.shadow, 0.55); ctx.lineWidth = lw(0.012); ctx.beginPath(); ctx.moveTo(ix * 0.6, iy + 0.04); ctx.quadraticCurveTo(0, 0.95 * h + 0.035, ox * 0.6, oy + 0.045); ctx.stroke(); }
     }
     ctx.restore(); }
+    if (!showBrows) continue;
     // brow: a solid base (inner end thick) and hair strokes over it
     const topY = e.y - h * 0.58 - ART.browGap; const bix = e.x + slide + ix * ART.browInner, box = e.x + slide + ox * 1.15; const biy = topY + BX[0] + tilt * 0.5, boy = topY + BX[1] - 0.01; const cxm = (bix + box) / 2, cym = (biy + boy) / 2 - BX[2] - 0.012;
     const Q = tt => [(1 - tt) * (1 - tt) * bix + 2 * (1 - tt) * tt * cxm + tt * tt * box, (1 - tt) * (1 - tt) * biy + 2 * (1 - tt) * tt * cym + tt * tt * boy];
     ctx.strokeStyle = rgba(bc, 0.9); ctx.lineCap = 'round'; for (let k = 0; k < 8; k++) { const a0 = Q(k / 8), a1 = Q((k + 1) / 8); ctx.lineWidth = lw(0.028 * bt * (1 - 0.45 * k / 8)); ctx.beginPath(); ctx.moveTo(a0[0], a0[1]); ctx.lineTo(a1[0], a1[1]); ctx.stroke(); }
     for (let k = 0; k < 11; k++) { const tt = k / 10; const [x, y] = Q(tt); const [x2, y2] = Q(Math.min(1, tt + 0.02)); const a = Math.atan2(y2 - y, x2 - x) - d * 0.45; const thick = (0.03 - 0.016 * tt) * bt; ctx.strokeStyle = k % 3 ? bc : mixHex(bc, '#FFFFFF', 0.12); ctx.lineWidth = lw(thick * 0.45); ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * 0.02, y - Math.sin(a) * 0.02 + thick * 0.25); ctx.lineTo(x + Math.cos(a) * 0.02, y + Math.sin(a) * 0.02 - thick * 0.25); ctx.stroke(); }
   }
-  if (expr === 'tired') { const M = mouthGeom(L), mw = M.mw; const lip = mixHex(T.base, ART.lipTint, ART.lipMix); const hh = 0.045 + 0.025 * Math.sin(4 * Math.PI * t); ctx.fillStyle = lip; ctx.beginPath(); ctx.ellipse(M.x + slide, M.y + 0.04, mw * 0.5, hh / 2 + 0.018, 0, 0, TAU); ctx.fill(); ctx.fillStyle = ART.mouth; ctx.beginPath(); ctx.ellipse(M.x + slide, M.y + 0.035, mw * 0.4, hh / 2, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = lw(0.02); ctx.stroke(); }
+  if (showMouth && expr === 'tired') { const M = mouthGeom(L), mw = M.mw; const lip = mixHex(T.base, ART.lipTint, ART.lipMix); const hh = 0.045 + 0.025 * Math.sin(4 * Math.PI * t); ctx.fillStyle = lip; ctx.beginPath(); ctx.ellipse(M.x + slide, M.y + 0.04, mw * 0.5, hh / 2 + 0.018, 0, 0, TAU); ctx.fill(); ctx.fillStyle = ART.mouth; ctx.beginPath(); ctx.ellipse(M.x + slide, M.y + 0.035, mw * 0.4, hh / 2, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = lw(0.02); ctx.stroke(); }
 }
 
 // --- the entry point: a face on screen ---
@@ -2203,9 +2223,11 @@ function drawEyesLive(ctx, L, expr, lookX, lookY, t, blinkSeed, u, age, hairDark
 function drawFace(ctx, look, cx, cy, u, facing, expr, opts) {
   opts = opts || {}; const su = opts.screenU > 0 ? opts.screenU : u; if (!(su > 1) || !(u > 0) || !isFinite(cx) || !isFinite(cy)) return; // su = the head width in screen px (u may be in body units)
   const L = normLook(look, opts.name); if (!EYE_EXPR[expr]) expr = expr === 'focused' ? 'focused' : 'neutral';
-  const age = opts.age || 24, team = opts.team || null; const bucket = faceBucket(su * 2);
-  if (opts.warm) faceWarmQueue(L, age, bucket, team);
-  const fc = getFaceCanvas(L, expr, age, bucket, team, opts.force, !!opts.front);
+  const age = opts.age || 24, team = opts.team || null, lod = RT.lodPaint ? ART.rtLod : null, want = (opts.bucketU > 0 ? opts.bucketU : su) * ((lod && lod.faceX) || 2); let bucket = faceBucket(want); // (V2: a match sprite needs 1×: it is box-filtered after)
+  { const st = opts.sim; if (st && st.faceB && st.faceB !== bucket && want <= st.faceB * ART.bucketKeepUp && want >= st.faceB * ART.bucketKeepDown) bucket = st.faceB; if (st) st.faceB = bucket; } // V2: a player keeps their face size until the head is well outside it (each new size painted every expression mid-play)
+  const bake = !!(lod && lod.brow && opts.eyeHook); // V2: a match sprite's brows come baked into its face canvas
+  if (opts.warm) faceWarmQueue(L, age, bucket, team, bake);
+  const fc = getFaceCanvas(L, expr, age, bucket, team, opts.force, !!opts.front, bake);
   const f = facing < 0 ? -1 : 1, k = u / fc.px;
   const t = opts.t != null ? opts.t : performance.now() / 1000; const seed = (hashString(lookKey(L)) % 997) / 997 * 7.3 + 0.5;
   // hanging strands: live verlet chains when the caller keeps a sim state (a player in a match), the rest pose otherwise
@@ -2213,11 +2235,11 @@ function drawFace(ctx, look, cx, cy, u, facing, expr, opts) {
   const H0 = spec ? hairColorsOf(L, age) : null; const minLw = ART.minLinePx / Math.max(1, su);
   ctx.save(); ctx.translate(cx, cy); if (opts.tilt) ctx.rotate(opts.tilt); ctx.scale(f * k, k); if (expr === 'laugh') ctx.rotate(-ART.laughTilt * Math.PI / 180); // a laugh throws the head back
   const blackHair = _lookIx(L.hairColor, 14) <= 1; if (spec) { ctx.save(); ctx.scale(fc.px, fc.px); drawChains(ctx, H0, spec, chains, false, minLw, blackHair); ctx.restore(); }
-  const sm = ctx.imageSmoothingQuality; ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  const sm = ctx.imageSmoothingQuality; ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = (lod && lod.faceQ) || 'high';
   ctx.drawImage(fc.canvas, -fc.ox, -fc.oy);
   ctx.scale(fc.px, fc.px); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   if (opts.eyeHook) { try { opts.eyeHook({ M: ctx.getTransform(), geom: eyeGeom(L), slide: fc.slide || 0, expr, lookX: opts.lookX == null ? 1 : opts.lookX, lookY: opts.lookY || 0, blink: opts.noBlink ? 0 : eyeBlinkOf(t, seed) }); } catch (e) { /* a hook never breaks the face */ } } // R1: pixel eyes are stamped after pixelize
-  drawEyesLive(ctx, L, expr, opts.lookX == null ? 1 : opts.lookX, opts.lookY || 0, opts.noBlink ? 0.5 : t, opts.noBlink ? 1e-9 : seed, su, age, undefined, fc.slide || 0, !!opts.eyeHook);
+  drawEyesLive(ctx, L, expr, opts.lookX == null ? 1 : opts.lookX, opts.lookY || 0, opts.noBlink ? 0.5 : t, opts.noBlink ? 1e-9 : seed, su, age, undefined, fc.slide || 0, opts.eyeHook ? (bake ? 'mouth' : true) : false);
   if (spec) drawChains(ctx, H0, spec, chains, true, minLw, blackHair);
   if (fc.front) { ctx.scale(1 / fc.px, 1 / fc.px); ctx.drawImage(fc.front, -fc.ox, -fc.oy); }
   ctx.imageSmoothingQuality = sm || 'low'; ctx.restore();
@@ -2421,7 +2443,16 @@ function drawHand(ctx, T, h, far, lw, kit, wrist, part) {
 // §3.10 high-tops, 0.30 × 0.12 H: an outsole with tread notches, a white midsole with a sculpt line and toe spring, the
 // upper with a toe cap, an eyestay with 5 lace crosses, a padded collar with a pull tab, a heel counter and an original
 // emblem (a rounded star or a double chevron); a toe-box highlight, a specular dot; the far shoe is 15% darker.
+// V2: a match sprite draws each shoe from a baked image (the same paint, once per kit, side and half-octave size, at
+// ART.rtLod.shoeX× the sprite's paint size) turned with the foot: about 24 paths a shoe become one image.
+const _shoeBakes = new Map();
 function drawSneaker(ctx, foot, far, lw, kit) {
+  if (RT.lodPaint && ART.rtLod.shoe) { try { const M = ctx.getTransform(), sc = Math.max(Math.hypot(M.a, M.b), Math.hypot(M.c, M.d)); if (sc > 8 && sc < 4000) { const R = Math.pow(2, Math.ceil(Math.log2(sc * (ART.rtLod.shoeX || 1)) * 2) / 2), lwq = Math.round(lw * R * 2) / (R * 2), key = [kit.shoe, kit.shoeAccent, kit.sole, kit.emblem ? 1 : 0, far ? 1 : 0, lwq, R].join('|'); let B = _shoeBakes.get(key); // (the line width to half a baked pixel: a small player's width follows its depth)
+    if (!B) { const L = ART.shoeLen, pad = 4 * lwq + 0.01, x0 = -0.45 * L - pad, y0 = -(ART.shoeH + 0.06) - pad, w = 1.3 * L + 2 * pad, h = ART.shoeH + 0.09 + 2 * pad, c = document.createElement('canvas'); c.width = Math.ceil(w * R); c.height = Math.ceil(h * R); const g = c.getContext('2d'); g.setTransform(R, 0, 0, R, -x0 * R, -y0 * R); drawSneakerPaint(g, { x: 0, y: 0, r: 0 }, far, lwq, kit); B = { c, x0, y0, w: c.width / R, h: c.height / R }; if (_shoeBakes.size > 48) _shoeBakes.delete(_shoeBakes.keys().next().value); _shoeBakes.set(key, B); }
+    ctx.save(); ctx.translate(foot.x, -foot.y); ctx.rotate(-(foot.r || 0)); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = ART.rtLod.shoeQ || 'low'; ctx.drawImage(B.c, B.x0, B.y0, B.w, B.h); ctx.restore(); return; } } catch (e) { /* the painted shoe below */ } }
+  drawSneakerPaint(ctx, foot, far, lw, kit);
+}
+function drawSneakerPaint(ctx, foot, far, lw, kit) {
   const L = ART.shoeLen, S = ART.shoeH, os = ART.outsoleH, ms = ART.midsoleH, dim = far ? -ART.farDim : 0, y0 = -foot.y, x0 = foot.x - L * 0.3;
   ctx.save(); ctx.translate(foot.x, y0); ctx.rotate(-(foot.r || 0)); ctx.translate(-foot.x, -y0); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   const X = u => x0 + u * L, Y = v => y0 - v, top = os + ms, up = shadeHex(kit.shoe, dim), acc = shadeHex(kit.shoeAccent, dim);
@@ -2508,17 +2539,28 @@ function drawJersey(ctx, P, lw, kit, number) {
   // the wordmark arched above the number, then the number (unmirrored)
   const ny = -ART.numberY - (c.y - 0.36);
   if (kit.wordmark) { ctx.save(); ctx.translate(cx + 0.01, ny - ART.numberH * 0.5 - ART.wordmarkH * 0.55); ctx.scale(P._f || 1, 1); const w = kit.wordmark, n = w.length, fs = ART.wordmarkH; ctx.font = '900 ' + fs.toFixed(3) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-    const span = Math.min(0.2, n * fs * 0.62), R = 0.26; for (let i = 0; i < n; i++) { const a = (n > 1 ? (i / (n - 1) - 0.5) : 0) * span / R; ctx.save(); ctx.translate(Math.sin(a) * R, R - Math.cos(a) * R); ctx.rotate(a); ctx.lineWidth = fs * 0.34; ctx.strokeStyle = ART.inkLine; ctx.strokeText(w[i], 0, 0); ctx.lineWidth = fs * 0.16; ctx.strokeStyle = kit.numberInner; ctx.strokeText(w[i], 0, 0); ctx.fillStyle = kit.numberFill; ctx.fillText(w[i], 0, 0); ctx.restore(); }
+    const span = Math.min(0.2, n * fs * 0.62), R = 0.26, B = ctx.getTransform(); // V2 (§1.2): one transform read for the word; each letter's (B · translate · rotate) is worked out here and lent to the pixel font
+    try { for (let i = 0; i < n; i++) { const a = (n > 1 ? (i / (n - 1) - 0.5) : 0) * span / R, tx = Math.sin(a) * R, ty = R - Math.cos(a) * R, co = Math.cos(a), si = Math.sin(a); ctx.save(); ctx.translate(tx, ty); ctx.rotate(a);
+      rbLend(ctx, { a: B.a * co + B.c * si, b: B.b * co + B.d * si, c: B.c * co - B.a * si, d: B.d * co - B.b * si, e: B.e + (tx * B.a + ty * B.c), f: B.f + (tx * B.b + ty * B.d) });
+      if (!rbStack(ctx, w[i], 0, 0, [[ART.inkLine, fs * 0.34], [kit.numberInner, fs * 0.16], [kit.numberFill, 0]])) { ctx.lineWidth = fs * 0.34; ctx.strokeStyle = ART.inkLine; ctx.strokeText(w[i], 0, 0); ctx.lineWidth = fs * 0.16; ctx.strokeStyle = kit.numberInner; ctx.strokeText(w[i], 0, 0); ctx.fillStyle = kit.numberFill; ctx.fillText(w[i], 0, 0); } rbLend(null); ctx.restore(); } } finally { rbLend(null); } // (V2: the three layers as one sprite)
     ctx.restore(); }
-  if (number != null) { ctx.save(); ctx.translate(cx + 0.01, ny); ctx.scale(P._f || 1, 1); ctx.font = '900 ' + ART.numberH.toFixed(3) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; const n = String(number); ctx.lineWidth = ART.numberH * 0.3; ctx.strokeStyle = ART.inkLine; ctx.strokeText(n, 0, 0.004); ctx.lineWidth = ART.numberH * 0.15; ctx.strokeStyle = kit.numberInner; ctx.strokeText(n, 0, 0.004); ctx.fillStyle = kit.numberFill; ctx.fillText(n, 0, 0.004); ctx.restore(); }
+  if (number != null) { ctx.save(); ctx.translate(cx + 0.01, ny); ctx.scale(P._f || 1, 1); ctx.font = '900 ' + ART.numberH.toFixed(3) + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; const n = String(number); rbLend(ctx); try { if (!rbStack(ctx, n, 0, 0.004, [[ART.inkLine, ART.numberH * 0.3], [kit.numberInner, ART.numberH * 0.15], [kit.numberFill, 0]])) { ctx.lineWidth = ART.numberH * 0.3; ctx.strokeStyle = ART.inkLine; ctx.strokeText(n, 0, 0.004); ctx.lineWidth = ART.numberH * 0.15; ctx.strokeStyle = kit.numberInner; ctx.strokeText(n, 0, 0.004); ctx.fillStyle = kit.numberFill; ctx.fillText(n, 0, 0.004); } } finally { rbLend(null); } ctx.restore(); }
 }
 
 // --- the whole character ---
+// Where the eyes look: the ball when it's near, else ahead; an idle player glances up at the crowd now and then (§4).
+// V2: its own function, so a pixel sprite's pose key knows the eyes before anything is painted.
+function charLook(p, P, ball, alpha, f, fv, H, reflection) {
+  let lookX = 1, lookY = 0; const bl = ballLocal(p, ball, alpha);
+  if (bl && !reflection) { const dx = (bl.x * f * fv - P.head.x) * H, dh = (bl.y - P.head.y) * H, d = Math.hypot(dx, dh); if (d < ART.lookRange && d > 0.05) { const n = Math.max(d, 1.2); lookX = dx / n; lookY = -dh / n; } }
+  if (P.clip === 'idle' && !(bl && Math.hypot(bl.x, bl.y - P.head.y) < 0.6)) { const sd = hashString(p.name || 'p') % 991 / 991, [g0, g1] = ART.glanceEvery, per = g0 + (g1 - g0) * sd, ph = (rigNow(p, alpha) + sd * 17) % per; if (ph < ART.glanceS) { const u = Math.sin(Math.PI * ph / ART.glanceS); lookX = lerp(lookX, -0.35, u); lookY = lerp(lookY, -0.8, u); } } // §4 idle: a glance up at the crowd
+  return [lookX, lookY];
+}
 function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   opts = opts || {}; const a = p.anim || (p.anim = {}); const H = drawHeightOf(p); const f = p.facing < 0 ? -1 : 1;
   const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha); // (+ the L16 push-apart, draw only)
   const lift = visualLift(p, y), s = cam.scale(z), k = s * H, ox = cam.sx(x), oy = cam.sy(y + lift, z); if (!isFinite(ox) || !isFinite(oy) || !(k > 2)) return;
-  const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = poseFor(p, alpha, ball); const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k); P.hemFlare = p.grounded === false ? clamp01(y / 0.35) : 0;
+  const L = normLook(p.look, p.name), T = skinToneOf(L), kit = kitOf(team, L); const P = opts.pose || poseFor(p, alpha, ball); /* V2: a pixel sprite passes the pose it keyed its cache on */ const lw = Math.max(ART.bodyLine, ART.minBodyLinePx / k); P.hemFlare = p.grounded === false ? clamp01(y / 0.35) : 0;
   const dk = clamp01(opts.depth || 0), dS = 1 - (1 - ART.overlapScale) * dk, dR = ART.overlapRaise * dk * k; // §3.11: the farther of two overlapping players is drawn smaller and higher
   // a turn (spin move, 360 dunk) narrows the body side-on and shows the other side halfway round; the head narrows less
   let fv = f, ts = 1, hs = 1; if (P.turn) { const cs = Math.cos(P.turn); if (cs < 0) fv = -f; ts = Math.max(P.turnMin != null ? P.turnMin : ART.turnMin, Math.abs(cs)); hs = Math.max(P.headTurnMin != null ? P.headTurnMin : ART.headTurnMin, Math.abs(cs)) / ts; } P._f = fv;
@@ -2528,7 +2570,7 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
     if (p.controlled && !opts.replay && !opts.noShadow) { ctx.strokeStyle = 'rgba(255,214,63,0.95)'; ctx.lineWidth = Math.max(2, k * 0.012); ctx.shadowColor = 'rgba(255,214,63,0.8)'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.ellipse(ox, floorY + k * 0.01, k * 0.2, k * 0.05, 0, 0, TAU); ctx.stroke(); ctx.shadowBlur = 0; }
     if (opts.glow) { ctx.globalAlpha = ART.glowAlpha; ctx.globalCompositeOperation = 'lighter'; const gs = 0.9 * k; ctx.drawImage(glowSprite(), ox - gs / 2, oy - 0.36 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
     if (p.onFire > 0) { ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = 'lighter'; const gs = 1.1 * k; ctx.drawImage(radialFire(), ox - gs / 2, oy - 0.5 * k - gs / 2, gs, gs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
-    drawTrail(ctx, cam, p, (team && team.colors && team.colors[0]) || '#F3F0FF', rigNow(p, alpha));
+    if (!opts.noTrail) drawTrail(ctx, cam, p, (team && team.colors && team.colors[0]) || '#F3F0FF', rigNow(p, alpha)); // V2: a pixel sprite skips the ghosts (8–25% opaque: under its alpha cut)
   }
   P.bigHead = extrasHeadScale(p); // L9 big-head power-up (Pixel mode sizes its sprite box with it)
   if (opts.onPose) opts.onPose(P, { ox, oy: oy - dR, kx: fv * k * ts * dS, ky: k * dS }); // Pixel mode measures the figure's box from the pose
@@ -2546,12 +2588,10 @@ function drawCharacter(ctx, cam, p, alpha, ball, team, opts) {
   ctx.save(); ctx.translate(P.pelvis.x, -P.pelvis.y); ctx.rotate(P.lean || 0); ctx.translate(-P.pelvis.x, P.pelvis.y); // the upper body leans about the pelvis
   drawJersey(ctx, P, lw, kit, L.number != null ? L.number : (p.look && p.look.number));
   // the head: cached painted face, live eyes and brows, strands (it sits on the collar; there is no neck). Pupils follow the ball.
-  const hx = P.head.x, hy = -P.head.y; let lookX = 1, lookY = 0; const bl = ballLocal(p, ball, alpha);
-  if (bl && !opts.reflection) { const dx = (bl.x * f * fv - P.head.x) * H, dh = (bl.y - P.head.y) * H, d = Math.hypot(dx, dh); if (d < ART.lookRange && d > 0.05) { const n = Math.max(d, 1.2); lookX = dx / n; lookY = -dh / n; } }
-  if (P.clip === 'idle' && !(bl && Math.hypot(bl.x, bl.y - P.head.y) < 0.6)) { const sd = hashString(p.name || 'p') % 991 / 991, [g0, g1] = ART.glanceEvery, per = g0 + (g1 - g0) * sd, ph = (rigNow(p, alpha) + sd * 17) % per; if (ph < ART.glanceS) { const u = Math.sin(Math.PI * ph / ART.glanceS); lookX = lerp(lookX, -0.35, u); lookY = lerp(lookY, -0.8, u); } } // §4 idle: a glance up at the crowd
+  const hx = P.head.x, hy = -P.head.y; const [lookX, lookY] = charLook(p, P, ball, alpha, f, fv, H, opts.reflection);
   if (hs !== 1) { ctx.translate(hx, 0); ctx.scale(hs, 1); ctx.translate(-hx, 0); }
   if (P.bigHead !== 1) { const pv = hy + ART.headWidth * 0.62; ctx.translate(hx, pv); ctx.scale(P.bigHead, P.bigHead); ctx.translate(-hx, -pv); } // grows up from the collar
-  drawFace(ctx, L, hx, hy, ART.headWidth, 1, (a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k * ts * hs, sim: opts.reflection ? null : a, eyeHook: opts.eyeHook, warm: !opts.reflection && !!(p.match && p.match.players), vx: (p.vx || 0) * fv, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
+  drawFace(ctx, L, hx, hy, ART.headWidth, 1, (opts.expr || a.expr || 'neutral'), { name: p.name, age: p.def && p.def.age, team: team && team.colors, lookX, lookY, tilt: P.head.r || 0, screenU: ART.headWidth * k * ts * hs, bucketU: ART.headWidth * k * dS, sim: opts.reflection ? null : a, eyeHook: opts.eyeHook, warm: !opts.reflection && !!(p.match && p.match.players), vx: (p.vx || 0) * fv, vy: p.vy, headWM: ART.headWidth * H, t: p.match && isFinite(p.match.time) ? p.match.time + (alpha || 0) * STEP : undefined });
   if (a.starsT > 0 && !opts.reflection) drawDizzyStars(ctx, hx, hy - (ART.crownY - ART.chinY) * 0.52, a.starsT, lw); // §4: knockdown and bonk stars orbit the head
   ctx.restore();
   drawHand(ctx, T, P.handF, false, lw, kit, L.acc.wristband, wrapF ? 'back' : undefined);
@@ -3090,28 +3130,57 @@ function rbScaleOf(ctx, px, M) { const T = Math.hypot(M.a, M.b) || 1, main = ctx
 function rbBaselineRow(b) { return b === 'top' || b === 'hanging' ? 0 : b === 'middle' ? 4 : b === 'bottom' || b === 'ideographic' ? 10 : 8; } // 'alphabetic' sits under the caps
 function rbStyleKey(st) { return typeof st === 'string' ? st : null; }
 // Draws text through the bitmap font on the device grid (the context's transform only places the anchor).
+// V2 (§1.2): numbers (the clock in tenths, scores, the shot clock) change all the time: each new one built a text sprite
+// (10 a second for the clock). A character's sprite is the same pixels at its place in the string, so a number is drawn
+// from one cached sprite per character.
+const RB_NUM = /^[0-9:.%+\-−]+$/;
+// V2 (§1.2): a read of a context's transform is a new browser object (a DOMMatrix) that only a full garbage collection
+// frees, and every string read it once or twice (~45 a frame on a phone). A caller that draws several strings under
+// one transform lends it once (rbLend(ctx, M)) and takes it back (rbLend(null)); the strings in between use it. M can be
+// any { a, b, c, d, e, f }.
+let _rbLentCtx = null, _rbLentM = null;
+function rbLend(ctx, M) { _rbLentCtx = ctx || null; _rbLentM = ctx ? (M || ctx.getTransform()) : null; }
+function rbM(ctx) { return ctx === _rbLentCtx ? _rbLentM : ctx.getTransform(); }
 function rbDraw(ctx, text, x, y, px, o, style, maxW) {
-  text = String(text); if (!text) return; const orig = text, M = ctx.getTransform(); let s = rbScaleOf(ctx, px, M), tw = rbWidth(text); const T = Math.hypot(M.a, M.b) || 1;
+  text = String(text); if (!text) return; const orig = text, M = rbM(ctx); let s = rbScaleOf(ctx, px, M), tw = rbWidth(text); const T = Math.hypot(M.a, M.b) || 1;
   if (maxW != null && isFinite(maxW) && maxW > 0) { const min = ctx.canvas === RBF.mainCanvas ? RBF.minMain : 1; while (s > min && tw * s / T > maxW) s--; if (tw * s / T > maxW) { let t = text; while (t.length > 1 && (rbWidth(t + '…') * s / T) > maxW) t = t.slice(0, -1); text = t + '…'; tw = rbWidth(text); } }
   let X = M.a * x + M.c * y + M.e, Y = M.b * x + M.d * y + M.f; const al = ctx.textAlign; let w = tw * s;
   if (al === 'center') X -= w / 2; else if (al === 'right' || al === 'end') X -= w;
   if (ctx.canvas === RBF.mainCanvas && X + w > ctx.canvas.width - 2 && text.length > 1) { let t = text; while (t.length > 1 && X + rbWidth(t + '…') * s > ctx.canvas.width - 2) t = t.slice(0, -1); text = t + '…'; tw = rbWidth(text); w = tw * s; } // never off the screen's right edge
   Y -= rbBaselineRow(ctx.textBaseline) * s; X = Math.round(X) - o * s; Y = Math.round(Y) - o * s;
-  const key = rbStyleKey(style); let spr;
-  if (key) spr = rbSprite(text, key, s, o);
+  const key = rbStyleKey(style), digits = !!key && text.length <= 8 && RB_NUM.test(text); let spr = null; // V2: a number is drawn a character at a time from cached sprites (the same pixels)
+  if (digits) { /* below */ } else if (key) spr = rbSprite(text, key, s, o);
   else { const m = rbSprite(text, '#FFFFFF', s, o); const t = RBF.tmp || (RBF.tmp = document.createElement('canvas')); if (t.width < m.width || t.height < m.height) { t.width = Math.max(t.width, m.width); t.height = Math.max(t.height, m.height); } const g = t.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy'; g.drawImage(m, 0, 0); g.globalCompositeOperation = 'source-in'; g.setTransform(M.a, M.b, M.c, M.d, M.e - X, M.f - Y); g.fillStyle = style; g.fillRect(-1e5, -1e5, 2e5, 2e5); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; spr = t; ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(t, 0, 0, m.width, m.height, X, Y, m.width, m.height); ctx.restore(); if (RBF.audit) RBF.audit.push(s); return; } // a gradient or pattern fill: the glyph mask filled through the context's own transform
   if (RBF.boxes && ctx.canvas === RBF.mainCanvas) { const top = /[A-Z0-9!?'"()\/#$%&@\[\]{}|:;*+=^<>~`ÀÉ€£★☆▲▼◀▶]/.test(text) ? 0 : 2, bot = /[gjpqy,;_]/.test(text) ? 10 : 8; const ma = typeof style === 'string' && /^rgba\(/.test(style) ? +(style.split(',')[3] || '1').replace(')', '') : 1; RBF.boxes.push({ x: X + o * s, y: Y + (o + top) * s, w: tw * s, h: (bot - top) * s, t: text, s, a: ctx.globalAlpha * ma, cut: text !== orig ? orig : null }); } // F4: the tests' text-overlap audit (each string's ink box in device px; F7: cut = the full text a maxW or the screen edge cut short)
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(spr, X, Y); ctx.restore(); if (RBF.audit) RBF.audit.push(s);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)';
+  if (digits) { let x = 0; for (const ch of text) { ctx.drawImage(rbSprite(ch, key, s, o), X + x * s, Y); x += rbGlyph(ch).w + 1; } } else ctx.drawImage(spr, X, Y); ctx.restore(); if (RBF.audit) RBF.audit.push(s);
+}
+// V2 (§1.2): text drawn as stacked layers (an outline, a second outline, then the fill: the jersey's letters and number,
+// in every sprite paint) comes from one sprite of the three, composed once. Each layer is opaque, so the stack is the
+// same pixels as the three draws; only at full alpha, source-over, off the main canvas (its text audits see each string).
+// layers: [[color, lineWidth], ...], lineWidth 0 = the fill. Returns false when it can't (the caller draws the layers).
+function rbStack(ctx, text, x, y, layers) {
+  const px = rbFontPx(ctx.font); text = String(text); if (px == null || !text || ctx.canvas === RBF.mainCanvas || ctx.globalAlpha !== 1 || ctx.globalCompositeOperation !== 'source-over') return false;
+  for (const L of layers) if (typeof L[0] !== 'string') return false;
+  try {
+    const M = rbM(ctx), s = rbScaleOf(ctx, px, M), T = Math.hypot(M.a, M.b) || 1, os = layers.map(L => L[1] > 0 ? Math.min(Math.max(1, Math.round(L[1] * T / 2 / s)), 2) : 0), om = Math.max.apply(null, os); // (strokeText's outline width)
+    let key = 'stack|' + s; for (let i = 0; i < layers.length; i++) key += '|' + layers[i][0] + '/' + os[i]; key += '|' + text;
+    let c = RBF.cache.get(key); if (c) { RBF.cache.delete(key); RBF.cache.set(key, c); }
+    else { c = document.createElement('canvas'); c.width = Math.max(1, (rbWidth(text) + 2 * om) * s); c.height = (10 + 2 * om) * s; const g = c.getContext('2d'); for (let i = 0; i < layers.length; i++) g.drawImage(rbSprite(text, layers[i][0], s, os[i]), (om - os[i]) * s, (om - os[i]) * s); RBF.cache.set(key, c); if (RBF.cache.size > ART.rbCacheN) RBF.cache.delete(RBF.cache.keys().next().value); }
+    let X = M.a * x + M.c * y + M.e, Y = M.b * x + M.d * y + M.f; const al = ctx.textAlign, w = rbWidth(text) * s; if (al === 'center') X -= w / 2; else if (al === 'right' || al === 'end') X -= w;
+    Y -= rbBaselineRow(ctx.textBaseline) * s; X = Math.round(X) - om * s; Y = Math.round(Y) - om * s;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(c, X, Y); ctx.restore(); if (RBF.audit) for (let i = 0; i < layers.length; i++) RBF.audit.push(s); return true;
+  } catch (e) { return false; }
 }
 CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxW) { const px = rbFontPx(this.font); if (px == null) return _rbNative.fill.call(this, text, x, y, maxW); try { rbDraw(this, text, x, y, px, 0, this.fillStyle, maxW); } catch (e) { /* text never throws */ } };
-CanvasRenderingContext2D.prototype.strokeText = function (text, x, y, maxW) { const px = rbFontPx(this.font); if (px == null) return _rbNative.stroke.call(this, text, x, y, maxW); try { const M = this.getTransform(), s = rbScaleOf(this, px, M), T = Math.hypot(M.a, M.b) || 1, o = Math.max(1, Math.round(this.lineWidth * T / 2 / s)); rbDraw(this, text, x, y, px, Math.min(o, 2), this.strokeStyle, maxW); } catch (e) { /* text never throws */ } };
+CanvasRenderingContext2D.prototype.strokeText = function (text, x, y, maxW) { const px = rbFontPx(this.font); if (px == null) return _rbNative.stroke.call(this, text, x, y, maxW); try { const M = rbM(this), s = rbScaleOf(this, px, M), T = Math.hypot(M.a, M.b) || 1, o = Math.max(1, Math.round(this.lineWidth * T / 2 / s)); rbDraw(this, text, x, y, px, Math.min(o, 2), this.strokeStyle, maxW); } catch (e) { /* text never throws */ } };
 CanvasRenderingContext2D.prototype.measureText = function (text) {
   const px = rbFontPx(this.font); if (px == null) return _rbNative.measure.call(this, text);
-  const M = this.getTransform(), s = rbScaleOf(this, px, M), T = Math.hypot(M.a, M.b) || 1, w = rbWidth(text) * s / T, r = rbBaselineRow(this.textBaseline);
+  const M = rbM(this), s = rbScaleOf(this, px, M), T = Math.hypot(M.a, M.b) || 1, w = rbWidth(text) * s / T, r = rbBaselineRow(this.textBaseline);
   return { width: w, actualBoundingBoxLeft: 0, actualBoundingBoxRight: w, actualBoundingBoxAscent: r * s / T, actualBoundingBoxDescent: (10 - r) * s / T, fontBoundingBoxAscent: r * s / T, fontBoundingBoxDescent: (10 - r) * s / T };
 };
 // The height of one line of text in the context's current font (user units): the 10-pixel cell and ART.rbLineGap.
-function rbLineH(ctx) { const px = rbFontPx(ctx.font); if (px == null) return 0; const M = ctx.getTransform(), T = Math.hypot(M.a, M.b) || 1; return (10 + ART.rbLineGap) * rbScaleOf(ctx, px, M) / T; }
+function rbLineH(ctx) { const px = rbFontPx(ctx.font); if (px == null) return 0; const M = rbM(ctx), T = Math.hypot(M.a, M.b) || 1; return (10 + ART.rbLineGap) * rbScaleOf(ctx, px, M) / T; }
 // The UI's pixel size: device px per UI pixel (the same grid as the game world, §1.1).
 function uiK(canvas) { const h = (canvas && canvas.height) || 720; return Math.max(2, Math.round(h / 360)); }
 // Wraps text into lines of at most maxW user units (and at most ART.rbBodyChars characters) in the current font.
@@ -6351,34 +6420,53 @@ function drawShotMeter(ctx, cam, p, alpha, setting, lastShot, time) {
 // the shot clock and the period sit in the center. It scales down on narrow screens.
 function glassPanel(ctx, x, y, w, h, r) { ctx.fillStyle = 'rgba(8,12,40,0.82)'; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); roundRectPath(ctx, x + 2, y + 2, w - 4, h * 0.45, r); ctx.fill(); }
 const _hudGrin = new WeakMap(); // team → { score, until }: the portrait grins for ART.hudGrinS after a score (L8 §6)
-function drawScoreBug(ctx, m, W_, H_) {
-  const k = Math.min(1, W_ / 1100), w = 600 * k, h = 62 * k, cx = W_ / 2, y = 10, cw = 132 * k, pw = (w - cw) / 2, now = performance.now() / 1000;
-  const rr = (x, yy, ww, hh, r) => { ctx.beginPath(); roundRectPath(ctx, x, yy, ww, hh, r); };
-  const ds = Math.max(40 * k, ART.hudScoreH * (H_ || 720)); // §6: score digits at least 6% of the screen height
+// V2 (§1.2): the parts that never change mid-game (the shadow, the center block, each side's panel, sheen, stripe, team
+// letters and name) are painted once into a layer the width of the screen and copied each frame (the same transform, so
+// the same pixels); a new size, new teams or a new name repaints it.
+let _bugLayer = null;
+function scoreBugGeo(m, W_, H_) { const k = Math.min(1, W_ / 1100), w = 600 * k, h = 62 * k, cw = 132 * k; return { k, w, h, cx: W_ / 2, y: 10, cw, pw: (w - cw) / 2, ds: Math.max(40 * k, ART.hudScoreH * (H_ || 720)) }; } // §6: score digits at least 6% of the screen height
+function scoreBugSide(m, side, G) { const t = m.teams[side], x0 = side ? G.cx + G.cw / 2 : G.cx - G.w / 2, col = t.colors || ['#3D6EA8', '#F3F0FF'], p = t.players && t.players[0], solo = m.perSide === 1 && p, ps = G.h - 12 * G.k, ppx = side ? x0 + G.pw - ps - 6 * G.k : x0 + 6 * G.k;
+  return { t, x0, col, p, solo, ps, ppx, py: G.y + 6 * G.k, tag: (solo ? (p.nick || p.name || '') : (t.abbr || t.name || '')).toUpperCase() }; }
+function scoreBugStatic(ctx, m, G) {
+  const { k, w, h, cx, y, cw, pw } = G, rr = (x, yy, ww, hh, r) => { ctx.beginPath(); roundRectPath(ctx, x, yy, ww, hh, r); };
   ctx.fillStyle = 'rgba(0,0,12,0.35)'; rr(cx - w / 2 + 2, y + 4, w, h, 14 * k); ctx.fill();
   ctx.fillStyle = 'rgba(8,12,36,0.92)'; rr(cx - cw / 2 - 6 * k, y, cw + 12 * k, h + 8 * k, 12 * k); ctx.fill(); // the center block hangs a little lower
-  for (const side of [0, 1]) {
-    const t = m.teams[side], dir = side ? 1 : -1, x0 = side ? cx + cw / 2 : cx - w / 2, col = t.colors || ['#3D6EA8', '#F3F0FF'];
+  for (const side of [0, 1]) { const S = scoreBugSide(m, side, G), { x0, col, ps, ppx, py } = S;
     const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, shadeHex(col[0], 0.18)); g.addColorStop(0.55, col[0]); g.addColorStop(1, shadeHex(col[0], -0.35));
     ctx.fillStyle = g; rr(x0, y, pw, h, 14 * k); ctx.fill(); ctx.strokeStyle = ART.uiInk; ctx.lineWidth = Math.max(2, 3 * k); ctx.stroke(); // team-color panel with an ink edge
     ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(x0 + 8 * k, y + 2, pw - 16 * k, Math.max(1, 2 * k)); // top sheen
     ctx.fillStyle = rgba(col[1], 0.9); ctx.fillRect(side ? x0 : x0 + pw - 4 * k, y + 6 * k, 4 * k, h - 12 * k);   // a stripe in the second color by the center
-    const light = luminance(col[0]) > 0.55, ink = light ? '#0B1030' : '#FFFFFF', p = t.players && t.players[0], solo = m.perSide === 1 && p;
-    // portrait (or the team's letters in a team game) at the outer edge
-    const ps = h - 12 * k, ppx = side ? x0 + pw - ps - 6 * k : x0 + 6 * k, py = y + 6 * k;
-    let G = _hudGrin.get(t); if (!G) { G = { score: t.score, until: -1 }; _hudGrin.set(t, G); } if (t.score > G.score) G.until = now + ART.hudGrinS; G.score = t.score; const grin = now < G.until;
-    if (solo) { try { const pop = grin ? 1 + 0.08 * Math.max(0, Math.sin(Math.min(1, (G.until - now) / ART.hudGrinS) * Math.PI * 6)) : 1; drawPortrait(ctx, p, col, ppx - ps * (pop - 1) / 2, py - ps * (pop - 1) / 2, ps * pop, grin ? 'hyped' : 'neutral'); } catch (e) { /* portrait is decoration */ } }
-    else { ctx.fillStyle = shadeHex(col[0], -0.45); rr(ppx, py, ps, ps, 8 * k); ctx.fill(); ctx.fillStyle = col[1]; ctx.font = fontStr(ps * 0.42, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(t.abbr || '').slice(0, 3), ppx + ps / 2, py + ps / 2 + 1); }
-    ctx.strokeStyle = rgba(col[1], 0.85); ctx.lineWidth = Math.max(1, 1.5 * k); rr(ppx, py, ps, ps, 8 * k); ctx.stroke();
-    // name and heat
-    const tag = (solo ? (p.nick || p.name || '') : (t.abbr || t.name || '')).toUpperCase(); const nx = side ? ppx - 8 * k : ppx + ps + 8 * k, nMax = pw - ps - 70 * k;
-    let fs = 17 * k; ctx.font = fontStr(fs, true); while (fs > 9 && ctx.measureText(tag).width > nMax) { fs -= 1; ctx.font = fontStr(fs, true); }
-    ctx.fillStyle = ink; ctx.textAlign = side ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.fillText(tag, nx, y + 21 * k);
+    if (!S.solo) { ctx.fillStyle = shadeHex(col[0], -0.45); rr(ppx, py, ps, ps, 8 * k); ctx.fill(); ctx.fillStyle = col[1]; ctx.font = fontStr(ps * 0.42, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(S.t.abbr || '').slice(0, 3), ppx + ps / 2, py + ps / 2 + 1); } // a team game: the team's letters
+    const nx = side ? ppx - 8 * k : ppx + ps + 8 * k, nMax = pw - ps - 70 * k; let fs = 17 * k; ctx.font = fontStr(fs, true); while (fs > 9 && ctx.measureText(S.tag).width > nMax) { fs -= 1; ctx.font = fontStr(fs, true); }
+    ctx.fillStyle = luminance(col[0]) > 0.55 ? '#0B1030' : '#FFFFFF'; ctx.textAlign = side ? 'right' : 'left'; ctx.textBaseline = 'middle'; ctx.fillText(S.tag, nx, y + 21 * k); }
+}
+// V2 (§1.2): the changing parts (heat, scores, possession, the clock, the period, the shot clock, the half-court call) go
+// into a second layer over a copy of the static one, repainted only when one of them changes (the clock: 10 times a
+// second); the portraits are drawn over it every frame. A frame used to draw ~15 strings, each a new browser object.
+let _bugDyn = null;
+function scoreBugState(m, G0, now) {
+  const sides = [0, 1].map(side => { const S = scoreBugSide(m, side, G0), t = S.t; let G = _hudGrin.get(t); if (!G) { G = { score: t.score, until: -1 }; _hudGrin.set(t, G); } if (t.score > G.score) G.until = now + ART.hudGrinS; G.score = t.score; const grin = now < G.until;
+    return { S, G, grin, pop: grin ? 1 + 0.08 * Math.max(0, Math.sin(Math.min(1, (G.until - now) / ART.hudGrinS) * Math.PI * 6)) : 1, sp: grin ? 1 + 0.18 * Math.max(0, (G.until - now) / ART.hudGrinS - 0.75) * 4 : 1 }; });
+  const fireKey = m.arcade ? m.teams.map(t => t.players.reduce((a, q) => Math.max(a, q.onFire > 0 ? 100 : q.heat || 0), 0).toFixed(1) + (t.players.some(q => q.onFire > 0) ? (Math.sin(now * 16) > 0 ? 'F' : 'f') : '')).join('/') : '';
+  const timed = m.format.type === 'timed', clockTxt = timed ? (m.gameClock < 60 && m.period >= m.periods ? fmtClockTenths(m.gameClock) : fmtClock(m.gameClock)) : ('TO ' + (m.format.target || 21));
+  const sc = m.phase === 'live' && m.shotClock < 90 ? Math.max(0, Math.ceil(m.shotClock)) : null;
+  const key = [m.teams[0].score, m.teams[1].score, sides[0].sp !== 1 ? 'pop' : '', sides[1].sp !== 1 ? 'pop' : '', fireKey, m.possession, m.phase === 'postgame' || m.ended ? 1 : 0, clockTxt, m.overtime, m.period, m.periods, sc, m.halfCourt && m.mustClear >= 0 && m.phase === 'live' ? m.mustClear : -1].join('|');
+  return { sides, key };
+}
+// A side's score by the center: bold digits with an ink outline and a drop shadow, scaled by its pop.
+function scoreBugScore(ctx, G0, S, sp, side) { const { k, h, y, pw, ds } = G0, x0 = S.x0, sx = side ? x0 + 12 * k : x0 + pw - 12 * k, sy = y + h / 2 + 2 * k, txt = String(S.t.score);
+  ctx.save(); ctx.translate(sx, sy); ctx.scale(sp, sp); ctx.font = fontStr(ds, true); ctx.textAlign = side ? 'left' : 'right'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.fillStyle = ctx.strokeStyle = ART.uiInk; ctx.lineWidth = ds * 0.2; ctx.strokeText(txt, ds * 0.05, ds * 0.07); ctx.fillText(txt, ds * 0.05, ds * 0.07); ctx.strokeText(txt, 0, 0); ctx.fillStyle = '#FFFFFF'; ctx.fillText(txt, 0, 0); ctx.restore(); }
+// skipPop: painting the layer, a side whose score is popping (just scored) leaves its score out: it's drawn over the
+// layer every frame of the pop (V2: each frame of a pop used to repaint the whole layer).
+function scoreBugLive(ctx, m, G0, now, ST, skipPop) {
+  const { k, w, h, cx, y, cw, pw, ds } = G0, rr = (x, yy, ww, hh, r) => { ctx.beginPath(); roundRectPath(ctx, x, yy, ww, hh, r); };
+  ctx.textBaseline = 'middle'; // (a fresh layer starts at 'alphabetic'; the scores are centered on their line)
+  for (const side of [0, 1]) {
+    const { S, G, grin, sp } = ST.sides[side], { t, x0, col, p, solo, ps, ppx, py } = S, ink = luminance(col[0]) > 0.55 ? '#0B1030' : '#FFFFFF';
+    const nx = side ? ppx - 8 * k : ppx + ps + 8 * k, nMax = pw - ps - 70 * k;
     if (m.arcade) { const hb = t.players.reduce((a, q) => Math.max(a, q.onFire > 0 ? 100 : q.heat || 0), 0); const fire = t.players.some(q => q.onFire > 0); const bw = Math.min(64 * k, nMax), bx = side ? nx - bw : nx; ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(bx, y + 38 * k, bw, 5 * k); ctx.fillStyle = fire ? (Math.sin(now * 16) > 0 ? '#FF8A2A' : '#FF4FA3') : '#FF8A2A'; ctx.fillRect(side ? bx + bw * (1 - hb / 100) : bx, y + 38 * k, bw * hb / 100, 5 * k); }
     if (m.ex && solo) { const bw = pw * 0.5; drawSuperMeter(ctx, p, side ? x0 + pw - bw - 10 * k : x0 + 10 * k, y + h + 6 * k, bw, Math.max(4, 6 * k), !!side, now); } // L9 super meter under the panel
-    // score by the center
-    const sx = side ? x0 + 12 * k : x0 + pw - 12 * k, sy = y + h / 2 + 2 * k, sp = grin ? 1 + 0.18 * Math.max(0, (G.until - now) / ART.hudGrinS - 0.75) * 4 : 1;
-    { ctx.save(); ctx.translate(sx, sy); ctx.scale(sp, sp); ctx.font = fontStr(ds, true); ctx.textAlign = side ? 'left' : 'right'; ctx.lineJoin = 'round'; ctx.fillStyle = ctx.strokeStyle = ART.uiInk; ctx.lineWidth = ds * 0.2; ctx.strokeText(String(t.score), ds * 0.05, ds * 0.07); ctx.fillText(String(t.score), ds * 0.05, ds * 0.07); ctx.strokeText(String(t.score), 0, 0); ctx.fillStyle = '#FFFFFF'; ctx.fillText(String(t.score), 0, 0); ctx.restore(); } // bold digits: an ink outline and a drop shadow
+    if (!(skipPop && sp !== 1)) scoreBugScore(ctx, G0, S, sp, side); // the score by the center
     if (m.possession === t.index && m.phase !== 'postgame' && !m.ended) { const bx = side ? cx + cw / 2 - 1 : cx - cw / 2 + 1, by = y + h + 4 * k; ctx.fillStyle = '#FF8A2A'; ctx.beginPath(); ctx.arc(bx, by, 5 * k, 0, TAU); ctx.fill(); ctx.strokeStyle = '#3A1A08'; ctx.lineWidth = 1; ctx.stroke(); } // possession: the ball by the side that has it
   }
   // center: clock (or the target score), the period, the shot clock
@@ -6391,6 +6479,24 @@ function drawScoreBug(ctx, m, W_, H_) {
   else { ctx.textAlign = 'center'; ctx.fillText(per, cx, y + 46 * k, avail); }
   // street half court: after a stop the ball has to go back past the arc before anyone can score
   if (m.halfCourt && m.mustClear >= 0 && m.phase === 'live') { const t = m.teams[m.mustClear], col = (t.colors || ['#FF8A2A'])[0], txt = 'CLEAR IT PAST THE ARC', fs = 13 * Math.max(0.8, k); ctx.font = fontStr(fs, true); const tw = ctx.measureText(txt).width + 22, ty = y + h + 20 * k; ctx.fillStyle = 'rgba(8,12,36,0.88)'; ctx.beginPath(); roundRectPath(ctx, cx - tw / 2, ty, tw, fs + 12, (fs + 12) / 2); ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, ty + (fs + 12) / 2); }
+}
+function drawScoreBug(ctx, m, W_, H_) {
+  const G0 = scoreBugGeo(m, W_, H_), { k, w, h, cx, y, cw, pw, ds } = G0, now = performance.now() / 1000, ST = scoreBugState(m, G0, now);
+  const rr = (x, yy, ww, hh, r) => { ctx.beginPath(); roundRectPath(ctx, x, yy, ww, hh, r); };
+  let done = false; const M = ctx.getTransform(), cv = ctx.canvas;
+  if (M.b === 0 && M.c === 0 && cv && cv.width > 0 && !m.ex) { try { // the two layers (§1.2)
+    const LH = Math.min(cv.height, Math.ceil(M.f + (y + h + 20 * k + 32) * M.d)), skey = [cv.width, LH, M.a, M.d, M.e, M.f, W_, H_, RBF.textScale, m.perSide].concat(m.teams.map((t, i) => (t.colors || []).join() + '/' + scoreBugSide(m, i, G0).tag + '/' + (t.abbr || ''))).join('|');
+    const paint = (Lr, fn) => { Lr.c.width = cv.width; Lr.c.height = Math.max(1, LH); const lg = Lr.c.getContext('2d'); const mc = RBF.mainCanvas, bx = RBF.boxes, main = cv === mc; RBF.mainCanvas = main ? Lr.c : mc; RBF.boxes = main ? [] : null; try { fn(lg); } finally { Lr.boxes = RBF.boxes || []; RBF.mainCanvas = mc; RBF.boxes = bx; } }; // (a layer keeps its strings' ink boxes for the text audits)
+    let L0 = _bugLayer; if (!L0 || L0.key !== skey) { L0 = _bugLayer || (_bugLayer = { c: document.createElement('canvas') }); paint(L0, lg => { lg.setTransform(M); scoreBugStatic(lg, m, G0); }); L0.key = skey; L0.gen = (L0.gen || 0) + 1; L0.x0 = Math.max(0, Math.floor(M.a * (cx - w / 2 - 8) + M.e)); L0.x1 = Math.min(cv.width, Math.ceil(M.a * (cx + w / 2 + 8) + M.e)); }
+    let L1 = _bugDyn; const dkey = L0.gen + '#' + ST.key; if (!L1 || L1.key !== dkey) { L1 = _bugDyn || (_bugDyn = { c: document.createElement('canvas') }); paint(L1, lg => { lg.setTransform(1, 0, 0, 1, 0, 0); lg.drawImage(L0.c, 0, 0); lg.setTransform(M); scoreBugLive(lg, m, G0, now, ST, true); }); L1.key = dkey; }
+    if (L0.x1 > L0.x0) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(L1.c, L0.x0, 0, L0.x1 - L0.x0, L1.c.height, L0.x0, 0, L0.x1 - L0.x0, L1.c.height); ctx.restore(); } done = true;
+    if (RBF.boxes && cv === RBF.mainCanvas) for (const Lr of [L0, L1]) for (const b of Lr.boxes || []) RBF.boxes.push(Object.assign({}, b)); /* the text audits see the score bug's strings every frame, as if drawn now */
+    for (const side of [0, 1]) { const Sd = ST.sides[side]; if (Sd.sp !== 1) scoreBugScore(ctx, G0, Sd.S, Sd.sp, side); } /* a popping score, over the layer */ } catch (e) { /* done only once the layers are on screen: no second bug drawn over them */ } }
+  if (!done) { scoreBugStatic(ctx, m, G0); scoreBugLive(ctx, m, G0, now, ST); }
+  rbLend(ctx, M); try { for (const side of [0, 1]) { // the portraits (they pop on a score) and their frames, over the layers (the transform read above, lent)
+    const { S, grin, pop } = ST.sides[side], { col, p, solo, ps, ppx, py } = S;
+    if (solo) { try { drawPortrait(ctx, p, col, ppx, py, ps, grin ? 'hyped' : 'neutral', { warm: ['hyped', 'neutral'], pop, stable: true }); } catch (e) { /* portrait is decoration */ } } /* V2: the pop scales the painted portrait (each new size used to paint a new one mid-play) */
+    ctx.strokeStyle = rgba(col[1], 0.85); ctx.lineWidth = Math.max(1, 1.5 * k); rr(ppx, py, ps, ps, 8 * k); ctx.stroke(); } } finally { rbLend(null); }
 }
 // A career drill (§8): the drill's name, its 60 s clock and the running score instead of the score bug.
 function drawDrillHud(ctx, m, W_) {
@@ -6423,14 +6529,14 @@ function drawHints(ctx, m, input, W_, H_, offense) {
 // L18: the controls' opacity: idle (60% transparent at the default setting) and in use. The Touch opacity setting scales both.
 function touchAlpha(tc, on) { const base = clamp(tc.opacity / ART.touchOpacityRef, 0.35, 1.8); return on ? clamp(base, 0.4, 1) : clamp(ART.touchIdleA * base, 0.15, 1); }
 function drawTouchControls(ctx, tc, offense) { // glassy thumb controls: dark translucent fills so the play shows through, gold when pressed
-  const L = tc.layout; if (!L || !tc.visible) return; ctx.save(); const idleA = touchAlpha(tc, false), onA = touchAlpha(tc, true);
+  const L = tc.layout; if (!L || !tc.visible) return; ctx.save(); rbLend(ctx); try { const idleA = touchAlpha(tc, false), onA = touchAlpha(tc, true); // (V2: one transform read for every label)
   const st = L.stick; if (!tc.shootOnly) { ctx.globalAlpha = tc.stickId >= 0 ? onA : idleA; ctx.fillStyle = 'rgba(10,14,40,0.35)'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   const kx = st.x + clamp(tc.stickDX, -st.r * 0.8, st.r * 0.8), ky = st.y + clamp(tc.stickDY, -st.r * 0.8, st.r * 0.8); ctx.fillStyle = tc.stickId >= 0 ? 'rgba(255,210,63,0.9)' : 'rgba(243,240,255,0.7)'; ctx.beginPath(); ctx.arc(kx, ky, st.r * 0.42, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(11,16,48,0.8)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#F3F0FF'; ctx.font = fontStr(13, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const lab = '▼ ' + (offense ? (tc.solo ? 'POST UP' : 'PROTECT') : 'STANCE'); if (st.labelSide) { ctx.textAlign = st.labelSide > 0 ? 'left' : 'right'; ctx.fillText(lab, st.x + st.labelSide * (st.r + 8), st.y); } else if (st.labelSide !== 0) ctx.fillText(lab, st.x, st.y + st.r + 14); } /* F2: the contest draws no stick */
   for (const b of L.buttons) { if (b.key === 'super' && !tc.superOn) continue; if (tc.shootOnly && b.key !== 'shoot') continue; const pressed = b.key === 'super' ? tc.action && tc.shoot : tc[b.key]; ctx.globalAlpha = pressed ? onA : idleA; ctx.fillStyle = pressed ? 'rgba(255,210,63,0.92)' : b.key === 'super' ? 'rgba(255,138,42,0.85)' : 'rgba(10,14,40,0.45)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); ctx.strokeStyle = pressed ? '#FFFFFF' : 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2.5; ctx.stroke();
     const lbl = tc.solo && b.key === 'pass' ? (offense ? 'FADE' : '—') : (offense ? b.labelO : b.labelD); ctx.font = fontStr(Math.max(12, b.r * 0.4), true); if (!pressed) { ctx.lineJoin = 'round'; ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(5,8,24,0.75)'; ctx.strokeText(lbl, b.x, b.y + 1); } ctx.fillStyle = pressed ? '#0B1030' : '#FFFFFF'; ctx.fillText(lbl, b.x, b.y + 1); }
   const pz = L.pause; ctx.globalAlpha = onA; ctx.fillStyle = 'rgba(10,14,40,0.55)'; ctx.beginPath(); ctx.arc(pz.x, pz.y, pz.r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.72)'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(pz.x - pz.r * 0.35, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8); ctx.fillRect(pz.x + pz.r * 0.12, pz.y - pz.r * 0.4, pz.r * 0.22, pz.r * 0.8);
-  ctx.restore();
+  } finally { rbLend(null); ctx.restore(); }
 }
 
 // --- debug overlays ---
@@ -6627,7 +6733,7 @@ class Venue {
   drawBack(ctx, cam, m, guard, phone) {
     const t = m ? m.time : this.time, hz = ART.layerHz;
     this.back.update(cam, t, guard >= 1 ? ART.layerHz / 2 : hz, (g, v) => { this.paintFar(g, v.at(this.farF), m, t); for (const T of this.tiers) this.paintTier(g, v.at(T.f), T, m, t); if (this.kind === 'pro') this.drawBeams(g, v.at(0.3), t, guard < 3); if (this.kind === 'legends') this.drawCones(g, v.at(0.3), t); if (guard < 3) this.paintBloom(g, v); this.paintVignette(g, v); if (this.bright()) brightGrade(g, this.kind === 'hs' ? ART.brightGradeHs : ART.brightGrade); }, guard >= 1 ? ART.layerResLow : ART.layerRes); this.back.blit(ctx, cam, cam.sy(0) + 2);
-    if ((this.kind === 'pro' || this.kind === 'legends') && !phone) this.drawJumbotron(ctx, cam, m); // L18: not on a phone (it collided with the score bug)
+    if ((this.kind === 'pro' || this.kind === 'legends') && !phone) this.drawJumbotron(ctx, cam, m, guard); // L18: not on a phone (it collided with the score bug)
     this.drawNear(ctx, cam, m, t);
   }
   // L10: beams, dust, bloom and the vignette (guard level 3 drops beams' dust and bloom)
@@ -6662,8 +6768,13 @@ class Venue {
     g.fillStyle = c0; g.strokeStyle = ink(c0); g.lineWidth = Math.max(1, v.m * 0.02); g.beginPath(); g.moveTo(cx - w / 2, top); g.lineTo(cx + w / 2, top); g.lineTo(cx + w / 2, top + h * 0.85); g.lineTo(cx, top + h); g.lineTo(cx - w / 2, top + h * 0.85); g.closePath(); g.fill(); g.stroke();
     g.strokeStyle = c1; g.lineWidth = Math.max(1, w * 0.05); g.beginPath(); g.moveTo(cx - w / 2 + w * 0.08, top + h * 0.06); g.lineTo(cx + w / 2 - w * 0.08, top + h * 0.06); g.stroke();
     g.fillStyle = c1; g.textAlign = 'center'; g.textBaseline = 'middle';
-    if (retired) { g.font = '900 ' + Math.round(h * 0.42) + 'px ' + FONT; g.fillText(L[0], cx, top + h * 0.45); }
-    else { g.font = '900 ' + Math.round(h * 0.17) + 'px ' + FONT; g.fillText(L[0], cx, top + h * 0.22); g.font = '900 ' + Math.round(h * 0.14) + 'px ' + FONT; g.fillText(L[1], cx, top + h * 0.42); g.font = '900 ' + Math.round(h * 0.2) + 'px ' + FONT; g.fillText(L[2], cx, top + h * 0.64); }
+    // V2: the lines are drawn only where they fit (the pixel font can't shrink below one pixel a font pixel: at the frame
+    // guard's last level a banner is too small for three lines, which ran over its edges and each other): else the year alone.
+    const fits = (txt, px, room) => { g.font = '900 ' + px + 'px ' + FONT; const mt = g.measureText(txt); return mt.width <= w * 0.9 && (mt.actualBoundingBoxAscent || 0) + (mt.actualBoundingBoxDescent || 0) <= room; };
+    if (retired) { if (fits(L[0], Math.round(h * 0.42), h * 0.6)) g.fillText(L[0], cx, top + h * 0.45); }
+    else { const mid = [L[1], L[1] === 'CHAMPIONS' ? 'CHAMPS' : L[1]].find(t => fits(t, Math.round(h * 0.14), h * 0.2)); // (a narrow banner says CHAMPS)
+      if (mid != null && fits(L[0], Math.round(h * 0.17), h * 0.2) && fits(L[2], Math.round(h * 0.2), h * 0.22)) { g.font = '900 ' + Math.round(h * 0.17) + 'px ' + FONT; g.fillText(L[0], cx, top + h * 0.22); g.font = '900 ' + Math.round(h * 0.14) + 'px ' + FONT; g.fillText(mid, cx, top + h * 0.42); g.font = '900 ' + Math.round(h * 0.2) + 'px ' + FONT; g.fillText(L[2], cx, top + h * 0.64); }
+      else if (fits(L[2], Math.round(h * 0.2), h * 0.5)) g.fillText(L[2], cx, top + h * 0.45); }
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx + w * 0.2, top, w * 0.3, h * 0.85);
   }
   paintGymWall(g, v, m, t) {
@@ -6772,11 +6883,11 @@ class Venue {
     for (const lx of [-2.4, COURT_L / 2, COURT_L + 2.4]) { const x = f.sx(lx), ly = f.sy(5.2); ctx.fillStyle = '#1B1B28'; ctx.fillRect(x - f.m * 0.06, ly, f.m * 0.12, f.sy(0) - ly); ctx.fillRect(x - f.m * 0.6, ly - f.m * 0.1, f.m * 0.8, f.m * 0.14); ctx.fillStyle = '#FFE9B0'; ctx.fillRect(x - f.m * 0.58, ly + f.m * 0.03, f.m * 0.35, f.m * 0.08); }
   }
   // --- the jumbotron (pro): score, portraits and chants; replays of highlights ---
-  drawJumbotron(ctx, cam, m) {
+  drawJumbotron(ctx, cam, m, guard) {
     const v = parView(cam, 0.5, 1), s = ART.jumboScale, w = 4.4 * s * v.m, h = 2.0 * s * v.m, cx = v.sx(COURT_L / 2); const bugBottom = 10 + 70 * Math.min(1, cam.W / 1100) + ART.jumboGap; const cy = Math.max(v.sy(this.y(6.8)), bugBottom + h / 2 + 4); /* it hangs just below the score bug */ if (cy + h < 0 || cy - h > cam.H) return;
     ctx.fillStyle = '#0A0D1E'; ctx.beginPath(); roundRectPath(ctx, cx - w / 2 - 4, cy - h / 2 - 4, w + 8, h + 8, 6); ctx.fill(); ctx.strokeStyle = '#2B3566'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#060814'; ctx.fillRect(cx - w / 2, cy - h / 2, w, h); const J = this.jumbo;
-    if (J.clip && J.clipT < ART.jumboReplayS && m && m.replay) { this.drawJumboReplay(ctx, m, cx - w / 2, cy - h / 2, w, h); }
+    if (J.clip && J.clipT < ART.jumboReplayS && m && m.replay && (guard || 0) < CONFIG.perf.jumboReplayUntil) { this.drawJumboReplay(ctx, m, cx - w / 2, cy - h / 2, w, h); } // (V2: the guard drops it on a slow device)
     else if (m) {
       const T0 = m.teams[0], T1 = m.teams[1], ph = Math.floor(J.chantT / 4) % 3;
       if (ph === 2) { const txt = ART.chants[Math.floor(J.chantT / 12) % ART.chants.length]; ctx.fillStyle = Math.sin(J.chantT * 8) > 0 ? '#FFD23F' : '#FF4FA3'; ctx.font = fontStr(h * 0.34, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, cx, cy); }
@@ -7187,9 +7298,9 @@ class Net12 {
     this.hoop = hoop; const S = ART.netStrands, R = ART.netRows; this.seg = W.netDepth / (R - 1); this.s = []; this.wake = 0;
     for (let i = 0; i < S; i++) { const a = (i + 0.5) / S * TAU, c = Math.cos(a), d = Math.sin(a), col = []; for (let r = 0; r < R; r++) { const k = 1 - (1 - ART.netTaper) * r / (R - 1), x = hoop.x + RIM_R * c * k, y = RIM_Y - r * this.seg; col.push({ x, y, px: x, py: y, rest: x }); } this.s.push({ c, d, col }); }
   }
-  snap() { for (const S of this.s) for (let r = 1; r < S.col.length; r++) S.col[r].py = S.col[r].y + 0.05 * r; this.wake = 1; }
+  snap() { for (const S of this.s) for (let r = 1; r < S.col.length; r++) S.col[r].py = S.col[r].y + 0.05 * r; this.wake = 1; this.ver = (this.ver || 0) + 1; }
   update(dt, ball, active) {
-    const near = active && ball && Math.abs(ball.x - this.hoop.x) < 0.9 && ball.y < RIM_Y + 0.35 && ball.y > RIM_Y - 1.0; if (!near && this.wake <= 0) return; this.wake = near ? 0.6 : this.wake - dt;
+    const near = active && ball && Math.abs(ball.x - this.hoop.x) < 0.9 && ball.y < RIM_Y + 0.35 && ball.y > RIM_Y - 1.0; if (!near && this.wake <= 0) return; this.wake = near ? 0.6 : this.wake - dt; this.ver = (this.ver || 0) + 1; // (V2: a new version: the pixel net's baked sprite is redrawn)
     const sub = Math.min(dt, 0.033), g = 9, damp = 0.982, R = ART.netRows;
     for (const S of this.s) for (let r = 1; r < R; r++) { const n = S.col[r], vx = (n.x - n.px) * damp, vy = (n.y - n.py) * damp; n.px = n.x; n.py = n.y; n.x += vx + (n.rest - n.x) * 0.02; n.y += vy - g * sub * sub; }
     for (let it = 0; it < 3; it++) for (const S of this.s) { const col = S.col; col[0].x = col[0].rest; col[0].y = RIM_Y;
@@ -7249,20 +7360,26 @@ function drawMiniScene(g, cam, m, reader) {
   const ghosts = reader.ghosts || [], gb = reader.ghostBall; if (!gb) return; cam.x.x = clamp(gb.x, WALL_L + 6, WALL_R - 6); cam.y.x = CONFIG.camera.baseY; cam.zoom.x = 1; cam.ppm = cam.H / CONFIG.camera.viewHeightM; cam.shakeX = cam.shakeY = 0;
   g.fillStyle = '#10162E'; g.fillRect(0, 0, cam.W, cam.H); const top = cam.sy(0); g.fillStyle = '#B07A42'; g.fillRect(0, top, cam.W, cam.H - top); g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(0, top, cam.W, 1);
   for (const h of HOOPS) { const bx = cam.sx(h.boardX); g.fillStyle = 'rgba(220,235,255,0.7)'; g.fillRect(bx - 2, cam.sy(h.boardTop), 4, cam.sy(h.boardBottom) - cam.sy(h.boardTop)); g.strokeStyle = ART.rimColor; g.lineWidth = 2; g.beginPath(); g.ellipse(cam.sx(h.x), cam.sy(RIM_Y), RIM_R * cam.ppm, 2, 0, 0, TAU); g.stroke(); }
-  for (const p of ghosts.slice().sort((a, b) => a.z - b.z)) { if (p.hidden) continue; drawPlayer(g, cam, p, 1, gb, m.teams[p.team], { replay: true, reflection: true }); }
+  for (const p of ghosts.slice().sort((a, b) => a.z - b.z)) { if (p.hidden) continue; drawPlayer(g, cam, p, 1, gb, m.teams[p.team], { replay: true, reflection: true, expr: 'neutral' }); } // V2: a face this small shows no expression: one face each, painted at the match's start (each new one was a paint mid-play)
   drawBallNew(g, cam, gb, 1, m.ball.skin, false, { reflection: true });
 }
 
 // --- the performance guard: watches real frame intervals and sheds cost in the spec's order ---
 // Level 1: crowd buffers at 15 Hz and half resolution (L15), and fewer particles; 2: no floor reflections; 3: no bloom or beam dust.
 class FrameGuard {
-  constructor() { this.level = 0; this.lock = false; this.slowT = 0; this.fastT = 0; this.avg = 16.7; this.last = 0; }
-  frame(now) {
-    if (this.last > 0) { const dt = now - this.last; if (dt > 0 && dt < 1000) { this.avg = lerp(this.avg, dt, 0.05); if (this.avg > CONFIG.perf.slowFrameMs) { this.slowT += dt / 1000; this.fastT = 0; } else if (this.avg < 17.8) { this.fastT += dt / 1000; this.slowT = 0; } } }
+  constructor() { this.level = 0; this.lock = false; this.slowT = 0; this.fastT = 0; this.avg = 16.7; this.work = 0; this.last = 0; }
+  hold(s) { this.holdT = Math.max(this.holdT || 0, s); } // V2: a match's first frames (its bakes) and a resize's re-bake aren't the device's speed
+  frame(now, workMs) {
+    if (workMs > 0) this.work = lerp(this.work, workMs, 0.05); // V2: the frame's own work (a frame can hit 60 fps with no room to spare)
+    if (this.holdT > 0 && this.last > 0) { const dt = now - this.last; this.holdT -= dt > 0 && dt < 1000 ? dt / 1000 : 0.05; this.last = now; return; }
+    if (this.last > 0) { const dt = now - this.last; if (dt > 0 && dt < 1000) { const P = CONFIG.perf; this.avg = lerp(this.avg, Math.min(dt, P.frameCapMs || 1000), 0.05); if (this.avg > P.slowFrameMs || (this.slowT > 0 && this.avg >= P.fastFrameMs)) { this.slowT += dt / 1000; this.fastT = 0; } else if (this.avg < P.fastFrameMs && this.work < P.recoverWorkMs) { this.fastT += dt / 1000; this.slowT = 0; } } } // (V2: once slow, slow until smooth again)
     this.last = now; if (this.force != null) { this.level = this.force; return; } if (this.lock) { this.level = 0; return; } // force: tests pin a level
-    if (this.slowT > CONFIG.perf.slowSeconds && this.level < CONFIG.perf.maxLevel) { this.level++; this.slowT = 0; }
-    if (this.fastT > CONFIG.perf.recoverSeconds && this.level > 0) { this.level--; this.fastT = 0; }
+    if (this.slowT > CONFIG.perf.slowSeconds && this.level < CONFIG.perf.maxLevel) { this.level++; this.slowT = 0; this.avg = Math.min(this.avg, CONFIG.perf.slowFrameMs); if (this.restoredAt && now - this.restoredAt < CONFIG.perf.relapseSeconds * 1000) this.sticky = true; } // V2: a relapse: this device needs the level. The next level is judged on its own frames (the average starts again from the slow line: one long spell used to shed every level before the average came down)
+    if (this.fastT > CONFIG.perf.recoverSeconds && this.level > 0 && this.level < CONFIG.perf.maxLevel && !this.sticky) { this.level--; this.fastT = 0; this.restoredAt = now; } // (V2: not from the last level mid-match: its lower resolution coming back means a full re-bake, about a second on a slow phone; matchStart tries it)
   }
+  // V2: a new match is a bake anyway, so the last level is tried one step back there (a device that sheds it again within
+  // CONFIG.perf.relapseSeconds keeps it).
+  matchStart(now) { if (this.level >= CONFIG.perf.maxLevel && !this.sticky && this.force == null) { this.level = CONFIG.perf.maxLevel - 1; this.fastT = this.slowT = 0; this.restoredAt = now; } }
 }
 
 // ============================================================================
@@ -7277,6 +7394,18 @@ class FrameGuard {
 Object.assign(ART, {
   rtRows: 360,                 // the world pixel grid: about this many rows on every screen (§1.1)
   rtSuper: 3,                  // characters are painted at 3× and box-filtered down (§1.2: 2× for bodies, 3× for faces; 3× covers both)
+  rtDown2: 'low',              // V2: the 2× downscale's smoothing ('low' = bilinear: at exactly half size, the exact 2×2 box)
+  rtSuperMatch: 2,             // V2: match sprites are painted at 2× (menus and portraits keep rtSuper): 2.25× fewer pixels, the same look
+  rtPoseCacheN: 160,           // V2: painted poses kept per player (least recently used first out)
+  rtCrowdHz: 15,               // V2: the fans are redrawn this many times a second of game time (and at once when the camera moves)
+  rtPoseHzBy: [20, 15, 12, 10], // V2: the pose rate at each pixel-guard level (F3's 20, and 12 at level 2)
+  rtGuardUpS: 0.35,            // V2: the pixel guard steps up after this long over its budget (s; its average needs about 0.1 s to cross, so a slow phone sheds within 0.5 s)...
+  rtGuardDownS: 4,             // ...and back down after this long under half of it (s)
+  rtLowRows: 270,              // V2: at the frame guard's last level the pixel world has at most this many rows (a phone gets there with a lower pixel ratio, 244 rows; a desktop at 1× with bigger world pixels: 240)
+  rtSplitFrom: 2,              // V2: from this guard level (the pixel guard's, or the frame guard's minus one) a repaint is split over two frames: the paint and its box filter in one, the pixel passes in the next
+  rtPaintWaits: 2,             // V2: a due repaint waits at most this many frames for a lighter one...
+  rtHeavyFrame: 1.5,           // ...where a frame is heavy once its work before the players is this many times the usual (+1 ms)
+  rtLod: { faceX: 1, faceQ: 'low', brow: true, shoe: true, shoeX: 2, shoeQ: 'low' }, // V2: a match sprite's paint (box-filtered right after) takes cheaper ways to the same pixels: its face canvas at 1× the paint size (was 2×), blitted bilinear (was 'high'); the brows baked into that face canvas (they change only with the expression); each shoe from an image baked at 2× (by kit, side and a half-octave size), turned with the foot
   rtFaceSettle: 0.3,           // s: the face editor draws a half-size draft face until the look stops changing this long
   rtPortraitBig: 160,          // portraits wider than this many sprite px (the face editor's face) supersample 2× instead of 3× (speed while a slider moves)
   rtSuperFan: 2,               // fans are painted at 2×
@@ -7290,9 +7419,7 @@ Object.assign(ART, {
   rtReflectA: 0.2,             // floor reflections: the flipped sprites at this flat opacity
   rtReflectH: 0.3,             // ...only this share of the body's height below the feet (the shoes and legs)
   rtShadowA: 0.34,             // floor shadows: flat ellipses at this opacity
-  rtBudget: [5, 9],            // ms of pixel work per frame (desktop / phone) before the guard sheds
-  rtPoseHz: 20,                // F3: a character is repainted this many times a second of game time (and at once on a new move, a turn, a catch or a release); in between, its last sprite moves with the body
-  rtPoseHzLow: 12,             // F3: ...this many once the performance guard reaches level 2
+  rtBudget: [5, 9],            // ms of pixel work per frame (desktop / phone) before the guard sheds (V2: a character's whole paint counts, not only its pixel passes)
   rtJumboFps: 8,               // F3: the pixel jumbotron's replay frame rate (15 in the smooth renderer; each frame is drawn and snapped)
   rtBallFrames: 8,             // pre-pixelized ball rotation frames
   rtCheckerA: [0.55, 0.28],    // a glow's two checker steps: inner and outer opacity
@@ -7390,16 +7517,28 @@ function rtCharPalette(L, kit, age) {
 // --- pixelize (§1.2): box filter by ss, alpha threshold, palette LUT, stray-pixel cleanup, the 1-px outline. The result
 // always keeps a 1-px margin so the outline never touches its edge. opts: { inner (selective inner lines), post(idx, w, h,
 // pal) (stamps on palette indices before the outline: pixel eyes), owner (reuses a canvas), sat } ---
-function rtScratch(w, h) {
-  if (!RT.sc) { RT.sc = document.createElement('canvas'); RT.sctx = RT.sc.getContext('2d', { willReadFrequently: true }); }
-  if (RT.sc.width < w || RT.sc.height < h) { RT.sc.width = Math.max(RT.sc.width, Math.ceil(w / 64) * 64); RT.sc.height = Math.max(RT.sc.height, Math.ceil(h / 64) * 64); }
-  const g = RT.sctx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.imageSmoothingEnabled = true; g.clearRect(0, 0, w, h); return g;
+function rtScratch(w, h, two) {
+  const k = 'sc' + (two || ''); if (!RT[k]) { RT[k] = document.createElement('canvas'); RT[k + 'tx'] = RT[k].getContext('2d', { willReadFrequently: true }); }
+  if (RT[k].width < w || RT[k].height < h) { RT[k].width = Math.max(RT[k].width, Math.ceil(w / 64) * 64); RT[k].height = Math.max(RT[k].height, Math.ceil(h / 64) * 64); }
+  const g = RT[k + 'tx']; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.imageSmoothingEnabled = true; g.clearRect(0, 0, w, h); return g;
 }
-function pixelize(src, x0, y0, w, h, ss, pal, opts) {
-  opts = opts || {}; const iw = Math.max(1, Math.round(w / ss)), ih = Math.max(1, Math.round(h / ss)), ow = iw + 2, oh = ih + 2, n = ow * oh; // +1 px margin all round
-  if (!RT.small) { RT.small = document.createElement('canvas'); RT.smallCtx = RT.small.getContext('2d', { willReadFrequently: true }); }
-  if (RT.small.width < ow || RT.small.height < oh) { RT.small.width = Math.max(RT.small.width, ow + 32); RT.small.height = Math.max(RT.small.height, oh + 32); }
-  const sc = RT.smallCtx; sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, ow, oh); sc.imageSmoothingEnabled = true; sc.imageSmoothingQuality = 'high'; sc.drawImage(src, x0, y0, w, h, 1, 1, iw, ih); // the ss×ss box filter, done natively
+// V2 (§1.2): a pixelized result that is copied at once (into the fan atlas, a ball frame, a portrait) goes through this one
+// canvas: each new canvas that is dropped runs a finalizer inside a later full garbage collection's pause (the fan atlas
+// alone dropped ~1,150 at a match's start, and two pauses ran 20 and 41 ms at 4× CPU).
+function rtPxTmp() { return RT.pxTmp || (RT.pxTmp = document.createElement('canvas')); }
+function pixelize(src, x0, y0, w, h, ss, pal, opts) { return pixelizeOut(pixelizeIn(src, x0, y0, w, h, ss, ''), pal, opts || {}); }
+// V2: pixelize's two halves: the box filter (drawing the paint into the small canvas makes the browser rasterize the
+// paint, the costly part) and the rest (the readback and the per-pixel passes). A split paint (rtCharSpriteCached) runs
+// them a frame apart on its own small canvas ('2').
+function pixelizeIn(src, x0, y0, w, h, ss, two) {
+  const iw = Math.max(1, Math.round(w / ss)), ih = Math.max(1, Math.round(h / ss)), ow = iw + 2, oh = ih + 2, k = 'small' + two; // +1 px margin all round
+  if (!RT[k]) { RT[k] = document.createElement('canvas'); RT[k + 'Ctx'] = RT[k].getContext('2d', { willReadFrequently: true }); }
+  if (RT[k].width < ow || RT[k].height < oh) { RT[k].width = Math.max(RT[k].width, ow + 32); RT[k].height = Math.max(RT[k].height, oh + 32); }
+  const sc = RT[k + 'Ctx']; sc.setTransform(1, 0, 0, 1, 0, 0); sc.clearRect(0, 0, ow, oh); sc.imageSmoothingEnabled = true; sc.imageSmoothingQuality = ss === 2 ? ART.rtDown2 : 'high'; sc.drawImage(src, x0, y0, w, h, 1, 1, iw, ih); // the ss×ss box filter, done natively (V2: at 2× a bilinear sample at the block's center is the exact 2×2 average, the cheapest path)
+  return { sc, ow, oh };
+}
+function pixelizeOut(J, pal, opts) {
+  const { sc, ow, oh } = J, n = ow * oh;
   const t0 = performance.now(), sd = sc.getImageData(0, 0, ow, oh).data;
   if (!RT.idx || RT.idx.length < n) { RT.idx = new Int16Array(n * 2); RT.tmp = new Int16Array(n * 2); RT.err = new Float32Array(n * 2); }
   const idx = RT.idx, tmp = RT.tmp, err = RT.err, rgb = pal.rgb, cut = ART.rtAlphaCut * 255;
@@ -7410,11 +7549,23 @@ function pixelize(src, x0, y0, w, h, ss, pal, opts) {
     tmp[i] = best; }
   idx.set(tmp.subarray(0, n));
   // clean-up: orphan pixels go, single-pixel holes fill, and a speck (a color none of its eight neighbours shares) takes
-  // the commonest non-ink color around it; ink stays (it is line work)
-  for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) { const i = y * ow + x, v = idx[i]; let nb = 0, n4 = 0, fill = -1, same = 0; const votes = RT.votes || (RT.votes = new Int16Array(256)); let top = -1, topN = 0;
+  // the commonest non-ink color around it; ink stays (it is line work). V2: inside the margin the common cases (a hole
+  // test, a pixel with a same-colored or an ink neighbour) read their neighbours directly; specks and the edges take the
+  // full count (the result is the same, pixel for pixel)
+  const votes = RT.votes || (RT.votes = new Int16Array(256));
+  const full = (x, y, i, v) => { let nb = 0, n4 = 0, fill = -1, same = 0, top = -1, topN = 0;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= ow || Y >= oh) continue; const u = idx[Y * ow + X]; if (u >= 0) { nb++; if (u === v) same++; if (!dx || !dy) { n4++; fill = u; } if (u > 0) { const c = ++votes[u]; if (c > topN) { topN = c; top = u; } } } }
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= ow || Y >= oh) continue; const u = idx[Y * ow + X]; if (u >= 0) votes[u] = 0; }
-    tmp[i] = v >= 0 ? (nb <= 1 ? -1 : (same === 0 && v > 0 && topN >= 2 ? top : v)) : (n4 === 4 ? fill : -1); }
+    return v >= 0 ? (nb <= 1 ? -1 : (same === 0 && v > 0 && topN >= 2 ? top : v)) : (n4 === 4 ? fill : -1); };
+  for (let y = 0; y < oh; y++) { const midY = y > 0 && y < oh - 1;
+    for (let x = 0; x < ow; x++) { const i = y * ow + x, v = idx[i];
+      if (!midY || x === 0 || x === ow - 1) { tmp[i] = full(x, y, i, v); continue; }
+      const up = idx[i - ow], lf = idx[i - 1], rt = idx[i + 1], dn = idx[i + ow];
+      if (v < 0) { tmp[i] = up >= 0 && lf >= 0 && rt >= 0 && dn >= 0 ? dn : -1; continue; } // a hole fills from below (the count's last side)
+      const a = idx[i - ow - 1], c = idx[i - ow + 1], f = idx[i + ow - 1], h = idx[i + ow + 1];
+      if ((a >= 0) + (up >= 0) + (c >= 0) + (lf >= 0) + (rt >= 0) + (f >= 0) + (dn >= 0) + (h >= 0) <= 1) { tmp[i] = -1; continue; } // an orphan
+      if (v === 0 || a === v || up === v || c === v || lf === v || rt === v || f === v || dn === v || h === v) { tmp[i] = v; continue; }
+      tmp[i] = full(x, y, i, v); } } // a speck
   if (opts.post) try { opts.post(tmp, ow, oh, pal); } catch (e) { reportFrameError(e); }
   // the outline: a transparent pixel with an opaque 4-neighbour becomes ink (palette 0); then the selective inner lines
   for (let y = 0; y < oh; y++) for (let x = 0; x < ow; x++) { const i = y * ow + x; let v = tmp[i];
@@ -7422,11 +7573,13 @@ function pixelize(src, x0, y0, w, h, ss, pal, opts) {
     else if (opts.inner && v > 0) { const l0 = pal.lum[v] + ART.rtInner, lm = pal.lum; const lighter = (x > 0 && tmp[i - 1] > 0 && lm[tmp[i - 1]] > l0) || (x < ow - 1 && tmp[i + 1] > 0 && lm[tmp[i + 1]] > l0) || (y > 0 && tmp[i - ow] > 0 && lm[tmp[i - ow]] > l0) || (y < oh - 1 && tmp[i + ow] > 0 && lm[tmp[i + ow]] > l0);
       if (lighter) { const q = v * 3, M = ART.rtInnerMix, r = rgb[q] * (1 - M) + 21 * M, gg = rgb[q + 1] * (1 - M) + 11 * M, b = rgb[q + 2] * (1 - M) + 16 * M; v = -3 - rtNearest(pal, r | 0, gg | 0, b | 0); } }
     idx[i] = v; }
-  let c = opts.owner ? RT.sprites.get(opts.owner) : null; if (!c) { c = document.createElement('canvas'); if (opts.owner) RT.sprites.set(opts.owner, c); } if (c.width !== ow || c.height !== oh) { c.width = ow; c.height = oh; }
-  const cg = c.getContext('2d'), img = cg.createImageData(ow, oh), u32 = new Uint32Array(img.data.buffer);
+  let c = opts.owner ? RT.sprites.get(opts.owner) : null; if (!c) { c = opts.into || document.createElement('canvas'); if (opts.owner) RT.sprites.set(opts.owner, c); } if (c.width !== ow || c.height !== oh) { c.width = ow; c.height = oh; } // (V2: opts.into, a canvas to reuse: a new canvas a paint left its old pixels to the garbage collector)
+  // V2: one shared image buffer, written row by row and put back as a dirty rectangle (no new image per sprite)
+  if (!RT.img || RT.img.width < ow || RT.img.height < oh) { RT.img = new ImageData(Math.max(ow, RT.img ? RT.img.width : 0, 64), Math.max(oh, RT.img ? RT.img.height : 0, 64)); RT.img32 = new Uint32Array(RT.img.data.buffer); }
+  const img = RT.img, u32 = RT.img32, IW = img.width, cg = c.getContext('2d');
   if (!pal.u32) { pal.u32 = new Uint32Array(pal.n); for (let i = 0; i < pal.n; i++) pal.u32[i] = (255 << 24 | rgb[i * 3 + 2] << 16 | rgb[i * 3 + 1] << 8 | rgb[i * 3]) >>> 0; }
-  const P32 = opts.u32 || pal.u32; for (let i = 0; i < n; i++) { let v = idx[i]; if (v === -1) continue; if (v === -2) v = 0; else if (v <= -3) v = -3 - v; u32[i] = P32[v]; }
-  cg.putImageData(img, 0, 0); RT.work += performance.now() - t0; if (RT.audit) RT.audit.push(c); return c;
+  const P32 = opts.u32 || pal.u32; for (let y = 0, i = 0; y < oh; y++) for (let x = 0, o = y * IW; x < ow; x++, i++, o++) { let v = idx[i]; if (v === -1) { u32[o] = 0; continue; } if (v === -2) v = 0; else if (v <= -3) v = -3 - v; u32[o] = P32[v]; }
+  cg.putImageData(img, 0, 0, 0, 0, ow, oh); RT.work += performance.now() - t0; if (RT.audit) RT.audit.push(c); return c;
 }
 
 // --- pixel eyes (§1.2): 5–6 px wide on a 44–52 px head, the lash line on top, a 1-px catchlight in the iris ---
@@ -7465,7 +7618,7 @@ function rtCharSprite(cam, p, alpha, ball, team, opts, f, ballPaintFor) {
   const lift = (p.anim && p.anim.lift) || 0, ox = cam.sx(x), oy = cam.sy(y + lift, z); if (!isFinite(ox + oy)) return null;
   const ss = opts.ss || RT.ss || ART.rtSuper, K = f * ss, wide = p.inState && p.inState('knocked', 'stumble', 'stagger', 'rimhang', 'celebrate') ? 1.3 : 0.9;
   const bx0 = Math.floor((ox - wide * k) * f) / f, by0 = Math.floor((oy - 1.75 * k) * f) / f, sw = Math.ceil(2 * wide * k * f + 2) * ss, sh = Math.ceil(2.05 * k * f + 2) * ss;
-  if (sw * sh > 6e6) return null; const g = rtScratch(sw, sh);
+  if (sw * sh > 6e6) return null; const g = opts.split ? rtScratch(sw, sh, '2') : rtScratch(sw, sh);
   const pc = { scale: zz => cam.scale(zz) * K, sx: wx => (cam.sx(wx) - bx0) * K, sy: (wy, zz) => (cam.sy(wy, zz) - by0) * K, ppm: cam.ppm * K, zoom: cam.zoom, W: sw, H: sh, dpr: 1 };
   let geo = null, eyes = null; const o = Object.assign({}, opts, { glow: false, noShadow: true, noOverlays: true, onPose: (P, gm) => { geo = [P, gm]; }, eyeHook: info => { eyes = info; }, ballPaint: ballPaintFor ? ballPaintFor(g, pc) : null });
   try { drawCharacter(g, pc, p, alpha, ball, team, o); } catch (e) { reportFrameError(e); return null; }
@@ -7474,21 +7627,56 @@ function rtCharSprite(cam, p, alpha, ball, team, opts, f, ballPaintFor) {
   if (x1 - x0 < ss || y1 - y0 < ss) return null;
   const L = normLook(p.look, p.name), kit = kitOf(team, L), pal = rtCharPalette(L, kit, p.def && p.def.age), T = skinToneOf(L);
   const post = eyes ? (idx, ow, oh, pl) => { const M = eyes.M, sx0 = x0 / ss - 1, sy0 = y0 / ss - 1; for (const e of eyes.geom) { const cx = M.a * (e.x + eyes.slide) + M.c * e.y + M.e, cy = M.b * (e.x + eyes.slide) + M.d * e.y + M.f, w = e.w * Math.hypot(M.a, M.b) / ss; rtStampEye(idx, ow, oh, pl, { x: cx / ss - sx0 - 0.5, y: cy / ss - sy0 - 0.5, w: Math.max(3, Math.round(w * ART.rtEyeW / ART.eyeW)), iris: ART.iris[_lookIx(L.iris, 6)], shadow: T.shadow }, e.dir * (M.a < 0 ? -1 : 1), [eyes.lookX, eyes.lookY], rtEyeOpen(eyes.expr, eyes.blink), eyes.expr === 'laugh'); } } : null;
-  const spr = pixelize(g.canvas, x0, y0, x1 - x0, y1 - y0, ss, pal, { inner: false, post, owner: opts.spriteOwner || p });
-  return { spr, X: Math.round(bx0 * f + x0 / ss) - 1, Y: Math.round(by0 * f + y0 / ss) - 1, head: P.head, gm, P, k: k * f };
+  const J = pixelizeIn(g.canvas, x0, y0, x1 - x0, y1 - y0, ss, opts.split ? '2' : ''), done = () => ({ spr: pixelizeOut(J, pal, { inner: false, post, owner: opts.spriteOwner || p, into: opts.into }), X: Math.round(bx0 * f + x0 / ss) - 1, Y: Math.round(by0 * f + y0 / ss) - 1, head: P.head, gm, P, k: k * f });
+  return opts.split ? { finish: done } : done(); // (a split paint: the rest next frame)
 }
 // F3 (the user: "the game lags a lot"): painting and pixelizing a character was two thirds of a frame. The sprite is
-// now repainted at ART.rtPoseHz (pixel-art animation rates) and at once when the move, the facing, the ball or the size
+// now repainted at ART.rtPoseHzBy (pixel-art animation rates) and at once when the move, the facing, the ball or the size
 // changes; in between the last sprite rides along with the body, so movement stays smooth every frame.
+// V2 (§1.2, "cache pixelized character sprites by pose and frame"): a due repaint first looks the pose up. Every painted
+// pose is kept (ART.rtPoseCacheN a player, the least recently used goes first) under a key of the rig's joints in whole
+// sprite pixels, the expression, the eyes, the held ball and the size; a pose already painted is drawn from the cache
+// (a dribble, a stance or a dunk the second time costs no paint). And at most one sprite is painted a frame: a second
+// player due the same frame rides their last sprite one frame longer.
+function rtPoseKey(p, P, k, own, ball, alpha, opts) {
+  const a = p.anim || {}; if (a.starsT > 0 || opts.replay) return null; // (dizzy stars orbit on their own clock)
+  const q = v => Math.round(v * k), ang = v => Math.round(v * 40), parts = [P.clip || '', p.facing < 0 ? -1 : 1, p.onFire > 0 ? 1 : 0, Math.round((opts.depth || 0) * 20), Math.round(k * 2), a.expr || 'neutral', (a.blink || 0) > 0.5 ? 1 : 0, P.bigHead || 1];
+  for (const n in P) { const v = P[n]; if (n === 'clip' || n === 'bigHead') continue;
+    if (typeof v === 'number') parts.push(n === 'rot' || n === 'lean' || n === 'turn' || n === 'hemFlare' ? ang(v) : n === 'sx' || n === 'sy' ? Math.round(v * 60) : q(v));
+    else if (typeof v === 'string') parts.push(v);
+    else if (v && typeof v === 'object' && !Array.isArray(v)) for (const m in v) { const w = v[m]; parts.push(typeof w === 'number' ? (m === 'r' || m === 'a' || m === 'rot' ? ang(w) : q(w)) : typeof w === 'string' ? w : ''); } }
+  const f = p.facing < 0 ? -1 : 1, fv = P.turn && Math.cos(P.turn) < 0 ? -f : f, lk = charLook(p, P, ball, alpha, f, fv, drawHeightOf(p), false); parts.push(Math.round(lk[0] * 2), Math.round(lk[1] * 2));
+  if (own && ball) { const bx = lerp(ball.px != null ? ball.px : ball.x, ball.x, alpha) + (ball.visDX || 0) - lerp(p.px != null ? p.px : p.x, p.x, alpha), by = lerp(ball.py != null ? ball.py : ball.y, ball.y, alpha) + (ball.visDY || 0) - lerp(p.py != null ? p.py : p.y, p.y, alpha), rot = (ball.spin || 0) * 0.25 + (ball.rot || 0);
+    parts.push(Math.round(bx * k / drawHeightOf(p)), Math.round(by * k / drawHeightOf(p)), ((Math.round(rot / TAU * ART.rtBallFrames) % ART.rtBallFrames) + ART.rtBallFrames) % ART.rtBallFrames); }
+  return parts.join(',');
+}
 function rtCharSpriteCached(cam, p, alpha, ball, team, opts, own, ballPaintFor, t) {
-  const C = RT.cache || (RT.cache = new WeakMap()), c = C.get(p); const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
-  const ax = Math.round(cam.sx(x)), ay = Math.round(cam.sy(y + ((p.anim && p.anim.lift) || 0), z)), sc = cam.scale(z), hz = RT.level >= 2 ? ART.rtPoseHzLow : ART.rtPoseHz;
-  const key = p.state + '|' + p.facing + '|' + (own ? 1 : 0) + '|' + (opts.replay ? 1 : 0) + '|' + RT.ss + '|' + RT.k + '|' + (p.hidden ? 1 : 0) + '|' + (p.controlled ? 1 : 0);
-  const same = c && c.key === key && t >= c.t && Math.abs(sc - c.sc) < c.sc * 0.015, age = same ? t - c.t : 1e9;
-  if (same && (age < 1 / hz || (RT.dueFrame === RT.frame && age < 2 / hz))) { if (RT.audit) RT.audit.push(c.r.spr); return { spr: c.r.spr, X: ax + c.dx, Y: ay + c.dy, head: c.r.head, gm: c.r.gm, P: c.r.P, k: c.r.k, cached: true }; } // one timed repaint a frame: two players due together take turns
-  if (same) RT.dueFrame = RT.frame;
-  const r = rtCharSprite(cam, p, alpha, ball, team, opts, 1, ballPaintFor); if (!r) { C.delete(p); return null; }
-  C.set(p, { key, t, sc, r, dx: r.X - ax, dy: r.Y - ay }); RT.repaints = (RT.repaints || 0) + 1; return r;
+  const C = RT.cache || (RT.cache = new WeakMap()); let c = C.get(p); if (!c) { c = { last: null, poses: new Map(), kit: null }; C.set(p, c); }
+  const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
+  const ax = Math.round(cam.sx(x)), ay = Math.round(cam.sy(y + ((p.anim && p.anim.lift) || 0), z)), sc = cam.scale(z), hz = ART.rtPoseHzBy[clamp(Math.max(RT.level, (RT.fg || 0) - 1), 0, 3)]; // (V2: a frame guard two levels down slows the poses too)
+  const key = p.state + '|' + p.facing + '|' + (own ? 1 : 0) + '|' + (opts.replay ? 1 : 0) + '|' + RT.ss + '|' + RT.k + '|' + (p.hidden ? 1 : 0) + '|' + (p.controlled ? 1 : 0), L = c.last;
+  const kit = (team && team.colors ? team.colors.join('') : '') + '|' + RT.ss + '|' + RT.k; if (c.kit !== kit) { c.poses.clear(); c.kit = kit; } // new colors or a new pixel size: the painted poses go
+  const ride = r => ({ spr: r.spr, X: ax + r.dx, Y: ay + r.dy, head: r.head, gm: r.gm, P: r.P, k: r.k, cached: true });
+  if (RT.job && RT.frame - RT.job.frame > 3) RT.job = null; // (a half paint nobody finished: a player gone, a new match)
+  if (RT.job && RT.job.c === c && RT.paintFrame !== RT.frame) { // V2: this player's split paint, begun last frame, finishes first
+    const J = RT.job; RT.job = null; const w0 = RT.work, t0 = performance.now(); let r = null; try { r = J.finish(); } catch (e) { reportFrameError(e); } RT.work = w0 + performance.now() - t0; RT.paintFrame = RT.frame;
+    if (r && r.spr) { const rec = { spr: r.spr, dx: r.X - J.ax, dy: r.Y - J.ay, head: r.head, gm: r.gm, P: r.P, k: r.k }; if (J.pk && c.kit === J.kit) { c.poses.set(J.pk, rec); if (c.poses.size > ART.rtPoseCacheN) c.poses.delete(c.poses.keys().next().value); } c.last = { key: J.key, t: J.t, sc: J.sc, r: rec }; if (RT.audit) RT.audit.push(rec.spr); return ride(rec); }
+    if (L) return ride(L.r); }
+  const same = L && L.key === key && t >= L.t && Math.abs(sc - L.sc) < L.sc * 0.015, age = same ? t - L.t : 1e9;
+  if (same && age < 1 / hz) { if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); }
+  const P = poseFor(p, alpha, ball), kk = sc * drawHeightOf(p), pk = rtPoseKey(p, P, kk, own, ball, alpha, opts); RT.poseLook = (RT.poseLook || 0) + 1;
+  const hit = pk && c.poses.get(pk); if (hit) { c.poses.delete(pk); c.poses.set(pk, hit); c.last = { key, t, sc, r: hit }; RT.poseHits = (RT.poseHits || 0) + 1; if (RT.audit) RT.audit.push(hit.spr); return ride(hit); }
+  if (L && (RT.paintFrame === RT.frame || RT.job)) { if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); } // one paint a frame (and none while a split one is half done): this one waits a frame
+  if (RT.pre < 0) { RT.pre = performance.now() - RT.t0; RT.preAvg = RT.preAvg == null ? RT.pre : RT.preAvg * 0.95 + RT.pre * 0.05; } // V2: how heavy this frame already is (the crowd's redraw, a bake) against the usual
+  if (L && (c.waits || 0) < ART.rtPaintWaits && (RT.crowdFrame === RT.frame || RT.pre > RT.preAvg * ART.rtHeavyFrame + 1)) { c.waits = (c.waits || 0) + 1; if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); } // ...a heavy one lets the repaint wait a frame
+  c.waits = 0;
+  let into = null; if (pk && c.poses.size >= ART.rtPoseCacheN) { const k0 = c.poses.keys().next().value, old = c.poses.get(k0); c.poses.delete(k0); if (!L || L.r !== old) into = old.spr; } // V2: the pose that leaves the cache lends its canvas to this one
+  const split = !!L && Math.max(RT.level, (RT.fg || 0) - 1) >= ART.rtSplitFrom; // V2: a slow device splits a repaint over two frames (the player rides their last sprite in between)
+  let r = null; const w0 = RT.work, t0 = performance.now(); RT.lodPaint = true; try { r = rtCharSprite(cam, p, alpha, ball, team, Object.assign({}, opts, { pose: P, noTrail: true, spriteOwner: pk ? {} : p, into, split }), 1, ballPaintFor); } finally { RT.lodPaint = false; RT.work = w0 + performance.now() - t0; } if (!r) { c.last = null; return null; }
+  if (split) { RT.job = { finish: r.finish, c, pk, key, t, sc, ax, ay, kit, frame: RT.frame }; RT.paintFrame = RT.frame; RT.repaints = (RT.repaints || 0) + 1; if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); } // (ART.rtLod: cheaper ways to the same pixels; V2: the guard counts the whole paint, not only the pixel passes)
+  RT.paintFrame = RT.frame; RT.repaints = (RT.repaints || 0) + 1; const rec = { spr: r.spr, dx: r.X - ax, dy: r.Y - ay, head: r.head, gm: r.gm, P: r.P, k: r.k };
+  if (pk) { c.poses.set(pk, rec); if (c.poses.size > ART.rtPoseCacheN) c.poses.delete(c.poses.keys().next().value); }
+  c.last = { key, t, sc, r: rec }; return r;
 }
 // Draws a character sprite into the world buffer (identity transform, world px). Guard level 3: every other frame
 // reuses last frame's sprite.
@@ -7501,12 +7689,12 @@ function rtDrawCharacter(g, cam, p, alpha, ball, team, opts, ballPaintFor) {
 // --- the ball: 8 pre-pixelized rotation frames per size and skin ---
 function rtBallSprite(r, frame, skin) {
   r = clamp(Math.round(r * 2) / 2, 1.5, 40); const key = r + '|' + frame + '|' + (skin | 0); let c = RT.balls.get(key); if (c) return c;
-  const ss = 4, S = Math.ceil(2 * r + 4) * ss, cv = document.createElement('canvas'); cv.width = cv.height = S; const g = cv.getContext('2d', { willReadFrequently: true }); const R = r * ss, cx = S / 2;
+  const ss = 4, S = Math.ceil(2 * r + 4) * ss, cv = RT.ballCv || (RT.ballCv = document.createElement('canvas')); if (cv.width !== S || cv.height !== S) cv.width = cv.height = S; const g = cv.getContext('2d', { willReadFrequently: true }); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, S, S); const R = r * ss, cx = S / 2; // (V2: one paint canvas for every ball frame)
   const spr = ballSprite(skin, R); const kk = R / ((spr.width - 4) / 2); g.drawImage(spr, cx - spr.width / 2 * kk, cx - spr.height / 2 * kk, spr.width * kk, spr.height * kk);
   g.save(); g.beginPath(); g.arc(cx, cx, R * 0.97, 0, TAU); g.clip(); g.translate(cx, cx); g.rotate(frame * TAU / ART.rtBallFrames); g.strokeStyle = spr.seam || '#3A1A08'; g.lineWidth = Math.max(ss * 0.9, R * 0.08); g.beginPath(); g.moveTo(-R, 0); g.lineTo(R, 0); if (r > 4) { g.moveTo(0, -R); g.lineTo(0, R); g.moveTo(-R * 0.7, -R); g.quadraticCurveTo(-R * 0.1, 0, -R * 0.7, R); g.moveTo(R * 0.7, -R); g.quadraticCurveTo(R * 0.1, 0, R * 0.7, R); } else { g.moveTo(-R * 0.35, -R); g.quadraticCurveTo(R * 0.25, 0, -R * 0.35, R); } g.stroke(); g.restore(); // a small ball keeps one seam and one curve
   const col = [ART.ball, '#F3F0FF', '#FF4FA3', '#B8FF5A', '#3D6EA8'][((skin | 0) % 5 + 5) % 5];
   const pal = rtPalette('ball' + (skin | 0), [ART.inkLine, shadeHex(col, 0.3), col, shadeHex(col, -0.3), spr.seam || '#3A1A08', '#FFFFFF']);
-  c = pixelize(cv, 0, 0, S, S, ss, pal, {}); const out = document.createElement('canvas'); out.width = c.width; out.height = c.height; out.getContext('2d').drawImage(c, 0, 0);
+  c = pixelize(cv, 0, 0, S, S, ss, pal, { into: rtPxTmp() }); const out = document.createElement('canvas'); out.width = c.width; out.height = c.height; out.getContext('2d').drawImage(c, 0, 0);
   if (RT.balls.size > 240) RT.balls.clear(); RT.balls.set(key, out); return out;
 }
 function rtBallFrame(b) { return ((Math.floor((((b.spin || 0) * 0.25 + (b.rot || 0)) % TAU + TAU) % TAU / (TAU / ART.rtBallFrames))) % ART.rtBallFrames + ART.rtBallFrames) % ART.rtBallFrames; }
@@ -7549,15 +7737,29 @@ function rtGlow(g, cx, cy, rx, ry, color, a) { g.save(); g.globalAlpha = (a == n
 
 // --- the guard (§8.6 carried over): pixel work over budget sheds: characters at 2× instead of 3×, no inner lines, then
 // sprites redrawn at 30 Hz ---
-function rtGuard(ms, phone) { RT.ms = RT.ms * 0.9 + ms * 0.1; const B = ART.rtBudget[phone ? 1 : 0]; if (RT.ms > B) { RT.over++; RT.under = 0; if (RT.over > 90 && RT.level < 3) { RT.level++; RT.over = 0; } } else if (RT.ms < B * 0.5) { RT.under++; RT.over = 0; if (RT.under > 240 && RT.level > 0) { RT.level--; RT.under = 0; } } }
+// V2 (§1.2): the pixel guard steps up after ART.rtGuardUpS of real time over budget (it was 90 frames: 1.5 s at 60 fps,
+// 4 s on a slow phone) and back down after ART.rtGuardDownS under half of it. Its levels lower the pose rate (rtPoseHzBy).
+function rtGuard(ms, phone) { const now = performance.now(), dt = clamp((now - (RT.gT || now)) / 1000, 0, 0.25); RT.gT = now; RT.ms = RT.ms * 0.9 + ms * 0.1; const B = ART.rtBudget[phone ? 1 : 0];
+  if (RT.ms > B) { RT.overT = (RT.overT || 0) + dt; RT.underT = 0; if (RT.overT >= ART.rtGuardUpS && RT.level < 3) { RT.level++; RT.overT = 0; } } else if (RT.ms < B * 0.5) { RT.underT = (RT.underT || 0) + dt; RT.overT = 0; if (RT.underT >= ART.rtGuardDownS && RT.level > 0) { RT.level--; RT.underT = 0; } } }
 
+// V2 (§1.2): a match's first frame (and a new pixel size) paints what play would otherwise paint on the spot: every
+// expression of both faces at the size their sprites use, the ball's rotation frames at each lane's size, and one sprite
+// of each player (their shoes baked at this size).
+function rtWarmMatch(m, cam) {
+  for (const p of m.players) { if (p.hidden) continue; const su = ART.headWidth * cam.scale(p.z) * drawHeightOf(p) * RT.ss, team = m.teams[p.team]; faceWarmQueue(normLook(p.look, p.name), p.def && p.def.age, faceBucket(su * (ART.rtLod.faceX || 2)), team && team.colors, !!ART.rtLod.brow); } // each face at the size its sprite paints it
+  let n = 0; while (_faceWarmQ.length && n++ < 64) faceWarmTick(true);
+  const skin = m.ball ? m.ball.skin : 0; for (const z of [0, 0.25, 0.5, 0.75, 1]) { const r = BALL.radius * cam.scale(z) * 1.15; if (r > 0.4) for (let f = 0; f < ART.rtBallFrames; f++) rtBallSprite(r, f, skin); }
+  RT.lodPaint = true; try { for (const p of m.players) if (!p.hidden) rtCharSprite(cam, p, 1, m.ball, m.teams[p.team], { spriteOwner: {}, into: rtPxTmp(), noTrail: true, glow: false, noShadow: true }, 1, null); } finally { RT.lodPaint = false; } // one paint each: the shoes baked at this size, the paint code warm
+  for (const p of m.players) { if (p.hidden) continue; const fc = getFaceCanvas(normLook(p.look, p.name), 'neutral', p.def && p.def.age, ART.buckets[0], m.teams[p.team] && m.teams[p.team].colors, true); faceFlush(fc.canvas); } // the jumbotron's replay faces (the smallest size, neutral)
+}
 // --- the frame: the world renders into the pixel buffer, then the buffer is blitted at k× ---
 function rtBuffer(W, H) { if (!RT.buf) { RT.buf = document.createElement('canvas'); RT.g = rtPatchCtx(RT.buf.getContext('2d')); RT.cam = new RetroCam(); } if (RT.buf.width !== W || RT.buf.height !== H) { RT.buf.width = W; RT.buf.height = H; } return RT.g; }
 function rtRenderMatch(game, ctx, m, alpha, env) {
-  const devW = game.canvas.width, devH = game.canvas.height, k = rtGridK(devH, RT.mode === 'sharp'), W = Math.ceil(devW / k), H = Math.ceil(devH / k);
-  RT.k = k; RT.f = game.dpr / k; RT.W = W; RT.H = H; RT.frame++; RT.work = 0; RT.ballBox = null; RT.ss = RT.level >= 1 ? 2 : ART.rtSuper;
+  const devW = game.canvas.width, devH = game.canvas.height; let k = rtGridK(devH, RT.mode === 'sharp'); if (game.lowRes) while (devH / k > ART.rtLowRows) k++; const W = Math.ceil(devW / k), H = Math.ceil(devH / k); // (V2: the guard's last level: a world of at most rtLowRows rows, where a lower pixel ratio couldn't get there)
+  RT.k = k; RT.f = game.dpr / k; RT.W = W; RT.H = H; RT.frame++; RT.work = 0; RT.ballBox = null; RT.ss = ART.rtSuperMatch; RT.fg = (env && env.guard) || 0; RT.t0 = performance.now(); RT.pre = -1; /* V2: 2× in a match (an exact box filter on the cheapest path), never switched mid-match (a switch repainted every face) */
   const g = rtBuffer(W, H), cam = RT.cam.sync(game.cam, RT.f, W, H); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
   try { drawMatchScene(g, Object.assign({}, env, { cam, W, H, retro: RT }), m, alpha); } catch (e) { reportFrameError(e); }
+  if (m && m._warm !== RT.k + '|' + RT.ss + '|' + H) { m._warm = RT.k + '|' + RT.ss + '|' + H; try { rtWarmMatch(m, cam); } catch (e) { reportFrameError(e); } } // V2: the first frame (and a new world size: the guard's lower resolution) paints every face and ball frame (one face is 60 ms on a slow phone)
   ctx.save(); ctx.setTransform(k, 0, 0, k, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(RT.buf, 0, 0); ctx.restore();
   rtGuard(RT.work, game.input && game.input.hasTouch);
 }
@@ -7570,7 +7772,7 @@ function drawMatchSceneRetro(g, env, m, alpha) {
   if (V) rtVenueBack(g, cam, V, m, guard, env.phone); else rtPlainBack(g, cam, world, court, m);                  // L0–L3: baked backgrounds, fans, the floor
   // the sprites first (reflections need them), then reflections, shadows and the hoops' backs
   const spr = []; let ballInHand = false; const o = { replay: !!rp, glow: false, noShadow: true };
-  const tPose = rp ? 1e6 + (rp.t || 0) : m.time; /* F3: poses at ART.rtPoseHz of game time (a replay has its own clock) */
+  const tPose = rp ? 1e6 + (rp.t || 0) : m.time; /* F3: poses at ART.rtPoseHzBy of game time (a replay has its own clock) */
   for (const p of order) { const own = ball.owner === p; if (own) ballInHand = true; const oo = Object.assign({}, o, { depth: p._depth || 0 }); const r = rtCharSpriteCached(cam, p, alpha, ball, m.teams[p.team], oo, own, own ? (sg, pc) => () => drawBallNew(sg, pc, ball, alpha, m.ball.skin, p.onFire > 0, o) : null, tPose); spr.push([p, r]); }
   const refA = (V && (V.kind === 'legends' || V.bright())) ? ART.rtReflectA : ART.rtReflectA * 0.6;
   if (guard < 2) { g.save(); g.globalAlpha = refA; for (const [p, r] of spr) { if (!r) continue; const z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha), fy = Math.round(cam.sy(0, z)), dh = Math.max(4, Math.round((fy - r.Y) * ART.rtReflectH)); g.save(); g.beginPath(); g.rect(r.X - 2, fy, r.spr.width + 4, dh); g.clip(); g.translate(0, 2 * fy); g.scale(1, -1); g.drawImage(r.spr, r.X, r.Y); g.restore(); } g.restore(); } /* only the shoes and legs reflect (the floor under them), not a whole ghost */
@@ -7667,19 +7869,36 @@ function rtFanAtlas(V, fh, shade) {
   const bright = V.bright() ? ART.brightGrade : [1, 1], sat = ART.rtCrowdSat * bright[1], lum = bright[0] * (1 - shade);
   for (let i = 0; i < A.n; i++) { const Fn = A.fans[i]; const cols = [ART.inkLine, Fn.skin[0], Fn.skin[1], Fn.skin[2], Fn.shirt, shadeHex(Fn.shirt, -0.16), Fn.team ? (Fn.shirt === Fn.team[0] ? Fn.team[1] : Fn.team[0]) : '#F3F0FF', Fn.hairC, ink(Fn.hairC), Fn.capC, '#FAF8F4', '#1A1020', '#3B0E1D', '#F3F0FF', '#D46272', '#15151E', '#9FE3FF', '#E63946', '#FFD23F', '#2A2A36', '#EDE6DA', '#141018'];
     const pal = rtPalette('fan|' + A.fans.length + '|' + i + '|' + cols.join(), cols); const u32 = new Uint32Array(pal.n); for (let k = 0; k < pal.n; k++) { const hx = rgbToHex(pal.rgb[k * 3], pal.rgb[k * 3 + 1], pal.rgb[k * 3 + 2]), gc = k === 0 ? hx : rtGrade(hx, sat, lum), q = hexToRgb(gc); u32[k] = (255 << 24 | q[2] << 16 | q[1] << 8 | q[0]) >>> 0; }
-    for (let p = 0; p < 6; p++) { const spr = pixelize(src, i * A.w, p * A.h, A.w, A.h, A.h / fhI, pal, { u32 }); g.drawImage(spr, i * (fw + 2), p * (fhI + 2)); } }
+    for (let p = 0; p < 6; p++) { const spr = pixelize(src, i * A.w, p * A.h, A.w, A.h, A.h / fhI, pal, { u32, into: rtPxTmp() }); g.drawImage(spr, i * (fw + 2), p * (fhI + 2)); } }
   F = { canvas: c, w: fw + 2, h: fhI + 2 }; if (R) R.fans.set(key, F); return F;
 }
+// V2 (§1.2, "update the crowd at 15 Hz"): the fans are drawn into layers ART.rtCrowdHz times a second of game time (and
+// at once when the camera moves), and each layer's band of rows is blitted every frame. A layer is drawn without the
+// camera's shake, a few pixels wider than the screen, and moved by the shake (a shake used to redraw it every frame).
+// The back tiers and the front tiers are two layers that redraw on different frames (each still 15 times a second), so
+// a crowd frame costs half.
 function rtFans(V, g, cam, m, t) {
-  const clapping = V.clapping(m), nT = V.tiers.length, dim = rtVenueDim(V);
-  V.tiers.forEach((T, ti) => { if (T.bleach) { const v = parView(cam, T.f, 1); rtCrowdRows(V, g, v, T.rows, t, { scale: T.scale, clapping, dimMul: Math.pow(1 - dim, nT - ti) }); return; } const v = parView(cam, T.f, 1); rtCrowdRows(V, g, v, T.rows, t, { scale: T.scale, clapping, student: T.student, fanM: T.lg ? 1.02 : undefined, dimMul: Math.pow(1 - dim, nT - ti) }); });
+  const W = g.canvas.width, H = g.canvas.height, shx = cam.shx || 0, shy = cam.shy || 0, P = Math.ceil(((CONFIG.camera && CONFIG.camera.shakeAmp) || 0.3) * cam.ppm) + 2, LW = W + 2 * P;
+  const key = V.kind + '|' + W + 'x' + H + '|' + Math.round(cam.sx(0) + shx) + ',' + Math.round(cam.sy(0, 0) - shy) + ',' + cam.scale(0).toFixed(4), nT = V.tiers.length, half = Math.ceil(nT / 2);
+  const Ls = V._fanLayers || (V._fanLayers = [0, 1].map(i => ({ c: document.createElement('canvas'), key: '', t: -1, y0: 0, y1: H, from: 0, to: 0, i })));
+  Ls[0].from = 0; Ls[0].to = half; Ls[1].from = half; Ls[1].to = nT; let drew = -1;
+  for (const F of Ls) { const moved = F.key !== key || t < F.t, due = t - F.t >= 1 / ART.rtCrowdHz;
+    if (moved || (due && drew < 0)) { if (F.c.width !== LW || F.c.height !== H) { F.c.width = LW; F.c.height = H; F.y0 = 0; F.y1 = H; } const fg = F.c.getContext('2d'); fg.clearRect(0, F.y0, LW, F.y1 - F.y0); fg.imageSmoothingEnabled = false;
+      const b = { y0: 1e9, y1: -1e9 }, sv = [cam.W, cam.shakeX, cam.shakeY]; cam.W = LW; cam.shakeX = cam.shakeY = 0; // (a wider view centers P px right: the pad)
+      try { rtFansDraw(V, fg, cam, m, t, b, F.from, F.to); } finally { cam.W = sv[0]; cam.shakeX = sv[1]; cam.shakeY = sv[2]; }
+      F.y0 = clamp(Math.floor(b.y0) - 2, 0, H); F.y1 = clamp(Math.ceil(b.y1) + 2, F.y0, H); F.key = key; F.t = moved || F.t < 0 ? t - F.i * 0.5 / ART.rtCrowdHz : t; drew = F.i; RT.crowdFrame = RT.frame; } } // (a new view: both at once, the front one half a period on; V2: a frame that redraws the crowd lets a due sprite repaint wait)
+  for (const F of Ls) if (F.y1 > F.y0) g.drawImage(F.c, 0, F.y0, LW, F.y1 - F.y0, -P - shx, F.y0 + shy, LW, F.y1 - F.y0);
+}
+function rtFansDraw(V, g, cam, m, t, bounds, from, to) {
+  const clapping = V.clapping(m), nT = V.tiers.length, dim = rtVenueDim(V); from = from || 0; to = to == null ? nT : to;
+  V.tiers.forEach((T, ti) => { if (ti < from || ti >= to) return; if (T.bleach) { const v = parView(cam, T.f, 1); rtCrowdRows(V, g, v, T.rows, t, { scale: T.scale, clapping, dimMul: Math.pow(1 - dim, nT - ti), bounds }); return; } const v = parView(cam, T.f, 1); rtCrowdRows(V, g, v, T.rows, t, { scale: T.scale, clapping, bounds, student: T.student, fanM: T.lg ? 1.02 : undefined, dimMul: Math.pow(1 - dim, nT - ti) }); });
 }
 function rtCrowdRows(V, g, view, rows, t, opts) {
   const A = V.atlas, cs = V.crowd, fh = view.m * (opts.fanM || 1.02) * (opts.scale || 1), W_ = view.W;
   for (let r = rows.length - 1; r >= 0; r--) { const row = rows[r], ySeat = view.sy(row.y), shade = 1 - (1 - Math.min(0.7, ART.rowDark * r)) * (opts.dimMul == null ? 1 : opts.dimMul); const F = rtFanAtlas(V, fh, shade), fw = F.w, fhp = F.h;
     for (let i = 0; i < row.seats.length; i++) { const s = row.seats[i], sx = view.sx(s.x); if (sx < -fw || sx > W_ + fw) continue; const pose = cs ? cs.pose(s, s.x, t, opts.clapping) : FAN_POSE.seat; let bob = Math.sin((t * ART.fanBobHz + s.ph) * TAU) * ART.fanBobPx * fh / A.h;
       if (opts.student && s.x > opts.student[0] && s.x < opts.student[1] && cs && t < cs.bounceUntil) bob += Math.abs(Math.sin(t * TAU * 1.6)) * 5 * fh / A.h;
-      g.drawImage(F.canvas, s.fan * fw, pose * fhp, fw, fhp, Math.round(sx - fw / 2), Math.round(ySeat - fh * 0.92 - bob) - 1, fw, fhp); } }
+      const dy = Math.round(ySeat - fh * 0.92 - bob) - 1; g.drawImage(F.canvas, s.fan * fw, pose * fhp, fw, fhp, Math.round(sx - fw / 2), dy, fw, fhp); if (opts.bounds) { if (dy < opts.bounds.y0) opts.bounds.y0 = dy; if (dy + fhp > opts.bounds.y1) opts.bounds.y1 = dy + fhp; } } }
   if (cs && cs.flashes.length) { g.fillStyle = '#FFFFFF'; for (const Fl of cs.flashes) { if (t < Fl.t || t > Fl.t + ART.flashMs / 1000) continue; const r0 = rows[Math.floor(Fl.y * rows.length) % rows.length]; const x = Math.round(view.sx(Fl.x)), y = Math.round(view.sy(r0.y + r0.h * 0.6)); g.fillRect(x - 2, y, 5, 1); g.fillRect(x, y - 2, 1, 5); } }
 }
 // --- the live layers ---
@@ -7689,7 +7908,7 @@ function rtVenueBack(g, cam, V, m, guard, phone) {
   rtGymScore(V, g, cam, m); if (V.kind === 'legends') rtCones(V, g, cam, t); // (the cones shine behind the crowd)
   rtFans(V, g, cam, m, t);
   if (V.kind === 'pro') rtBeams(V, g, cam, t, guard < 3);
-  if ((V.kind === 'pro' || V.kind === 'legends') && !phone) rtJumbotron(V, g, cam, m);
+  if ((V.kind === 'pro' || V.kind === 'legends') && !phone) rtJumbotron(V, g, cam, m, guard);
   if (R.B1) { xy = rtLayerXY(R, cam, 0.85, R.pads.B1); g.drawImage(R.B1, xy[0], xy[1]); }
   if (!LAY.legends && (V.kind === 'pro' || V.kind === 'college')) rtCourtsideFans(V, g, cam, m, t);
   const lg = !!(LAY && LAY.legends); if (V.kind === 'legends' || (V.kind === 'pro' && lg)) { rtRibbon(V, g, cam, t, ART.lgLedY); rtTablePanel(V, g, cam); } else if (V.kind === 'pro') rtRibbon(V, g, cam, t);
@@ -7734,15 +7953,15 @@ function rtTablePanel(V, g, cam) {
   g.save(); g.beginPath(); g.rect(x0 + 2, y0 + 1, x1 - x0 - 4, y1 - y0 - 2); g.clip(); g.fillStyle = V.home[1] && luminance(V.home[1]) > 0.3 ? V.home[1] : '#F3F0FF'; g.font = fontStr(11, true); g.textAlign = 'center'; g.textBaseline = 'middle'; const nm = String(V.homeName).toUpperCase(), ab = (V.m && V.m.teams && V.m.teams[0] && V.m.teams[0].abbr) || nm.slice(0, 3); g.fillText(rbWidth(nm) + 4 <= x1 - x0 ? nm : ab, (x0 + x1) >> 1, (y0 + y1) >> 1); g.restore();
 }
 // The jumbotron: pixel portraits, the score and chants in the pixel font; replays as a tiny snapped scene.
-function rtJumbotron(V, g, cam, m) {
+function rtJumbotron(V, g, cam, m, guard) {
   const v = parView(cam, 0.5, 1), s = ART.jumboScale, w = Math.round(4.4 * s * v.m), h = Math.round(2.0 * s * v.m), cx = Math.round(v.sx(COURT_L / 2)), bug = (10 + 70 * Math.min(1, RT.W / RT.f / 1100) + ART.jumboGap) * RT.f, cy = Math.round(Math.max(v.sy(V.y(6.8)), bug + h / 2 + 2)); if (cy + h < 0 || cy - h > cam.H || h < 12) return; /* it hangs just below the score bug (as in Smooth) */
   const x0 = cx - (w >> 1), y0 = cy - (h >> 1); g.fillStyle = '#2B3566'; g.fillRect(x0 - 3, y0 - 3, w + 6, h + 6); g.fillStyle = '#0A0D1E'; g.fillRect(x0 - 2, y0 - 2, w + 4, h + 4); g.fillStyle = '#060814'; g.fillRect(x0, y0, w, h);
   const J = V.jumbo; g.textAlign = 'center'; g.textBaseline = 'middle';
-  if (J.clip && J.clipT < ART.jumboReplayS && m && m.replay) { rtJumboReplay(V, g, m, x0, y0, w, h); return; }
+  if (J.clip && J.clipT < ART.jumboReplayS && m && m.replay && (guard || 0) < CONFIG.perf.jumboReplayUntil) { rtJumboReplay(V, g, m, x0, y0, w, h); return; } // (V2: a slow device's guard drops the replay: two full redraws 8 times a second)
   if (!m) return; const T0 = m.teams[0], T1 = m.teams[1], ph = Math.floor(J.chantT / 4) % 3;
   if (ph === 2) { g.fillStyle = Math.sin(J.chantT * 8) > 0 ? '#FFD23F' : '#FF4FA3'; g.font = fontStr(11, true); g.fillText(ART.chants[Math.floor(J.chantT / 12) % ART.chants.length], cx, cy); return; }
   const ps = Math.round(h * 0.7), pa = T0.players && T0.players[0], pb = T1.players && T1.players[0];
-  if (pa) g.drawImage(rtPortrait(pa, T0.colors, ps), x0 + 2, cy - (ps >> 1)); if (pb) g.drawImage(rtPortrait(pb, T1.colors, ps), x0 + w - ps - 2, cy - (ps >> 1));
+  if (pa) g.drawImage(rtPortrait(pa, T0.colors, ps, 'neutral', { stable: true }), x0 + 2, cy - (ps >> 1)); if (pb) g.drawImage(rtPortrait(pb, T1.colors, ps, 'neutral', { stable: true }), x0 + w - ps - 2, cy - (ps >> 1));
   g.fillStyle = '#F3F0FF'; g.font = fontStr(11, true); g.fillText((T0.score | 0) + '-' + (T1.score | 0), cx, cy);
 }
 function rtJumboReplay(V, g, m, x, y, w, h) {
@@ -7767,24 +7986,36 @@ function rtHoopFront(g, cam, hoop, V, idx, m, net) {
   if (net) rtNet(g, cam, net, true);
 }
 // The net: its strands as 1-px lines (white in front, gray behind).
+// V2 (§1.2, "pre-bake effect sprites"): a net at rest is the same pixels every frame (some 500 one-pixel runs a side, on
+// both hoops): each side is drawn once into a sprite and blitted until the net moves (a shot near the rim, a dunk's snap:
+// its version changes) or the camera does (a shake only moves it). The sprite sits on whole world pixels, so the pixels
+// are the same.
 function rtNet(g, cam, net, front) {
-  const S = net.s, n = S.length, Rn = ART.netRows, ry = Math.max(1, cam.ppm * 0.06), X = p => cam.sx(p.x), Y = (p, d, r) => cam.sy(p.y) + d * ry * (1 - (1 - ART.netTaper) * r / (Rn - 1));
-  g.fillStyle = front ? '#F4F4F8' : '#9DA3B8';
+  const C = net._rt || (net._rt = [{}, {}]), E = C[front ? 1 : 0], v = net.ver || 0, hx = cam.shx || 0, hy = cam.shy || 0, a = cam.sx(0) + hx, b = cam.sx(1) + hx, c = cam.sy(0) - hy, d = cam.sy(1) - hy, pp = cam.ppm; // (the camera's shake is whole pixels: the sprite is kept unshaken and blitted moved by it)
+  if (E.cv && E.v === v && E.a === a && E.b === b && E.c === c && E.d === d && E.pp === pp) { if (E.w > 0) g.drawImage(E.cv, 0, 0, E.w, E.h, E.x - hx, E.y + hy, E.w, E.h); return; }
+  const S = net.s, n = S.length, Rn = ART.netRows, ry = Math.max(1, pp * 0.06), X = p => cam.sx(p.x), Y = (p, dd, r) => cam.sy(p.y) + dd * ry * (1 - (1 - ART.netTaper) * r / (Rn - 1));
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (let i = 0; i < n; i++) { const A = S[i], B = S[(i + 1) % n], Cc = S[(i + n - 1) % n]; if ((A.d > 0) !== front) continue; for (let r = 0; r < Rn; r++) { const p = A.col[r], px = Math.round(X(p)), py = Math.round(Y(p, A.d, r)); if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; if (r > 0) { const Q = (r % 2 ? Cc : B), q = Q.col[r], qx = Math.round(X(q)), qy = Math.round(Y(q, Q.d, r)); if (qx < x0) x0 = qx; if (qx > x1) x1 = qx; if (qy < y0) y0 = qy; if (qy > y1) y1 = qy; } } }
+  Object.assign(E, { v, a, b, c, d, pp, w: 0, h: 0 }); if (!(x1 >= x0 && y1 >= y0) || x1 - x0 > 4000 || y1 - y0 > 4000) return;
+  const ox = x0 - 1, oy = y0 - 1, w = x1 - x0 + 3, h = y1 - y0 + 3, cv = E.cv || (E.cv = document.createElement('canvas')); if (cv.width < w || cv.height < h) { cv.width = Math.max(cv.width, w); cv.height = Math.max(cv.height, h); }
+  const s = cv.getContext('2d'); s.setTransform(1, 0, 0, 1, 0, 0); s.globalAlpha = 1; s.globalCompositeOperation = 'source-over'; s.clearRect(0, 0, cv.width, cv.height); s.fillStyle = front ? '#F4F4F8' : '#9DA3B8';
   for (let i = 0; i < n; i++) { const A = S[i]; if ((A.d > 0) !== front) continue; const B = S[(i + 1) % n], Cc = S[(i + n - 1) % n];
-    for (let r = 0; r < Rn - 1; r++) { const p = A.col[r], Q = (r % 2 ? B : Cc), q = Q.col[r + 1]; pxLine(g, X(p), Y(p, A.d, r), X(q), Y(q, Q.d, r + 1)); const q2 = A.col[r + 1]; pxLine(g, X(p), Y(p, A.d, r), X(q2), Y(q2, A.d, r + 1)); } }
+    for (let r = 0; r < Rn - 1; r++) { const p = A.col[r], Q = (r % 2 ? B : Cc), q = Q.col[r + 1]; pxLine(s, X(p) - ox, Y(p, A.d, r) - oy, X(q) - ox, Y(q, Q.d, r + 1) - oy); const q2 = A.col[r + 1]; pxLine(s, X(p) - ox, Y(p, A.d, r) - oy, X(q2) - ox, Y(q2, A.d, r + 1) - oy); } }
+  E.x = ox + hx; E.y = oy - hy; E.w = w; E.h = h; g.drawImage(cv, 0, 0, w, h, ox, oy, w, h);
 }
 // --- pixel portraits (§1.2: the same pixel style in menus): a bust pixelized at exactly `size` px ---
 const _rtPortraits = new Map();
-function rtPortraitKey(L, age, colors, size, expr, opts) { return lookKey(L) + '|' + ageStageOf(age) + '|' + (colors ? colors.join() : '') + '|' + size + '|' + expr + (opts.bg === false ? '|nobg' : '') + (opts.headOnly ? '|head' : '') + (opts.dir === -1 ? '|L' : ''); }
+function rtPortraitKey(L, age, colors, size, expr, opts, lk) { return (lk || lookKey(L)) + '|' + ageStageOf(age) + '|' + (colors ? colors.join() : '') + '|' + size + '|' + expr + (opts.bg === false ? '|nobg' : '') + (opts.headOnly ? '|head' : '') + (opts.dir === -1 ? '|L' : ''); }
+const _rtPortraitLook = new WeakMap(); // V2: a match player's normalized look and its key (the score bug asks every frame; a match never edits a look)
 function rtPortrait(def, colors, size, expr, opts) {
-  def = def || {}; size = Math.max(8, Math.round(size)); const L = normLook(def.look, def.name), age = def.age || 24; expr = EXPRS.includes(expr) ? expr : 'neutral'; opts = opts || {};
-  const key = rtPortraitKey(L, age, colors, size, expr, opts); let c = _rtPortraits.get(key); if (c) return c;
+  def = def || {}; size = Math.max(8, Math.round(size)); let LL = opts && opts.stable ? _rtPortraitLook.get(def) : null; if (!LL || LL.look !== def.look || LL.name !== def.name) { const L0 = normLook(def.look, def.name); LL = { look: def.look, name: def.name, L: L0, lk: lookKey(L0) }; if (opts && opts.stable) _rtPortraitLook.set(def, LL); }
+  const L = LL.L, age = def.age || 24; expr = EXPRS.includes(expr) ? expr : 'neutral'; opts = opts || {};
+  const key = rtPortraitKey(L, age, colors, size, expr, opts, LL.lk); let c = _rtPortraits.get(key); if (c) return c;
   const ss = size > ART.rtPortraitBig ? 2 : 3, S = size * ss, g = rtScratch(S, S); const col = colors || ['#3D6EA8', '#F3F0FF']; /* a big face (the face editor) supersamples 2× to stay quick while a slider moves */
   try { if (!opts.headOnly) { g.fillStyle = col[0]; g.beginPath(); g.moveTo(S * 0.1, S); g.quadraticCurveTo(S * 0.5, S * 0.66, S * 0.9, S); g.fill(); g.strokeStyle = col[1]; g.lineWidth = S * 0.04; g.beginPath(); g.moveTo(S * 0.36, S * 0.86); g.quadraticCurveTo(S * 0.5, S * 0.96, S * 0.64, S * 0.86); g.stroke(); }
     let eyes = null; drawFace(g, L, S * 0.5, S * 0.52, S * 0.52, opts.dir === -1 ? -1 : 1, expr, { name: def.name, age, team: colors, noBlink: true, force: true, eyeHook: e => { eyes = e; } });
     const kit = kitOf({ colors: col }, L), pal = rtCharPalette(L, kit, age), T = skinToneOf(L);
     const post = eyes ? (idx, ow, oh, pl) => { const M = eyes.M; for (const e of eyes.geom) { const cx = M.a * (e.x + eyes.slide) + M.c * e.y + M.e, cy = M.b * (e.x + eyes.slide) + M.d * e.y + M.f, w = e.w * Math.hypot(M.a, M.b) / ss; rtStampEye(idx, ow, oh, pl, { x: cx / ss + 0.5, y: cy / ss + 0.5, w: Math.max(3, Math.round(w * ART.rtEyeW / ART.eyeW)), iris: ART.iris[_lookIx(L.iris, 6)], shadow: T.shadow }, e.dir, [eyes.lookX * 0 + 0.2, 0], rtEyeOpen(expr, 0), expr === 'laugh'); } } : null;
-    const spr = pixelize(g.canvas, 0, 0, S, S, ss, pal, { inner: false, post }); c = document.createElement('canvas'); c.width = size; c.height = size; const cg = c.getContext('2d');
+    const spr = pixelize(g.canvas, 0, 0, S, S, ss, pal, { inner: false, post, into: rtPxTmp() }); c = document.createElement('canvas'); c.width = size; c.height = size; const cg = c.getContext('2d');
     if (opts.bg !== false) { cg.fillStyle = shadeHex(col[0], -0.45); cg.fillRect(0, 0, size, size); cg.fillStyle = shadeHex(col[0], -0.25); cg.fillRect(0, 0, size, Math.round(size * 0.55)); }
     cg.drawImage(spr, 0, 0, size, size, 0, 0, size, size); } catch (e) { reportFrameError(e); c = c || document.createElement('canvas'); }
   if (_rtPortraits.size > 160) _rtPortraits.clear(); _rtPortraits.set(key, c); return c;
@@ -7796,9 +8027,11 @@ function uiPixK(canvas) { return rtGridK((canvas && canvas.height) || 720, RT.mo
 function drawPortrait(ctx, def, colors, x, y, size, expr, opts) {
   rbArtBox(ctx, 'portrait', x, y, size, size); // F10: the audit's box
   try {
-    if (!uiRetro() || ctx.canvas !== RBF.mainCanvas) { ctx.drawImage(portraitOf(def, colors, size > 100 ? 192 : size > 60 ? 128 : 96, expr), x, y, size, size); return; }
-    const M = ctx.getTransform(), T = Math.hypot(M.a, M.b) || 1, k = uiPixK(ctx.canvas), n = Math.max(8, Math.round(size * T / k)), spr = rtPortrait(def, colors, n, expr, opts);
-    const X = Math.round(M.a * x + M.c * y + M.e), Y = Math.round(M.b * x + M.d * y + M.f); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(spr, X, Y, n * k, n * k); ctx.restore();
+    const warm = opts && opts.warm; // V2: other expressions this portrait will show (the score bug's grin), painted with the first one, not mid-play
+    const pop = (opts && opts.pop) || 1; // V2: a pop (the score bug's grin) scales the portrait painted at its size, not a new size
+    if (!uiRetro() || ctx.canvas !== RBF.mainCanvas) { const res = size > 100 ? 192 : size > 60 ? 128 : 96; if (warm) for (const e of warm) if (e !== expr) portraitOf(def, colors, res, e); const sz = size * pop; ctx.drawImage(portraitOf(def, colors, res, expr), x - (sz - size) / 2, y - (sz - size) / 2, sz, sz); return; }
+    const M = rbM(ctx), T = Math.hypot(M.a, M.b) || 1, k = uiPixK(ctx.canvas), n = Math.max(8, Math.round(size * T / k)); if (warm) for (const e of warm) if (e !== expr) rtPortrait(def, colors, n, e, opts); const spr = rtPortrait(def, colors, n, expr, opts);
+    const D = Math.round(n * k * pop), X = Math.round(M.a * x + M.c * y + M.e + (n * k - D) / 2), Y = Math.round(M.b * x + M.d * y + M.f + (n * k - D) / 2); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(spr, X, Y, D, D); ctx.restore();
   } catch (e) { /* a portrait is decoration */ }
 }
 // A big face for the face editor: drawFace's arguments, pixelized at the UI's pixel size in Retro (painted in Smooth).
@@ -14078,7 +14311,7 @@ class Game {
   }
   // ---- match lifecycle ----
   startMatch(opts, after) {
-    const S = this.save.data.settings; opts.dev = true; const k = (after && after.kind) || 'quick';
+    this.guard.matchStart(performance.now()); this.guard.hold(CONFIG.perf.holdSeconds); const S = this.save.data.settings; opts.dev = true; const k = (after && after.kind) || 'quick';
     if (S.colorblind && opts.teams && opts.teams.length === 2 && !opts.contest3 && k !== 'practice' && k !== 'tutorial') opts.teams = colorblindTeams(opts.teams[0], opts.teams[1]); /* R10: every two-sided game (pro games, the All-Star 1v1 and practice challenges missed it) */
     if (CAREER_KINDS.includes(k)) opts.extras = false; else if (opts.extras == null) { opts.extras = S.arcadeExtras === 'quick' && k === 'quick'; } /* L9 power-ups; R4: never in a career game (the user's rule); F1: Quick 1v1 only, off by default */ if (opts.charges == null) opts.charges = S.charges !== false; if (opts.layout == null) opts.layout = S.camera === 'classic' ? 'classic' : 'legends'; /* §2: every 1v1 plays in Legends View unless Settings → Camera says Classic */ if (CONFIG.dev.gameSeconds > 0 && !opts.tutorial && !opts.practice && !opts.drill && !opts.contest3) opts.format = devShortFormat(opts.format); /* R-pass dev switch: short games */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
@@ -14098,11 +14331,17 @@ class Game {
   resume() { while (this.ui.screen) this.ui.pop(); this.paused = false; this.acc = 0; this.applySettings(); }
   // F3: a highlight's poster: the scene just drawn (no HUD yet) is printed as a card now (a few ms); the JPEG and the save
   // wait for the end of the game (they were a long frame at every posterizer, with a full save written mid-play).
+  // V2 (§1.2): a posterizer's frame only snaps a copy of the screen; the poster card (its headline, frame and score) is
+  // built when the game ends (or at once if posters show in play), not in the middle of the dunk.
   capturePoster(m, req) {
-    try { const sc = this.sceneCanvas, g = sc.getContext('2d', { willReadFrequently: true }); g.drawImage(this.canvas, 0, 0, sc.width, sc.height); const pal = COURTS[m.courtId].palette; const card = buildPoster(sc, req.headline, req.sub, pal, m.teams[0].abbr + ' ' + m.teams[0].score + ' – ' + m.teams[1].score + ' ' + m.teams[1].abbr); const copy = document.createElement('canvas'); copy.width = card.width; copy.height = card.height; copy.getContext('2d').drawImage(card, 0, 0); m.posterCards.push(copy); (m.posterSaves || (m.posterSaves = [])).push({ canvas: copy, headline: req.headline });
-      if (CONFIG.fx.posterInPlay && req.freeze && !this.fx.reduceMotion) { const show = { canvas: copy, t: CONFIG.fx.posterMs / 1000, headline: req.headline }; if (req.delay > 0) this.posterPending = { show, t: req.delay }; else { this.posterShow = show; this.fx.hitStopMs = Math.max(this.fx.hitStopMs, CONFIG.fx.posterMs); } } } catch (e) { reportFrameError(e); }
+    try { const sc = this.sceneCanvas, snap = document.createElement('canvas'); snap.width = Math.min(sc.width, CONFIG.fx.posterSnapW); snap.height = Math.max(1, Math.round(snap.width * sc.height / sc.width)); snap.getContext('2d').drawImage(this.canvas, 0, 0, snap.width, snap.height); faceFlush(snap); // V2: at the card's size (it is 240–480 px wide), copied now (the frame doesn't keep a full-screen copy alive)
+      const job = { snap, headline: req.headline, sub: req.sub, pal: COURTS[m.courtId].palette, score: m.teams[0].abbr + ' ' + m.teams[0].score + ' – ' + m.teams[1].score + ' ' + m.teams[1].abbr };
+      if (CONFIG.fx.posterInPlay && req.freeze && !this.fx.reduceMotion) { const copy = this.posterCard(m, job); const show = { canvas: copy, t: CONFIG.fx.posterMs / 1000, headline: req.headline }; if (req.delay > 0) this.posterPending = { show, t: req.delay }; else { this.posterShow = show; this.fx.hitStopMs = Math.max(this.fx.hitStopMs, CONFIG.fx.posterMs); } }
+      else (m.posterJobs || (m.posterJobs = [])).push(job); } catch (e) { reportFrameError(e); }
   }
-  flushPosters(m) { const list = m && m.posterSaves; if (!list || !list.length) return; m.posterSaves = []; try { for (const p of list) { const small = document.createElement('canvas'); small.width = CONFIG.save.posterW; small.height = CONFIG.save.posterH; small.getContext('2d').drawImage(p.canvas, 0, 0, small.width, small.height); this.save.addPoster(small.toDataURL('image/jpeg', 0.6), p.headline, true); } this.save.save(); } catch (e) { /* posters are keepsakes */ } }
+  posterCard(m, job) { const sc = this.sceneCanvas, g = sc.getContext('2d', { willReadFrequently: true }); g.drawImage(job.snap, 0, 0, sc.width, sc.height); const card = buildPoster(sc, job.headline, job.sub, job.pal, job.score); const copy = document.createElement('canvas'); copy.width = card.width; copy.height = card.height; copy.getContext('2d').drawImage(card, 0, 0); m.posterCards.push(copy); (m.posterSaves || (m.posterSaves = [])).push({ canvas: copy, headline: job.headline }); return copy; }
+  flushPosters(m) { if (m && m.posterJobs && m.posterJobs.length) { const jobs = m.posterJobs; m.posterJobs = []; for (const job of jobs) try { this.posterCard(m, job); } catch (e) { /* posters are keepsakes */ } }
+    const list = m && m.posterSaves; if (!list || !list.length) return; m.posterSaves = []; try { for (const p of list) { const small = document.createElement('canvas'); small.width = CONFIG.save.posterW; small.height = CONFIG.save.posterH; small.getContext('2d').drawImage(p.canvas, 0, 0, small.width, small.height); this.save.addPoster(small.toDataURL('image/jpeg', 0.6), p.headline, true); } this.save.save(); } catch (e) { /* posters are keepsakes */ } }
   openPostgame() { if (this.postgameOpened) return; this.postgameOpened = true; this.paused = true; this.flushPosters(this.match); this.ui.push(postgameScreen(this, this.match, this.after)); }
   playReplay(clip, onDone) { if (!clip) return; this.replayPlayer = new ReplayPlayer(this.match.replay, clip, { seconds: 5 }); this.replayDone = onDone || null; }
   playReel(plays) { this.reel = { plays, i: 0 }; this.ui.stack.length = 0; this.playReplay(plays[0], () => this.nextReel()); }
@@ -14130,9 +14369,9 @@ class Game {
     if (this.mode === 'match' && this.match) this.matchFrame(dt); else { this.input.consumePause(); this.ui.update(dt, this.input); this.drawUI(ctx, W_, H_); }
     if (!this.input.hasFocus() && !this.portrait && !(this.input.lastDevice === 'touch')) this.drawFocusHint(ctx, W_, H_);
     if (this.save.data.settings.showFps) this.perf.draw(ctx, W_, H_);
-    this.perf.push(performance.now() - t0 + 0.0001);
-    this.guard.frame(now); const lowFx = this.perf.degraded || this.guard.level >= 1; this.fx.budget = lowFx ? CONFIG.fx.reducedBudget : CONFIG.fx.particleBudget; // the guard sheds cost as frames slow down
-    const lowRes = this.mode === 'match' && this.guard.level >= 4; if (lowRes !== !!this.lowRes) { this.lowRes = lowRes; this.resize(); } // its last step: fewer pixels (matches only; menus stay sharp)
+    const work = performance.now() - t0 + 0.0001; this.perf.push(work);
+    this.guard.frame(now, work); const lowFx = this.perf.degraded || this.guard.level >= 1; this.fx.budget = lowFx ? CONFIG.fx.reducedBudget : CONFIG.fx.particleBudget; // the guard sheds cost as frames slow down
+    const lowRes = this.mode === 'match' && this.guard.level >= 4; if (lowRes !== !!this.lowRes) { this.lowRes = lowRes; this.resize(); this.guard.hold(CONFIG.perf.holdSeconds); } // its last step: fewer pixels (matches only; menus stay sharp)
   }
   matchFrame(dt) {
     const m = this.match, ctx = this.ctx, W_ = this.W, H_ = this.H, fx = this.fx; this.cam.retroLock = graphicsMode(this) !== 'smooth'; if (this.cam.retroLock) this.cam.punch = 0;
