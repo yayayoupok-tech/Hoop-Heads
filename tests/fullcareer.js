@@ -27,9 +27,11 @@ const { launch, openPage, runner } = require('./lib');
       case 'create': { const sb = by(/START HIGH SCHOOL/); if (!sb) throw new Error('no START HIGH SCHOOL'); if (g.newCareer) g.newCareer.seed = seed; pr(sb); break; }
       case 'amhub': { if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); }
         const lvl = a && a.stage, play = by(/^PLAY( GAME)?$/); if (lvl && !played[lvl] && play && a.league && !a.decision) { pr(play); return { name: s.name, played: lvl }; }
+        if (a && a.team && a.league && !a.decision && !isStarter(a) && ladderAboveId(a) && !(a.wk && a.wk.done) && by(/^SIM( THE GAME)?$/)) { g.ui.push(ladderScreen(g)); return { name: s.name, ladder: true }; } // V1: a benched week: challenge for the spot (as that week's practice), the way a player would
         pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|TURN PRO\?|TRANSFER PORTAL|DRAFT COMBINE|PRO COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; }
       case 'career': { if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; }
         if (c && c.me && !c.me._bizDone && c.phase === 'regular' && c.season >= 2) { c.me._bizDone = true; g.ui.push(managementScreen(g)); return { name: 'career', biz: true }; } // money: open Business once
+        if (c && c.me && c.team && c.phase === 'regular' && !isStarter(c) && ladderAboveId(c) && !(c.me.wk && c.me.wk.done) && i % 3 === 0) { g.ui.push(ladderScreen(g)); return { name: 'career', ladder: true }; } // V1: a benched week, now and then: challenge for the spot
         const play = by(/^PLAY$/); if (!played.pro && play && c.phase === 'regular' && i % 7 === 3) { pr(play); break; } /* the pregame screen, then TIP OFF */ pr(by(/^SIM( THE GAME)?$/) || by(/^(START SEASON|OFFSEASON|CONTINUE)/)); break; }
       case 'pregame': pr(by(/^TIP OFF$/)); return { name: s.name, played: 'pro' };
       case 'management': { const hire = W.find(w => /^(Hire|Upgrade|Buy)/.test(w.label || '') && w.enabled !== false); if (hire && !g._hired) { g._hired = true; hire.onPress(); return { name: s.name, bought: hire.label }; } g.ui.pop(); break; }
@@ -48,7 +50,8 @@ const { launch, openPage, runner } = require('./lib');
       case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^START SEASON/) || by(/^RETIRE/)); break;
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break;
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break;
-      case 'ladder': case 'recruiting': case 'statebracket': case 'amstandings': case 'draftstock': case 'confbracket': case 'natbracket': case 'moneybuilt': case 'networth': pr(by(/^Back$/)); break;
+      case 'ladder': pr(by(/^SIM THE CHALLENGE$/) || by(/^Back$/)); break;
+      case 'recruiting': case 'statebracket': case 'amstandings': case 'draftstock': case 'confbracket': case 'natbracket': case 'moneybuilt': case 'networth': pr(by(/^Back$/)); break;
       case 'tryout': pr(by(/^SIM IT$/)); break;
       case 'tryoutpost': pr(by(/^CONTINUE$/)); break;
       case 'summer': { const opts = W.filter(w => /AAU|CAMP|REST|JOB/.test(w.label || '')); if (opts.length) opts[i % opts.length].onPress(); pr(by(/^CHOOSE$/)); break; }

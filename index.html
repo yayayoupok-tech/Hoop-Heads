@@ -412,6 +412,13 @@ const CONFIG = {
     popUp: 2.2,                // ...and this much upward (m/s)
     reachInFoulChance: 0.25,   // Street Sim: a whiff that hits the body is a foul this often
     nearRange: 1.4,            // Action counts as a steal attempt when the handler is within this (m)
+    handBase: 0.6,             // V1 (§1.1): a clean steal puts the ball straight in the stealer's hands this often...
+    handPerDef: 0.03,          // ...+ this per Defense point above 5 (engine scale)
+    looseToward: 0.7,          // otherwise it pops loose toward the stealer this often (the rest, back toward the handler)
+    confirmS: 1.0,             // the STEAL callout and stat need the defense to secure the ball within this many seconds of the poke, else it's POKED
+    fumbleS: 0.3,              // a poked handler can't touch the loose ball for this long (s): it was knocked away from them
+    looseStart: 0.45,          // the loose ball starts this far (m) from the handler, on the side it pops to
+    reachS: 0.15,              // V1: the stealer can't grab a popped-loose ball for this long (s), so it really bounces loose first
   },
   pass: {
     chestSpeed: 14,            // chest pass speed (m/s)
@@ -971,6 +978,9 @@ const CONFIG = {
     threesOnly: true,          // F2: only jumpers from the rack count; you can't catch a loose ball or walk off the racks
     walkSpeed: 0.5,            // F2: the shooter walks to the next rack on their own (the stick's full tilt at this gap, m)
     botSigma: 0.06,            // F2: a computer shooter's release timing spread in the contest (s)
+    rackOffsetM: 0.75,         // V1: each ball rack stands this far (m) beside its shooting spot, on the far side from the hoop
+    rackW: 0.8,                // V1: rack width (m)
+    rackH: 0.5,                // V1: rack height (m): two trays, three balls on top and two below
   },
   rebounder: {                 // F2: practice returns every rebound to you
     afterMakeS: 0.45,          // wait after a make before the pass back (s)
@@ -4110,7 +4120,7 @@ function stepStateMachine(p, dt) {
     }
     case 'swipe': {
       const ph = phaseOf(p); sd.phase = ph;
-      if (ph === 'active' && !sd.resolved) { const r = resolveSwipe(p); if (r) { sd.resolved = true; p.setState('move'); break; } }
+      if (ph === 'active' && !sd.resolved) { const r = resolveSwipe(p); if (r) { sd.resolved = true; if (p.state === 'swipe') p.setState('move'); break; } } // (a clean steal already caught the ball)
       if (ph === 'recovery' && !sd.resolved) { if (!sd.whiff) { sd.whiff = true; onWhiff(p); } }
       if (ph === 'done') p.setState('move');
       if (p.jumpBuf > 0 && ph !== 'startup' && sd.resolved) { p.jumpBuf = 0; doJump(p, 1, 'jump'); }
@@ -4354,11 +4364,11 @@ function resolveSwipe(p) {
   if (h.ex && h.ex.stickyT > 0) return false; // L9 sticky ball: the swipe finds nothing to strip
   const e = stealExposure(h, p);
   const chance = clamp(S.base + S.ratingSlope * (p.attrs.def - h.attrs.han) + e, S.min, S.max) * trStealMul(p, h);
-  if (m.rng.next() < chance) {
-    const dir = sgn(p.x - h.x) || p.facing;
-    b.setOwner(null); b.mode = 'loose'; b.x = h.x + dir * 0.3; b.y = 0.8; b.vx = dir * S.popSpeed; b.vy = S.popUp; b.z = h.z; b.lastTouch = p; b.lastTouchTeam = p.team;
-    p.stats.stl++; h.stats.to++; h.anim.expr = 'shocked'; h.anim.exprT = 1;
-    m.bus.emit('STEAL', { player: p, victim: h }); m.bus.emit('TURNOVER', { player: h, cause: 'steal', by: p });
+  if (m.rng.next() < chance) { // V1 (§1.1): the poke; STEAL, TURNOVER and both stats wait for the defense to secure the ball (completeCatch)
+    const dir = sgn(p.x - h.x) || p.facing; h.anim.expr = 'shocked'; h.anim.exprT = 1;
+    m.poke = { by: p, victim: h, team: p.team, t: m.time, shown: false }; m.bus.emit('POKE', { player: p, victim: h });
+    if (m.rng.next() < clamp(S.handBase + S.handPerDef * Math.max(0, p.attrs.def - 5), 0, 1)) { b.setOwner(null); b.mode = 'loose'; b.x = p.x + p.facing * 0.3; b.y = 1; b.z = p.z; b.vx = 0; b.vy = 0; b.lastTouch = p; b.lastTouchTeam = p.team; completeCatch(m, p, 'loose'); } // clean: straight into the stealer's hands
+    else { const to = m.rng.next() < S.looseToward ? dir : -dir; m.poke.pop = to === dir ? 'toward' : 'away'; b.setOwner(null); b.mode = 'loose'; b.x = h.x + to * S.looseStart; b.y = 0.8; b.vx = to * S.popSpeed; b.vy = S.popUp; b.z = h.z; b.lastTouch = p; b.lastTouchTeam = p.team; h.noTouchUntil = m.time + S.fumbleS; p.noTouchUntil = m.time + S.reachS; } // loose: toward the stealer 70% of the time; the handler fumbled it
     return true;
   }
   p.sd.hitBody = Math.abs(h.x - p.x) < CONFIG.defense.contactDist;
@@ -4774,6 +4784,7 @@ function resolveCatches(m, dt) {
     if (b.pass && b.pass.from === p && b.flightT < 0.2) continue;
     if (b.shot && b.shot.shooter === p && ((b.flightT < 0.3 && !b.rimTouched) || (b.flightT < RB.finisherRecoverS && FINISH_SHOTS[b.shot.type]))) continue; // (L19: a finisher at the rim is still coming down from the contact)
     if (b.lastTouch === p && m.time - p.lastTouchT < 0.12) continue;
+    if (p.noTouchUntil && m.time < p.noTouchUntil) continue; // V1: a poked handler fumbled it
     if (!playerTouchesBall(p, b)) continue;
     _contenders[n++] = p;
   }
@@ -4846,6 +4857,7 @@ function completeCatch(m, p, how) {
   if (fromPass) { p.lastCatchFrom = fromPass.from; p.catchT = m.time; m.bus.emit('CATCH', { player: p, from: fromPass.from }); }
   else { p.lastCatchFrom = null; }
   if (p.team !== prevTeam || m.possession !== p.team) { m.possession = p.team; m.shotClock = CONFIG.rules.shotClock; if (m.halfCourt) m.mustClear = p.team; m.bus.emit('POSSESSION_CHANGE', { team: p.team, player: p, how }); } // half court: a stop has to be cleared past the arc
+  const pk = m.poke; if (pk) { m.poke = null; if (p.team === pk.team) { const inTime = m.time - pk.t <= CONFIG.steal.confirmS + 1e-9; pk.victim.stats.to++; if (inTime) { pk.by.stats.stl++; m.bus.emit('STEAL', { player: pk.by, victim: pk.victim }); } else if (!pk.shown) { pk.shown = true; m.bus.emit('POKED', { player: pk.by, victim: pk.victim }); } /* a late recovery is a turnover with no steal */ m.bus.emit('TURNOVER', { player: pk.victim, cause: 'steal', by: inTime ? pk.by : null }); } else if (!pk.shown) m.bus.emit('POKED', { player: pk.by, victim: pk.victim }); } // V1 (§1.1): the steal counts when the defense has the ball (within 1 s: STEAL; later: a turnover, no steal); the offense got it back: POKED
   if (p.grounded && !p.pickedUp) { /* live dribble resumes */ }
   if (how === 'loose' && b.lastTouchTeam !== p.team) { /* recovered after a steal/deflection */ }
 }
@@ -5591,6 +5603,7 @@ function freezeBall(m) { const b = m.ball; b.setOwner(null); b.mode = 'loose'; b
 
 function updateRules(m, dt) {
   m.phaseT += dt;
+  const pk = m.poke; if (pk) { if (!pk.shown && (m.phase !== 'live' || m.time - pk.t > CONFIG.steal.confirmS)) { pk.shown = true; m.bus.emit('POKED', { player: pk.by, victim: pk.victim }); } if (m.phase !== 'live') m.poke = null; } // V1 (§1.1): nobody secured it within 1 s (or the ball went dead): POKED, no stat
   if (m.practice) { updatePracticeRules(m, dt); return; }
   if (m.contest3) { updateContest3Rules(m, dt); return; }
   if (m.tutorial && m.phase === 'live') { updateLive(m, dt); return; }
@@ -6027,7 +6040,7 @@ function drawSuperMeter(ctx, p, x, y, w, h, right, now) {
 // SECTION: EVENTS — gameplay subscribers that live inside the simulation: Heat, control switching,
 // highlight scoring, hint bookkeeping. Audio/FX/camera subscribe separately in BOOT.
 // ============================================================================
-const EVENT_NAMES = ['SHOT_RELEASED', 'SCORE', 'MISS', 'BLOCK', 'GOALTEND', 'STEAL', 'TURNOVER', 'ANKLE_BREAK', 'POSTERIZE', 'REBOUND', 'PASS', 'CATCH', 'POSSESSION_CHANGE', 'VIOLATION', 'FOUL', 'PERIOD_END', 'HEAT_ON'];
+const EVENT_NAMES = ['SHOT_RELEASED', 'SCORE', 'MISS', 'BLOCK', 'GOALTEND', 'STEAL', 'POKE', 'POKED', 'TURNOVER', 'ANKLE_BREAK', 'POSTERIZE', 'REBOUND', 'PASS', 'CATCH', 'POSSESSION_CHANGE', 'VIOLATION', 'FOUL', 'PERIOD_END', 'HEAT_ON'];
 
 function addHeat(m, p, amount) {
   if (!m.arcade || !p) return; const H = CONFIG.arcade.heat;
@@ -6389,11 +6402,11 @@ function drawDrillHud(ctx, m, W_) {
   ctx.font = fontStr(34 * k, true); ctx.fillStyle = UI_TEXT; ctx.fillText('SCORE ' + drillScore(m), cx + w / 2 - 16 * k, y + 46 * k);
   if (m.phase === 'check' || m.phase === 'pregame') { ctx.textAlign = 'center'; ctx.font = fontStr(14 * Math.max(0.8, k), false); ctx.fillStyle = UI_TEXT; ctx.fillText(info.how, cx, y + h + 18 * k); }
 }
-function pushCallout(m, text, color, big) { m.callouts.push({ text, color: color || '#FF4FA3', t: 0, life: FX_C.calloutMs / 1000 * (big ? 1.3 : 1), big: !!big, tilt: (m.callouts.length % 2 ? 1 : -1) * FX_C.calloutTilt }); while (m.callouts.length > FX_C.calloutMax) m.callouts.shift(); } // F4: at most two at once (three stacked over the players)
+function pushCallout(m, text, color, big, small) { m.callouts.push({ text, color: color || '#FF4FA3', t: 0, life: FX_C.calloutMs / 1000 * (big ? 1.3 : small ? 0.7 : 1), big: !!big, small: !!small, tilt: (m.callouts.length % 2 ? 1 : -1) * FX_C.calloutTilt }); while (m.callouts.length > FX_C.calloutMax) m.callouts.shift(); } // F4: at most two at once (three stacked over the players)
 function calloutK(W_, H_) { return Math.min(1, W_ / 900, H_ / FX_C.calloutShortH); } // F4: callouts shrink with a short screen too
 function drawCallouts(ctx, m, W_, H_, dt) { // stamped text with an ink outline and a drop shadow, popping 0 → 1.2 → 1.0 (§5)
-  for (let i = m.callouts.length - 1; i >= 0; i--) { const c = m.callouts[i]; c.t += dt; if (c.t > c.life) { m.callouts.splice(i, 1); continue; } const k = calloutScale(c.t); if (k < 0.02) continue; const fade = clamp01((c.life - c.t) / 0.3); const px = (c.big ? 92 : 64) * calloutK(W_, H_); const col = c.color || CALLOUT.make; if (H_ < FX_C.calloutShortH && i < m.callouts.length - 1) continue; /* F4: a short screen shows the newest callout only */
-    const y0 = m.contest3 ? Math.max(H_ * FX_C.calloutY, 150) : H_ * FX_C.calloutY; /* F4: higher, clear of the players' heads and the contest strip; each line a whole stamp apart */ let dy = 0; if (H_ >= FX_C.calloutShortH) for (let j = 0; j < i; j++) dy += (m.callouts[j].big ? 92 : 64) * calloutK(W_, H_) * FX_C.calloutGap;
+  for (let i = m.callouts.length - 1; i >= 0; i--) { const c = m.callouts[i]; c.t += dt; if (c.t > c.life) { m.callouts.splice(i, 1); continue; } const k = calloutScale(c.t); if (k < 0.02) continue; const fade = clamp01((c.life - c.t) / 0.3); const px = (c.big ? 92 : c.small ? 40 : 64) * calloutK(W_, H_); /* V1: small (POKED) */ const col = c.color || CALLOUT.make; if (H_ < FX_C.calloutShortH && i < m.callouts.length - 1) continue; /* F4: a short screen shows the newest callout only */
+    const y0 = m.contest3 ? Math.max(H_ * FX_C.calloutY, 150) : H_ * FX_C.calloutY; /* F4: higher, clear of the players' heads and the contest strip; each line a whole stamp apart */ let dy = 0; if (H_ >= FX_C.calloutShortH) for (let j = 0; j < i; j++) dy += (m.callouts[j].big ? 92 : m.callouts[j].small ? 40 : 64) * calloutK(W_, H_) * FX_C.calloutGap;
     ctx.globalAlpha = fade; kitStamp(ctx, c.text, W_ / 2, y0 + dy, px, [mixHex(col, '#FFFFFF', 0.5), col, shadeHex(col, -0.28)], { tilt: c.tilt, scale: k, outline: 0.16 }); ctx.globalAlpha = 1; }
 }
 function drawHints(ctx, m, input, W_, H_, offense) {
@@ -7512,6 +7525,22 @@ function pxLine(g, x0, y0, x1, y1) { x0 = Math.round(x0); y0 = Math.round(y0); x
 function pxEllipse(g, cx, cy, rx, ry) { rx = Math.max(0.5, rx); ry = Math.max(0.5, ry); const y0 = Math.round(cy - ry), y1 = Math.round(cy + ry); for (let y = y0; y <= y1; y++) { const t = (y + 0.5 - cy) / ry; if (Math.abs(t) > 1) continue; const hw = rx * Math.sqrt(1 - t * t); const a = Math.round(cx - hw), b = Math.round(cx + hw); if (b > a) g.fillRect(a, y, b - a, 1); } }
 // An ellipse outline, 1 px (for rings and shockwaves).
 function pxRing(g, cx, cy, rx, ry) { const n = Math.max(12, Math.ceil((rx + ry) * 2.2)); let px = null, py = null; for (let i = 0; i <= n; i++) { const a = i / n * TAU, x = Math.round(cx + Math.cos(a) * rx), y = Math.round(cy + Math.sin(a) * ry); if (x !== px || y !== py) g.fillRect(x, y, 1, 1); px = x; py = y; } }
+// V1 (§1.3): the 3-Point Contest rack: a low metal rack beside the current shooting spot (on the far side from the hoop)
+// with the balls still to shoot on its tray, drawn before the players so it never covers them. Only the current rack is
+// drawn: in the side view the five spots around the arc stand almost on top of each other (the HUD counts the racks).
+function drawContestRacks(g, cam, m, pixel) {
+  const c = m.contest3; if (!c || !c.racks || !m.human || c.done) return; const C3 = CONFIG.contest3, hoop = m.hoopFor(m.human.team), dir = sgn(COURT_L / 2 - hoop.x) || 1;
+  const r = c.racks[Math.min(c.rack, c.racks.length - 1)], s = cam.scale(r.z), x = cam.sx(r.x + dir * C3.rackOffsetM), y = cam.sy(0, r.z); if (!isFinite(x + y + s) || s <= 0) return;
+  const w = s * C3.rackW, h = s * C3.rackH, top = y - h, mid = y - h * 0.48, bar = Math.max(2, s * 0.045), leg = Math.max(pixel ? 2 : 3, s * 0.04), br = s * BALL.radius * 0.85, metal = '#9BA3C7', hi = '#E6E8F5';
+  const bars = [[x - w / 2, top, w, bar], [x - w / 2, mid, w, bar], [x - w / 2, top, leg, h], [x + w / 2 - leg, top, leg, h]]; // two trays on two legs
+  if (pixel) { g.fillStyle = ART.inkLine; for (const [a, b, c2, d] of bars) pxRect(g, a - 1, b - 1, c2 + 2, d + 2); g.fillStyle = metal; for (const [a, b, c2, d] of bars) pxRect(g, a, b, c2, d); g.fillStyle = hi; pxRect(g, x - w / 2, top, w, 1); pxRect(g, x - w / 2, mid, w, 1); }
+  else inkShape(g, cc => { for (const [a, b, c2, d] of bars) cc.rect(a, b, c2, d); }, metal, INK, 2);
+  const top3 = Math.min(3, C3.ballsPerRack), slots = []; // the top tray holds the first three balls, the low tray the rest (the money ball last)
+  for (let k = 0; k < C3.ballsPerRack; k++) { const upper = k < top3, n = upper ? top3 : C3.ballsPerRack - top3, j = upper ? k : k - top3, gap = (w - 2 * leg) / n; slots.push([x - w / 2 + leg + gap * (j + 0.5), (upper ? top : mid) - br + (pixel ? 0 : 1)]); }
+  for (let k = Math.min(C3.ballsPerRack, c.ball); k < C3.ballsPerRack; k++) { const [bx, by] = slots[k], col = k === C3.ballsPerRack - 1 ? '#FF4FA3' : '#FF8A2A';
+    if (pixel) { g.fillStyle = ART.inkLine; pxEllipse(g, bx, by, br + 1, br + 1); g.fillStyle = col; pxEllipse(g, bx, by, br, br); g.fillStyle = 'rgba(30,22,51,0.45)'; pxRect(g, bx - br * 0.7, by, br * 1.4, 1); }
+    else { g.fillStyle = col; g.strokeStyle = INK; g.lineWidth = 1.5; g.beginPath(); g.arc(bx, by, br, 0, TAU); g.fill(); g.stroke(); } }
+}
 // The 2-step checker (§1.2: only on beams and glows): a 2×2 pattern with one or two pixels lit.
 const _rtChk = new Map();
 function rtChecker(g, color, dense) { const key = color + (dense ? 'd' : 's'); let p = _rtChk.get(key); if (p) return p; const c = document.createElement('canvas'); c.width = c.height = 2; const cg = c.getContext('2d'); cg.fillStyle = color; cg.fillRect(0, 0, 1, 1); if (dense) cg.fillRect(1, 1, 1, 1); p = g.createPattern(c, 'repeat'); _rtChk.set(key, p); return p; }
@@ -7548,12 +7577,12 @@ function drawMatchSceneRetro(g, env, m, alpha) {
   rtShadows(g, cam, order, ball, alpha, rp);
   HOOPS.forEach((h, i) => rtHoopBack(g, cam, h, V, i, m, world.nets[i]));
   if (!rp) drawPowerup(g, cam, m);
+  if (env.racks) env.racks(g, cam, true); // V1 (§1.3): the 3-point racks stand on the floor behind the players (they used to be drawn over them)
   let ballDrawn = false;
   for (const [p, r] of spr) { if (!ballDrawn && !ball.owner && ball.z < p.z - 0.01) { rtDrawBall(g, cam, ball, alpha, m.ball.skin, false); ballDrawn = true; } if (r) { g.drawImage(r.spr, r.X, r.Y); RT.last.set(p, { spr: r.spr, X: r.X, Y: r.Y, frame: RT.frame, box: [r.X, r.Y, r.spr.width, r.spr.height] }); } }
   if (!ballDrawn && !ballInHand) rtDrawBall(g, cam, ball, alpha, m.ball.skin, !!(m.ball.shot && ((m.ball.shot.shooter && m.ball.shot.shooter.onFire > 0) || m.ball.shot.fireball)));
   HOOPS.forEach((h, i) => rtHoopFront(g, cam, h, V, i, m, world.nets[i]));
   if (!rp) { drawExtrasOverlays(g, cam, m, alpha); rtMarkers(g, cam, spr, m, alpha); }
-  if (env.racks) env.racks(g, cam);
   if (env.fx) env.fx.drawRetro(g, cam);
   if (V) rtVenueLights(g, cam, V, m, guard);
 }
@@ -7918,6 +7947,8 @@ function attachPresentation(m, game) {
   bus.on('CHARGE', e => { au.whistle(); pushCallout(m, 'CHARGE', CALLOUT.defense, true); cam.addTrauma(0.3); fx.spawn('impact', (e.player.x + e.defender.x) / 2, e.defender.y + e.defender.height * 0.55, e.defender.z, 1, '#FFFFFF'); fx.spawn('puff', e.defender.x, 0.06, e.defender.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); au.stumble(); world.crowdHype = Math.min(1, world.crowdHype + 0.4); au.crowdSwell(0.4, 0.6); });
   bus.on('STEAL', e => { au.noise(0.08, 0.2, { filter: 'bandpass', freq: 1800 }); pushCallout(m, e.intercept ? 'PICKED' : 'STEAL', CALLOUT.defense); fx.spawn('dust', e.player.x, 0.05, e.player.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('SWIPE', e => au.noise(0.05, 0.08, { filter: 'highpass', freq: 4000 }));
+  bus.on('POKE', e => { au.noise(0.04, 0.1, { filter: 'bandpass', freq: 2600 }); game.input.rumble(0.2, 0.1, 60); }); // V1: the deflection's tick (the steal, if any, sounds when the defense has it)
+  bus.on('POKED', e => { au.noise(0.05, 0.12, { filter: 'lowpass', freq: 900 }); pushCallout(m, 'POKED', '#9BA3C7', false, true); }); // V1 (§1.1): a small callout and no stat
   bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
   bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
   bus.on('TRAIT_FX', e => { const txt = TRAIT_FX_TEXT[e.id]; if (txt) pushCallout(m, txt, traitFrame(e.id)); }); // R3: a trait kicking in (Microwave heat, a Streaky hot hand, Clutch Gene in crunch time)
@@ -8222,7 +8253,7 @@ function tipScreen(game, id) {
 // ============================================================================
 Object.assign(ART, {
   uiPanel: 'rgba(10,14,40,0.85)',   // navy glass panel fill
-  uiPanel2: 'rgba(16,24,66,0.92)',  // raised panel (dialogs, overlays)
+  uiPanel2: 'rgb(16,24,66)',        // raised panel (dialogs, overlays): solid (V1 §1.8: nothing behind shows through; was 92%)
   uiPanelHi: 'rgba(255,255,255,0.08)', // the 2 px inner highlight on every panel
   uiRadius: 14,                     // panel corner radius (design px)
   uiBtnH: 52,                       // primary button height (design px)
@@ -8230,6 +8261,8 @@ Object.assign(ART, {
   uiMargin: 24,                     // grid margin in the 1280×720 design space (px)
   uiGutter: 16,                     // grid gutter (px)
   uiTransMs: 280,                   // screen transitions pop in over this long (ms) (L8 §6: 280, was 200)
+  uiTransOut: 0.3,                  // V1: the old screen fades out over this share of a transition, then the new one fades in
+  uiUnderDim: 0.62,                 // V1: an overlay in the menus sits on the background dimmed this much (the screen underneath isn't drawn)
   uiSlidePx: 56,                    // how far a screen slides in (design px)
   uiFlipMs: 350,                    // card flips (ms)
   uiCountMs: 600,                   // numbers count up over this long (ms)
@@ -8676,12 +8709,15 @@ class UI {
     const zoom = sc => { const cx = W_ / 2, cy = H_ / 2; ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy); };
     if (!s.overlay) {
       this.drawBackground(ctx, W_, H_);
-      if (T && T.kind !== 'fade' && this._snap) { ctx.save(); ctx.globalAlpha = 1 - k; ctx.drawImage(this._snap, 0, 0, W_, H_); ctx.restore(); }
-      ctx.save(); if (T && T.kind !== 'fade') { ctx.globalAlpha = clamp01(k0 / 0.4); zoom(pop); } this.drawScreen(ctx, s); ctx.restore(); // §6: the new screen pops in 0.8 → 1.06 → 1.0
+      const TA = uiTransAlphas(T && T.kind !== 'fade' ? k0 : 1); // V1 (§1.8): the old screen is gone before the new one shows (they used to cross-fade: two screens of words at once)
+      if (T && T.kind !== 'fade' && this._snap && TA[0] > 0) { ctx.save(); ctx.globalAlpha = TA[0]; ctx.drawImage(this._snap, 0, 0, W_, H_); ctx.restore(); }
+      ctx.save(); if (T && T.kind !== 'fade') { ctx.globalAlpha = TA[1]; zoom(pop); } if (TA[1] > 0) this.drawScreen(ctx, s); ctx.restore(); // §6: the new screen pops in 0.8 → 1.06 → 1.0
     } else {
       // an overlay: in menus the screen underneath stays visible (dimmed); in a match the live match is underneath
-      if (this.game.mode !== 'match') { let i = this.stack.length - 2; while (i > 0 && this.stack[i].overlay) i--; const under = this.stack[i]; this.drawBackground(ctx, W_, H_); if (under && under !== s) { try { this.drawScreen(ctx, under, true); } catch (e) { this.drawFault(e, 'underlay ' + under.name); } /* the underlay is decoration */ } }
-      ctx.save(); ctx.globalAlpha = T && T.kind === 'fade' ? k : 1; ctx.fillStyle = 'rgba(4,8,30,0.62)'; ctx.fillRect(0, 0, W_, H_);
+      // V1 (§1.8): in menus an overlay sits on the dimmed background alone: the screen underneath is not drawn (its words
+      // used to show through the overlay's panel: two layers of text); in a match the live match is underneath, dimmed
+      if (this.game.mode !== 'match') this.drawBackground(ctx, W_, H_);
+      ctx.save(); ctx.globalAlpha = T && T.kind === 'fade' ? k : 1; ctx.fillStyle = 'rgba(4,8,30,' + (this.game.mode !== 'match' ? ART.uiUnderDim : 0.62) + ')'; ctx.fillRect(0, 0, W_, H_);
       if (T && T.kind === 'fade') zoom(pop);
       this.drawScreen(ctx, s); ctx.restore();
     }
@@ -8691,7 +8727,19 @@ class UI {
   }
 }
 
+// V1 (§1.8): a push or pop transition's two layers at progress k0 (0 → 1): [the old screen's alpha, the new one's]. The
+// old one fades out over the first ART.uiTransOut of the time, the new one in after it: never both at once.
+function uiTransAlphas(k0) { const o = ART.uiTransOut; return [k0 >= 1 ? 0 : clamp01(1 - k0 / o), clamp01((k0 - o) / Math.max(0.05, 0.75 - o))]; }
 // --- shared drawing helpers ---
+// V1 (§1.9): label/value rows in two fixed columns: the labels' column as wide as the widest label, the values left-
+// aligned in the rest, wrapping (two lines at most) instead of running into their label. rows: [label, value, color].
+// Returns the y under the last row.
+function labelValueRows(ctx, ui, rows, x, y, w, o) {
+  o = o || {}; const ls = o.labelSize || 13, vs = o.valueSize || 15, row = o.row || 28, gap = o.gap || 14; ctx.save(); ctx.font = fontStr(ls, false); let lw = 0; for (const r of rows) lw = Math.max(lw, ctx.measureText(String(r[0])).width); ctx.font = fontStr(vs, true); const lh = Math.max(vs * 1.2, rbLineH(ctx) - 2); ctx.restore();
+  const vx = x + Math.min(lw, w * 0.55) + gap, vw = x + w - vx;
+  for (const r of rows) { ui.label(ctx, r[0], x, y, ls, o.labelColor || UI_DIM, 'left', Math.min(lw, w * 0.55) + 1); /* +1: the column's own width never cuts its widest label */ ctx.font = fontStr(vs, true); const lines = rbWrap(ctx, String(r[1]), vw).slice(0, 2); if (rbWrap(ctx, String(r[1]), vw).length > 2) lines[1] += '…'; lines.forEach((l, i) => ui.heading(ctx, l, vx, y + i * lh, vs, r[2] || UI_TEXT, 'left', vw)); y += row + (lines.length - 1) * lh; }
+  return y;
+}
 const RATING_SHORT = { sho: 'SHOOTING', fin: 'FINISHING', han: 'HANDLES', spd: 'SPEED', jmp: 'HOPS', def: 'DEFENSE', str: 'STRENGTH' };
 function ratingColor(v) { return v >= 85 ? UI_GOLD : v >= 70 ? UI_CYAN : v >= 55 ? '#5B8FE6' : v >= 40 ? UI_TEXT : UI_RED; }
 // One rating row: label, number, a bar over 40–99 and the progress toward the next point.
@@ -9119,7 +9167,8 @@ function offseasonScreen(game) {
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'OFFSEASON', 40, 52, 34); { const labels = steps.map((l, i) => i === O.step ? (i + 1) + ' ' + l : String(i + 1)); /* the step you're on spelled out; the rest by number */ ctx.font = fontStr(12, true); const ws = labels.map(l => ctx.measureText(l).width + 12 * 1.1); let x = 1240 - ws.reduce((a, b) => a + b, 0) - 6 * (ws.length - 1); labels.forEach((l, i) => { pill(ctx, l, x, 52, i === O.step ? UI_GOLD : 'rgba(255,255,255,0.12)', i === O.step ? UI_INK : UI_DIM, 12); x += ws[i] + 6; }); }
       if (O.step === 0) { const aw = O.awards; const row = c.me.seasonLog[0]; const tt = t;
-        if (row) { const tiles = [['RECORD', (x, r) => countUp(row.w, x, r) + '-' + countUp(row.l, x, r), { sub: row.playoff === 'Missed playoffs' ? 'no playoffs' : row.playoff }], ['FINISH', (x, r) => '#' + countUp(row.rank, x, r), { sub: 'of ' + c.active.length }], ['POINTS', row.ppg, { decimals: 1, sub: 'per game' }], ['REBOUNDS', row.rpg, { decimals: 1, sub: 'per game' }], ['FG %', row.fg, { sub: row.tp + '% 3PT' }]]; tiles.forEach((tl, i) => statTile(ctx, 40 + i * 176, 84, 164, 96, tl[0], tl[1], tt - 0.1 * i, tl[2])); }
+        if (row) { const bench = !row.g, prev = c.me.seasonLog[1], gain = row.ovr - (row.ovr0 != null ? row.ovr0 : prev ? prev.ovr : row.ovr); /* V1 (§1.12): a season on the bench: what you did instead of zero tiles */
+          const tiles = [['RECORD', (x, r) => countUp(row.w, x, r) + '-' + countUp(row.l, x, r), { sub: bench ? 'the team' : row.playoff === 'Missed playoffs' ? 'no playoffs' : row.playoff }], ['FINISH', (x, r) => '#' + countUp(row.rank, x, r), { sub: 'of ' + c.active.length }]].concat(bench ? [['ALL SEASON', 'Benched', { size: 30, color: UI_ORANGE, sub: 'no games' }], ['PRACTICE', (gain >= 0 ? '+' : '−') + Math.abs(gain) + ' OVR', { size: 30, color: gain > 0 ? UI_GREEN : UI_TEXT, sub: 'your gains' }], ['CHALLENGES', (row.chW || 0) + '-' + (row.chL || 0), { sub: 'depth chart' }]] : [['POINTS', row.ppg, { decimals: 1, sub: 'per game' }], ['REBOUNDS', row.rpg, { decimals: 1, sub: 'per game' }], ['FG %', row.fg, { sub: row.tp + '% 3PT' }]]); tiles.forEach((tl, i) => statTile(ctx, 40 + i * 176, 84, 164, 96, tl[0], tl[1], tt - 0.1 * i, tl[2])); }
         const pts = c.me.seasonLog.slice().reverse().map(l => ({ v: l.ovr, label: 'S' + l.season })); if (pts.length) { kitHeader(ctx, 'OVR by season', 930, 96, 300); ovrChart(ctx, 960, 126, 270, 80, pts, clamp01((tt - 0.3) / 0.9)); }
         ui.heading(ctx, aw.mine.length ? 'YOUR AWARDS: ' + aw.mine.join(' · ').toUpperCase() : 'NO AWARDS THIS TIME', 60, 212, 17, aw.mine.length ? UI_GOLD : UI_DIM);
         const list = [['CHAMPION', aw.champion], ['MVP', aw.mvp], ['DEFENSIVE PLAYER', aw.dpoy], ['ROOKIE OF THE YEAR', aw.roy], ['MOST IMPROVED', aw.mip], ['SCORING CHAMPION', aw.scoring]].filter(x => x[1]);
@@ -9330,11 +9379,13 @@ function amResultScreen(game, rec, m) {
       ui.heading(ctx, score, hx, 62, 36, UI_TEXT); ui.label(ctx, (rec.playoff ? amRoundTag(rec.playoff) : rec.tag === 'rivalry' ? 'Rivalry game · ' : rec.tag === 'senior' ? 'Senior night · ' : rec.tag === 'marquee' ? 'Marquee game · ' : '') + 'vs ' + rec.opp + (rec.rival ? ' (your rival)' : '') + (rec.simmed ? ' · simmed' : ''), hx, 96, 16, UI_DIM);
       const q = rec.line || {}; const tiles = [['POINTS', q.pts || 0, {}], ['FG', (x, r) => countUp(q.fgm || 0, x, r) + '/' + (q.fga || 0), {}], ['THREES', (x, r) => countUp(q.tpm || 0, x, r) + '/' + (q.tpa || 0), {}], ['REBOUNDS', q.reb || 0, {}], ['STL · BLK', (x, r) => countUp(q.stl || 0, x, r) + ' · ' + countUp(q.blk || 0, x, r), {}]]; tiles.forEach((tl, i) => statTile(ctx, 60 + i * 146, 128, 134, 92, tl[0], tl[1], t - 0.08 * i, tl[2]));
       if (rec.note) ui.heading(ctx, rec.note, 60, 250, 24, /CHAMP/.test(rec.note) ? UI_GOLD : /Elim|Missed|Out in/.test(rec.note) ? UI_RED : UI_CYAN);
-      ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); const g = rec.gains || []; if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
+      ui.heading(ctx, 'WHAT YOU GOT BETTER AT', 60, 290, 15, UI_CYAN); const g = Array.isArray(rec.gains) ? rec.gains : []; /* (a bench week's gains are a map: never drawn here) */ if (!g.length) ui.para(ctx, 'No rating went up this game. XP is still building toward the next +5.', 60, 318, 740, 15, UI_DIM);
       g.slice(0, 8).forEach((x, i) => pill(ctx, RATING_LONG[x.k] + ' ' + x.from + ' → ' + x.to, 60 + (i % 3) * 260, 322 + Math.floor(i / 3) * 36, 'rgba(76,224,122,0.3)', UI_GREEN, 15));
       hexBadge(ctx, 96, 470, 32, rec.ovrAfter, {}); ui.heading(ctx, rec.ovrAfter > rec.ovrBefore ? '▲ ' + (rec.ovrAfter - rec.ovrBefore) + ' OVR' : 'OVR ' + rec.ovrAfter, 144, 470, 22, rec.ovrAfter > rec.ovrBefore ? UI_GREEN : UI_TEXT);
       { const W_ = rec.wk || {}; let y = 530; const f = Math.round(c.fatigue || 0);
-        ui.heading(ctx, 'THE WEEK', 60, y, 15, UI_CYAN); y += 26; ui.label(ctx, (W_.plan ? WEEK_PLAN_LABEL[W_.plan].charAt(0) + WEEK_PLAN_LABEL[W_.plan].slice(1).toLowerCase() + (W_.plan === 'practice' ? ' (+' + (W_.practiceXp || 0) + ' XP, focus XP ×' + WK.practiceFocusMul + ')' : W_.plan === 'film' ? ' (+' + trFilmBonus(c) + ' DEF and SHO)' : '') + ' · ' : '') + 'fatigue now ' + f + (f > WK.fatigueFreeAt ? ': tired, rest this week' : ''), 60, y, 15, f > WK.fatigueFreeAt ? UI_ORANGE : UI_TEXT, 'left', 740); y += 26;
+        ui.heading(ctx, 'THE WEEK', 60, y, 15, UI_CYAN); y += 26; /* V1 (§1.7): the plan and the fatigue on their own lines (one line cut the fatigue warning short on phones) */
+        if (W_.plan) { ui.label(ctx, WEEK_PLAN_LABEL[W_.plan].charAt(0) + WEEK_PLAN_LABEL[W_.plan].slice(1).toLowerCase() + (W_.plan === 'practice' ? ' (+' + (W_.practiceXp || 0) + ' XP, focus XP ×' + WK.practiceFocusMul + ')' : W_.plan === 'film' ? ' (+' + trFilmBonus(c) + ' DEF and SHO)' : ''), 60, y, 15, UI_TEXT, 'left', 740); y += 26; }
+        ui.label(ctx, 'Fatigue now ' + f + (f > WK.fatigueFreeAt ? ': tired, rest this week' : ''), 60, y, 15, f > WK.fatigueFreeAt ? UI_ORANGE : UI_TEXT, 'left', 740); y += 26;
         if (W_.injury) { ui.heading(ctx, 'Hurt: ' + W_.injury.name + ' · −' + WK.injurySpd + ' SPD for ' + W_.injury.games + ' game' + (W_.injury.games > 1 ? 's' : ''), 60, y, 16, UI_RED); y += 26; } else if (W_.healed) { ui.heading(ctx, 'Healthy again.', 60, y, 16, UI_GREEN); y += 26; }
         for (const mv of rec.learned || []) { ui.heading(ctx, 'New move learned: ' + MOVE_NAMES[mv], 60, y, 16, UI_GREEN); y += 26; } }
       ui.panel(ctx, 820, 100, 400, 480); ui.heading(ctx, 'PROGRESS', 840, 128, 18, UI_GOLD); ratingRows(ctx, c.r, 840, 150, 360, 40, { progress: progressOf(c.r, c.xp), caps: c.caps, bands: amScoutSeen(c) < 1 ? amCapBand(c) : null, labelW: 124 });
@@ -9952,7 +10003,7 @@ function genesRevealScreen(game, c, ev, done) {
 function statTile(ctx, x, y, w, h, label, value, t, opts) {
   opts = opts || {}; kitPanel(ctx, x, y, w, h, 'rgba(16,24,66,0.9)', { radius: 12, flat: true, accent: opts.accent });
   ctx.font = fontStr(13, true); ctx.fillStyle = UI_CYAN; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x + w / 2, y + 20, w - 10);
-  const reduce = uiReduceMotion(); const txt = typeof value === 'function' ? value(t, reduce) : countUp(value, t, reduce, opts.decimals); ctx.font = fontStr(Math.min(h * 0.42, 40), true); ctx.fillStyle = opts.color || UI_TEXT; ctx.fillText(txt, x + w / 2, y + h * 0.6);
+  const reduce = uiReduceMotion(); const txt = typeof value === 'function' ? value(t, reduce) : typeof value === 'string' ? value : countUp(value, t, reduce, opts.decimals); /* V1: a word shows as it is */ ctx.font = fontStr(opts.size || Math.min(h * 0.42, 40), true); ctx.fillStyle = opts.color || UI_TEXT; ctx.fillText(txt, x + w / 2, y + h * 0.6, w - 10); /* V1: opts.size for a word value; never wider than the tile */
   if (opts.sub) { ctx.font = fontStr(12, false); ctx.fillStyle = UI_DIM; ctx.fillText(opts.sub, x + w / 2, y + h - 14, w - 10); }
 }
 // A line chart of OVR by season; the line draws itself over k (0 → 1).
@@ -9976,19 +10027,21 @@ function amRecapScreen(game, c, ev, done) {
       const reduce = uiReduceMotion(), T = reduce ? 9 : t;
       kitPanel(ctx, 24, 20, 1232, 680); ui.title(ctx, ev.title || 'SEASON RECAP', 50, 64, 44); ui.label(ctx, row.label || amStageLabel(c), 1230, 64, 15, UI_DIM, 'right');
       // count-up tiles
-      const tiles = [['RECORD', (tt, r) => countUp(row.w, tt, r) + '-' + countUp(row.l, tt, r), { accent: row.champ ? UI_GOLD : null, sub: row.champ ? 'CHAMPIONS' : '' }], ['FINISH', (tt, r) => '#' + countUp(row.rank, tt, r), { sub: 'of ' + row.size }], ['POINTS / GAME', row.ppg, { decimals: 1 }], ['FG %', row.fg, { sub: 'from the field' }], ['OVR', (tt, r) => countUp(ovrNow, tt, r), { color: ovrNow > row.ovr ? UI_GREEN : UI_TEXT, sub: (ovrNow >= row.ovr ? '▲ ' : '▼ ') + Math.abs(ovrNow - row.ovr) + ' this summer' }]];
+      const bench = row.g === 0, gain = row.ovr - (row.ovr0 != null ? row.ovr0 : row.ovr); /* V1 (§1.12): a season on the bench: what you did instead of zero tiles */
+      const tiles = [['RECORD', (tt, r) => countUp(row.w, tt, r) + '-' + countUp(row.l, tt, r), { accent: row.champ ? UI_GOLD : null, sub: row.champ ? 'CHAMPIONS' : bench ? 'the team' : '' }]].concat(bench ? [['ALL SEASON', 'Benched', { color: UI_ORANGE, sub: 'no games played' }], ['PRACTICE', (gain >= 0 ? '+' : '−') + Math.abs(gain) + ' OVR', { color: gain > 0 ? UI_GREEN : UI_TEXT, sub: 'your gains' }], ['CHALLENGES', (row.chW || 0) + '-' + (row.chL || 0), { sub: 'depth chart' }]] : [['FINISH', (tt, r) => '#' + countUp(row.rank, tt, r), { sub: 'of ' + row.size }], ['POINTS / GAME', row.ppg, { decimals: 1 }], ['FG %', row.fg, { sub: 'from the field' }]]).concat([['OVR', (tt, r) => countUp(ovrNow, tt, r), { color: ovrNow > row.ovr ? UI_GREEN : UI_TEXT, sub: (ovrNow >= row.ovr ? '▲ ' : '▼ ') + Math.abs(ovrNow - row.ovr) + ' this summer' }]]);
       tiles.forEach((tl, i) => statTile(ctx, 50 + i * 238, 96, 222, 104, tl[0], tl[1], T - 0.1 * i, tl[2]));
       let ax = 50; for (const a of row.awards || []) ax += kitChip(ctx, a.toUpperCase(), ax, 226, { fill: 'rgba(255,210,63,0.2)', stroke: 'rgba(255,210,63,0.7)', color: UI_GOLD, size: 14 }) + 8; if (!(row.awards || []).length) ui.label(ctx, 'No awards this season.', 50, 226, 14, UI_DIM);
       // OVR by season
       kitHeader(ctx, 'OVR by season', 50, 268, 500); ovrChart(ctx, 86, 292, 470, 250, pts, clamp01((T - 0.3) / 0.9), { lastIsNow: true });
       ctx.font = fontStr(14, false); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 584; for (const l of extra.slice(0, 3)) { y += wrapTextH(ctx, l, 50, y, 760, 19) + 4; }
       // before and after the summer, side by side at the same scale
-      kitHeader(ctx, grow ? 'You grew' : 'Your height', 620, 268, 600); const floor = ui.phone ? 506 : 560, size = ui.phone ? 220 : 260; drawPlatform(ctx, 910, floor, ui.phone ? 210 : 250, c.colors); /* on a phone the tall button needs the bottom right */
+      kitHeader(ctx, grow ? 'You grew' : 'Your height', 620, 268, 600); const floor = ui.phone ? 512 : 560, size = ui.phone ? 205 : 260; /* V1: a little smaller on a phone, so a tall player's height tags stay under the header */ drawPlatform(ctx, 910, floor, ui.phone ? 210 : 250, c.colors); /* on a phone the tall button needs the bottom right */
       drawMannequin(ctx, Object.assign({}, def, { height: hFrom }), { colors: ['#4A5070', '#6A7090'], pattern: 'solid' }, 810, floor, size, 'neutral', 1, T); const k = easeOutCubic(clamp01((T - 0.5) / 1.2)); const hShow = lerp(hFrom, hTo, k);
       drawMannequin(ctx, Object.assign({}, def, { height: hShow }), amKit(c), 1010, floor, size, grow ? 'hyped' : 'focused', -1, T + 1);
       const yA = headTopY(floor, size, hFrom), yB = headTopY(floor, size, hShow); ctx.save(); ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(243,240,255,0.5)'; ctx.beginPath(); ctx.moveTo(740, yA); ctx.lineTo(1120, yA); ctx.stroke(); ctx.strokeStyle = UI_GOLD; ctx.beginPath(); ctx.moveTo(740, yB); ctx.lineTo(1120, yB); ctx.stroke(); ctx.restore();
       if (grow && yA - yB > 3) { ctx.fillStyle = 'rgba(76,224,122,0.18)'; ctx.fillRect(1060, yB, 60, yA - yB); kitChip(ctx, '+' + Math.max(1, Math.round((hTo - hFrom) / 0.0254)) + '″', 1128, (yA + yB) / 2, { fill: UI_GREEN, color: UI_INK, stroke: false, size: 16 }); }
-      kitChip(ctx, 'LAST SEASON ' + fmtHeight(hFrom), 810, yA - 52, { size: 14, align: 'center', fill: 'rgba(8,12,36,0.8)', stroke: 'rgba(243,240,255,0.4)', color: UI_TEXT }); kitChip(ctx, 'NOW ' + fmtHeight(hShow), 1010, yB - 52, { size: 16, align: 'center', fill: 'rgba(255,210,63,0.92)', stroke: false, color: UI_INK });
+      const tagY = yy => Math.max(yy - 52, 300); // V1: never over the header (a tall player's head reaches up near it)
+      kitChip(ctx, 'LAST SEASON ' + fmtHeight(hFrom), 810, tagY(yA), { size: 14, align: 'center', fill: 'rgba(8,12,36,0.8)', stroke: 'rgba(243,240,255,0.4)', color: UI_TEXT }); kitChip(ctx, 'NOW ' + fmtHeight(hShow), 1010, tagY(yB), { size: 16, align: 'center', fill: 'rgba(255,210,63,0.92)', stroke: false, color: UI_INK });
     } };
 }
 
@@ -10180,7 +10233,7 @@ function signingScreen(game) {
     draw(ctx, ui) {
       const reduce = uiReduceMotion(), T = reduce ? tDone + 5 : t; drawStage(ctx, T, 'SIGNING DAY', ui); drawPodium(ctx, 640, 520);
       // around the league: the other rookies sign one by one
-      kitPanel(ctx, 24, 214, 350, 490, 'rgba(10,14,40,0.9)'); kitHeader(ctx, 'Around the league', 44, 240, 310); const rh = Math.min(46, 430 / Math.max(1, board.length));
+      const rh = Math.min(46, 430 / Math.max(1, board.length)); if (board.length && T >= 0.6) { ctx.globalAlpha = clamp01((T - 0.6) / 0.3); kitPanel(ctx, 24, 214, 350, 490, 'rgba(10,14,40,0.9)'); kitHeader(ctx, 'Around the league', 44, 240, 310); ctx.globalAlpha = 1; } /* V1 (§1.11): the panel shows up with its first signing (it sat empty through the reveal) */
       board.forEach((p, i) => { const a0 = 0.6 + i * step; if (T < a0) return; ctx.globalAlpha = clamp01((T - a0) / 0.3); const y = 262 + i * rh, pc = clubOf(p.club);
         ctx.fillStyle = pc.colors[0]; ctx.beginPath(); roundRectPath(ctx, 40, y + 2, 8, rh - 12, 3); ctx.fill();
         ui.label(ctx, p.name + (p.rival ? ' (rival)' : ''), 58, y + rh / 2 - 9, 14, p.rival ? '#FF8A8A' : UI_TEXT, 'left', 290); ui.label(ctx, pc.abbr + ' · OVR ' + p.ovr, 58, y + rh / 2 + 9, 12, UI_DIM, 'left', 200); drawStarsTxt(ctx, p.stars, 360, y + rh / 2 + 9, 11, 'right'); ctx.globalAlpha = 1; });
@@ -10441,21 +10494,30 @@ function pressScreen(game, c, ev, done) {
     draw(ctx, focused, ui) { drawPressAnswer(ctx, this, focused, ui, A[kind]); } }));
   const cont = btn('CONTINUE', 860, 612, 360, 58, () => done(), { primary: true });
   answers.forEach((b, i) => { const h = P ? tapH(game.ui, 44) : 98; Object.assign(b, { x: 680, y: P ? 226 + i * (h + 4) : 250 + i * (h + 4), w: 560, h }); }); /* F4: taller answers, so the label, the effect and two lines of quote fit at every pixel size */ if (P) phoneGrid(game.ui, [cont], 800, UI_H - tapH(game.ui, 44) - 16, 440, 1, 0, 0); cont.hidden = true; // (laid out first: the phone grid skips hidden buttons)
-  const items = answers.concat([cont]);
+  const items = answers.concat([cont]); let laid = null, footer = !P, bh = P ? 104 : 118;
+  // V1 (§1.4): each answer is three rows (the name, its effect, the quote) measured at the current text size; the question
+  // bubble fits its question, the buttons grow to fit their rows (the footer line gives way when four answers need it)
+  const fit = ctx => { const key = RBF.textScale + '|' + game.ui.scale; if (laid === key) return; laid = key; ctx.save(); const ui = game.ui, d = game.dpr || 1; ctx.setTransform(d * ui.scale, 0, 0, d * ui.scale, d * ui.ox, d * ui.oy); try { fitIn(ctx); } finally { ctx.restore(); } }; // measured at the plain UI transform (a transition's zoom would skew it)
+  const fitIn = ctx => { const n = answers.length, w = 560 - 36;
+    ctx.save(); ctx.font = fontStr(P ? 19 : 20, true); const ql = clamp(rbWrap(ctx, '“' + ev.q + '”', 516).length, 1, 4); ctx.restore(); bh = 34 + ql * (P ? 24 : 26) + 8; const y0 = 116 + bh + 14;
+    const measure = qMax => { let need = 0; for (const b of answers) need = Math.max(need, pressAnswerRows(ctx, PRESS_EFFECT[b.ans], '“' + A[b.ans] + '”', w, qMax).h); return Math.max(P ? tapH(game.ui, 44) : 88, Math.ceil(need)); };
+    let h = measure(3); footer = !P && y0 + n * (h + 4) <= 660; const limit = P ? UI_H - 12 : footer ? 660 : 694; if (y0 + n * (h + 4) > limit) h = measure(2); if (y0 + n * (h + 4) > limit) h = measure(1);
+    h = Math.min(h, Math.floor((limit - y0) / n) - 4); answers.forEach((b, i) => Object.assign(b, { y: y0 + i * (h + 4), h, _m: pressAnswerRows(ctx, PRESS_EFFECT[b.ans], '“' + A[b.ans] + '”', w, 3) })); }; // each quote shows every line its button holds
   const scr = { widgets: items, name: 'press', overlay: false, onBack() { if (answered) done(); }, update(dt) { t += dt; },
     draw(ctx, ui) {
+      fit(ctx);
       drawPressRoom(ctx, c, me, t, isPro(c) ? 'ISO LEAGUE' : (c.stage === 'college' ? c.college : c.school).toUpperCase());
       ui.panel(ctx, 660, 20, 600, 680, UI_PANEL2); kitStamp(ctx, 'THE PRESS ROOM', 690, 62, 30, [UI_GOLD, '#F2A91C'], { align: 'left', outline: 0.14 });
       ui.label(ctx, (x.won ? 'After the win' : 'After the loss') + (x.opp ? ' vs ' + x.opp : '') + (x.us != null ? ' · ' + x.us + '–' + x.them : ''), 690, 98, 14, UI_DIM, 'left', 540);
       // the question in a speech bubble
-      const bh = P ? 104 : 118; ctx.fillStyle = 'rgba(243,240,255,0.95)'; ctx.beginPath(); roundRectPath(ctx, 684, 116, 552, bh, 16); ctx.fill(); ctx.beginPath(); ctx.moveTo(700, 116 + bh); ctx.lineTo(716, 116 + bh + 12); ctx.lineTo(730, 116 + bh); ctx.fill();
+      ctx.fillStyle = 'rgba(243,240,255,0.95)'; ctx.beginPath(); roundRectPath(ctx, 684, 116, 552, bh, 16); ctx.fill(); ctx.beginPath(); ctx.moveTo(700, 116 + bh); ctx.lineTo(716, 116 + bh + 12); ctx.lineTo(730, 116 + bh); ctx.fill();
       ctx.font = fontStr(13, true); ctx.fillStyle = '#3D6EA8'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('REPORTER', 702, 128); ctx.font = fontStr(P ? 19 : 20, true); ctx.fillStyle = UI_INK; wrapText(ctx, '“' + ev.q + '”', 702, 150, 516, P ? 24 : 26);
       const B = holderOf(c);
       if (answered) {
         ctx.fillStyle = '#EDE6D2'; ctx.beginPath(); roundRectPath(ctx, 684, 262, 552, 300, 10); ctx.fill(); ctx.fillStyle = '#1B1B22'; ctx.fillRect(700, 292, 520, 3); ctx.font = fontStr(14, true); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('THE DAILY DRIBBLE', 700, 280);
         ctx.font = fontStr(21, true); ctx.textBaseline = 'top'; const hh = wrapTextH(ctx, answered.headline, 700, 306, 520, 26);
         const fx = pressEffectLines(c, x, answered, B); let fy = Math.max(410, 306 + hh + 14); fx.forEach(f => { fy += ui.para(ctx, f[0], 700, fy, 520, 14, f[1] ? '#B8322D' : '#3D6EA8', 'left', 2) + 2; });
-      } else if (!P) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (hasTrait(B, 'generational') ? ' · the spotlight never leaves' : ''), 690, 672, 13, UI_DIM, 'left', 540); /* F4: under the taller answers, above the key hints */ // (phones: the BUZZ line in the headlines)
+      } else if (footer) ui.label(ctx, 'Hype ' + mdHypeText(B) + ' · confidence ' + ((B.confidence || 0) > 0 ? '+' : '') + (B.confidence || 0).toFixed(1).replace('.0', '') + (hasTrait(B, 'generational') ? ' · the spotlight never leaves' : ''), 690, 672, 13, UI_DIM, 'left', 540); /* F4: under the taller answers, above the key hints */ // (phones: the BUZZ line in the headlines)
     } };
   return scr;
 }
@@ -10470,11 +10532,19 @@ function pressEffectLines(c, x, a, B) {
   if (a.kind === 'nocomment') out.push(['Practice XP +' + Math.round(MD.nocommentXp * 100) + '% this week.', false]);
   return out.slice(0, 5);
 }
+// V1 (§1.4): an answer's three rows at the current text size: the name, the effect (up to two lines), the quote (up to
+// qMax lines). Line heights match ui.para's. h: the button height that holds them.
+function pressAnswerRows(ctx, effect, quote, w, qMax) {
+  ctx.save(); try { ctx.font = fontStr(15, true); const r1 = Math.max(15 * 1.2, rbLineH(ctx) - 2); ctx.font = fontStr(12, false); const lh2 = Math.max(12 * 1.35, rbLineH(ctx)), r2 = Math.max(12 * 1.2, lh2 - 2), e = clamp(rbWrap(ctx, effect, w).length, 1, 2);
+    ctx.font = fontStr(16, false); const l3 = Math.max(16 * 1.35, rbLineH(ctx)), q = clamp(rbWrap(ctx, quote, w).length, 1, qMax);
+    return { r1, r2, lh2, l3, e, q, h: 6 + r1 + r2 + (e - 1) * lh2 + 2 + q * l3 + 4 }; } finally { ctx.restore(); } // the name and effect rows at the glyph height (+2), a quote at the paragraph pitch
+}
 function drawPressAnswer(ctx, b, focused, ui, quote) {
-  kitButton(ctx, b, focused, ui.t, {}); const col = b.ans === 'trash' ? UI_RED : b.ans === 'confident' ? UI_GOLD : b.ans === 'nocomment' ? UI_DIM : UI_CYAN, P = ui.phone;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, b.y + 17, b.w - 36); // R8: the answer, what it does, then the quote
-  ui.para(ctx, PRESS_EFFECT[b.ans], b.x + 18, b.y + 32, b.w - 36, 12, UI_DIM, 'left', 1);
-  ui.para(ctx, '“' + quote + '”', b.x + 18, b.y + 54, b.w - 36, 16, UI_TEXT, 'left', RBF.textScale > 1 && !P ? 1 : 2); /* R10: at 1.25× text a second line would spill out of a desktop button (F7: a phone's taller button fits two lines) */
+  kitButton(ctx, b, focused, ui.t, {}); const col = b.ans === 'trash' ? UI_RED : b.ans === 'confident' ? UI_GOLD : b.ans === 'nocomment' ? UI_DIM : UI_CYAN, w = b.w - 36;
+  const m = b._m || pressAnswerRows(ctx, PRESS_EFFECT[b.ans], '“' + quote + '”', w, 2); let y = b.y + 6; // R8: the answer, what it does, then the quote (V1: three rows that never overlap)
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(15, true); ctx.lineWidth = 4; ctx.strokeStyle = UI_INK; ctx.strokeText(PRESS_LABEL[b.ans], b.x + 18, y + m.r1 / 2, w); ctx.fillStyle = col; ctx.fillText(PRESS_LABEL[b.ans], b.x + 18, y + m.r1 / 2, w); y += m.r1; // (V1: an ink outline, so red and cyan read on the blue button)
+  ui.para(ctx, PRESS_EFFECT[b.ans], b.x + 18, y + m.r2 / 2, w, 12, 'rgba(243,240,255,0.82)', 'left', m.e); y += m.r2 + (m.e - 1) * m.lh2 + 2;
+  ui.para(ctx, '“' + quote + '”', b.x + 18, y + m.l3 / 2, w, 16, UI_TEXT, 'left', Math.max(1, Math.min(m.q, Math.floor((b.y + b.h - 2 - y) / m.l3))));
 }
 // A press backdrop: step-and-repeat logos, you behind a table of microphones, camera flashes.
 function drawPressRoom(ctx, c, me, t, org) {
@@ -10636,7 +10706,7 @@ function drawProgramBanner(ctx, x, y, w, h, o) {
 // The offer board: a card per program. Visits reveal a program's facilities and its coach's specialty.
 function recruitScreen(game) {
   const c = game.save.data.c1, d = c && c.decision; if (!d || d.kind !== 'college') return amHub(game); const offers = d.offers.filter(o => !o.draft), skip = d.offers.find(o => o.draft); const P = game.ui.phone;
-  const n = offers.length, cw = Math.min(290, (1200 - (n - 1) * 16) / n), x0 = (UI_W - (n * cw + (n - 1) * 16)) / 2, items = [];
+  const n = offers.length, cw = Math.min(380, (1200 - (n - 1) * 16) / n), /* V1 (§1.9): wider cards, so every value fits its column */ x0 = (UI_W - (n * cw + (n - 1) * 16)) / 2, items = [];
   const commit = o => () => game.ui.push(confirmScreen(game, (o.draft ? 'Skip college and turn pro?' : 'Commit to ' + o.name + '?') + ' This is final.', () => { amChooseCollege(c, o); game.save.save(); game.ui.clearTo(amHub(game)); }));
   offers.forEach((o, i) => { const x = x0 + i * (cw + 16);
     items.push(btn(o.visited ? 'VISITED' : 'VISIT', x, P ? 470 : 548, P ? cw / 2 - 4 : cw, P ? tapH(game.ui, 44) : 44, () => { if (o.visited) { game.ui.push(visitScreen(game, o)); return; } if (!(d.visits > 0)) { game.ui.toastMsg('No official visits left.'); return; } const v = amVisit(c, d.offers.indexOf(o)); game.save.save(); if (v) game.ui.push(visitScreen(game, v)); }, { enabled: true }));
@@ -10649,8 +10719,8 @@ function recruitScreen(game) {
       ui.label(ctx, 'Visits left: ' + (d.visits || 0) + '. A visit shows the facilities and what the coach develops.', 50, 118, 14, UI_TEXT, 'left', 1180);
       offers.forEach((o, i) => { const x = x0 + i * (cw + 16), y = 138, h = P ? 324 : 400, F = programFacts(o);
         kitPanel(ctx, x, y, cw, h, ART.uiPanel2); drawProgramBanner(ctx, x + 10, y + 10, cw - 20, 74, o);
-        let yy = y + 106; const line = (a, b, col) => { ui.label(ctx, a, x + 14, yy, 13, UI_DIM); ui.heading(ctx, b, x + cw - 14, yy, 15, col || UI_TEXT, 'right'); yy += 28; }; /* F7: tighter rows (32 on a desktop), so the blurb has three lines */
-        line('Program', AMC.tiers[o.tier], o.tier >= 3 ? UI_GOLD : UI_TEXT); line('Depth chart', TM.ladderStart[o.tier] === 1 ? 'you start' : '#' + TM.ladderStart[o.tier] + ' to begin', TM.ladderStart[o.tier] === 1 ? UI_GREEN : UI_ORANGE); /* R6 */ line('Conference', '~' + F.conf + (F.conf > amOvr(c) + 3 ? ' tough' : ''), F.conf > amOvr(c) + 3 ? UI_ORANGE : UI_TEXT); line('Pro exposure', '+' + F.exposure); line('Facilities', o.visited ? '★'.repeat(o.fac) + '☆'.repeat(3 - o.fac) : '? visit', o.visited ? UI_GOLD : UI_DIM); line('Coach develops', o.visited ? Object.keys((CR.trainFocus[o.focus] || {}).split || {}).map(a => a.toUpperCase()).join('/') || '—' : '? visit', o.visited ? UI_CYAN : UI_DIM);
+        const rows = [['Program', AMC.tiers[o.tier], o.tier >= 3 ? UI_GOLD : UI_TEXT], ['Depth chart', TM.ladderStart[o.tier] === 1 ? 'you start' : '#' + TM.ladderStart[o.tier] + ' to begin', TM.ladderStart[o.tier] === 1 ? UI_GREEN : UI_ORANGE], /* R6 */ ['Conference', '~' + F.conf + (F.conf > amOvr(c) + 3 ? ' tough' : ''), F.conf > amOvr(c) + 3 ? UI_ORANGE : UI_TEXT], ['Pro exposure', '+' + F.exposure], ['Facilities', o.visited ? '★'.repeat(o.fac) + '☆'.repeat(3 - o.fac) : '? visit', o.visited ? UI_GOLD : UI_DIM], ['Develops', o.visited ? Object.keys((CR.trainFocus[o.focus] || {}).split || {}).map(a => a.toUpperCase()).join('/') || '—' : '? visit', o.visited ? UI_CYAN : UI_DIM]];
+        let yy = labelValueRows(ctx, ui, rows, x + 14, y + 106, cw - 28, { row: 28 }); /* V1 (§1.9): a label column and a value column (a value used to run into its label: "ProgramPower conference") */
         if (!P) { ui.label(ctx, o.coach, x + 14, yy + 6, 13, UI_DIM, 'left', cw - 28); ctx.font = fontStr(13, false); ui.para(ctx, TIER_BLURB[o.tier] || '', x + 14, yy + 34, cw - 28, 13, UI_DIM, 'left', Math.max(1, Math.floor((y + h - (o.contested ? 44 : 12) - (yy + 34)) / Math.max(17, rbLineH(ctx))) + 1)); } /* the blurb stops above the rival chip */
         if (o.contested) kitChip(ctx, 'RIVAL WANTS THIS SPOT', x + cw / 2, y + h - 22, { size: 12, align: 'center', fill: 'rgba(255,90,90,0.95)', color: '#FFFFFF', stroke: false }); });
     } };
@@ -10760,12 +10830,20 @@ function migrateSave(obj) {
   if (merged.career && merged.c1) merged.c1.handedOff = true;
   if (v < 5) for (const k of ['c1', 'career', 'teamCareer', '_legacyCareer']) migrateLooks(merged[k], 0); // v5: looks move to the painted-face model
   { const own = L => { if (L && typeof L === 'object') L.own = true; }; if (merged.c1) own(merged.c1.look); const pc = merged.career; if (pc && pc.players) { const me = pc.players[pc.meId || 'me']; if (me) own(me.look); } } // F12: your player's look shows the facial hair you chose at every age
+  try { genTraitsMigrate(merged); } catch (e) { console.warn('[save] trait migration skipped', e && e.message); } // V1 (§1.5)
   merged.version = CONFIG.save.version; return merged;
 }
 // Converts every stored look to the v2 look model (faces are seeded from the owner's name, so they never change).
 function migrateLooks(o, depth) { if (!o || typeof o !== 'object' || depth > 7) return; if (Array.isArray(o)) { for (const x of o) migrateLooks(x, depth + 1); return; } for (const k in o) { const v = o[k]; if (k === 'look' && v && typeof v === 'object' && v.v !== 2) o.look = normLook(v, o.name); else if (v && typeof v === 'object') migrateLooks(v, depth + 1); } }
-// R3: every pro in the league has two traits too (known: the league has seen them play); they roll from the player's id.
-function proEnsureTraits(c) { for (const id in c.players) { const p = c.players[id]; if (p.isMe || traitsOf(p)) continue; p.tr = traitsNew(new RNG(hashString((c.seed >>> 0) + ':' + id) || 3)); p.tr.found = true; } }
+// R3: every pro in the league has a trait too (known: the league has seen them play); it rolls from the player's id.
+// V1 (§1.5): generated players carry one trait at the standard odds; older saves drop the second one theirs rolled (a
+// hidden trait is yours alone) and opponents and rivals from before get theirs.
+function genTraitsMigrate(save) {
+  const one = p => { if (p && !p.isMe && p.tr && p.tr.hidden) { p.tr.hidden = null; p.tr.found = true; } }, give = (c, o) => { if (o && typeof o === 'object' && !traitsOf(o)) o.tr = traitsGen((c.seed >>> 0) + '|' + o.id + '|' + o.name); };
+  const a = save.c1; if (a && typeof a === 'object') { if (a.team && Array.isArray(a.team.mates)) a.team.mates.forEach(one); if (a.league && Array.isArray(a.league.opps)) for (const o of a.league.opps) { if (o && o.id === 'me') continue; give(a, o); one(o); } if (a.rival) { give(a, a.rival); one(a.rival); } }
+  const c = save.career; if (c && typeof c === 'object' && c.players) for (const id in c.players) one(c.players[id]);
+}
+function proEnsureTraits(c) { for (const id in c.players) { const p = c.players[id]; if (p.isMe || traitsOf(p)) continue; p.tr = traitsGen((c.seed >>> 0) + ':' + id); } } // V1: one trait at the standard odds
 // R3: a pro career from before traits, genes and teams (v4). Traits and genes come from the amateur career in the same
 // save when it is there (else they roll from the career's own stream); ceilings become the new model's but never drop
 // under a rating you have; the old stat-milestone traits are gone (their awards stay); your club becomes a franchise.
@@ -10912,7 +10990,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
     c.events.push(rivalCard('draft', 'SIGNING DAY', [rv.name + ' signed with the ' + clubOf(rv.club).name + ', a ' + rs + '★ franchise. You signed with the ' + fn + ', ' + fs + '★.', rs > fs ? 'They landed the better team. Every one of those stars is a reason to catch them.' : rs < fs ? 'You landed the better team. ' + rv.nick + ' says a logo doesn\'t win games.' : 'Same level, different colors. This gets settled on the court.', h2hText(c.story.h2h.w, c.story.h2h.l) + ' Next stop: the pros.'])); }
   tlAdd(c, 'draft', 'Signed with the ' + fn + ' (' + fs + '★, ' + fmtMoney(offer.salary) + ' a season)');
   try { stFill(a); c.me.family = a.family; c.me.arc = { season: c.season, beats: 0, fired: {}, done: Object.assign({}, (a.arc && a.arc.done) || {}), w: -99, streak: 0 }; c.me.social = (a.social || []).slice(0, SY.socialMax); stSigning(c, a, fs); stFirstContract(c); socialPost(c, 'draft', stFirst(a.name) + ' to the ' + fn + '! ' + (fs >= 4 ? 'A ' + fs + '★ team for a rookie. Huge.' : 'Every great career starts somewhere.'), 2); } catch (e) { /* the story is decoration */ } // R9: signing day, the first contract, your family
-  frCheckGoals(c, 'sign');
+  frCheckGoals(c, 'sign'); c.me.ovrSeasonStart = recOvr(meOf(c)); // V1: the first season's practice gains start here
   a.handedOff = true; a.stage = 'pro'; a.league = null; save.career = c; save._legacyCareer = undefined; return c; // R7: the last amateur league (a 64-team bracket in college) is dead weight in the save
 }
 function startSeason(c, rng) {
@@ -10979,16 +11057,26 @@ function simBox(c, hId, aId, rng) {
   return { h: hId, a: aId, hs, as, ot, box: bx };
 }
 function simPts(v) { return v === 1 ? 2 : Math.max(0, v); } // 2s and 3s: never exactly 1 point
+// V1 (§1.6): a simmed shooting line that always adds up: 3PM ≤ 3PA ≤ FGA, 3PM ≤ FGM ≤ FGA, and points = 2 × (FGM − 3PM)
+// + 3 × 3PM + FTM. 3PA comes first; FGA is at least 3PA plus the two-point attempts (and near the makes / fgPct). tpm is
+// the threes wanted (fewer when the points can't split that way); a lone point is a free throw.
+function simShotLine(pts, tpm, tpPct, fgPct, tpaWant) {
+  pts = Math.max(0, Math.round(pts) || 0); tpm = clamp(Math.round(tpm) || 0, 0, Math.floor(pts / 3)); let ftm = 0;
+  if ((pts - 3 * tpm) % 2) { if (tpm > 0) tpm--; else if (pts >= 3) tpm = 1; else ftm = 1; }
+  const twoM = (pts - 3 * tpm - ftm) / 2, fgm = twoM + tpm, tpa = Math.max(tpm, tpaWant != null ? Math.round(tpaWant) : Math.round(tpm / Math.max(0.05, tpPct)));
+  const fga = Math.max(tpa + twoM, Math.round(fgm / Math.max(0.05, fgPct)));
+  return { pts: 2 * twoM + 3 * tpm + ftm, fgm, fga, tpm, tpa, ftm, fta: ftm };
+}
 function boxFor(o, d, pts, rng, c, bo, bd, len) { // len (F5): the game length over the model's (the counts scale with it)
   const eo = effAttrs(o, c, bo), ed = effAttrs(d, c, bd), a = k => eo[k], b = k => ed[k]; const L = LG; len = len || 1; const rl = Math.sqrt(len);
   const tpaShare = clamp(L.tpa.c + L.tpa.sho * a('sho') + L.tpa.fin * a('fin') + L.tpa.spd * a('spd') + L.tpa.h * o.h + L.tpa.oh * d.h, 0.02, 0.55);
   const tpPct = clamp(L.tp.c + L.tp.sho * a('sho') + L.tp.odef * b('def') + L.tp.ospd * b('spd') + L.tp.hdiff * (d.h - o.h), 0.18, 0.55);
   const twoPct = clamp(L.two.c + L.two.fin * a('fin') + L.two.jmp * a('jmp') + L.two.sho * a('sho') + L.two.str * a('str') + L.two.spd * a('spd') + L.two.odef * b('def') + L.two.ojmp * b('jmp') + L.two.ospd * b('spd') + L.two.hdiff * (o.h - d.h), 0.35, 0.82);
   const ppf = tpaShare * tpPct * 3 + (1 - tpaShare) * twoPct * 2; let fga = Math.max(Math.max(1, Math.round(4 * len)), Math.round(pts / ppf)); let tpa = Math.round(fga * tpaShare); let tpm = Math.min(tpa, Math.max(0, Math.round(tpa * tpPct + rng.gauss() * 0.8)));
-  while (3 * tpm > pts) tpm--; if ((pts - 3 * tpm) % 2 !== 0) { if (tpm > 0) tpm--; else tpm = 1; } tpa = Math.max(tpa, tpm); // no free throws in 1v1: points must split into 2s and 3s
-  const twoM = (pts - 3 * tpm) / 2; const twoA = Math.max(twoM, Math.round(twoM / twoPct)); fga = twoA + tpa; const fgm = twoM + tpm;
+  const sl0 = simShotLine(pts, tpm, tpPct, 1, tpa), twoA = Math.max(sl0.fgm - sl0.tpm, Math.round((sl0.fgm - sl0.tpm) / twoPct)), sl = Object.assign(sl0, { fga: sl0.tpa + twoA }); const twoM = sl.fgm - sl.tpm; // V1 (§1.6): 3PA first, then the two-point attempts
+  ({ pts, tpm, tpa, fga } = sl); const fgm = sl.fgm;
   const P_ = (m, sd) => Math.max(0, Math.round(m * len + rng.gauss() * sd * rl)); // F5: a shorter game, fewer steals and blocks
-  return { pts, fgm, fga, tpm, tpa, reb: 0, stl: P_(L.stl.c + L.stl.def * a('def') + L.stl.spd * a('spd') + L.stl.ohan * b('han') + L.stl.oh * d.h, 1.1), blk: P_(L.blk.c + L.blk.def * a('def') + L.blk.jmp * a('jmp') + L.blk.h * o.h + L.blk.oh * d.h, 0.7), to: P_(L.to.c + L.to.han * a('han') + L.to.odef * b('def') + L.to.h * o.h, 1.1), dunk: Math.min(twoM, P_(L.dunk.c + L.dunk.fin * a('fin') + L.dunk.jmp * a('jmp') + L.dunk.h * o.h + L.dunk.oh * d.h + L.dunk.odef * b('def'), 1.2)), ank: P_(L.ank.c + L.ank.han * a('han') + L.ank.odef * b('def') + L.ank.hdiff * (d.h - o.h), 0.8) };
+  return { pts, fgm, fga, tpm, tpa, ftm: sl.ftm, fta: sl.fta, reb: 0, stl: P_(L.stl.c + L.stl.def * a('def') + L.stl.spd * a('spd') + L.stl.ohan * b('han') + L.stl.oh * d.h, 1.1), blk: P_(L.blk.c + L.blk.def * a('def') + L.blk.jmp * a('jmp') + L.blk.h * o.h + L.blk.oh * d.h, 0.7), to: P_(L.to.c + L.to.han * a('han') + L.to.odef * b('def') + L.to.h * o.h, 1.1), dunk: Math.min(twoM, P_(L.dunk.c + L.dunk.fin * a('fin') + L.dunk.jmp * a('jmp') + L.dunk.h * o.h + L.dunk.oh * d.h + L.dunk.odef * b('def'), 1.2)), ank: P_(L.ank.c + L.ank.han * a('han') + L.ank.odef * b('def') + L.ank.hdiff * (d.h - o.h), 0.8) };
 }
 
 // ---------------- results bookkeeping ----------------
@@ -11213,7 +11301,7 @@ function endSeason(c) {
   if (champ === c.meId) frCheckGoals(c, 'title'); /* F7 */ aw.stars = {}; for (const id of frIds()) aw.stars[id] = frStars(c, id); frSeasonEnd(c); /* F7: prestige follows the standings (aw.stars: this season's) */
   aw.mine = mine; c.history.unshift(aw); storyFill(c); mdSeasonEnd(c.me); try { for (const m of mine) if (/MVP|Champion|All-League 1st/.test(m)) socialPost(c, 'award', m === 'Champion' ? 'Champions! ' + stFirst(meOf(c).name) + ' did it.' : stFirst(meOf(c).name) + ': ' + m + '. Deserved.', 3); } catch (e) { /* decoration */ } for (const m of mine) tlAdd(c, m === 'Champion' ? 'title' : 'award', (m === 'Champion' ? 'ISO League champion' : m) + ' · ' + clubOf(me.club).name);
   const s = c.stats[c.meId], st = c.standings[c.meId], g = Math.max(1, s.g);
-  c.me.seasonLog.unshift({ season: c.season, age: me.age, club: me.club, ovr: recOvr(me), g: s.g, w: st.w, l: st.l, ppg: +(s.pts / g).toFixed(1), rpg: +(s.reb / g).toFixed(1), spg: +(s.stl / g).toFixed(1), bpg: +(s.blk / g).toFixed(1), fg: s.fga ? Math.round(100 * s.fgm / s.fga) : 0, tp: s.tpa ? Math.round(100 * s.tpm / s.tpa) : 0, rank: standingsSorted(c).indexOf(c.meId) + 1, playoff: c.me.playoffResult || '—', awards: mine.slice() });
+  c.me.seasonLog.unshift({ season: c.season, age: me.age, club: me.club, ovr: recOvr(me), g: s.g, w: st.w, l: st.l, ppg: +(s.pts / g).toFixed(1), rpg: +(s.reb / g).toFixed(1), spg: +(s.stl / g).toFixed(1), bpg: +(s.blk / g).toFixed(1), fg: s.fga ? Math.round(100 * s.fgm / s.fga) : 0, tp: s.tpa ? Math.round(100 * s.tpm / s.tpa) : 0, rank: standingsSorted(c).indexOf(c.meId) + 1, playoff: c.me.playoffResult || '—', awards: mine.slice(), ovr0: c.me.ovrSeasonStart, chW: c.chalRec && c.chalRec.season === c.season ? c.chalRec.w : 0, chL: c.chalRec && c.chalRec.season === c.season ? c.chalRec.l : 0 }); // V1 (§1.12)
   c.offseason = { step: 0, awards: aw, prog: null, moves: null, fa: null };
 }
 // Offseason step 1: everyone ages; bodies change; young AI players grow toward their ceilings.
@@ -11256,7 +11344,7 @@ function acceptContract(c, i, years, promise) { const fa = c.offseason && c.offs
   c.me.contract = { club: me.club, salary: o.salary, years: o.years, rookie: false, promise: !!o.promise, kind: o.kind || 'yours' }; me.contract = { years: o.years, salary: o.salary }; c.me.bigMarket = null; /* F7: stars replace the big market */ fa.done = true; storyFill(c); tlAdd(c, 'contract', (moved ? 'Signed with the ' : 'Re-signed with the ') + clubOf(me.club).name + ': ' + fmtMoney(o.salary) + ' × ' + o.years); try { socialPost(c, 'sign', moved ? stFirst(me.name) + ' to the ' + clubOf(me.club).name + '! ' + fmtMoney(o.salary) + ' a season. Worth every cent.' : stFirst(me.name) + ' stays. ' + o.years + ' more seasons. Love to see loyalty.', 2); } catch (e) { /* decoration */ } /* R9 */ pushNews(c, moved ? meOf(c).name + ' signs with the ' + clubOf(me.club).name + ': ' + fmtMoney(o.salary) + ' a season for ' + o.years + '.' : meOf(c).name + ' re-signs with the ' + clubOf(me.club).name + '.', 'money'); }
 function newSeason(c) {
   c.season++; for (const id of c.active) { const p = c.players[id]; if (p.rookie && p.since < c.season) p.rookie = false; }
-  const me = meOf(c); me.rookie = false; wkNewSeason(c.me); c.me.playoffResult = null; c.offseason = null;
+  const me = meOf(c); me.rookie = false; wkNewSeason(c.me); c.me.playoffResult = null; c.offseason = null; c.me.ovrSeasonStart = recOvr(me); // V1: the season's practice gains start here
   try { tmSyncPro(c); if (c.team) { c.team.seasons++; c.team.stars = frMine(c); } proApplyPromise(c); frCheckGoals(c, 'sign'); } catch (e) { /* the franchise is decoration */ } /* R7: a promised start; F7: this season's stars, the goals */
   startSeason(c, careerRng(c)); pushNews(c, 'Season ' + c.season + ' tips off.', 'league'); try { stSeasonStart(c); } catch (e) { /* the story is decoration */ } // R9: is this the last one?
 }
@@ -11329,7 +11417,7 @@ function amMakeOpp(c, rng, stage, ovr, id) {
   for (const k of RATING_KEYS) r[k] = clamp(Math.round((base[k] * ovr / avg + rng.gauss() * 6) / CR.xpStep) * CR.xpStep, CR.ratingMin, CR.ratingMax);
   const used = new Set((c.league ? c.league.opps.map(o => o.name) : []).concat([c.name]).concat(c.rival ? [c.rival.name] : []));
   const name = genName(rng, used, new Set(c.name.split(' '))); const look = genLook(rng, stage === 'hs');
-  return { id, name, nick: name.split(' ')[0], style, height: h, wing: +clamp(AMC.wingMean + AMC.wingSd * rng.gauss(), 0.97, 1.1).toFixed(3), r, look, colors: rng.pick(AM_COLORS).slice(), pattern: rng.pick(['solid', 'stripes', 'chevron']), rec: { w: 0, l: 0, pf: 0, pa: 0 } };
+  return { id, name, nick: name.split(' ')[0], style, height: h, wing: +clamp(AMC.wingMean + AMC.wingSd * rng.gauss(), 0.97, 1.1).toFixed(3), r, look, colors: rng.pick(AM_COLORS).slice(), pattern: rng.pick(['solid', 'stripes', 'chevron']), rec: { w: 0, l: 0, pf: 0, pa: 0 }, tr: traitsGen((c.seed >>> 0) + '|' + id + '|' + name) }; // V1: every generated player has a trait
 }
 function amCreate(save, form) {
   const style = AM_STYLES[form.style] ? form.style : 'slasher';
@@ -11366,7 +11454,7 @@ function amNewSeason(c, rng) {
   for (let i = 0; i < S.size - 1; i++) c.league.opps.push(amMakeOpp(c, rng, c.stage, Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'o' + i));
   if (c.rival) { c.rival.rec = { w: 0, l: 0, pf: 0, pa: 0 }; c.league.opps[c.league.opps.length - 1] = c.rival; }
   c.league.schedule = rng.shuffle(c.league.opps.map(o => o.id));
-  c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 };
+  c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.ovrSeasonStart = amOvr(c); // V1: the season's practice gains start here
   amAssignOppTeams(c, true); // R3: every opponent plays for a school (a college), in its colors
 }
 function amOppById(c, id) { const L = c.league; if (!L) return null; for (const k of ['opps', 'nonconf', 'stateOpps', 'natOpps']) { const o = (L[k] || []).find(x => x.id === id); if (o) return o; } return null; } // R5: state tournament opponents too; R6: marquee games, the national tournament
@@ -11425,8 +11513,8 @@ function amApplyResult(c, opp, my, their, st, simmed) {
 function amSimGame(c) {
   hsAutoResolve(c); /* R5: a tryout or a summer still open */ const g = amNext(c); if (!g || !g.opp) return null; if (!isStarter(c) || (c.team && c.team.pending) || c.ineligible > 0) { amStartGame(c); ladderSettlePending(c); if (!isStarter(c) || c.ineligible > 0) return amSimBenchGame(c); } amStartGame(c); const rng = amRng(c); const stg = AMC.stages[c.stage]; const eff = wkEff(c.r, c.height, c, g.opp.id); const G = mdGame(c, g.opp.id, !!g.opp.rival, amHome(c, !!g.playoff)); // R8: hype, a trash-talked opponent, a fired-up rival
   const sc = amSimScore(rng, effOvr(eff) + trSimEdge(c, !!g.playoff) + G.simMe, ovrOf(g.opp.r, g.opp.height) + G.simOpp); const a = sc[0], b = sc[1], f = gameScale(c.stage); // traits: what their in-game effects are worth; f (F5): the game length over the old format's
-  let tpm = Math.min(Math.floor(a / 3), Math.round(a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3)); if ((a - 3 * tpm) % 2) tpm = tpm > 0 ? tpm - 1 : 1; const twos = Math.max(0, (a - 3 * tpm) / 2); /* 2s and 3s that add up to the score */ const fgm = tpm + twos; const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62);
-  const st = { pts: 3 * tpm + 2 * twos, fgm, fga: Math.max(fgm, Math.round(fgm / pct)), tpm, tpa: Math.max(tpm, Math.round(tpm / 0.36)), reb: Math.round((2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12) * f), stl: Math.floor(rng.next() * 3 * f + 0.3 * rng.next()), blk: Math.floor((rng.next() * 2 + Math.max(0, c.height - 1.95) * 6) * f + 0.3 * rng.next()), dunkM: 0, layM: Math.round(twos * 0.5) };
+  const pct = clamp(0.36 + eff.sho / 10 * 0.018 + eff.fin / 10 * 0.012, 0.38, 0.62), sl = simShotLine(a, a * clamp((eff.sho / 10 - 3) * 0.06, 0.03, 0.45) / 3, 0.36, pct); const tpm = sl.tpm, twos = sl.fgm - sl.tpm; // V1 (§1.6): a line that adds up (3PA first, FGA ≥ 3PA + 2PA)
+  const st = { pts: sl.pts, fgm: sl.fgm, fga: sl.fga, tpm, tpa: sl.tpa, ftm: sl.ftm, fta: sl.fta, reb: Math.round((2 + rng.next() * 5 + Math.max(0, c.height - 1.85) * 12) * f), stl: Math.floor(rng.next() * 3 * f + 0.3 * rng.next()), blk: Math.floor((rng.next() * 2 + Math.max(0, c.height - 1.95) * 6) * f + 0.3 * rng.next()), dunkM: 0, layM: Math.round(twos * 0.5) };
   st.dunkM = Math.min(st.layM, Math.round(twos * clamp((eff.jmp / 10 - 5) * 0.07 + (c.height - 1.9) * 0.6, 0, 0.45))); st.layM -= st.dunkM; st.ankles = Math.floor(rng.next() * clamp(eff.han / 10 - 3, 0, 6) * 0.45 * f + 0.3 * rng.next()); // highlights of a simmed game (R3: hype)
   return amApplyResult(c, g.opp, a, b, st, true);
 }
@@ -11461,7 +11549,7 @@ function amEndSeason(c, rng, champ) {
   if (c.stage === 'college' && c.stageYear === 1 && rank <= 4) awards.push('Freshman of the Year');
   for (const a of awards) { c.awards.push('Season ' + c.season + ': ' + a); if (a === 'District champion' || a === 'Conference champion' || a === 'Conference tournament champion') continue; /* its news and timeline came with the title */ storyNews(c, c.name + (/champion/.test(a) ? ' and ' + (c.stage === 'college' ? c.college : c.school) + ' win the title!' : ': ' + a + '.'), 'award'); tlAdd(c, /champion/.test(a) ? 'title' : 'award', a + (c.stage === 'college' ? ' · ' + c.college : ' · ' + c.school)); }
   storyFill(c); mdSeasonEnd(c);
-  const fin = hsFinish(c), jv = c.seasonJv; c.log.push({ season: c.season, age: c.age, stage: c.stage, label: amStageLabel(c), w: L.me.w, l: L.me.l, rank, size, ppg: Math.round(ppg * 10) / 10, ppgN: Math.round(ppg / gameScale(c.stage) * 10) / 10, /* F5: per the old game length */ fg: Math.round(fg), ovr: amOvr(c), height: c.height, awards, champ: !!champ, squad: c.stage === 'hs' ? c.squad : undefined, finish: fin || undefined, jv: jv ? jv.w + '-' + jv.l : undefined });
+  const fin = hsFinish(c), jv = c.seasonJv; c.log.push({ season: c.season, age: c.age, stage: c.stage, label: amStageLabel(c), w: L.me.w, l: L.me.l, rank, size, ppg: Math.round(ppg * 10) / 10, ppgN: Math.round(ppg / gameScale(c.stage) * 10) / 10, /* F5: per the old game length */ fg: Math.round(fg), ovr: amOvr(c), height: c.height, awards, champ: !!champ, squad: c.stage === 'hs' ? c.squad : undefined, finish: fin || undefined, jv: jv ? jv.w + '-' + jv.l : undefined, g: S.g, ovr0: c.ovrSeasonStart, chW: c.chalRec && c.chalRec.season === c.season ? c.chalRec.w : 0, chL: c.chalRec && c.chalRec.season === c.season ? c.chalRec.l : 0 }); // V1 (§1.12): games played, the OVR it started at, the challenges
   const lines = [(fmt === 'jv' ? 'JV record ' : jv ? 'JV ' + jv.w + '-' + jv.l + ', called up · varsity ' : 'Record ') + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · ' + (fmt === 'district' ? 'STATE CHAMPIONS!' : fmt === 'conf' ? 'NATIONAL CHAMPIONS!' : 'CHAMPIONS!') : fin && (fmt === 'district' || fmt === 'conf') ? ' · ' + fin : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'];
   const grow = amOffseason(c, rng, lines); c.season++; lines.push(amScoutLine(c));
   const before = c.events.length; amAfterSeason(c, rng, lines);
@@ -12108,6 +12196,9 @@ function trMul(o, key) { let m = 1; for (const id of trActive(o)) { const v = TR
 function trVal(o, key) { let m = 0; for (const id of trActive(o)) { const v = TR.list[id][key]; if (typeof v === 'number' && v > m) m = v; } return m; }
 // Headroom: how far the traits move a rating's ceiling (rating points).
 function trHead(o, k) { let v = 0; for (const id of trActive(o)) { const h = TR.list[id].head; if (h) v += (h[k] || 0) + (h.all || 0); } return v; }
+// V1 (§1.5): a generated player (teammate, opponent, rival, pro) carries one trait, shown from the start, rolled with the
+// same rarity odds as yours (55/28/13/4). The roll is seeded by a key, so it never shifts any other random draw.
+function traitsGen(key) { return { sig: rollTrait(new RNG(hashString('tr|' + key) || 5)), hidden: null, found: true }; }
 // A new career's traits: the signature is shown at once; the hidden one waits for its story moment.
 function traitsNew(rng) { const sig = rollTrait(rng); return { sig, hidden: rollTrait(rng, sig), found: false }; }
 // The ids a match player def carries (the engine's trait hooks).
@@ -12207,8 +12298,8 @@ function tmCoach(rng, name) { return { name: name || ('Coach ' + genName(rng, ne
 // A teammate: shaped like any generated player of that level (the same style shapes), with a class year and traits.
 function tmMakeMate(c, rng, stage, ovr, id, used, cls) {
   const who = { name: String(c.name || (c.players && c.meId && c.players[c.meId] ? c.players[c.meId].name : 'You')), league: null, rival: null }; const o = amMakeOpp(who, rng, stage === 'pro' ? 'college' : stage, ovr, id); used.add(o.name);
-  const mate = { id, name: o.name, nick: o.nick, style: o.style, height: stage === 'hs' ? o.height : Math.round((o.height + 0.03) * 100) / 100, wing: o.wing, r: o.r, look: stage === 'hs' ? o.look : genLook(rng, false), tr: traitsNew(rng), cls: cls || 0, age: stage === 'pro' ? 22 + rng.int(12) : (stage === 'hs' ? 13 : 17) + (cls || 1) };
-  mate.tr.found = true; return mate;
+  const mate = { id, name: o.name, nick: o.nick, style: o.style, height: stage === 'hs' ? o.height : Math.round((o.height + 0.03) * 100) / 100, wing: o.wing, r: o.r, look: stage === 'hs' ? o.look : genLook(rng, false), tr: o.tr, cls: cls || 0, age: stage === 'pro' ? 22 + rng.int(12) : (stage === 'hs' ? 13 : 17) + (cls || 1) };
+  return mate;
 }
 function tmMateOvr(m) { return ovrOf(m.r, m.height); }
 // A new amateur team. o: { name, colors, tier, coach, mascot, base }: base is the OVR its teammates center on (R4: your
@@ -12289,6 +12380,7 @@ function ladderResolve(c, mateId, won, who) {
   const m = ladderMate(c, mateId); if (!m) return null; const rank0 = ladderRank(c); let dt = 0;
   if (who === 'you') { if (won && ladderAboveId(c) === mateId) { ladderSwapUp(c, mateId); dt = trustAdd(c, TM.trust.challengeWin); } else dt = trustAdd(c, TM.trust.challengeLoss); }
   else { const L = ladderOf(c); if (!won && ladderBelowId(c) === mateId) { const i = L.indexOf('me'); L[i] = mateId; L[i + 1] = 'me'; dt = trustAdd(c, TM.trust.lostSpot); } else dt = trustAdd(c, TM.trust.defended); }
+  { const R = c.chalRec && c.chalRec.season === c.season ? c.chalRec : (c.chalRec = { season: c.season, w: 0, l: 0 }); if (won) R.w++; else R.l++; } // V1 (§1.12): this season's challenge record (a bench season's recap)
   if (c.team.pending === mateId) c.team.pending = null; const rank1 = ladderRank(c); ladderStory(c, rank0, rank1, m);
   const nm = isPro(c) ? meOf(c).name : c.name; storyNews(c, who === 'you' ? (won ? nm + ' beats ' + m.name + ' in practice and takes the #' + rank1 + ' spot.' : m.name + ' holds off ' + nm + ' in a practice challenge.') : (won ? nm + ' holds off a challenge from ' + m.name + '.' : m.name + ' beats ' + nm + ' in practice and takes the #' + rank0 + ' spot.'), 'league');
   return { mate: m.name, mateId, won, who, rankBefore: rank0, rankAfter: rank1, trust: dt, starter: rank1 === 1 };
@@ -12623,6 +12715,37 @@ function shotLab(o) {
   }
   return { n: o.n, zone: o.zone, grade: o.grade, contest: o.contest, modelP: expected / o.n, actual: makes / o.n, rollHonored: flavorOk / o.n, avgTries: tries / o.n, fallbacks, flavors, diffPct: 100 * (makes / o.n - expected / o.n) };
 }
+// V1 (§1.1) steal consistency: n scripted steal attempts in live 1v1 possessions. The defender swipes from arm's length
+// (every swipe that reaches the ball connects), then each poke is followed until it resolves. A STEAL (and its stat) must
+// come with the ball in the defense's hands, a possession change and at most CONFIG.steal.confirmS after the poke; a
+// poke the offense gets back is POKED, with no stat. Returns the counts and every mismatch.
+function stealLab(o) {
+  o = Object.assign({ n: 500, seed: 11, def: 6, maxTries: 5000 }, o || {}); const S = CONFIG.steal, keep = [S.min, S.max]; S.min = 1; S.max = 1;
+  const R = { pokes: 0, clean: 0, toward: 0, away: 0, steals: 0, poked: 0, lateTO: 0, unresolved: 0, tries: 0, mismatches: [] };
+  try {
+    for (let i = 0; R.pokes < o.n && i < o.maxTries; i++) {
+      R.tries++; const m = new Match({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], seed: o.seed * 7919 + i, headless: true, humanTeam: -1, ruleset: 'arcade', format: { type: 'timed', half: 60 } });
+      let g = 0; while (!(m.phase === 'live' && m.ball.owner && m.ball.owner.grounded && m.ball.owner.state === 'move' && !m.ball.owner.pickedUp && m.opponentsOf(m.ball.owner)[0].grounded) && g++ < 6000) simStep(m, STEP); // a live dribble, both feet down
+      const h = m.ball.owner; if (!h || m.phase !== 'live' || !h.grounded) continue; const d = m.opponentsOf(h)[0]; d.attrs.def = o.def; h.controlled = d.controlled = true; h.input.reset(); d.input.reset(); // scripted until the poke
+      const dir = h.dirToHoop(); d.x = h.x + dir * 0.55; d.z = h.z; d.facing = -dir; d.vx = 0; h.vx = 0; if (!d.grounded) continue; d.setState('move');
+      let poke = null; const ev = [], st0 = d.stats.stl + h.stats.stl, to0 = h.stats.to + d.stats.to;
+      m.bus.on('POKE', () => { poke = { t: m.time, x: m.ball.x, hx: h.x }; }); m.bus.on('STEAL', e => ev.push({ k: 'steal', t: m.time, team: m.ball.owner ? m.ball.owner.team : -1, by: e.player })); m.bus.on('POKED', () => ev.push({ k: 'poked', t: m.time }));
+      m.bus.on('POSSESSION_CHANGE', e => ev.push({ k: 'poss', t: m.time, team: e.team })); m.bus.on('TURNOVER', e => ev.push({ k: 'to', t: m.time, by: e.by }));
+      if (!startDefensiveAction(d)) continue;
+      for (let k = 0; k < 40 && !poke && d.state === 'swipe' && m.phase === 'live'; k++) simStep(m, STEP);
+      h.controlled = d.controlled = false; if (!poke) continue; R.pokes++; /* then both AIs play the loose ball */ if (m.ball.owner === d) R.clean++; else if (!m.ball.owner) { const pop = m.poke && m.poke.pop; if (pop === 'toward') R.toward++; else R.away++; if (pop && (pop === 'toward') !== (sgn(m.ball.vx) === sgn(d.x - h.x))) R.reversed = (R.reversed || 0) + 1; }
+      let k = 0; for (; k < Math.ceil(4 / STEP) && m.poke && !m.ended; k++) simStep(m, STEP); if (m.poke) R.unresolved++;
+      const steals = ev.filter(e => e.k === 'steal'), pokedN = ev.filter(e => e.k === 'poked').length, stl = d.stats.stl + h.stats.stl - st0, tos = ev.filter(e => e.k === 'to').length, toStat = h.stats.to + d.stats.to - to0;
+      R.steals += steals.length; R.poked += pokedN; if (!steals.length && tos) R.lateTO++;
+      for (const e of steals) { const poss = ev.some(x => x.k === 'poss' && x.team === d.team && x.t <= e.t + 1e-9 && x.t >= poke.t - 1e-9); if (e.team !== d.team) R.mismatches.push({ i, why: 'STEAL with the ball not in the defense\'s hands' }); if (!poss) R.mismatches.push({ i, why: 'STEAL without a possession change' }); if (e.t - poke.t > S.confirmS + 1e-9) R.mismatches.push({ i, why: 'STEAL ' + (e.t - poke.t).toFixed(2) + ' s after the poke' }); }
+      if (stl !== steals.length) R.mismatches.push({ i, why: 'steal stat +' + stl + ' vs ' + steals.length + ' STEAL' });
+      if (toStat !== tos) R.mismatches.push({ i, why: 'turnover stat +' + toStat + ' vs ' + tos + ' TURNOVER' });
+      if (steals.length + pokedN !== 1) R.mismatches.push({ i, why: steals.length + ' STEAL and ' + pokedN + ' POKED for one poke' });
+      if (pokedN && stl) R.mismatches.push({ i, why: 'POKED with a steal stat' });
+    }
+  } finally { S.min = keep[0]; S.max = keep[1]; }
+  R.mismatchList = R.mismatches.slice(0, 8); R.mismatchCount = R.mismatches.length; delete R.mismatches; return R;
+}
 // Tunneling test: fire random high-speed balls at the rim/backboard region; none may pass through a collider.
 function tunnelTest(n, layoutId) {
   n = n || 1000; useLayout(layoutId || 'classic'); const rng = new RNG(42); const b = makeBallState(); const c = makeContact(); let tunnels = 0, rimHits = 0, boardHits = 0; const hoop = HOOPS[1]; const sdt = STEP / CONFIG.sim.ballSubsteps;
@@ -12808,7 +12931,7 @@ function hsFill(c) { if (!(c.gpa >= 0)) c.gpa = HS.gpaStart; if (!(c.cash >= 0))
 // ---------------- the season: tryouts first, then the league for your squad ----------------
 function hsNeedsTryout(c) { return c.stage === 'hs' && c.stageYear <= HS.tryoutYears && c.squad !== 'varsity'; }
 function hsNewSeason(c, rng) {
-  hsFill(c); c.league = null; c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.seasonJv = null;
+  hsFill(c); c.league = null; c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.ovrSeasonStart = amOvr(c); c.seasonJv = null;
   if (c.squad === 'jv' && c.stageYear > HS.tryoutYears) hsToVarsity(c, 'junior'); // juniors are varsity
   if (hsNeedsTryout(c)) { c.tryout = { step: 'drill', drill: null, game: null, result: null, season: c.season }; return; }
   c.tryout = null; hsBuildLeague(c, rng);
@@ -13028,10 +13151,10 @@ function tryoutScreen(game) {
       ui.label(ctx, c.school + ' · ' + AM_CLASS[Math.min(3, c.stageYear - 1)] + ' · varsity or JV', 60, 110, 16, UI_TEXT, 'left', 700);
       try { drawPortrait(ctx, { name: coach.name, look: coach.look, age: coach.age || 50 }, (c.team || { colors: c.colors }).colors, 60, 140, P ? 96 : 110); } catch (e) { /* decoration */ }
       ui.heading(ctx, coach.name, 190, 160, 18, UI_TEXT, 'left', 560); ui.para(ctx, '"Two parts. Shoot for me for sixty seconds, then play one of my seniors to ' + HS.tryoutTarget + '. Make it hard for me to cut you from varsity."', 190, 186, 560, 15, UI_DIM, 'left', 3);
-      const box = (y, n, title, how, status, ok) => { kitHeader(ctx, n + ' · ' + title, 60, y, 700); ui.para(ctx, how, 60, y + 22, 700, 14, UI_DIM, 'left', 2); ui.heading(ctx, status, 60, y + 70, 20, ok ? UI_GREEN : status === 'next' ? UI_GOLD : UI_DIM, 'left', 700); };
+      const box = (y, n, title, how, status, ok) => { kitHeader(ctx, n + ' · ' + title, 60, y, 700); ui.para(ctx, how, 60, y + 22, 700, 14, UI_DIM, 'left', 2); ui.heading(ctx, status, 60, y + 70, 20, ok ? UI_GREEN : status === 'UP NEXT' ? UI_GOLD : UI_DIM, 'left', 700); }; /* V1 (§1.7): a part's status reads as one (it was a lone "next") */
       const sr = hsTryoutSenior(c);
-      box(290, '1', 'THE SHOOTOUT', '60 seconds, five racks along the arc: every make is 1, the last ball of a rack 2. ' + HS.tryoutGood + ' counts in full.', T.drill != null ? 'Score: ' + T.drill : T.step === 'drill' ? 'next' : '', T.drill != null);
-      box(420, '2', '1V1 VS ' + (sr ? sr.name.toUpperCase() : 'A SENIOR'), 'A game to ' + HS.tryoutTarget + ' (2s and 3s) against ' + (sr ? 'a ' + fmtHeight(sr.height) + ' senior, OVR ' + tmMateOvr(sr) : 'a senior') + '. A win counts in full; a loss counts your points.', T.game ? (T.game.won ? 'W ' : 'L ') + T.game.my + '–' + T.game.their : T.step === 'game' ? 'next' : '', T.game && T.game.won);
+      box(290, '1', 'THE SHOOTOUT', '60 seconds, five racks along the arc: every make is 1, the last ball of a rack 2. ' + HS.tryoutGood + ' counts in full.', T.drill != null ? 'Score: ' + T.drill : T.step === 'drill' ? 'UP NEXT' : '', T.drill != null);
+      box(420, '2', '1V1 VS ' + (sr ? sr.name.toUpperCase() : 'A SENIOR'), 'A game to ' + HS.tryoutTarget + ' (2s and 3s) against ' + (sr ? 'a ' + fmtHeight(sr.height) + ' senior, OVR ' + tmMateOvr(sr) : 'a senior') + '. A win counts in full; a loss counts your points.', T.game ? (T.game.won ? 'W ' : 'L ') + T.game.my + '–' + T.game.their : T.step === 'game' ? 'UP NEXT' : 'After the shootout', T.game && T.game.won);
       if (sr && !P) try { drawPortrait(ctx, { name: sr.name, look: sr.look, age: sr.age || 17 }, (hsVarsityTeam(c) || c.team || { colors: c.colors }).colors, 1080, 140, 110, 'focused'); } catch (e) { /* decoration */ }
       if (!P) { kitHeader(ctx, 'How the coach decides', 820, 290, 400); ui.para(ctx, 'Varsity if the grade reaches ' + Math.round(hsTryoutBar(c) * 100) + ' (the shootout ' + Math.round(HS.tryoutDrillW * 100) + '%, the 1v1 ' + Math.round((1 - HS.tryoutDrillW) * 100) + '%), or if your OVR is already ' + (amStageMean(c) + HS.tryoutOvr) + ' (you are ' + amOvr(c) + '). Otherwise JV: win there and you get called up.', 820, 314, 400, 14, UI_TEXT, 'left', 7); }
     } };
@@ -13123,7 +13246,7 @@ function colNewSeason(c, rng) {
   for (let i = 0; i < CO.marquee; i++) { const o = amMakeOpp(c, rng, 'college', Math.round(clamp(mean + CO.marqueeGap + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'm' + i); o.marquee = true; L.nonconf.push(o); }
   const R = hsRoundRobin(['me'].concat(L.opps.map(o => o.id)), rng); // the first half of a double round robin is a single one
   L.rounds = L.nonconf.map(() => null).concat(R.rounds.slice(0, n)); L.schedule = L.nonconf.map(o => o.id).concat(R.mine.slice(0, n)); L.home = L.nonconf.map((o, i) => i % 2 === 0).concat(R.home.slice(0, n));
-  c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.stock = Math.round((c.stock || 0) * CO.stockKeep * 100) / 100;
+  c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.ovrSeasonStart = amOvr(c); c.stock = Math.round((c.stock || 0) * CO.stockKeep * 100) / 100;
   amAssignOppTeams(c, true); const names = colNames(c, L.nonconf.length, rng, [c.college].concat(L.opps.map(o => o.team))); L.nonconf.forEach((o, i) => { o.team = names[i]; o.colors = schoolColors(o.team); o.pattern = ['solid', 'stripes', 'chevron'][tmHash(o.team + '#p') % 3]; });
   colNilOffer(c, rng, 'preseason'); return L;
 }
@@ -13445,7 +13568,7 @@ function negotiateScreen(game, i) {
     if (!P) drawTeamCard(ctx, club, 60, 100, 300, 110, true, null); const tx = P ? 60 : 390; ui.heading(ctx, club.name.toUpperCase(), tx, P ? 110 : 124, 24, UI_TEXT); kitChip(ctx, proOfferKind(o).toUpperCase(), P ? 1236 : tx, P ? 52 : 160, { size: 14, color: o.kind === 'best' || o.kind === 'big' ? UI_CYAN : o.kind === 'starter' ? UI_GREEN : UI_GOLD, align: P ? 'right' : 'left' }); { ctx.font = fontStr(14, true); const kw = ctx.measureText(proOfferKind(o).toUpperCase()).width + 30; drawStarsTxt(ctx, o.stars || frStars(c, o.club), P ? 1236 - kw - 10 : tx + kw + 10, P ? 52 : 160, 18, P ? 'right' : 'left'); } /* F7 */
     const lines = ['Facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) + ' (practice XP +' + Math.round(CR.facilityBonus * 100 * (o.facilities - 1)) + '%) · home court ' + clubCourt(o.club).short, o.kind === 'best' || o.kind === 'big' ? 'The best franchise that wants you (' + (o.stars || frStars(c, o.club)) + '★): fame ×' + FRN.fameByStars[(o.stars || frStars(c, o.club)) - 1] + ', pay ×' + FRN.payByStars[(o.stars || frStars(c, o.club)) - 1] + '. You compete for the start with a deeper bench.' : o.kind === 'starter' ? 'A franchise a star lower that promises you the start: first on the depth chart every season of the deal.' : o.promised ? 'You start here now; the deal keeps it that way every season.' : 'You compete for the start on the depth chart.'];
     let y = P ? 150 : 200; for (const l of lines) y += ui.para(ctx, l, tx, y, P ? 1160 : 820, P ? 17 : 15, UI_DIM) + 4;
-    const sy = P ? 250 : 520; ui.heading(ctx, fmtMoney(sal) + ' A SEASON', P ? 60 : 860, sy, P ? 30 : 34, UI_GOLD); ui.label(ctx, st.years + ' season' + (st.years > 1 ? 's' : '') + ' · ' + fmtMoney(sal * st.years) + ' in all', P ? 60 : 860, sy + 34, 15, UI_TEXT, 'left', P ? 1160 : 380); if (c.me.agent && !P) ui.label(ctx, 'Your agent: +' + Math.round(CO.agentRaise * 100) + '% in, ' + Math.round(CO.agentFee * 100) + '% of each check', 860, sy + 58, 13, UI_DIM, 'left', 380);
+    const sy = P ? 250 : c.me.agent ? 494 : 520; ui.heading(ctx, fmtMoney(sal) + ' A SEASON', P ? 60 : 860, sy, P ? 30 : 34, UI_GOLD); ui.label(ctx, st.years + ' season' + (st.years > 1 ? 's' : '') + ' · ' + fmtMoney(sal * st.years) + ' in all', P ? 60 : 860, sy + 34, 15, UI_TEXT, 'left', P ? 1160 : 380); if (c.me.agent) ui.para(ctx, 'Your agent got this deal +' + Math.round(CO.agentRaise * 100) + '%. Their fee: ' + Math.round(CO.agentFee * 100) + '% of each check.', P ? 660 : 860, P ? sy - 8 : sy + 58, P ? 560 : 380, P ? 15 : 13, UI_DIM, 'left', 2); /* V1 (§1.10): two lines, never cut short (a phone: beside the pay) */
     if (!P) ui.para(ctx, 'Longer deals pay a little less each season (security); shorter ones pay more but you negotiate again sooner. ' + (o.maxYears < 5 ? 'At ' + meOf(c).age + ' clubs offer ' + o.maxYears + ' seasons at most.' : ''), 60, 470, 620, 14, UI_DIM);
   } };
 }
@@ -13918,10 +14041,10 @@ function drawMatchScene(ctx, env, m, alpha) {
   drawShadows(ctx, cam, order, ball, alpha, rp);                                                 // L5
   HOOPS.forEach((h, i) => drawHoopBackNew(ctx, cam, h, V, i, m, world.nets[i]));                  // L6
   if (!rp) drawPowerup(ctx, cam, m);                                                       // L9: a power-up on the floor
+  if (env.racks) env.racks(ctx, cam, false);                                                      // V1 (§1.3): the 3-point racks stand on the floor behind the players
   drawAll(ctx, false);                                                                            // L7
   HOOPS.forEach((h, i) => drawHoopFrontNew(ctx, cam, h, V, i, m, world.nets[i]));                 // L8
   if (!rp) drawExtrasOverlays(ctx, cam, m, alpha);                                               // L9: ice blocks, speed streaks
-  if (env.racks) env.racks(ctx, cam);
   if (V) V.drawForeground(ctx, cam);
   if (env.fx) env.fx.draw(ctx, cam);                                                              // L9
   if (V) V.drawLights(ctx, cam, m, guard); else { const vg = ctx.createRadialGradient(env.W / 2, env.H / 2, env.H * 0.45, env.W / 2, env.H / 2, env.H * 1.05); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.35)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, env.W, env.H); } // L10
@@ -13961,7 +14084,7 @@ class Game {
     const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer(); this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, afterFake: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;
-    if (this.tutorial) { const f = this.tutorial.f; m.bus.on('JUMP', e => { if (e.player.controlled) f.jumps++; }); m.bus.on('SHOT_RELEASED', s => { if (s.shooter.controlled) { f.shots++; if (f.fakes > 0) f.afterFake++; if (s.grade <= 1 && s.grade >= 0) f.goodShots++; if (s.fade) f.fades++; if (s.type === 'hook') f.hooks++; } }); m.bus.on('PUMP_FAKE', e => { if (e.player.controlled) f.fakes++; }); m.bus.on('MOVE', e => { if (e.player.controlled && e.move === 'crossover') f.crossovers++; }); m.bus.on('STEAL', e => { if (e.player.controlled) f.steals++; }); m.bus.on('BLOCK', e => { if (e.player.controlled) f.blocks++; }); }
+    if (this.tutorial) { const f = this.tutorial.f; m.bus.on('JUMP', e => { if (e.player.controlled) f.jumps++; }); m.bus.on('SHOT_RELEASED', s => { if (s.shooter.controlled) { f.shots++; if (f.fakes > 0) f.afterFake++; if (s.grade <= 1 && s.grade >= 0) f.goodShots++; if (s.fade) f.fades++; if (s.type === 'hook') f.hooks++; } }); m.bus.on('PUMP_FAKE', e => { if (e.player.controlled) f.fakes++; }); m.bus.on('MOVE', e => { if (e.player.controlled && e.move === 'crossover') f.crossovers++; }); m.bus.on('POKE', e => { if (e.player.controlled) f.steals++; }); /* V1: the swipe that knocks it loose passes the step (a STEAL now waits for the ball) */ m.bus.on('BLOCK', e => { if (e.player.controlled) f.blocks++; }); }
     if (m.practice && opts.tutorial) m.practice.ballTo = 'human';
     { const tm = m.teams[Math.max(0, m.humanTeam)] || m.teams[0], col = (tm && tm.colors) || ['#3A6FE0', '#FFD23F']; this.wipe = this.save.data.settings.reduceMotion ? null : { t: 0, c0: col[0], c1: col[1] || '#FFFFFF' }; }
   }
@@ -14066,14 +14189,14 @@ class Game {
     if (step.check(this, T.f) || T.stepT > CONFIG.tutorial.stepTimeoutS) { if (step.done) { m.ended = true; return; } T.step++; T.stepT = 0; T.f.t = 0; this.audio.ui('coin'); }
   }
   // ---- rendering ----
-  renderScene(ctx, m, alpha) { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, phone: !!(this.ui && this.ui.phone), degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? (g, cam) => this.drawRacks(g, cam, m) : null }, m, alpha); faceWarmTick(); }
+  renderScene(ctx, m, alpha) { drawMatchScene(ctx, { cam: this.cam, world: this.world, fx: this.fx, W: this.W, H: this.H, phone: !!(this.ui && this.ui.phone), degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? (g, cam, px) => this.drawRacks(g, cam, m, px) : null }, m, alpha); faceWarmTick(); }
   // R1 §1: Retro (and Retro sharp) render the whole world into the pixel buffer; Smooth is the smooth renderer everywhere.
   renderSceneAny(ctx, m, alpha, dt) {
     const mode = graphicsMode(this); RT.mode = mode; this.retroFrame = mode !== 'smooth'; if (!this.retroFrame) { this.renderScene(ctx, m, alpha); return; }
-    rtRenderMatch(this, ctx, m, alpha, { world: this.world, fx: this.fx, phone: !!(this.ui && this.ui.phone), degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? (g, cam) => this.drawRacks(g, cam, m) : null });
+    rtRenderMatch(this, ctx, m, alpha, { world: this.world, fx: this.fx, phone: !!(this.ui && this.ui.phone), degraded: false, guard: this.guard.level, rp: this.replayPlayer, racks: m.contest3 ? (g, cam, px) => this.drawRacks(g, cam, m, px) : null });
     faceWarmTick();
   }
-  drawRacks(ctx, cam, m) { const c = m.contest3; c.racks.forEach((r, i) => { const s = cam.scale(r.z); const x = cam.sx(r.x), y = cam.sy(0, r.z); const used = i < c.rack ? CONFIG.contest3.ballsPerRack : (i === c.rack ? c.ball : 0); inkShape(ctx, cc => cc.rect(x - s * 0.3, y - s * 0.55, s * 0.6, s * 0.55), i === c.rack ? '#FFD23F' : '#F3F0FF', INK, 2); for (let k = 0; k < CONFIG.contest3.ballsPerRack; k++) { const bx = x - s * 0.24 + k * s * 0.12, by = y - s * 0.62; ctx.fillStyle = k < used ? 'rgba(20,12,40,0.2)' : (k === 4 ? '#FF4FA3' : '#FF8A2A'); ctx.beginPath(); ctx.arc(bx, by, s * 0.05, 0, TAU); ctx.fill(); } }); }
+  drawRacks(ctx, cam, m, pixel) { ctx.save(); try { drawContestRacks(ctx, cam, m, pixel); } finally { ctx.restore(); } } // its fills and line widths never leak into the players drawn next
   drawHUD(ctx, m, alpha, dt) {
     const W_ = this.W, H_ = this.H, cam = this.cam, S = this.save.data.settings, rp = this.replayPlayer;
     ctx.save(); ctx.translate(0, this.safe.top);

@@ -3,6 +3,104 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V1 — 2.0 must-fix bugs (§1, items 1 and 3–12)
+
+The first milestone of Hoop Heads 2.0: the eleven bugs the two rounds of automated play found (item 2, the lag, is V2).
+Each one has a test.
+
+- **Steals (§1.1).** A swipe that connects is now a *poke*. A clean steal puts the ball straight in the stealer's hands
+  60% of the time, +3% per Defense point above 5. Otherwise the ball pops loose, toward the stealer 70% of the time.
+  STEAL (the callout and the stat) and the turnover wait for the defense to actually secure the ball. If it does
+  within 1 s, that's a steal. Otherwise a small grey POKED callout shows, with no steal stat. A defense that recovers
+  it later still forces a turnover, but no one gets a steal. Before, STEAL, the turnover and both stats fired the
+  moment the ball came loose, even when the handler grabbed it right back. The poked handler can't touch the ball for
+  0.3 s (it was knocked away from them). The stealer can't grab it for 0.15 s, so a loose ball really bounces loose.
+  The tutorial's swipe step counts the poke.
+- **The 3-Point Contest and the tryout shootout (§1.3).** The white boxes over the player were the ball racks: five of
+  them, drawn after the players, all at nearly the same spot in the side view. Now one low two-tray rack stands
+  beside the current shooting spot, behind the players, with the balls still to shoot on it (the money ball in
+  pink). Its drawing can't leak a line width or color into the players drawn after it.
+- **The press room (§1.4).** Each answer is three rows: the name, its effect, the quote. They're measured at the
+  current text size, and the buttons grow to fit them. The question bubble fits its question, so four answers with
+  two-line quotes fit at 1× and 1.25× text, on desktops and phones. The name and effect lines used to sit on top of
+  each other, and quotes were cut to one line at 1.25×. Each answer's name has an ink outline, so the red and cyan
+  names read on the blue buttons.
+- **Trait rarity (§1.5).** Every generated player (teammates, league opponents, the rival, the pros) now carries
+  one trait, shown from the start and rolled with your odds: 55/28/13/4. Opponents and rivals had none; teammates
+  and pros had two each, so about 8% of them showed a Legendary. The roll is seeded by a key, so no other random draw
+  shifts. Older saves drop the second trait from generated players and give opponents and rivals theirs. Your own
+  two traits are untouched.
+- **Simmed box scores (§1.6).** One helper builds every simmed shooting line: your amateur games and both lines of a
+  pro game. 3PA comes first, and FGA is at least 3PA plus the two-point attempts, so 3PA ≤ FGA, 3PM ≤ FGM and
+  points = 2 × (FGM − 3PM) + 3 × 3PM + FTM always hold. A lone point is a free throw. Before, 3PA and FGA were rounded
+  separately, which gave lines like 1/3 on threes but 1/2 on all shots.
+- **Cut text (§1.7).** The results screen's week line is now two lines, the plan and then the fatigue, so "tired,
+  rest this week" is never cut on a phone. The tryout parts' status reads "UP NEXT" (it was a lone gold "next"),
+  and the 1v1 part says "After the shootout" until its turn.
+- **Screens bleeding through (§1.8).** In the menus, an overlay (for example, What money built over the legacy banners,
+  a dialog over the hub) now sits on the dimmed background alone, so no screen is drawn underneath. Before, the screen
+  underneath was dimmed 62% with all its words, cards and titles showing through. Push and pop transitions fade the
+  old screen out before the new one fades in, where the two used to cross-fade (Negotiate, Signing Day). Raised
+  panels (dialogs, overlays) are solid.
+- **Recruiting cards (§1.9).** Labels and values are in two fixed columns. The label column is as wide as the widest
+  label; values are left-aligned in the rest and wrap rather than run into their label ("ProgramPower conference").
+  The cards are wider (380), and "Coach develops" is now "Develops".
+- **Negotiate (§1.10).** The agent line wraps onto two lines ("Your agent got this deal +10%. Their fee: 4% of each
+  check.") and the money block moves up to make room. On a phone, where the line didn't show at all, it sits beside
+  the pay.
+- **Signing Day (§1.11).** The "Around the league" panel fades in with its first signing. If there are none, it
+  never shows.
+- **A season on the bench (§1.12).** The season recaps (amateur and pro) show the team's record, then *All season:
+  Benched*, your practice gains (OVR over the season) and your depth-chart challenge record. They used to show 0.0
+  points, 0% FG and 0% 3PT. The season logs now keep games played, the OVR the season started at and the
+  challenges won and lost. On the amateur recap, the height tags (LAST SEASON, NOW) stay under the YOUR HEIGHT header:
+  above a tall player's head they used to run into it (the mannequins are a little smaller on a phone).
+
+The overflow audit gains a two-screens check. It flags any string of a screen underneath that overlaps the top
+screen's text, and any screen drawn under a menu overlay at all (cards and titles are sprites, not strings). It also
+checks that a transition never shows two screens at once. It also gains six new cases: a
+tired week with an injury, Negotiate with an agent, a board with a Power conference and a Blue blood, and a bench
+season's recaps (amateur and pro).
+
+The full-career test's driver now challenges for the spot in a benched week, the way a player would (with the
+trait roll no longer drawing from the roster's random stream, its seed's freshman lost the starting spot in week 2 and
+never played a high school game).
+
+New tuning numbers:
+
+| Constant | Value | Why |
+| --- | --- | --- |
+| `steal.handBase` | 0.6 | §1.1: a clean steal goes to the stealer's hands this often |
+| `steal.handPerDef` | 0.03 | §1.1: + this per Defense point above 5 |
+| `steal.looseToward` | 0.7 | §1.1: a loose ball pops toward the stealer this often |
+| `steal.confirmS` | 1.0 | §1.1: STEAL needs the defense to secure the ball within this many seconds of the poke |
+| `steal.fumbleS` | 0.3 | the poked handler can't touch the loose ball this long (s) |
+| `steal.looseStart` | 0.45 | the loose ball starts this far from the handler (m), on the side it pops to |
+| `steal.reachS` | 0.15 | the stealer can't grab a popped-loose ball this long (s), so it bounces loose first |
+| `contest3.rackOffsetM` | 0.75 | the rack stands this far beside the shooting spot (m), away from the hoop |
+| `contest3.rackW`, `rackH` | 0.8, 0.5 | the rack's size (m): two trays, three balls on top and two below |
+| `ART.uiTransOut` | 0.3 | the old screen fades out over this share of a transition, then the new one fades in |
+| `ART.uiUnderDim` | 0.62 | an overlay in the menus sits on the background dimmed this much (the screen underneath isn't drawn) |
+| `ART.uiPanel2` | solid (was 92%) | raised panels never show what's behind them |
+
+| Test | Result |
+| --- | --- |
+| Steal consistency (`tests/steals.js`) | 2 × 500 scripted steals, 0 mismatches. Defense 6: clean 64.6% (target 63%), loose balls toward the stealer 65.5% (70%; 69.4% over 1,000). Defense 9: clean 71.6% (72%). |
+| Trait rarity (`tests/rarity.js`) | 1,000 generated players (388 teammates, 249 opponents, 63 rivals, 300 pros): Legendary 3.8%. 20,000: 55.0 / 27.8 / 13.3 / 3.90%. |
+| Box scores (`tests/boxscore.js`) | 1,000 simmed amateur games and 1,000 simmed pro games: every line adds up. The old code broke 124 of the 1,000 amateur lines. |
+| Page fixes (`tests/fixes.js`) | 15 of 15, three runs in a row. The racks never change a pixel inside the player (contest and shootout, Retro and Smooth, desktop and phone); the old build changed 7,300 of 18,300 (desktop, Retro, the contest) and failed all 8 cases. The press rows don't overlap or cut, at both text sizes. Signing Day. A benched season's recap. The rack check compares the player's solid inside (less their outer 1–2 px) and counts a pixel only when its color changes outright. The marker over your player is off while it compares frames: the bobbing arrow and the smooth renderer's eased edges shifted a pixel or a few shades now and then. |
+| Smoke | 136 of 136 |
+| Modes | 13 of 13 |
+| Old saves | 34 of 34 |
+| Dev tools | all OK |
+| Overflow audit | phone 141 screens, desktop 143, desktop at 1.25× text 143, phone at 1.25× text 141: nothing flagged at any size, including the new two-screens check (the old build: 15 overlays flagged, plus the cross-fade, the tired-week cut, the recruiting overlap and the agent line). |
+| A whole career through the screens | desktop 1,116 actions, phone 1,064: both passed |
+| Art Lab | 55 screenshots, no errors |
+| Gate | ✓ (Pro mirror 1.17 PPP, side A 47%, Legend beats Pro 83%; brute force vs Pro 0.94) |
+| Balance | ✓ (brute force vs Pro 1.24, timing and reads 1.93, Legend beats Pro 79%) |
+| Career simulator | seed 1: every target met (OVR 55 / 66 / 72 at 17 / 21 / 25, peak 77, 0.90 titles, Hall of Fame 13%), 0 stuck |
+| Trait balance | every trait in range |
+
 ## F12 — The beard you pick shows (a follow-up to the F pass)
 
 The user: "the beards don't show when I select them so fix that".
