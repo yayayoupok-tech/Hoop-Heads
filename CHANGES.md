@@ -3,6 +3,189 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V9 — Part 2: GPA and school (§3)
+
+The fourth milestone of Part 2 (§3, with Academic Probation from §2.3). The career is still 1v1 only. Old saves keep their
+grades. A college career from before V9 is grandfathered on a full ride; its seasons count toward the degree, and it
+picks a major the first time it loads.
+
+**One GPA, high school through college.** It runs from 0.0 to 4.0.
+
+- Every game week takes 0.05 off, or 0.06 in a major's harder classes. A Study week adds 0.3.
+- Under 2.3 your coach makes the week a Study week (AUTO).
+- College weeks can be Study weeks now too: the choice sits behind Rest, as in high school.
+
+**Exam weeks.** A season is a semester. Midterms come after the fifth game at both levels, and finals before the last
+regular-season game. Each comes with a card first:
+
+| Choice | Effect |
+| --- | --- |
+| Cram | GPA +0.3 · fatigue +15 · practice XP −50% this week |
+| Balanced (the default) | GPA +0.12 · practice as usual |
+| Skip the studying | GPA −0.2 · practice XP +15% this week |
+
+- The report card follows your pick. It replaces R5's two report cards.
+- "Sim the rest of the season" answers Balanced. "Sim to next big moment" stops for the card.
+
+**Eligibility.**
+
+- A report card under 2.0 sits you 2 games, in high school and in college.
+- In college, under 1.5 opens **Academic Probation**, the fifteenth arc. You choose a study sprint (GPA +0.5, practice
+  XP −30% for 3 weeks) or risk it.
+  - Still under 2.0 at the next report card, sprint or not: the scholarship goes (full tuition from then on) and you
+    sit 2 more games.
+  - Back over 2.0: you're off probation.
+- High school has no probation.
+
+**Offers need grades.** Every program has a GPA line: blue bloods 2.5, elite academic programs 3.3, everyone else 2.0.
+
+- No offer comes under a program's line, and a report card under it pulls that offer ("grades").
+- This replaces R5's strict colleges, the 25% that pulled an offer at 2.0. Old offers keep their old rule.
+- Nobody ends up with no offer. Under every line there is a small school's conditional admission.
+- The recruiting screen lists each offer's line, and a pulled one in red. The commitment board shows each line.
+  - The board holds your best four offers: an elite academic offer can push the smallest school off.
+  - Its cards use short labels (Level, GPA, Depth, Conf., Scouts, Gym, Coach), so every value fits. On a phone, Gym
+    and Coach share a row until you visit.
+
+**Elite academic programs.** Ashford University, Whitcombe College and Larkspur Institute (invented).
+
+- They play power-conference basketball and offer to a 3.3 student whom a mid-major or better wants.
+- Scouts follow them: draft-stock moves are ×1.15. So do sponsors: NIL deals are ×1.3.
+- They open the best version of the booth's and the front office's endings.
+
+**Scholarships and tuition.**
+
+- A full ride takes a 3.5 GPA and four stars at commitment.
+- Otherwise the scholarship is partial: you pay $6,000 a college season (half of $12,000). It's due when each season
+  starts, the first included. A lost scholarship costs the full $12,000.
+- Short of cash, the rest is a student loan. At the draft, the money you have pays it, and your first paychecks pay
+  the rest. Your money never goes negative for it.
+
+**Majors and the degree.**
+
+- You pick a major at commitment, on a card:
+  - Business: NIL deals +10%.
+  - Communications: hype +5.
+  - Kinesiology: college practice XP +3%.
+  - Undecided (the default): easier classes, no path yet.
+- A degree takes 4 college seasons. In the pros, summer classes add a year each offseason: $20,000, and practice XP
+  −10% for the first 4 weeks of the next season.
+- The major and the degree pick the ending's version. The epilogue screen says which, and why:
+
+  | Ending | Best version, and what opens it | Otherwise |
+  | --- | --- | --- |
+  | Coach | Head coach, your own bench: a Kinesiology degree | Coach: an assistant |
+  | Broadcaster | In the booth, the Finals on national TV: a Communications degree, or an elite academic school | On the radio: local games |
+  | Owner (the stake) | Team president, the front office: a Business degree, or an elite academic school | Owner: a seat courtside |
+
+**Where you see it.**
+
+- The hub shows your GPA next to the eligibility line: "GPA 2.84 (B−) · eligible at 2.0+". On a desktop it's on the
+  Play tab's week line; on a phone, under the VS.
+- The ME tab shows the GPA with your scholarship, and the degree with any loan, in college and in the pros.
+- The Codex covers the GPA, College offers and money, and (in the pros) Your degree, all with exact numbers.
+
+**What it does to a career.** The career simulator, 600 careers per column (seeds 1–3, 200 each). Typical and great
+take AUTO's Study weeks and Balanced exams. The new `--school=student` policy crams every exam and studies under 3.6:
+
+| Per career | Typical | Great | Student, typical | Student, great |
+| --- | --- | --- | --- | --- |
+| Study weeks: high school · college | 2.2 · 3.4 | 2.7 · 2.5 | 3.3 · 0.5 | 3.6 · 0.4 |
+| Games ineligible | 0 | 0 | 0 | 0 |
+| GPA at the draft (median) | 2.40 | 2.39 | 3.85 | 3.78 |
+| A full ride | 0% | 0% | 18% | 59% |
+| Commits to an elite academic program | 0% | 0% | 93% | 100% |
+| Tuition paid (mean) | $16,590 | $11,130 | $14,230 | $5,820 |
+| A loan at the draft (its median) | 100% ($11,100) | 100% ($6,300) | 83% ($11,700) | 41% ($8,500) |
+| A degree (4 college seasons) | 4% | 1% | 4% | 0% |
+
+- **A typical student commits** to an elite academic program, gets benched there and transfers down through the
+  portal. A great student stays: 68% are still there at the draft.
+- **Nobody here falls under 2.0** at a report card: AUTO's Study weeks start at 2.3. Probation takes a player who skips
+  the work, and `tests/school.js` plays it out.
+
+- **The §1.1 table still passes** with the default policies: typical 17.7% reach a 5★ team, 0.34 titles, 3.3% Hall of
+  Fame; great 64.0%, 2.00 and 39.8%.
+- **School pays off a little.** On the same seeds, by the simulator's own read, a student does a little better than the default
+  policy:
+
+  | | 5★ team | Titles | Hall of Fame |
+  | --- | --- | --- | --- |
+  | Typical | 18.0% | 0.34 | 3.7% |
+  | Student, typical | 22.0% | 0.44 | 4.7% |
+  | Great | 64.3% | 1.99 | 40.0% |
+  | Student, great | 65.7% | 2.12 | 42.7% |
+
+  The price is more Study weeks in high school and the Cram weeks' lost practice. The reward is a better program and
+  less tuition.
+- **Two calls along the way.**
+  - The simulator now studies in college the way AUTO does. Without it, its college players fell under 2.0 (6.9 games
+    on the bench a career), and typical titles read 0.42, outside the band.
+  - Cram went from +0.35 GPA for −30% of a week's practice to +0.3 for −50%. At first it was about four times cheaper per
+    GPA point than a Study week, so the student policy lost less practice than AUTO.
+
+**Smaller fixes.**
+
+- A career's first college season charged no tuition, because the scholarship was set after the season started.
+- A dialog with four answers is a 2×2 grid, desktop and phone. A two-answer button on a desktop is 12 px taller. Notes
+  get as many lines as their button holds (the pixel font's lines are about 24 px).
+- The epilogue's FINISH sits under the choices; the notes beside them gained a degree line.
+- On a phone, the transfer portal reads "#2 to begin" (it was cut off). Draft stock with no graded game yet reads "No
+  grade yet: play a college game."
+- The desktop Play tab's week line takes three rows: the plan, the fatigue, the GPA.
+
+**Tuning numbers** (all in CONFIG, each with its comment):
+
+- `school.exam`: cram [0.3, 15, −0.5], balanced [0.12, 0, 0], skip [−0.2, 0, 0.15].
+- `school`, exams and grades:
+  - `collegeMidWeek` 5 and `probationAt` 1.5;
+  - `gpaReq` (other 2.0, blue 2.5, academic 3.3).
+- `school`, elite academic programs: the `academic` names, `academicExposure` 1.15 and `academicNil` 1.3.
+- `school`, money: `fullRideGpa` 3.5, `fullRideStars` 4, `tuition` 12,000 and `partialShare` 0.5.
+- `school`, majors: `majorNil` 0.1, `majorHype` 5, `majorXp` 0.03 and `majorDrift` 0.01.
+- `school`, the degree: `degreeYears` 4, `summerCost` 20,000 and `summerXp` [−0.1, 4].
+- `saga.chance.probation` 0.9, and `saga.probSprint` 0.5, `probSprintXp` [−0.3, 3] and `probGames` 2.
+- Removed: `hs.strictOdds` (R5's strict colleges).
+
+**Tests.**
+
+- `tests/school.js` (new) has 8 steps:
+  - the GPA lines, over 320 recruits and about 1,000 offers: no offer under its line, an elite academic offer only
+    from 3.3, never no offer;
+  - pulled offers;
+  - the exam cards at both levels: when they come, what each answer does, and that the report card follows;
+  - eligibility at both levels, and drift with and without a major;
+  - probation, both answers;
+  - tuition (a full ride, partial, lost), the loan and its repayment, and the handoff;
+  - the majors' effects, the degree, summer classes and every ending's version;
+  - old saves.
+- Smoke's R5 step checks the GPA lines in place of R5's strict colleges. Its Codex step reads the letter grade.
+- The story test reads 15 arcs and 96 templates.
+- The career simulator has a school line: scholarships, elite academic commitments, tuition, loans, Study weeks at
+  each level, ineligible games, probation, GPA at the draft and degrees. It also has `--school=student`.
+- The phone audit has 12 new cases: the exam card and its answer, the GPA lines on the recruiting screen, the major's
+  card and its answer, the ME tab's degree, finals week, both probation beats, summer classes and the ending's best
+  version.
+
+**Suite.** Everything passed on the commit's build:
+
+- smoke (desktop and phone, 137 steps), every mode, old saves (34), the dev tools, the phone audit and the Art Lab;
+- school (8 steps), story (13 steps: 15 arcs, 96 templates), climb, difficulty (the §1.1 table above), flow, gameplay,
+  traits, steals, fixes, the HUD audit and the style mix;
+- the full career (879 actions, retiring at 35 after 13 pro seasons), and the desktop and 1.25× text audits (no flags);
+- the balance gate, the balance run, the career simulator (40 careers, none stuck) and the trait balance (400 careers ×
+  3 seeds: Common +7%, Uncommon +12%, Rare +28%, Legendary +60%, every rarity in its band).
+
+Two tests failed on the first run and passed when rerun on the same build:
+
+- **flow**: its Quick results step needs a routine week, and seed 55 had a story card every week. The step now turns
+  the optional cards off first (the arcs skipped, the beats spent, the press quiet), as the rule it checks is about
+  routine weeks. 12 of 12.
+- **fixes**: one pixel of the player changed when the 3-point racks were drawn (1 of 66,580). It passed 15 of 15 on the
+  rerun; the intermittent pixel is a follow-up.
+
+Still open from V4: the style mix's Slashers drive on 46% of possessions against a 60% target (V14).
+
 ## V8 — Part 2: the rest of the story, six endings and the Story so far; 2.0: ceremonies and the record book
 
 The third milestone of Part 2 (§2.3–2.4), with 2.0's §4.9. The career is still 1v1 only. Old saves keep their saga and
