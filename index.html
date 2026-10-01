@@ -836,7 +836,7 @@ const CONFIG = {
     ratingMax: 100,            // highest rating (engine attribute 10)
     proMean: 80,               // pro league OVR mean for generated veterans (V6, Part 2 §1.2: pros about 74, stars 82–90: the league opens near 75 and rises to about 77.5 by season 10; was 83 and 78.5. V10: 85 for a tougher league with staff put the opening median at 78, so it's back at 80 and the stars, the AI's growth and the Hall of Fame line below do that work)
     proSd: 8,                  // ...spread (spec 6.5: a wider spread gives the league real stars, see CHANGES.md M8)
-    proStars: [4, 3, 2],       // V10 (§1.2: the pros' stars about 82–90): the league's three best veterans get this many more points in every rating and its ceiling, so its top three open near 85 (83 without) while the median stays near 75
+    proStars: [9, 7, 5],       // V10 (§1.2: the pros' stars about 82–90): the league's three best veterans get this many more points in every rating and its ceiling, so its top three open near 85 (83 without) while the median stays near 75 V11: [4, 3, 2] → [9, 7, 5] for the gear on your side (a maxed kit is about +2.9 OVR on game day): the top three open near 87.5
     prospectMean: 72,          // OVR mean of the other rookies in a draft class (V6: was 75)
     prospectSd: 5,             // ...spread
     xpStep: 5,                 // ratings grow in steps of 5 (half an engine point)
@@ -852,9 +852,9 @@ const CONFIG = {
     fame: { win: 0.6, loss: -0.2, perPt: 0.02, highlight: 0.25, playoff: 0.8, potw: 1.5, allStar: 4, title: 10, mvp: 12, decayAbove: 30, decay: 0.022 }, // popularity changes; above decayAbove it fades each week by decay × the excess
     gymCost: [0, 2000000, 6000000, 15000000], // personal gym levels ($)
     gymBonus: 0.1,             // training XP +10% per gym level
-    aiGrowth: 0.75,            // young AI players close this fraction of the gap to their ceilings each offseason... (V10: 0.45 → 0.75, Leagues refresh every season, so the bar keeps rising (§1.2): with the staff a typical career won 0.47 titles a career, against about 0.3)
+    aiGrowth: 1.0,             // young AI players close this fraction of the gap to their ceilings each offseason... (V10: 0.45 → 0.75, Leagues refresh every season, so the bar keeps rising (§1.2): with the staff a typical career won 0.47 titles a career, against about 0.3) V11: 0.75 → 1 (young AI players reach their ceilings in an offseason), for the gear
     aiGrowthAge: 27,           // ...up to this age
-    aiRoom: [[21, 8, 20], [24, 5, 14], [27, 2, 8]], // AI ceilings: room above current ratings by age (up to age: min, max)
+    aiRoom: [[21, 8, 22], [24, 5, 15], [27, 2, 8]], // AI ceilings: room above current ratings by age (up to age: min, max). V11: the top of 21's and 24's room +2 and +1, for the gear: the league's next stars
     moveUnlocks: { hesitation: { han: 50 }, stepback: { any: [{ sho: 50 }, { han: 55 }] }, spin: { han: 60 }, euro: { fin: 70 }, dunk360: { jmp: 75 }, windmill: { jmp: 80 }, btb: { han: 70 }, snatch: { han: 80 }, reverse: { jmp: 80 }, pullup: { sho: 80 } }, // moves are learned by getting better (V4, 2.0 §3: the signature moves at 7 and 8: Behind-the-back han 70, Snatch-back han 80, Euro-step fin 70 (was 60), Reverse dunk jmp 80, Pull-up three sho 80)
     brands: [{ name: 'Zoomfruit', what: 'sports drink', base: 6000, perFame: 450 }, { name: 'Bouncehaus', what: 'sneaker', base: 10000, perFame: 700 }, { name: 'Glide Co.', what: 'headband', base: 3000, perFame: 250 }, { name: 'Rimrock Bars', what: 'snack', base: 4000, perFame: 300 }, { name: 'Nightowl Energy', what: 'energy drink', base: 5000, perFame: 400 }, { name: 'Loud Duck Audio', what: 'headphone', base: 4000, perFame: 350 }], // invented sponsors and weekly pay
     shoeColors: ['#FF4FA3', '#B8FF5A', '#8BE3FF', '#FFD23F'], // cosmetic shoe colors
@@ -867,7 +867,7 @@ const CONFIG = {
     payRef: 55,
     payMin: 0.9,
     legacy: { title: 12, mvp: 12, allLeague: 3, season: 1, ptsPer: 250 }, // legacy = 12·titles + 12·MVPs + 3·All-League 1st teams + pro seasons + points/250
-    hofScore: 93,              // legacy score for the Hall of Fame (F7: 90 → 85; V6: 85 → 92, fitted to Part 2 §1.1: 3.7% of typical careers and 38% of great ones in tests/difficulty.js; at 85, 4.7% and 42%. V8: 92 → 95: the fourteen arcs' safe answers lift a great career (at 92: typical 4.3%, great 41.0%; the saga off: great 37.8%); at 95, 3.8% and 39.3%. V10: 95 → 93 with the staff, the league's stars and its faster growth: typical 3.7% and great 35.5% over seeds 1–6)
+    hofScore: 95,              // legacy score for the Hall of Fame (F7: 90 → 85; V6: 85 → 92, fitted to Part 2 §1.1: 3.7% of typical careers and 38% of great ones in tests/difficulty.js; at 85, 4.7% and 42%. V8: 92 → 95: the fourteen arcs' safe answers lift a great career (at 92: typical 4.3%, great 41.0%; the saga off: great 37.8%); at 95, 3.8% and 39.3%. V10: 95 → 93 with the staff, the league's stars and its faster growth: typical 3.7% and great 35.5% over seeds 1–6) V11: 93 → 95 with gear and the tougher league: typical 3.3% and great 37.9% over seeds 1–6
     firstBallotMul: 1.5,       // a legacy this many times the line is a first-ballot induction
     newsMax: 40,               // news items kept
   },
@@ -1271,7 +1271,7 @@ const CONFIG = {
     shoeCost: 5000000,         // ...for this much up front...
     shoeRoyalty: 1000000,      // ...then royalties: this a season × (1 + fame / 50) × (1 + hype / the hype cap), paid week by week
     shoeBuyout: 2,             // when you retire the brand buys the line for this many seasons of royalties (it counts in your net worth)
-    lifestyle: [{ id: 'car', name: 'A new car', cost: 120000, conf: 1 }, { id: 'sportscar', name: 'A sports car', cost: 900000, conf: 1 }, { id: 'house', name: 'A house for your family', cost: 2500000, conf: 2, asset: true }, { id: 'mansion', name: 'A mansion', cost: 15000000, conf: 1, asset: true }], // one each: confidence + conf (once) and a story card, never a rating; houses count in your net worth
+    lifestyle: [{ id: 'car', name: 'A new car', cost: 120000, conf: 1, weekly: { hype: 0.3 }, upkeep: 1000 }, { id: 'sportscar', name: 'A sports car', cost: 900000, conf: 1, weekly: { hype: 0.8 }, upkeep: 8000 }, { id: 'house', name: 'A house for your family', cost: 2500000, conf: 2, asset: true, weekly: { conf: 0.1 }, upkeep: 15000 }, { id: 'mansion', name: 'A mansion', cost: 15000000, conf: 1, asset: true, weekly: { fame: 0.2 }, upkeep: 100000 }], // one each: confidence + conf (once) and a story card, never a rating; houses count in your net worth. V11 (Part 2 §5.1): every game week each one adds its weekly (hype, confidence or fame) and costs its upkeep ($)
     foundationPer: 2000000,    // the epilogue: a foundation adds 1 to your legacy per this much...
     foundationMax: 20,         // ...up to this much legacy
     academyCost: 30000000,     // a youth academy: your next career gets a Legacy Start...
@@ -1332,7 +1332,7 @@ const CONFIG = {
     trade5Odds: 0.35,          // V6 (§1.3): a trade request that a 5★ franchise would take (its bar, the 5★ condition) finds one that trades a rotation player for you this often (else a 4★ one)
     fameDiv: 20,               // see bar (V6: was 15; fame counts a little less)
     hypeDiv: 30,               // see bar
-    rookieBar: [0, 99, 106, 112, 118], // pro offers out of college or high school: the scouts' score (the old draft score) a 1–5★ franchise wants (most start at 1–3★)
+    rookieBar: [0, 99, 107, 113, 119], // pro offers out of college or high school: the scouts' score (the old draft score) a 1–5★ franchise wants (most start at 1–3★) V11: 3★ and up +1 (106 → 107 …): gear in college lifted a typical career's first 3★ offers from 17% to 22%; 16% now
     benchStar: 3,              // a franchise's bench OVR + this per star above 3 (a 5★ depth chart is harder to top)
     facByStars: [1, 1, 2, 2, 3], // training facilities (the XP bonus) by stars
     payByStars: [0.85, 0.92, 1, 1.1, 1.25], // salary offers × this by stars
@@ -1342,28 +1342,45 @@ const CONFIG = {
     tradeGap: 2,               // ...and you can ask for one every this many seasons
     goalFame: [3, 6, 4, 8],    // fame for the goals: a 3★ team, a 5★ team, starting for a 5★ team, a title with a 5★ team
   },
-  gear: {                      // F8 (the user: "add items you can buy to improve some stuff, nothing too broken though"): gear with small edges, in games only (your OVR and value don't change)
-    levels: 3,                 // each piece: Basic, Pro, Elite
-    price: [250, 2500, 250000], // what each level costs ($): Basic fits a high school summer job, Pro a college NIL deal, Elite a pro contract
-    rating: 0.5,               // a rating piece: this much of its rating per level, in games (Elite: +1.5). At 1 (Elite +3), 80 simulated careers that bought every piece won 1.26 titles each and 25% made the Hall of Fame (0.84 and 6% without gear); at 0.5, 0.76 and 10%
-    injury: 0.1,               // ankle braces: the injury chance × (1 − this × level) (Elite: −30%; nutrition & physio is ×0.6)
-    regen: 1,                  // recovery kit: this much less fatigue after every game, per level (Elite: −3 of the 10 a game adds)
+  gear: {                      // V11 (Part 2 §5): the Pro Shop (178_gear.js). F8's six pieces become items in slots, with rarities and levels; still in games only (your OVR and value don't change)
+    maxLv: { common: 2, rare: 3, epic: 4, legendary: 4 }, // the levels an item has (each level +1 to its effect): common Lv1–2, rare Lv1–3, epic Lv1–4, a signature collab (legendary) Lv1–4
+    sigStart: 2,               // a signature collab (a Road reward, never money) comes at this level, and every later collab you earn lifts the ones you have a level (the line grows with you; at Lv4 from the start, a high schooler's collab was +4 Speed and +1 Hops)
+    cap: 4,                    // gear never adds more than this to one rating, everything you wear together
+    xpPerLv: 0.05,             // a training item: practice XP + this a level in its rating (epic Lv4: +20%)...
+    xpCap: 0.2,                // ...and never more than this in one rating
+    regenPerLv: 1,             // recovery boots: this much less fatigue after every game, a level
+    injuryPerLv: 0.08,         // a knee brace: injury risk − this a level (Lv4: −32%)
+    price: {                   // what a level costs ($): [Lv1 (to buy), Lv2, Lv3, Lv4] by the stage you're at when you pay (Part 2 §5.2: high school $50–$400, college $500–$5K, the pros $10K–$500K)
+      hs: { common: [50, 80], rare: [100, 160, 260], epic: [160, 240, 320, 400] },
+      college: { common: [500, 800], rare: [1000, 1600, 2600], epic: [1600, 2400, 3500, 5000] },
+      pro: { common: [10000, 16000], rare: [25000, 50000, 90000], epic: [60000, 120000, 250000, 500000] },
+    },
+    stock: 6,                  // items in the shop a week (new every week), one of them featured...
+    featuredOff: 0.25,         // ...at this much off
+    soldOut: 0.35,             // V11: a week's stock has one item already sold out (other shoppers got there first) with this chance; never the featured one
+    rarityOdds: { hs: [0.6, 0.35, 0.05], college: [0.25, 0.5, 0.25], pro: [0.15, 0.4, 0.45] }, // a stock item's chance to be common, rare or epic, by stage
+    consumable: { hs: 20, college: 200, pro: 5000 }, // an ice bath, a film session or a sports drink: this much each (once a week each)
+    iceBath: 20,               // an ice bath: fatigue − this, now
+    drinkStamina: 0.05,        // a sports drink (2.0 §4.3): +this stamina for one game (a live game: stamina costs ÷ (1 + this), recovery × (1 + this); a simulated one: fatigue costs × (1 − this))
+    filmTells: 2,              // a film session (2.0 §4.3): the scouting card shows this many more of the opponent's tendencies
+    familyHelp: 15,            // high school: your family chips in this much a game week ($)
   },
+
   road: {                      // V5 (2.0 §4.1): Road to the League, a milestone track at the top of the hub; THE goal is a 5★ team
-    list: [                    // in order; stage: the last stage it can be reached in (hs, college, combine, pro); reward: cash ($), trait (a level for your signature trait), gear (a free level of that piece: it shows on your player)
+    list: [                    // in order; stage: the last stage it can be reached in (hs, college, combine, pro); reward: cash ($), trait (a level for your signature trait), gear (V11: a signature collab, legendary, worn at once: it shows on your player)
       { id: 'varsity', label: 'MAKE VARSITY', stage: 'hs', reward: 'cash', cash: 250, what: 'Make the varsity team in high school.' },
       { id: 'top100', label: 'A TOP 100 RECRUIT', stage: 'hs', reward: 'trait', what: 'Reach the national top 100.' },
-      { id: 'offer', label: 'A COLLEGE OFFER', stage: 'hs', reward: 'gear', gear: 'shoes', what: 'Get a college scholarship offer.' },
+      { id: 'offer', label: 'A COLLEGE OFFER', stage: 'hs', reward: 'gear', gear: 'sigShoes', what: 'Get a college scholarship offer.' },
       { id: 'colstart', label: 'START IN COLLEGE', stage: 'college', reward: 'cash', cash: 2500, what: 'Start a college game.' },
-      { id: 'prooffer', label: 'A PRO OFFER', stage: 'combine', reward: 'gear', gear: 'sleeve', what: 'Get drafted or sign a pro offer.' },
+      { id: 'prooffer', label: 'A PRO OFFER', stage: 'combine', reward: 'gear', gear: 'sigSleeve', what: 'Get drafted or sign a pro offer.' },
       { id: 'rotation', label: 'MAKE THE ROTATION', stage: 'pro', reward: 'cash', cash: 250000, what: 'Start a game in the pros.' },
       { id: 'team3', label: 'A 3★ TEAM', stage: 'pro', reward: 'trait', what: 'Play for a 3★ franchise.' },
-      { id: 'team4', label: 'A 4★ TEAM', stage: 'pro', reward: 'gear', gear: 'wristbands', what: 'Play for a 4★ franchise.' },
+      { id: 'team4', label: 'A 4★ TEAM', stage: 'pro', reward: 'gear', gear: 'sigBands', what: 'Play for a 4★ franchise.' },
       { id: 'team5', label: 'A 5★ TEAM', stage: 'pro', reward: 'trait', goal: true, what: 'Play for a 5★ franchise: the goal.' },
       { id: 'title', label: 'WIN A TITLE', stage: 'pro', reward: 'cash', cash: 1000000, what: 'Win the league title.' },
       { id: 'hof', label: 'THE HALL OF FAME', stage: 'pro', reward: 'none', what: 'Retire with a Hall of Fame legacy.' },
     ],
-    fallbackCash: { hs: 250, college: 2500, combine: 2500, pro: 250000 }, // a reward that can't be given (a trait at its top level, gear at Elite) pays this instead
+    fallbackCash: { hs: 250, college: 2500, combine: 2500, pro: 250000 }, // a reward that can't be given (a trait at its top level, a collab you own) pays this instead
   },
   simAhead: {                  // V5 (2.0 §4.2/§4.8): Sim to next big moment / Sim the rest of the season
     maxWeeks: 80,              // a run sims at most this many weeks (a season is 10–22, plus playoffs)
@@ -1768,6 +1785,10 @@ function _num(v, lo, hi, d) { v = Number(v); return isFinite(v) ? clamp(v, lo, h
 // Old looks: skin 0–7, hair 0–9 (buzz afro hightop locs bun mohawk curls sidepart braids bald), hairColor 0–9, beard 0–4 (none goatee full
 // mustache stubble), eyes 0–4 (brown blue green gray amber), headband, sleeves, shoes (a color or null), headScale.
 const OLD_LOOK_MAP = { skin: [1, 2, 3, 5, 6, 7, 9, 10], hair: [0, 3, 2, 6, 9, 11, 4, 10, 7, 13], hairColor: [0, 1, 2, 4, 6, 8, 9, 12, 10, 11], beard: [0, 3, 5, 2, 1], eyes: [1, 4, 3, 5, 2] };
+// V11: the gear's colors ride on the look: a headband, a (leg) sleeve and wristbands by color, socks as [sock, stripe].
+function _lookCol(v) { return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null; }
+function _lookPair(v) { return Array.isArray(v) && _lookCol(v[0]) ? [v[0], _lookCol(v[1]) || v[0]] : null; }
+function _lookAcc(l, acc0) { return { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring, headbandColor: _lookCol(l.headbandColor || acc0.headbandColor), sleeveColor: _lookCol(l.sleeveColor || acc0.sleeveColor), wristColor: _lookCol(l.wristColor || acc0.wristColor) }; }
 function normLook(look, seedName) {
   const l = look && typeof look === 'object' ? look : {}; const acc0 = l.acc && typeof l.acc === 'object' ? l.acc : {};
   const seed = hashString(String(seedName || l.seedName || '') + '|' + (l.v === 2 ? '' : [l.skin, l.hair, l.hairColor, l.beard, l.eyes].join(',')));
@@ -1775,10 +1796,10 @@ function normLook(look, seedName) {
     const f = l.face && typeof l.face === 'object' ? l.face : faceParamsFromSeed(seed); const face = {};
     for (const k in FACE_RANGES) { const [a, b] = FACE_RANGES[k]; face[k] = _num(f[k], a, b, (a + b) / 2); }
     const fs = Number(f.shape), fn = Number(f.nose); face.shape = isFinite(fs) ? clamp(Math.round(fs), 0, FACE_SHAPES.length - 1) : seed % FACE_SHAPES.length; face.nose = isFinite(fn) ? clamp(Math.round(fn), 0, NOSE_TYPES.length - 1) : (seed >>> 4) % NOSE_TYPES.length; // older faces get a shape and a nose from their name
-    return { v: 2, skin: _lookIx(l.skin, 12), face, hair: _lookIx(l.hair, 14), hairColor: _lookIx(l.hairColor, 14), facialHair: _lookIx(l.facialHair, 6), iris: _lookIx(l.iris, 6), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100), own: !!l.own }; // F8: the flags on top (the Office's looks, gear) count too: before, a v2 look dropped them; F12: own (your player's look)
+    return { v: 2, skin: _lookIx(l.skin, 12), face, hair: _lookIx(l.hair, 14), hairColor: _lookIx(l.hairColor, 14), facialHair: _lookIx(l.facialHair, 6), iris: _lookIx(l.iris, 6), acc: _lookAcc(l, acc0), shoes: l.shoes == null ? null : l.shoes, socks: _lookPair(l.socks), number: _lookIx(l.number, 100), own: !!l.own }; // F8: the flags on top (the Office's looks, gear) count too: before, a v2 look dropped them; F12: own (your player's look)
   }
   const M = OLD_LOOK_MAP, ix = (a, v) => a[_lookIx(v, a.length)];
-  return { v: 2, skin: ix(M.skin, l.skin), face: faceParamsFromSeed(seed), hair: ix(M.hair, l.hair), hairColor: ix(M.hairColor, l.hairColor), facialHair: ix(M.beard, l.beard), iris: ix(M.eyes, l.eyes), acc: { headband: !!(l.headband || acc0.headband), sleeve: !!(l.sleeves || acc0.sleeve), wristband: !!(l.wristbands || acc0.wristband), earring: !!acc0.earring }, shoes: l.shoes == null ? null : l.shoes, number: _lookIx(l.number, 100), own: !!l.own };
+  return { v: 2, skin: ix(M.skin, l.skin), face: faceParamsFromSeed(seed), hair: ix(M.hair, l.hair), hairColor: ix(M.hairColor, l.hairColor), facialHair: ix(M.beard, l.beard), iris: ix(M.eyes, l.eyes), acc: _lookAcc(l, acc0), shoes: l.shoes == null ? null : l.shoes, socks: _lookPair(l.socks), number: _lookIx(l.number, 100), own: !!l.own };
 }
 // A fresh random look (bots, generated league players). 'teen' limits facial hair.
 function randomLook(rng, opts) {
@@ -1791,7 +1812,7 @@ function randomLook(rng, opts) {
   const iris = dark ? [0, 0, 1, 1, 2][Math.floor(R() * 5)] : Math.floor(R() * 6);
   return { v: 2, skin, face: faceParamsFromSeed(Math.floor(R() * 4294967295)), hair, hairColor, facialHair, iris, acc: { headband: R() < 0.18, sleeve: R() < 0.12, wristband: R() < 0.2, earring: R() < 0.1 }, shoes: null, number: Math.floor(R() * 100) };
 }
-function lookKey(L) { const f = L.face; let s = L.skin + '.' + L.hair + '.' + L.hairColor + '.' + L.facialHair + '.' + L.iris + '.' + (L.acc.headband ? 1 : 0) + (L.acc.earring ? 1 : 0); for (const k in FACE_RANGES) s += '.' + Math.round(f[k] * 100); return s + '.' + (f.shape | 0) + '.' + (f.nose | 0) + (L.own ? '.o' : ''); } // F12: your own look paints its facial hair at every age
+function lookKey(L) { const f = L.face; let s = L.skin + '.' + L.hair + '.' + L.hairColor + '.' + L.facialHair + '.' + L.iris + '.' + (L.acc.headband ? L.acc.headbandColor || 1 : 0) + (L.acc.earring ? 1 : 0); for (const k in FACE_RANGES) s += '.' + Math.round(f[k] * 100); return s + '.' + (f.shape | 0) + '.' + (f.nose | 0) + (L.own ? '.o' : ''); } // F12: your own look paints its facial hair at every age
 function skinToneOf(L) {
   const t = ART.skin[_lookIx(L.skin, 12)], u = clamp(L.face.tone || 0, -1, 1) * ART.undertone; const shift = c => u >= 0 ? mixHex(c, '#E09A62', u) : mixHex(c, '#8C86A8', -u);
   return { base: shift(t[0]), light: shift(t[1]), shadow: shift(t[2]), warm: t[3] };
@@ -1882,7 +1903,7 @@ function paintHeadLayer(g, P) {
   paintGloss(g, P);                                                                                           // 6 crisp gloss
   hairScalp(g, P, hs);
   if (hs === 13 || hs === 0) paintScalpGloss(g, P, hs === 0);
-  if (L.acc.headband) paintHeadband(g, P);
+  if (L.acc.headband) paintHeadband(g, P, L.acc.headbandColor);
   const gp = pixelPattern(g, grainTile(), P.px); if (gp) { g.globalCompositeOperation = 'overlay'; g.globalAlpha = ART.grainA; g.fillStyle = gp; g.fillRect(-0.8, -0.8, 1.6, 1.6); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; } // 9 grain
   g.restore();
   // 8 rim light on both edges, then the bold line: the silhouette, heavier along the jaw and chin
@@ -2145,8 +2166,8 @@ function paintFacialHair(g, P, phase) {
     beardPiece(g, P, path, grown.filter(q => q[1] > 0.22), outward, { box: [-0.5, 0.0, 0.5, chinY + 0.08], strokes: 66, hi: 0.03, seed: 17 });
   }
 }
-function paintHeadband(g, P) {
-  const { team, outline } = P; const c1 = team[1] || '#F3F0FF', c0 = team[0] || '#2E6FD8';
+function paintHeadband(g, P, color) { // V11: a gear headband has its own color (its stripe a shade darker)
+  const { team, outline } = P; const c1 = color || team[1] || '#F3F0FF', c0 = color ? shadeHex(color, -0.38) : team[0] || '#2E6FD8';
   const band = new Path2D(); band.moveTo(-0.62, -0.30); band.quadraticCurveTo(0.0, -0.44, 0.62, -0.30); band.lineTo(0.62, -0.22); band.quadraticCurveTo(0.0, -0.36, -0.62, -0.22); band.closePath();
   g.fillStyle = c1; g.fill(band); g.save(); g.clip(band); softSpot(g, -0.1, -0.36, 0.35, '#FFFFFF', 0.25); g.restore();
   g.strokeStyle = c0; g.lineWidth = 0.012; g.beginPath(); g.moveTo(-0.62, -0.26); g.quadraticCurveTo(0.0, -0.40, 0.62, -0.26); g.stroke();
@@ -2627,7 +2648,8 @@ function kitOf(team, L) {
   const numberFill = light ? (lumGap(c1, c0) > ART.numberContrast && luminance(c1) < 0.45 ? c1 : '#1E1633') : (lumGap(c1, c0) > ART.numberContrast && luminance(c1) > 0.6 ? c1 : '#F3F0FF');
   const numberInner = lumGap(c1, numberFill) > 0.2 && lumGap(c1, ART.inkLine) > 0.2 ? c1 : lumGap(third, numberFill) > 0.2 ? third : shadeHex(c0, luminance(c0) > 0.5 ? -0.3 : 0.35); // the double outline: trim inside, near-black outside
   const words = String((team && (team.abbr || team.name)) || '').toUpperCase(); const wordmark = words.length > 9 ? words.split(' ').pop().slice(0, 9) : words;
-  return { jersey: c0, trim: c1, third, shorts: c0, numberFill, numberInner, sock: light ? c1 : '#F3F0FF', sockStripe: c0, shoe, shoeAccent, sole: ART.midsole, legSleeve: luminance(c1) > 0.75 ? '#23222C' : c1, pattern: (team && team.pattern) || 'solid', wordmark, emblem: hashString(String(L.skin) + L.hair + (L.number || 0)) % 2 };
+  const A = L.acc || {}, socks = Array.isArray(L.socks) ? L.socks : null; /* V11: gear socks, a gear sleeve and wristbands have their own colors */
+  return { jersey: c0, trim: c1, third, shorts: c0, numberFill, numberInner, sock: socks ? socks[0] : light ? c1 : '#F3F0FF', sockStripe: socks ? socks[1] : c0, shoe, shoeAccent, sole: ART.midsole, legSleeve: A.sleeveColor || (luminance(c1) > 0.75 ? '#23222C' : c1), wrist: A.wristColor || null, pattern: (team && team.pattern) || 'solid', wordmark, emblem: hashString(String(L.skin) + L.hair + (L.number || 0)) % 2 };
 }
 let _meshTile = null; function meshTile() { if (_meshTile) return _meshTile; const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d'); g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(2, 2, 1.1, 0, TAU); g.arc(6, 6, 1.1, 0, TAU); g.fill(); return (_meshTile = c); }
 
@@ -2660,7 +2682,7 @@ function drawHand(ctx, T, h, far, lw, kit, wrist, part) {
   const pathBlob = b => { ctx.beginPath(); ctx.ellipse(b[0], b[1], b[2], b[3], b[4], 0, TAU); };
   const pathPoly = q => { ctx.beginPath(); ctx.moveTo(q[0][0], q[0][1]); for (let i = 1; i < q.length; i++) ctx.lineTo(q[i][0], q[i][1]); };
   // wristband on the body side of the palm, first, so the palm overlaps it
-  if (wrist && showBack) { const al = ART.wristW * 2, ac = ART.wristH * 2, bx = -rx * 0.95 - al * 0.3; ctx.fillStyle = shadeHex(kit.jersey, far ? -ART.farDim : 0); ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw; ctx.beginPath(); roundRectPath(ctx, bx - al / 2, -ac / 2, al, ac, al * 0.3); ctx.fill(); ctx.stroke(); ctx.fillStyle = rgba(kit.trim, 0.9); ctx.fillRect(bx - al * 0.3, -ac / 2 + lw, al * 0.18, ac - lw * 2); }
+  if (wrist && showBack) { const al = ART.wristW * 2, ac = ART.wristH * 2, bx = -rx * 0.95 - al * 0.3; ctx.fillStyle = shadeHex(kit.wrist || kit.jersey, far ? -ART.farDim : 0); ctx.strokeStyle = ART.inkLine; ctx.lineWidth = lw; ctx.beginPath(); roundRectPath(ctx, bx - al / 2, -ac / 2, al, ac, al * 0.3); ctx.fill(); ctx.stroke(); ctx.fillStyle = rgba(kit.trim, 0.9); ctx.fillRect(bx - al * 0.3, -ac / 2 + lw, al * 0.18, ac - lw * 2); }
   // one outline around everything: strokes at double width first, then the fills over their inner half
   ctx.strokeStyle = ART.inkLine;
   if (showBack) { for (const b of blobs) { ctx.lineWidth = lw * 2; pathBlob(b); ctx.stroke(); } for (const s of segs) { ctx.lineWidth = s[4] + lw * 2; ctx.beginPath(); ctx.moveTo(s[0], s[1]); ctx.lineTo(s[2], s[3]); ctx.stroke(); } }
@@ -4111,7 +4133,7 @@ let _pid = 0;
 class Player {
   constructor(def, team, match) {
     this.id = _pid++; this.def = def; this.name = def.name; this.nick = def.nick || def.name.split(' ')[0]; this.arch = def.arch; this.team = team; this.match = match;
-    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.sagaClutch = def.sagaClutch || 0; /* V7: the mentor's lasting edge in the last 15 s */ this.staffClutch = def.staffClutch || 0; /* V10: the mental coach's */ this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
+    this.attrs = Object.assign({}, def.attrs); this.height = def.height; this.wing = def.wing || CONFIG.height.wingRef; this.traits = trMap(def.traits, def.traitLv); this.sagaClutch = def.sagaClutch || 0; /* V7: the mentor's lasting edge in the last 15 s */ this.staffClutch = def.staffClutch || 0; /* V10: the mental coach's */ this.stamMul = def.stamMul || 1; /* V11: a sports drink's +5% stamina */ this.trs = { streak: 0, heatUntil: -1, takeUntil: -1 }; this.look = Object.assign({}, def.look);
     this.moves = def.moves || Object.assign({ crossover: true, spin: true, stepback: true, hesitation: true, euro: true, dunk360: true, windmill: true }, sigMovesOfAttrs(def.attrs)); // a roster player without a move list: every move, and the V4 signature moves its attributes earn
     this.pers = def.pers || null; this.tend = Array.isArray(def.tend) ? def.tend.slice() : []; // V4 (2.0 §3): a personality and tendencies the brain plays to (career opponents; Quick Play bots)
     this.x = 12; this.y = 0; this.z = 0.5; this.zTarget = 0.5; this.lane = 1; this.vx = 0; this.vy = 0; this.facing = 1; this.grounded = true; this.laneT = -9; this.lastBeatT = -9;
@@ -4310,7 +4332,7 @@ function updatePlayer(p, dt) {
   p.stateT += dt; if (!p.grounded) p.airT += dt;
   // stamina
   const sprinting = I.sprint && Math.abs(p.vx) > LX(2) && p.grounded && !(m.practice && m.practice.infiniteStamina);
-  if (sprinting) p.stamina = Math.max(0, p.stamina - S.sprintCost * (1 + trE(p, 'ironman', 'stamina')) * dt); else p.stamina = Math.min(S.max, p.stamina + S.regen * dt);
+  if (sprinting) p.stamina = Math.max(0, p.stamina - S.sprintCost * (1 + trE(p, 'ironman', 'stamina')) * dt / (p.stamMul || 1)); else p.stamina = Math.min(S.max, p.stamina + S.regen * (p.stamMul || 1) * dt); /* V11: a sports drink */
   if (m.practice && m.practice.infiniteStamina) p.stamina = S.max;
   // lanes: the human (or a bot) asks for a lane; z eases toward it
   if (I.laneUpP && canChangeLane(p) && !p.controlled) setLane(p, laneOf(p.zTarget) - 1);
@@ -4491,7 +4513,7 @@ function stepStateMachine(p, dt) {
 
 function doJump(p, mul, state) {
   if (!p.grounded && p.coyote <= 0) return false;
-  const v = jumpVelOf(p) * mul; p.vy = v; p.grounded = false; p.coyote = 0; p.airT = 0; p.stamina = Math.max(0, p.stamina - PC.stamina.jumpCost);
+  const v = jumpVelOf(p) * mul; p.vy = v; p.grounded = false; p.coyote = 0; p.airT = 0; p.stamina = Math.max(0, p.stamina - PC.stamina.jumpCost / (p.stamMul || 1));
   p.setState(state || 'jump', { tApex: v / G, wasAir: true, jumpVel: v, hadBall: p.hasBall });
   p.anim.squash = 0.82; p.match.bus.emit('JUMP', { player: p });
   return true;
@@ -4635,7 +4657,7 @@ function startNamedMove(p, name, dir, extra) {
   const m = p.match, I = p.input;
   if (dir == null) dir = I.moveX !== 0 ? sgn(I.moveX) : (Math.abs(p.vx) > LX(0.5) ? sgn(p.vx) : p.dirToHoop());
   const repeat = p.lastMove === name && (m.time - p.lastMoveT) < MV.repeatWindowS;
-  p.stamina = Math.max(0, p.stamina - PC.stamina.moveCost);
+  p.stamina = Math.max(0, p.stamina - PC.stamina.moveCost / (p.stamMul || 1));
   const sd = { dir, repeat, phase: 'startup' };
   if (name === 'spin') { const op = m.nearestOpponent(p), oq = op && (op.s0 || op); sd.closeDef = !!(op && Math.abs(oq.x - p.x) < MV.spinRange && Math.abs(oq.z - p.z) < W.laneShare); sd.dir = p.dirToHoop(); if (sd.closeDef) { sd.def = op; sd.beat = m.rng.next() < spinChance(p, op); } }
   if (name === 'stepback') sd.dir = p.dirToHoop();
@@ -4673,7 +4695,7 @@ function checkAnkleBreak(p, newDir, mul) {
 function startDefensiveAction(p) {
   const m = p.match, b = m.ball, h = b.owner;
   const hq = h && (h.s0 || h); if (h && h.team !== p.team && Math.abs(hq.x - p.x) < CONFIG.steal.nearRange + LX(0.6) && Math.abs(hq.z - p.z) < W.laneShare + 0.15) { p.setState('swipe', { phase: 'startup' }); p.facing = sgn(hq.x - p.x) || p.facing; m.bus.emit('SWIPE', { player: p }); return true; }
-  if (m.arcade && p.shoveCd <= 0) { p.setState('shove', {}); p.shoveCd = CONFIG.arcade.shove.cooldown; p.stamina = Math.max(0, p.stamina - PC.stamina.shoveCost); return true; }
+  if (m.arcade && p.shoveCd <= 0) { p.setState('shove', {}); p.shoveCd = CONFIG.arcade.shove.cooldown; p.stamina = Math.max(0, p.stamina - PC.stamina.shoveCost / (p.stamMul || 1)); return true; }
   return false;
 }
 function stealExposure(h, defender) {
@@ -4807,7 +4829,7 @@ function startShot(p, variant) {
 function launchShotJump(p) {
   const m = p.match, sd = p.sd, hoop = p.hoop, dir = sgn(hoop.x - p.x) || p.facing;
   const v = jumpVelOf(p) * (sd.type === 'jumper' || sd.type === 'ft' ? 0.92 : (sd.type === 'hook' ? SH.hookJumpMul : 1)); const tApex = v / G;
-  p.grounded = false; p.coyote = 0; p.airT = 0; p.vy = v; p.stamina = Math.max(0, p.stamina - PC.stamina.jumpCost); p.anim.squash = 0.85;
+  p.grounded = false; p.coyote = 0; p.airT = 0; p.vy = v; p.stamina = Math.max(0, p.stamina - PC.stamina.jumpCost / (p.stamMul || 1)); p.anim.squash = 0.85;
   if (sd.type === 'jumper' || sd.type === 'ft') { p.vx *= 0.25; if (sd.fade) p.vx = -dir * SH.fadeSpeed; p.setState('jumpshot', { type: sd.type, tApex, released: false, wasAir: true, stepback: sd.stepback, pullup: !!sd.pullup, botRelease: false, quick: false, fade: !!sd.fade, btn: sd.btn, contestGuess: sd.contestGuess || 0 }); if (sd.pullup) { p.stats.sigs++; m.bus.emit('SIGNATURE', { player: p, move: 'pullup' }); } }
   else if (sd.type === 'hook') { p.vx = dir * LX(0.5); p.setState('floater', { type: 'hook', tApex, released: false, wasAir: true, botRelease: false }); m.bus.emit('HOOK', { player: p }); }
   else if (sd.type === 'floater') { p.vx = dir * clamp(Math.abs(p.vx) * 0.6, LX(1.5), LX(4)); p.setState('floater', { type: 'floater', tApex, released: false, wasAir: true, botRelease: false, contestGuess: sd.contestGuess || 0 }); }
@@ -7831,10 +7853,11 @@ function rtNearest(P, r, g, b) {
 // A character's palette (§1.2: at most 24 colors, a 3-tone skin ramp): ink, skin ×3, hair ×3, jersey ×3, trim ×2, shoes,
 // accent, midsole, outsole, sock, iris, sclera, mouth, lip, ball ×2 and white. Index 0 is the outline ink.
 function rtCharPalette(L, kit, age) {
-  const key = 'c|' + lookKey(L) + '|' + ageStageOf(age) + '|' + kit.jersey + kit.trim + kit.shoe + kit.shoeAccent + kit.sock; const P0 = RT.luts.get(key); if (P0) return P0;
+  const gearC = kit.wrist || (L.acc && L.acc.sleeveColor) || null; /* V11: a gear color takes the lip's slot (the lip quantizes to the skin) */
+  const key = 'c|' + lookKey(L) + '|' + ageStageOf(age) + '|' + kit.jersey + kit.trim + kit.shoe + kit.shoeAccent + kit.sock + kit.sockStripe + (gearC || ''); const P0 = RT.luts.get(key); if (P0) return P0;
   const T = skinToneOf(L), H = hairColorsOf(L, age), R = hairRamp({ H, black: _lookIx(L.hairColor, 14) <= 1 }), lip = mixHex(T.base, ART.lipTint, ART.lipMix);
   return rtPalette(key, [ART.inkLine, T.shadow, T.base, T.light, R.shade, R.base, R.gloss, shadeHex(kit.jersey, 0.22), kit.jersey, shadeHex(kit.jersey, -0.3), shadeHex(kit.trim, 0.1), shadeHex(kit.trim, -0.3),
-    kit.shoe, kit.shoeAccent, ART.midsole, ART.outsole, kit.sock, ART.iris[_lookIx(L.iris, 6)], ART.sclera, ART.mouth, lip, ART.ball, shadeHex(ART.ball, -0.35), '#FFFFFF']);
+    kit.shoe, kit.shoeAccent, ART.midsole, ART.outsole, kit.sock, ART.iris[_lookIx(L.iris, 6)], ART.sclera, ART.mouth, gearC || lip, ART.ball, shadeHex(ART.ball, -0.35), '#FFFFFF']);
 }
 
 // --- pixelize (§1.2): box filter by ss, alpha threshold, palette LUT, stray-pixel cleanup, the 1-px outline. The result
@@ -8809,7 +8832,7 @@ const TIPS = {
   'pro': ['THE PROS', ['Twelve PBL franchises, rated 1 to 5 stars. The goal: a 5★ team, then its starting spot, then a title.', 'Better franchises call when your value (OVR, fame, hype) reaches their bar: in free agency, or ask for a trade in Team → Office (any time after ' + CONFIG.team.tradeBenchWeeks + ' bench weeks).', 'Your franchise\'s depth chart still decides who plays each week.']], // F7
   'hub': ['THE HUB', ['Five tabs: Play (the next game and your calendar), Train (your week and the depth chart), Me (stats, news, trophies, the Codex), Team and Shop. Keys 1 to 5 switch them; a dot on a tab means something new.', 'Sim to next big moment skips ahead and stops before playoffs, rivals and spot starts, and for any choice. The Road to the League (top of Play) shows your next milestone.']],
   'business': ['FRONT OFFICE', ['Staff is paid week by week from your money: a trainer (practice XP), a skills coach (your focus rating), a nutritionist (fewer injuries, fresher legs).', 'Sponsors pay more with hype. A shoe line opens at 60 hype.', 'Gear (small edges in games) and Looks are the last two tabs.']],
-  'gear': ['GEAR', ['Six pieces, three levels each. Shoes, insoles, the sleeve and the wristbands add a little Speed, Hops, Shooting or Handles in games; braces cut injuries; the recovery kit cuts fatigue.', 'Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']],
+  'gear': ['GEAR', ['Five slots you wear (shoes, socks, a sleeve, a headband, wristbands), two training slots and a recovery slot. Common, rare and epic items level up: each adds to a rating in games (never more than +' + CONFIG.gear.cap + ' to one), to practice XP, or cuts fatigue or injuries.', 'Six items a week, one featured. Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']], // V11
   'contracts': ['CONTRACTS', ['Pick the length and your role: both change the salary. A promised starting spot costs 10% of it.']],
   'press': ['THE PRESS ROOM', ['Four answers and none of them is best: each button says what it does to your hype, your confidence and your coach\'s trust.', 'Trash talk fires up the player you talk about.']],
   'hype': ['HYPE', ['Hype (0 to 100) is how loud the world is about you: it lifts sponsor offers, your pro offers and the crowd at home.', 'From 60 defenses key on you; from 70 the media eats into your practice time.']],
@@ -9571,7 +9594,7 @@ function nextEventLabel(c) {
 function pregameScreen(game, g) {
   const s = game.save.data, c = careerOf(game); const me = meOf(c), opp = c.players[opponentOf(c, g)]; let t = 0;
   const items = [btn('TIP OFF', 470, 600, 220, 54, () => { proStartGame(c); game.save.save(); if (!playsThisWeek(c)) { game.ui.clearTo(careerHub(game)); game.ui.toastMsg('You lost your spot in practice: your teammate starts.'); return; } const opts = careerMatchOpts(c, s, g, false); if (s.settings.colorblind) [opts.teams[0], opts.teams[1]] = colorblindTeams(opts.teams[0], opts.teams[1]); game.startMatch(opts, { kind: 'career' }); }, { primary: true }), btn('Back', 700, 600, 110, 54, () => game.ui.pop())]; phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12);
-  const scout = scoutCard(opp, opp.r, opp.h, { film: c.me.plan === 'film' || !!(c.me.wk && c.me.wk.done === 'film') || staffTipsB(c.me) /* V10: your skills coach scouted them */, junkie: hasTrait(c.me, 'filmjunkie'), boss: !g.playoff && proIsBoss(c, opp.id), salt: c.seed }); // V4
+  const scout = scoutCard(opp, opp.r, opp.h, { film: c.me.plan === 'film' || !!(c.me.wk && c.me.wk.done === 'film') || staffTipsB(c.me) /* V10: your skills coach scouted them */, extra: c.me.wk && c.me.wk.filmPlus ? GEAR.filmTells : 0 /* V11 */, junkie: hasTrait(c.me, 'filmjunkie'), boss: !g.playoff && proIsBoss(c, opp.id), salt: c.seed }); // V4
   return { widgets: items, name: 'pregame', update(dt) { t += dt; },
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'TALE OF THE TAPE', UI_W / 2 - 200, 56, 40);
@@ -9725,9 +9748,9 @@ function managementScreen(game) {
   if (st.tab === 3) { const open = btn('Open the staff room', P ? 40 : 60, P ? 470 : 590, P ? 820 : 560, P ? TH : 50, () => game.ui.push(staffScreen(game)), { primary: true }); items.push(open); } // V10: the staff (176_ui_staff.js)
   if (st.tab === 4) { const next = (M.gym || 0) + 1; if (CR.gymCost[next]) items.push(btn('Build level ' + next + ' · ' + fmtMoney(CR.gymCost[next]), P ? 40 : 60, P ? 280 : 300, P ? 640 : 520, P ? TH : 50, () => { if (buyGym(c)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { primary: true })); }
   if (st.tab === 5) { // R7: a car and a house (confidence and a story, never a rating)
-    const life = PR.lifestyle.map((it, i) => { const own = M.lifestyle && M.lifestyle[it.id]; return btn(own ? it.name + ' · yours since season ' + own : it.name + ' · ' + fmtMoney(it.cost), 60, 170 + i * 60, 620, 48, () => { if (own) return; if (proBuy(c, it.id)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { align: 'left', enabled: !own, sub: P ? 'Confidence +' + it.conf : null }); });
+    const life = PR.lifestyle.map((it, i) => { const own = M.lifestyle && M.lifestyle[it.id]; return btn(own ? it.name + ' · yours since season ' + own : it.name + ' · ' + fmtMoney(it.cost), 60, 170 + i * 60, 620, 48, () => { if (own) return; if (proBuy(c, it.id)) { game.save.save(); game.audio.ui('coin'); refresh(); } else game.ui.toastMsg('Not enough money yet.'); }, { align: 'left', enabled: !own, sub: P ? lifeWeeklyText(it, true) : null }); });
     items.push(...life); if (P) phoneGrid(game.ui, life, 40, 176, 1200, 2, 0, 10); }
-  if (st.tab === 6) { const rows = gearRows(game, c, refresh); layoutGearRows(game.ui, rows, 60, 150, 640); items.push(...rows); } // F8: gear that helps a little (the looks moved to their own tab)
+  if (st.tab === 6) { const open = btn('Open the Pro Shop', P ? 40 : 60, P ? 470 : 590, P ? 820 : 560, P ? TH : 50, () => game.ui.push(shopScreen(game)), { primary: true }); items.push(open); } // V11: the shop (178_ui_shop.js; F8's gear rows)
   if (st.tab === 7) { const C = M.cosmetics, P_ = CR.cosmeticCosts; const buy = (key, fn) => { if (M.money < P_[key]) { game.ui.toastMsg('Not enough money.'); return; } M.money -= P_[key]; fn(); game.save.save(); game.audio.ui('coin'); refresh(); };
     items.push(btn(C.headband ? 'Headband: ' + (C.headbandOn ? 'on' : 'off') : 'Headband · ' + fmtMoney(P_.headband), 60, 160, 520, 44, () => { if (C.headband) { C.headbandOn = !C.headbandOn; game.save.save(); refresh(); } else buy('headband', () => { C.headband = true; C.headbandOn = true; }); }, { align: 'left' }));
     items.push(btn(C.sleeves ? 'Arm sleeve: ' + (C.sleevesOn ? 'on' : 'off') : 'Arm sleeve · ' + fmtMoney(P_.sleeves), 60, 214, 520, 44, () => { if (C.sleeves) { C.sleevesOn = !C.sleevesOn; game.save.save(); refresh(); } else buy('sleeves', () => { C.sleeves = true; C.sleevesOn = true; }); }, { align: 'left' }));
@@ -9754,8 +9777,8 @@ function managementScreen(game) {
     if (st.tab === 2) { const y0 = P ? 104 : 160, fs = P ? 19 : 15, lh = P ? 30 : 26; ui.heading(ctx, 'ACTIVE DEALS', 60, y0, fs, UI_CYAN); if (!M.endorsements.length) ui.para(ctx, (M.offers.length ? 'No active deals. Check the offers below.' : 'No sponsors yet. Brands call when your fame grows (' + Math.round(M.fame) + ' now): win, score, make highlights, make the All-Star team.'), 60, y0 + 30, P ? 1160 : 1160, fs, UI_DIM); M.endorsements.slice(0, P ? 5 : 6).forEach((e, i) => ui.label(ctx, e.brand + ' (' + e.what + ') · ' + fmtMoney(e.weekly) + '/week · ' + e.weeks + ' weeks left', 60, y0 + 30 + i * lh, fs, UI_TEXT)); ui.heading(ctx, 'OFFERS', 60, P ? 306 : 330, fs, UI_CYAN); if (!M.offers.length) ui.label(ctx, 'None right now.', 60, P ? 340 : 360, fs, UI_DIM); }
     if (st.tab === 3) drawStaffSummary(ctx, ui, c, P ? 44 : 60, P ? 104 : 150, P ? 1190 : 1160, P); // V10
     if (st.tab === 4) { const lvl = M.gym || 0; ui.heading(ctx, 'HOME GYM · LEVEL ' + lvl, 60, 160, 22, UI_GOLD); ui.para(ctx, 'Every level: +' + Math.round(CR.gymBonus * 100) + '% practice XP and ' + WK.restGym + ' more fatigue off a Rest week. Yours forever, whatever club you play for.', 60, 196, 1160, 15, UI_TEXT); if (!CR.gymCost[lvl + 1]) ui.label(ctx, 'Maxed out. It has a sauna now.', 60, 300, 16, UI_GREEN); }
-    if (st.tab === 5) { if (P) ui.label(ctx, 'Confidence and a story. Never a rating.', 60, 140, 18, UI_DIM, 'left', 1160); else { ui.label(ctx, 'Off the court: confidence and a story, never a rating. Houses count in your net worth.', 60, 140, 14, UI_TEXT, 'left', 1180); PR.lifestyle.forEach((it, i) => ui.label(ctx, 'Confidence +' + it.conf + (it.asset ? ' · an asset' : ''), 700, 194 + i * 60, 14, UI_DIM, 'left', 520)); } }
-    if (st.tab === 6 && !P) { kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, 770, 120, 440, 0); } else if (st.tab === 6) ui.label(ctx, gearSummary(M) || 'Small edges, in games only.', 360, UI_H - tapH(ui, 44) - 50, 15, UI_DIM, 'left', 880); /* F8 */
+    if (st.tab === 5) { if (P) ui.label(ctx, 'Confidence and a story, then a weekly effect. Never a rating.', 60, 140, 18, UI_DIM, 'left', 1160); else { ui.label(ctx, 'Off the court: confidence, a story and a weekly effect (with upkeep). Never a rating.', 60, 140, 14, UI_TEXT, 'left', 1180); PR.lifestyle.forEach((it, i) => ui.para(ctx, 'Confidence +' + it.conf + ' · ' + lifeWeeklyText(it) + (it.asset ? ' · an asset' : ''), 700, 186 + i * 60, 540, 13, UI_DIM, 'left', 2)); } } /* (two lines each: the effect and its upkeep) */ /* V11: the weekly effects and upkeep */
+    if (st.tab === 6) { const y0 = P ? 110 : 160; ui.heading(ctx, 'ON GAME DAY', 60, y0, P ? 19 : 15, UI_CYAN); ui.para(ctx, gearSummary(M) || 'Nothing on yet. Gear is an edge in games: your OVR and value don\'t change.', 60, y0 + 30, P ? 760 : 620, P ? 18 : 15, UI_TEXT, 'left', 4); ui.para(ctx, 'Six items a week in the shop, one featured. Shoes, socks, a sleeve, a headband and wristbands each add to a rating (never more than +' + GEAR.cap + ' to one), two training items add practice XP, one recovery item cuts fatigue or injuries.', 60, y0 + (P ? 150 : 140), P ? 760 : 620, P ? 16 : 13, UI_DIM, 'left', 6); if (!P) { kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); try { drawPlatform(ctx, 990, 560, 110, clubOf(me.club).colors); drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 990, 560, 400, 'hyped', 1, 0); } catch (e) { /* decoration */ } } else { try { drawPlatform(ctx, 1060, 560, 90, clubOf(me.club).colors); drawMannequin(ctx, drawDefOf(me, c), clubOf(me.club), 1060, 560, 400, 'hyped', 1, 0); } catch (e) { /* decoration */ } } } /* V11 */
     if (st.tab === 7) { drawMannequin(ctx, engineDef(c, c.meId), clubOf(me.club), 900, P ? 570 : 640, P ? 380 : 420, 'hyped', -1, 0); ui.label(ctx, 'Looks only.', 60, P ? 360 : 400, P ? 18 : 14, UI_DIM); }
   } };
 }
@@ -11497,19 +11520,34 @@ function drawHubTeam(ctx, ui, H, t, box) {
   for (const l of (H.ladder || [])) { if (y > box.y + box.h - (P ? 22 : 18)) break; const me = l.me; if (me) { ctx.fillStyle = 'rgba(255,210,63,0.14)'; ctx.fillRect(x - 4, y - (P ? 15 : 12), w + 8, P ? 30 : 24); } ui.heading(ctx, '#' + l.rank, x, y, P ? 15 : 12, me ? UI_GOLD : UI_DIM, 'left'); ui.label(ctx, l.name + (l.style ? ' · ' + l.style : ''), x + (P ? 44 : 36), y, P ? 15 : 12, me ? UI_GOLD : UI_TEXT, 'left', w - 120); ui.label(ctx, l.ovr != null ? 'OVR ' + l.ovr : '', x + w, y, P ? 15 : 12, UI_DIM, 'right'); y += P ? 30 : 25; }
 }
 // ---------------- the Shop tab: the gear, embedded ----------------
-function hubShopWidgets(game, c, box, refresh) { const ui = game.ui, P = ui.phone, rows = gearRows(game, c, refresh); if (P) { const cols = 2, gap = 10, rh = tapH(ui, 44), cw = (box.w - gap) / cols; rows.forEach((b, i) => Object.assign(b, { x: box.x + (i % cols) * (cw + gap), y: box.y + 56 + Math.floor(i / cols) * (rh + gap), w: cw, h: rh })); } else rows.forEach((b, i) => Object.assign(b, { x: box.x + 16, y: box.y + 78 + i * 76, w: 640, h: 68 })); return rows; }
+function hubShopWidgets(game, c, box, refresh) { // V11: the shop's front: the shopkeeper, the week's featured item, three doors in
+  const ui = game.ui, P = ui.phone, G = gearOf(holderOf(c)), go = v => () => game.ui.push(shopScreen(game, v)), n = Object.keys(G.owned).length;
+  const doors = [btn('Enter the shop', 0, 0, 0, 0, go('stock'), { primary: true }), btn('Your locker', 0, 0, 0, 0, go('locker'), { sub: P ? null : n + ' item' + (n === 1 ? '' : 's') }), btn('Extras', 0, 0, 0, 0, go('extras'), { sub: P ? null : 'once a week' })];
+  if (P) { const rh = tapH(ui, 44), cw = (box.w - 20) / 3; doors.forEach((b, i) => Object.assign(b, { x: box.x + i * (cw + 10), y: box.y + box.h - rh - 6, w: cw, h: rh })); }
+  else doors.forEach((b, i) => Object.assign(b, { x: box.x + 16 + i * 216, y: box.y + box.h - 64, w: 204, h: 50, sub: null })); /* (no sub-labels: the label fills the door) */
+  return doors;
+}
 function drawHubShop(ctx, ui, H, t, box, c) {
-  const P = ui.phone; kitPanel(ctx, box.x, box.y, P ? box.w : 672, box.h); ui.heading(ctx, 'GEAR', box.x + 16, box.y + 28, P ? 24 : 22, UI_TEXT, 'left'); ui.heading(ctx, (isPro(c) ? '' : 'Cash ') + gearMoney(gearWallet(c)), box.x + (P ? box.w : 672) - 16, box.y + 28, P ? 22 : 20, UI_GOLD, 'right');
-  if (!P) ui.label(ctx, 'Small edges on game day. Your OVR doesn\'t change.', box.x + 16, box.y + 54, 12, UI_DIM, 'left', 640);
-  if (P) { ui.label(ctx, gearSummary(holderOf(c)) || 'Small edges, in games only. Your OVR doesn\'t change.', box.x + 16, box.y + box.h - 22, 16, UI_DIM, 'left', box.w - 32); return; }
-  kitPanel(ctx, box.x + 684, box.y, box.w - 684, box.h, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, box.x + 704, box.y + 20, box.w - 724, t);
+  const P = ui.phone, S = gearStock(c), fid = S.ids[S.featured], f = gearItem(fid), W = P ? box.w : 672; kitPanel(ctx, box.x, box.y, W, box.h);
+  ui.heading(ctx, SHOP_NAMES[gearStage(c)], box.x + 16, box.y + 28, P ? 24 : 20, UI_TEXT, 'left', W * 0.6); ui.heading(ctx, (isPro(c) ? '' : 'Cash ') + gearMoney(gearWallet(c)), box.x + W - 16, box.y + 28, P ? 22 : 20, UI_GOLD, 'right', W * 0.36);
+  const ps = P ? 84 : 96, py = box.y + (P ? 52 : 52); try { drawPortrait(ctx, shopKeeperDef(c), ['#3B2A1C', '#E8D5B0'], box.x + 16, py, ps, 'neutral'); } catch (e) { /* decoration */ }
+  ui.para(ctx, '“' + shopLine(c, { view: 'stock' }) + '”', box.x + 32 + ps, py + 18, W - ps - 56, P ? 17 : 14, UI_TEXT, 'left', 3);
+  if (f) { const cy = py + ps + (P ? 12 : 18), ch = P ? box.h - (cy - box.y) - tapH(ui, 44) - 20 : 150; kitPanel(ctx, box.x + 16, cy, W - 32, ch, 'rgba(12,16,42,0.9)', { accent: GEAR_RARITY_INFO[f.rarity][1] }); const is = Math.min(ch - 24, P ? 120 : 110); drawGearIcon(ctx, f.icon, box.x + 30, cy + (ch - is) / 2, is, f.rarity, true);
+    const tx = box.x + 46 + is, tw = box.x + W - 32 - tx; kitChip(ctx, 'FEATURED THIS WEEK', tx, cy + 22, { size: P ? 13 : 11, fill: 'rgba(60,40,0,0.92)', stroke: UI_GOLD, color: UI_GOLD }); ui.heading(ctx, f.name, tx, cy + (P ? 56 : 52), P ? 22 : 18, GEAR_RARITY_INFO[f.rarity][1], 'left', tw); ui.label(ctx, P ? shopCardText(f, 1) + (f.max > 1 ? ' (to ' + shopTopVal(f) + ')' : '') : gearEffectText(f, 1) + (f.max > 1 ? ' (up to Lv ' + f.max + ')' : ''), tx, cy + (P ? 86 : 78), P ? 16 : 13, UI_GREEN, 'left', P ? tw - 5 * 120 : tw);
+    const [pt, pc] = shopCardPrice(c, fid); ui.heading(ctx, pt, tx, cy + (P ? 116 : 106), P ? 20 : 16, pc, 'left', tw);
+    // the rest of the week's stock: small icons and prices (a phone: inside the card, on the right; a desktop: a row under it)
+    const rest = S.ids.filter(id => id !== fid), ts = P ? 120 : 124, ix = P ? box.x + W - 32 - rest.length * ts : box.x + 16, iy = P ? cy + 30 : cy + ch + 40; if (!P) ui.heading(ctx, 'ALSO THIS WEEK', box.x + 16, cy + ch + 20, 13, UI_CYAN, 'left', W - 32);
+    rest.forEach((id, i) => { const it = gearItem(id), own = gearOf(holderOf(c)).owned[id], [p2, c2] = own ? ['YOURS', UI_CYAN] : S.sold[id] ? ['SOLD OUT', UI_DIM] : shopCardPrice(c, id), x0 = ix + i * ts, isz = P ? 64 : 56; drawGearIcon(ctx, it.icon, x0 + (ts - isz) / 2, iy, isz, it.rarity, true); ui.label(ctx, p2, x0 + ts / 2, iy + isz + (P ? 18 : 14), P ? 15 : 12, c2, 'center', ts - 8); }); }
+  if (P) return; kitPanel(ctx, box.x + 684, box.y, box.w - 684, box.h, 'rgba(8,12,36,0.55)'); const cx = box.x + 684 + (box.w - 684) / 2;
+  try { drawPlatform(ctx, cx, box.y + box.h - 150, 100, shopKit(c).colors); drawMannequin(ctx, shopPlayerDef(c), shopKit(c), cx, box.y + box.h - 150, Math.min(300, box.h - 190), 'hyped', 1, t || 0); } catch (e) { /* decoration */ }
+  ui.heading(ctx, 'ON GAME DAY', box.x + 700, box.y + box.h - 112, 14, UI_CYAN, 'left', box.w - 716); ui.para(ctx, gearSummary(holderOf(c)) || 'Nothing on yet. Gear is an edge in games only.', box.x + 700, box.y + box.h - 88, box.w - 716, 13, UI_TEXT, 'left', 4);
 }
 // ---------------- red dots ----------------
 // Team: a new offer (recruiting offers not yet seen, a pro endorsement waiting); Shop: a piece you can afford; Me: a
 // third trait to pick, or news you haven't read; Train: a depth-chart challenge you can take this week.
 function hubBadges(game, c) {
   const B = holderOf(c), out = {}; if (!B) return out;
-  try { out.shop = GEAR_ITEMS.some(it => { const p = gearNextPrice(B, it.id); return p != null && gearWallet(c) >= p; }); } catch (e) { /* no gear yet */ }
+  try { const S = gearStock(c), G = gearOf(B); out.shop = !S.visited && S.ids.some(id => !S.sold[id] && !G.owned[id] && (S.fresh || []).includes(id) && gearWallet(c) >= gearStockPrice(c, id)); } catch (e) { /* no shop yet */ } /* V11: something new this week you can afford (until you've looked in) */
   const T = traitsOf(B); out.me = !!(T && T.offer && !T.third) || hubNewsUnread(c);
   if (isPro(c)) out.team = (c.me.offers || []).length > (c.me.offersSeen || 0); else out.team = (c.offers || []).filter(o => !o.pulled).length > (c.offersSeen || 0);
   out.train = !!(c.team && !isStarter(c) && ladderChallengeId(c) && !(B.wk && B.wk.done));
@@ -11923,7 +11961,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
     amateur: { school: a.school, college: a.college, tier: a.collegeTier || 0, titles: a.titles || 0, mvps: a.mvps || 0, awards: (a.awards || []).slice(), log: (a.log || []).slice(), totals: Object.assign({}, a.totals || {}), growthLog: (a.growthLog || []).slice(), projection: a.projection || null, heightFinal: a.heightFinal } };
   if (a.cash > 0) c.me.money += Math.round(a.cash); // R5: what you saved in high school comes with you (R6: and your NIL money)
   c.me.agent = a.agent || null; // R6: the agent you signed on the way to the draft (+10% on every contract, 4% of your salary)
-  c.me.gear = Object.assign({}, a.gear || {}); // F8: your gear comes with you
+  c.me.gear = JSON.parse(JSON.stringify(a.gear || {})); // F8: your gear comes with you (V11: a copy: the shop's state is nested)
   const rng = careerRng(c); const used = new Set([a.name]);
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
   rng.shuffle(pool);
@@ -11977,7 +12015,7 @@ function engineDef(c, id, opts) {
     if (opts.week) { const e = wkEff(p.r, p.h, me, opts.oppId); for (const k of RATING_KEYS) attrs[k] = ratingToAttr(e[k]); } // a career game: this week's fatigue, film, confidence and injury
     look = proLook(c, look); // the Office's looks and your gear (F8)
   }
-  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), sagaClutch: p.isMe ? sagaClutchOf(c.me) : 0, /* V7 */ staffClutch: p.isMe ? staffClutchB(c.me) : 0, /* V10: the mental coach */ id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
+  return Object.assign({ name: p.name, nick: p.nick, arch: p.arch, height: p.h, wing: p.wing, attrs, look, moves: learnedMoves(p, p.isMe ? c.me : null), isMe: !!p.isMe, traits: traitIdsFor(p.isMe ? c.me : p), traitLv: trLevels(p.isMe ? c.me : p), sagaClutch: p.isMe ? sagaClutchOf(c.me) : 0, /* V7 */ staffClutch: p.isMe ? staffClutchB(c.me) : 0, /* V10: the mental coach */ stamMul: p.isMe && opts.week && c.me.wk && c.me.wk.drink ? 1 + GEAR.drinkStamina : 1, /* V11: a sports drink */ id: p.id, crowd: p.isMe ? opts.crowd || 0 : 0 }, p.isMe ? {} : scoutDef(p, c.seed)); // R8: crowd: your hype's home crowd (make chance +); V4: an opponent's personality and tendencies
 }
 function clubKit(clubId, away) { const t = clubOf(clubId); const kit = Object.assign({}, t); if (away) { kit.colors = [t.colors[1], t.colors[0]]; if (luminance(kit.colors[0]) < 0.25 && luminance(t.colors[0]) < 0.25) kit.colors = ['#F3F0FF', t.colors[0]]; } return kit; }
 function matchTeamDef(c, id, away, opts) { const p = c.players[id]; const kit = clubKit(p.club, away); return Object.assign({}, kit, { name: p.name, abbr: p.nick.toUpperCase().slice(0, 4), personality: archPersonality(p.arch), players: [engineDef(c, id, opts)] }); }
@@ -12175,6 +12213,7 @@ function finishWeek(c, rec) {
 function weeklyFinance(c, rec) {
   const M = c.me; let inc = 0, exp = 0; for (const e of M.endorsements) { inc += e.weekly; e.weeks--; } M.endorsements = M.endorsements.filter(e => e.weeks > 0); inc = Math.round(inc * mdSponsorMul(M)); if (M.sponsorCut > 0) M.sponsorCut--; // R8: a sponsor pulling back after a fine
   inc = Math.round(inc * (1 - staffAgentCut(c))); /* V10: the agent's cut */ exp = proStaffCost(M, c); earn(c, inc); M.money -= exp; if (rec) { rec.endorse = inc; rec.staffCost = exp; } proWeekMoney(c, rec); /* V10: the staff's salaries; the shoe line's royalties */
+  { let up = 0; for (const it of PR.lifestyle) { if (!(M.lifestyle && M.lifestyle[it.id])) continue; up += it.upkeep || 0; const W = it.weekly || {}; if (W.hype) M.hype = Math.min(MD.hypeMax, (M.hype || 0) + W.hype); if (W.conf) M.confidence = Math.min(MD.confMax, (M.confidence || 0) + W.conf); if (W.fame) M.fame = Math.min(100, (M.fame || 0) + W.fame); } if (up) { M.money -= up; if (rec) rec.upkeep = up; } } /* V11 (Part 2 §5.1): lifestyle's weekly effects, and its upkeep */
   if (M.money < 0) { const S = staffOf(c); for (const role of STAFF_ROLES) if (role !== 'agent' && S[role]) { S[role] = null; S.pool[role] = null; } pushNews(c, 'Money ran out: ' + meOf(c).name + ' let the staff go.', 'money'); tlAdd(c, 'staff', 'Money ran out: let the staff go'); M.money = Math.max(M.money, 0); } // V10: everyone on a salary (the agent takes a cut)
 }
 function weeklyEndorsementOffers(c) {
@@ -12479,7 +12518,7 @@ function amApplyResult(c, opp, my, their, st, simmed) {
   const grade = gradeFor(st, won, gameScale('pro')); /* V6: the grade pays XP (CR.gradeXp); the pro scale, like the league's lines */ L.games[L.games.length - 1].grade = grade; const slump = slumpAfterGame(c, grade); /* V6 (§1.2) */
   const movesBefore = movesFor(effRatings(c.r, c.height), trMoveEarly(c)); const Pg = c.stage === 'college' ? c.program : null; const gains = developFromGame(c.r, c.xp, c.caps, (CR.trainFocus[c.focus] || CR.trainFocus.shooting).split, c.age, st, won, simmed, c.wk && c.wk.done === 'practice' ? WK.practiceFocusMul : 1, (Pg ? 1 + RCT.facXp * ((Pg.fac || 1) - 1) : 1) * hsXpMul(c) * colXpMul(c), c, gameScale(c.stage), grade); // F5: a one-minute line counts per the old length
   if (Pg && Pg.focus && CR.trainFocus[Pg.focus]) { const F = CR.trainFocus[Pg.focus].split, add = {}; for (const k in F) add[k] = gains.pool * RCT.coachXp * F[k]; for (const g2 of spendXp(c.r, c.xp, c.caps, add, potsOf(c, c.caps))) gains.push(g2); } // the college coach's specialty
-  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trDeed(c, 'moves', learned.length); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
+  const wk = wkAfterGame(c, rng, {}); hsGradeWeek(c); /* (V11: family help is in there, for bench weeks too) */ colStockGame(c, opp, won, st, po); colAfterWeek(c, rng, opp, won, st, po); /* R6: scouts, NIL */ const tag = !po ? hsGameTag(c, L.week - 1) : ''; const learned = newMovesSince(movesBefore, movesFor(effRatings(c.r, c.height), trMoveEarly(c))); trDeed(c, 'moves', learned.length); trustAfterGame(c, won, my, their); trustAfterWeek(c, wk.plan, wk.fatigueBefore); // R4: coach trust
   // the story: hype and confidence, records, the rival, the press room, headlines (before the season can end)
   storyFill(c); const md = mdAfterGame(c, won, my, their); { const hv = mdHighlights(c, st, gameScale(c.stage)); if (tag === 'rivalry' && hv > 0) c.hype = Math.min(MD.hypeMax, c.hype + hv * (HS.rivalryHype - 1)); } /* R5: the rivalry game's highlights count half again */ const recs = checkRecords(c.records, st, T.g - 1); recordsAfterGame(c, st, true); /* V8: the records book */ const oppOvr = ovrOf(opp.r, opp.height);
   if (opp.rival) h2hAdd(c, won); mdGrudgeDone(c, opp.id); // R8: a trash-talked opponent has had their shot
@@ -12583,7 +12622,7 @@ function amCombine(c) {
 }
 
 // ---------------- the match: you against one opponent ----------------
-function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c), traitLv: trLevels(c), sagaClutch: sagaClutchOf(c) }; } // F8: in your gear; V7: the mentor's clutch edge
+function amPlayerDef(c, oppId) { const eff = wkEff(c.r, c.height, c, oppId); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return { name: c.name, nick: c.name.split(' ')[0], arch: c.style, height: c.height, wing: c.wing, attrs, look: gearLook(c, Object.assign({}, c.look, { number: c.number })), moves: movesFor(eff, trMoveEarly(c)), isMe: true, traits: traitIdsFor(c), traitLv: trLevels(c), sagaClutch: sagaClutchOf(c), stamMul: c.wk && c.wk.drink ? 1 + GEAR.drinkStamina : 1 }; } // F8: in your gear; V7: the mentor's clutch edge; V11: a sports drink
 // fire: an opponent you trash-talked or a fired-up rival plays you this much better (every rating; R8)
 function amOppDef(o, fire) { const eff = effRatings(o.r, o.height); if (fire) for (const k of RATING_KEYS) eff[k] = Math.min(CR.ratingMax, eff[k] + fire); const attrs = {}; for (const k of RATING_KEYS) attrs[k] = ratingToAttr(eff[k]); return Object.assign({ name: o.name, nick: o.nick, arch: o.style, height: o.height, wing: o.wing || 1.03, attrs, look: o.look, moves: movesFor(eff), traits: traitIdsFor(o), traitLv: trLevels(o) }, scoutDef(o)); } // V4: and their personality and tendencies // V3: an opponent's trait plays (it showed on previews since V1)
 function amAbbr(name, other) { const parts = String(name).split(' '); const last = (parts[parts.length - 1] || String(name)).toUpperCase(); let a = last.slice(0, 3); if (other && other === a) a = ((parts[0] || 'X')[0] + last.slice(0, 2)).toUpperCase(); return a; }
@@ -12839,7 +12878,7 @@ function wkEff(r, h, B, oppId) {
   if (B.injury) e.spd -= WK.injurySpd;
   if (w.done === 'film' && (w.filmOpp == null || oppId == null || w.filmOpp === oppId)) { const fb = trFilmBonus(B); e.def += fb; e.sho += fb; } // Film Junkie: double
   e.sho += confShoOf(B) + (B.slump && B.slump.on ? MD.slump.sho : 0); // confidence: ±0.2 Shooting at most (the press room); V6 (§1.2): a slump −0.2 until you snap out of it
-  const cut = fatigueCut(B.fatigue); for (const k of RATING_KEYS) e[k] = clamp(e[k] * (1 - cut), CR.ratingMin, CR.ratingMax);
+  const cut = fatigueCut(B.fatigue) * (w.drink ? 1 - GEAR.drinkStamina : 1); for (const k of RATING_KEYS) e[k] = clamp(e[k] * (1 - cut), CR.ratingMin, CR.ratingMax); // V11: a sports drink halves it
   return e;
 }
 // One line for the hub, the pregame and the result screens: what the week does to your game.
@@ -12873,7 +12912,7 @@ function wkFilm(B, oppId) { const w = wkOf(B); if (w.done) return false; w.done 
 // and can hurt you.
 function wkPractice(B, r, xpBank, caps, focus, xpIn, intensity, rng) {
   const w = wkOf(B); if (w.done) return null; const F = CR.trainFocus[focus] || CR.trainFocus.shooting, I = WK.intensity[intensity] || WK.intensity.normal;
-  const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k] * trRatingXpMul(B, k) * staffSkillsMulB(B, k); // V3: a trait's rating XP; V10: the skills coach's two skills
+  const add = {}; for (const k in F.split) add[k] = xpIn * F.split[k] * trRatingXpMul(B, k) * staffSkillsMulB(B, k) * gearXpMul(B, k); // V3: a trait's rating XP; V10: the skills coach's two skills; V11: training gear
   const gains = gainsMap(spendXp(r, xpBank, caps, add, potsOf(B, caps))); // V6: past your potential it costs more
   w.done = 'practice'; w.xp = Math.round(xpIn); B.plan = 'practice'; B.fatigue = clamp((B.fatigue || 0) + I.fatigue * trMul(B, 'fatigue'), 0, 100); trDeed(B, 'practice', 1); // V3: Iron Man and Unbreakable tire slower; Gym Rat's deed
   let injury = null; if (I.risk && injuriesOn() && !B.injury && rng.next() < I.risk * trMul(B, 'injury') * staffInjuryMulB(B)) injury = wkInjure(B, rng); // Iron Man ×0.6, Unbreakable never; V10: the physio
@@ -13260,7 +13299,7 @@ function scoutWeak(r, h) { if (!r) return null; const e = effRatings(r, h); let 
 // The card: { pers, persName, persWhat, tend: [shown ids], more: hidden count, weak, weakText, tip, boss, film }.
 // opts: { film: this opponent was filmed this week, junkie: Film Junkie (always reads all four) }
 function scoutCard(rec, r, h, opts) {
-  opts = opts || {}; const S = scoutOf(rec, opts.salt); if (!S) return null; const all = !!(opts.film || opts.junkie), n = all ? SC.filmShown : SC.shown;
+  opts = opts || {}; const S = scoutOf(rec, opts.salt); if (!S) return null; const all = !!(opts.film || opts.junkie), n = Math.min(S.tend.length, (all ? SC.filmShown : SC.shown) + (opts.extra || 0)); /* V11: a film session shows more */
   const tend = S.tend.slice(0, n), weak = scoutWeak(r, h), W = weak ? SC.weak[weak] : null; const tipT = tend.find(t => SC.tend[t].side === 'o') || tend[0];
   const tip = tipT ? SC.tend[tipT].tip : W ? W[1] : 'An even matchup. The better read wins.';
   return { pers: S.pers, persName: scoutPersName(S.pers), persWhat: SC.pers[S.pers].what, tend, more: Math.max(0, S.tend.length - tend.length), weak, weakText: W ? W[0] : 'No clear weakness', weakTip: W ? W[1] : '', tip, film: all, boss: !!opts.boss };
@@ -13300,7 +13339,7 @@ function amTipOff(game) {
 function amPregameScreen(game) {
   const c = amateurOf(game), nx = c && amNext(c); if (!nx || !nx.opp) return amHub(game); const o = nx.opp, P = game.ui.phone; let t = 0;
   const film = c.plan === 'film' || (c.wk && c.wk.done === 'film' && (c.wk.filmOpp == null || c.wk.filmOpp === o.id));
-  const D = scoutCard(o, o.r, o.height, { film, junkie: hasTrait(c, 'filmjunkie'), boss: amIsBoss(c, o) }), kit = amKit(c), def = amDrawDef(c);
+  const D = scoutCard(o, o.r, o.height, { film, junkie: hasTrait(c, 'filmjunkie'), boss: amIsBoss(c, o), extra: c.wk && c.wk.filmPlus ? GEAR.filmTells : 0 }), kit = amKit(c), def = amDrawDef(c);
   const items = [btn('TIP OFF', 0, 0, 0, 0, () => amTipOff(game), { primary: true }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
   if (P) phoneGrid(game.ui, items, 400, UI_H - tapH(game.ui, 44) - 14, 480, 2, 0, 12); else { Object.assign(items[0], { x: 470, y: 616, w: 220, h: 54 }); Object.assign(items[1], { x: 700, y: 616, w: 110, h: 54 }); }
   const myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age };
@@ -13791,7 +13830,7 @@ function teamScreen(game) {
   const T = c.team, ui = game.ui, P = ui.phone; const items = [btn('Back', 0, 0, 0, 0, () => game.ui.pop()), btn('Depth chart', 0, 0, 0, 0, () => game.ui.push(ladderScreen(game)))];
   const L0 = ladderOf(c) || [], rk = id => { const i = L0.indexOf(id); return i < 0 ? 99 : i; }; const roster = teamRoster(c).sort((a, b) => rk(a.id) - rk(b.id)); const st = { page: 0 }; /* R4: in depth-chart order */ const per = P ? 4 : 8, pages = Math.max(1, Math.ceil(roster.length / per));
   if (pages > 1) items.push(btn('◀ Page', 0, 0, 0, 0, () => { st.page = (st.page + pages - 1) % pages; }), btn('Page ▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages; }));
-  const shop = btn('Gear shop', 450, 640, 200, 48, () => game.ui.push(gearScreen(game))); items.push(shop); /* F8 */
+  const shop = btn('The shop', 450, 640, 200, 48, () => game.ui.push(shopScreen(game))); items.push(shop); /* F8; V11: the shop */
   if (P) phoneGrid(ui, items, 40, UI_H - tapH(ui, 44) - 14, 1200, items.length, 0, 10); else { Object.assign(items[0], { x: 60, y: 640, w: 170, h: 48 }); Object.assign(items[1], { x: 240, y: 640, w: 200, h: 48 }); if (items[2] && items[2] !== shop) { Object.assign(items[2], { x: 900, y: 640, w: 150, h: 48 }); Object.assign(items[3], { x: 1062, y: 640, w: 150, h: 48 }); } }
   const rt = pro ? (c.rivalId && c.players[c.rivalId] ? { name: clubOf(c.players[c.rivalId].club).name, colors: clubOf(c.players[c.rivalId].club).colors } : null) : tmRivalTeam(am);
   const meRec = pro ? { name: meOf(c).name, r: meOf(c).r, height: meOf(c).h, look: meOf(c).look } : { name: am.name, r: am.r, height: am.height, look: Object.assign({}, am.look, { number: am.number }) };
@@ -14454,7 +14493,7 @@ function roadReward(c, r) {
   const cash = n => { n = Math.round(n || 0); if (pro) earn(c, n); else c.cash = (c.cash || 0) + n; return gearMoney(n); };
   if (r.reward === 'cash') line = cash(r.cash) + ' in your pocket.';
   else if (r.reward === 'trait') { const id = roadTraitFor(B), T = traitsOf(B); if (id && T) { const L = trLvOf(B, id) + 1; (T.lv || (T.lv = {}))[id] = L; (T.pend || (T.pend = [])).push({ kind: 'traitlevel', trait: id, level: L }); line = TR.list[id].name + ' goes up to ' + trLevelName(L) + '.'; } else line = cash(ROAD.fallbackCash[stg]) + ' (your traits are at their top level).'; }
-  else if (r.reward === 'gear') { const it = GEAR_ITEMS.find(x => x.id === r.gear), l = gearLevel(B, r.gear); if (it && l < GEAR.levels) { gearOf(B)[r.gear] = l + 1; line = GEAR_LEVEL[l + 1] + ' ' + it.name.toLowerCase() + ', free: ' + gearEffect(it, l + 1) + '.'; } else line = cash(ROAD.fallbackCash[stg]) + ' (that gear is already Elite).'; }
+  else if (r.reward === 'gear') { const it = gearItem(r.gear); if (it && !gearOf(B).owned[r.gear]) { const had = Object.keys(gearOf(B).owned).filter(o => GEAR_SIG[o]).length; gearGive(B, r.gear); line = 'a signature collab, ' + it.name.toLowerCase() + ' (' + gearEffectText(it, gearOf(B).owned[r.gear]) + '), and you\'re wearing them' + (had ? '. Your other collabs go up a level.' : '.'); } else line = cash(ROAD.fallbackCash[stg]) + '.'; } /* V11: a signature collab (legendary, GEAR.sigStart, lifting the others a level), not money */
   const next = roadNext(c), M = isPro(c) ? meOf(c) : null, club = M ? clubOf(M.club) : null;
   const lines = r.id === 'team5' ? ['The ' + (club ? club.name : 'franchise') + ' are a 5★ franchise, and you are on their roster. That was the goal.', r.reward !== 'none' ? 'Reward: ' + line : '', 'Now earn the start. Their bench is the best in the league.'] : r.id === 'team3' ? ['The ' + (club ? club.name : 'franchise') + ' are a 3★ franchise. Better gym, bigger crowds, better pay.', 'Reward: ' + line, 'Keep climbing. The 5★ teams are watching the same tape everyone is.'] : [r.what, r.reward !== 'none' ? 'Reward: ' + line : 'Your legacy is set.', next ? 'Next on the road: ' + next.label.toLowerCase() + '.' : 'Every milestone done.'];
   if (!(typeof window !== 'undefined' && window.HH_NO_ROAD_CARDS)) (c.events || (c.events = [])).push({ kind: 'road', id: r.id, title: r.label, reward: line, goal: !!r.goal, lines: lines.filter(Boolean) }); // (the scripted tests leave the card out unless they ask for it, like the first-time tips)
@@ -14514,7 +14553,7 @@ function roadCardScreen(game, c, ev, done) {
 // The whole road: every milestone, what it takes, its reward, and when you reached it.
 function roadScreen(game) {
   const ui = game.ui, P = ui.phone, c = careerOf(game) || amateurOf(game); const items = [btn('Back', 0, 0, 0, 0, () => ui.pop())]; if (P) phoneGrid(ui, items, 980, UI_H - tapH(ui, 44) - 14, 260, 1, 0, 0); else Object.assign(items[0], { x: 1040, y: 640, w: 200, h: 52 });
-  let t = 0; const rewardText = r => r.reward === 'cash' ? '+' + gearMoney(r.cash) : r.reward === 'trait' ? 'A trait level' : r.reward === 'gear' ? (GEAR_ITEMS.find(x => x.id === r.gear) || { name: 'Gear' }).name : 'Your legacy';
+  let t = 0; const rewardText = r => r.reward === 'cash' ? '+' + gearMoney(r.cash) : r.reward === 'trait' ? 'A trait level' : r.reward === 'gear' ? (gearItem(r.gear) || { name: 'Gear' }).name : 'Your legacy';
   return { widgets: items, name: 'road', update(dt) { t += dt; }, onBack() { ui.pop(); },
     draw(ctx, ui) {
       if (!c) return; const R = roadOf(c), B = roadBanner(c); ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'ROAD TO THE LEAGUE', 64, 70, P ? 40 : 40);
@@ -14658,7 +14697,7 @@ function hsFinish(c) { const L = c.league; if (!L || !L.format) return ''; if (L
 
 // ---------------- grades ----------------
 function hsGpaLetter(g) { return g >= 3.85 ? 'A' : g >= 3.5 ? 'A−' : g >= 3.15 ? 'B+' : g >= 2.85 ? 'B' : g >= 2.5 ? 'B−' : g >= 2.15 ? 'C+' : g >= 1.85 ? 'C' : g >= 1.5 ? 'C−' : 'D'; }
-function hsGradeWeek(c) { schoolGradeWeek(c); } // every week of games, high school and college (V9; a Study week adds its + at once)
+function hsGradeWeek(c) { schoolGradeWeek(c); if (c.stage === 'hs' && !(c.league && c.league.playoffs)) c.cash = (c.cash || 0) + GEAR.familyHelp; } // every week of games, high school and college (V9; a Study week adds its + at once). V11 (Part 2 §5.3, 2.0 §5.3): your family chips in every regular-season week of high school, played or on the bench
 function wkStudy(B) { const w = wkOf(B); if (w.done) return null; hsFill(B); const before = B.gpa; B.gpa = Math.round(clamp(B.gpa + HS.studyGpa, 0, 4) * 100) / 100; B.fatigue = Math.max(0, (B.fatigue || 0) - HS.studyRest); w.done = 'study'; return { before, after: B.gpa }; } // a Study week isn't sticky: next week's AUTO plan is still yours
 function hsReportCard(c, when) { return amReportCard(c, when); } // V9: one report card for both levels (172_school.js)
 
@@ -15361,7 +15400,6 @@ function staffMigrate(c, old) {
   const S = { v: 2, pool: {}, poolSeason: 0, picks: null }; for (const r of STAFF_ROLES) S[r] = null; const o = old || {}, rng = new RNG((hashString(c.seed + ':staffmig') >>> 0) || 5); c.me.staff = S;
   const tr = clamp(Math.max(o.trainer | 0, o.shooting | 0, o.skills | 0), 0, 3), sk = tr ? Math.min(4, tr + 1 + (o.coach ? 1 : 0)) : o.coach ? 2 : 0; /* a 1–3 trainer: 2–4★ (the private coach: one more) */
   if (sk) S.skills = staffMake(c, 'skills', sk, 'oldschool', rng); if (o.nutrition || o.physio) { S.physio = staffMake(c, 'physio', 3, 'players', rng); S.nutrition = staffMake(c, 'nutrition', 3, 'analytics', rng); }
-  if ((o.strength | 0) >= 3) S.strength = staffMake(c, 'strength', 2, 'drill', rng);
   if (c.me.agent) { const a = staffMake(c, 'agent', 2, 'straight', rng); a.name = String(c.me.agent); a.look = stLookFor('staff:agent:' + a.name); S.agent = a; }
   return S;
 }
@@ -15765,81 +15803,212 @@ function socialPress(c, P, a) {
 }
 
 // ============================================================================
-// SECTION: SAVE / PROGRESSION + UI (part 9) — F8, gear (the user: "add items you can buy to improve some stuff, nothing
-// too broken though"). Six pieces, three levels each (Basic, Pro, Elite). Four add a little to one rating in games; two
-// cut injuries and fatigue. You pay with your cash (high school, college) or your money (the pros), and your gear comes
-// along when you turn pro. Your OVR and your value to the franchises don't change: gear is an edge on game day.
+// SECTION: SAVE / PROGRESSION (part 9) — V11 (Part 2 §5): THE PRO SHOP. What F8's six pieces became: items you wear in
+// five slots (shoes, socks, a sleeve, a headband, wristbands: each adds to one rating in games), two training items
+// (practice XP in one rating) and one recovery item (fatigue or injuries). Items come common, rare or epic: levels 1–2,
+// 1–3 or 1–4, each level +1 to the effect. The signature collabs (legendary) come from the Road to the League, not the
+// till. Gear never adds more than +4 to one rating. Six items in the shop a week, one featured; prices by the stage
+// you're at; a locker for what you own. Your OVR and your value to the franchises don't change: gear is an edge on game
+// day (F8's rule). Also here: the week's consumables (an ice bath, a film session, a sports drink).
 // ============================================================================
 const GEAR = CONFIG.gear;
-const GEAR_ITEMS = [
-  { id: 'shoes', name: 'Court shoes', rating: 'spd', what: 'Speed' },
-  { id: 'insoles', name: 'Spring insoles', rating: 'jmp', what: 'Hops' },
-  { id: 'sleeve', name: 'Shooter\'s sleeve', rating: 'sho', what: 'Shooting' },
-  { id: 'wristbands', name: 'Grip wristbands', rating: 'han', what: 'Handles' },
-  { id: 'braces', name: 'Ankle braces', what: 'injuries' },
-  { id: 'recovery', name: 'Recovery kit', what: 'fatigue' },
-];
-const GEAR_LEVEL = ['Not owned', 'Basic', 'Pro', 'Elite'];
-function gearOf(B) { if (!B) return {}; if (!B.gear || typeof B.gear !== 'object') B.gear = {}; return B.gear; }
-function gearLevel(B, id) { return clamp(B && B.gear ? (B.gear[id] | 0) : 0, 0, GEAR.levels); }
-// The ratings your gear adds in games ({ sho: 2, ... }).
-function gearBonus(B) { const o = {}; for (const it of GEAR_ITEMS) if (it.rating) { const l = gearLevel(B, it.id); if (l) o[it.rating] = (o[it.rating] || 0) + l * GEAR.rating; } return o; }
-function gearInjuryMul(B) { return 1 - GEAR.injury * gearLevel(B, 'braces'); }
-function gearRegen(B) { return GEAR.regen * gearLevel(B, 'recovery'); }
-function gearEffect(it, l) { return it.rating ? '+' + l * GEAR.rating + ' ' + it.what + ' in games' : it.id === 'braces' ? 'injury chance −' + Math.round(100 * GEAR.injury * l) + '%' : '−' + GEAR.regen * l + ' fatigue a game'; }
-// Everything you wear, in one line ('Shooting +2 · Speed +1 · injuries −10%'), or ''.
-function gearSummary(B) { const out = []; for (const it of GEAR_ITEMS) { const l = gearLevel(B, it.id); if (!l) continue; out.push(it.rating ? it.what + ' +' + l * GEAR.rating : it.id === 'braces' ? 'injuries −' + Math.round(100 * GEAR.injury * l) + '%' : 'fatigue −' + GEAR.regen * l + ' a game'); } return out.join(' · '); }
-// The money: an amateur's cash, a pro's money.
+const GEAR_SLOTS = [['shoes', 'Shoes'], ['socks', 'Socks'], ['sleeve', 'Sleeve'], ['head', 'Headband'], ['wrist', 'Wristbands'], ['train1', 'Training'], ['train2', 'Training'], ['recovery', 'Recovery']];
+const GEAR_RARITY = ['common', 'rare', 'epic', 'legendary'];
+const GEAR_RARITY_INFO = { common: ['Common', '#B8BCC8'], rare: ['Rare', '#4FA3FF'], epic: ['Epic', '#B36BFF'], legendary: ['Legendary', '#FFD23F'] }; // [name, its glow]
+// A family: what it is, its slot ('train' fits either training slot), what it does (a rating in games, practice XP in a
+// rating, fatigue, injuries) and its icon (178_gear_art.js).
+const GEAR_FAM = {
+  courtShoes: { name: 'Court shoes', slot: 'shoes', kind: 'rating', k: 'spd', icon: 'shoe' },
+  springTops: { name: 'Spring high-tops', slot: 'shoes', kind: 'rating', k: 'jmp', icon: 'hightop' },
+  gripSocks: { name: 'Grip socks', slot: 'socks', kind: 'rating', k: 'spd', icon: 'sock' },
+  springInsoles: { name: 'Spring insoles', slot: 'socks', kind: 'rating', k: 'jmp', icon: 'insole' },
+  shooterSleeve: { name: 'Shooter\'s sleeve', slot: 'sleeve', kind: 'rating', k: 'sho', icon: 'sleeve' },
+  compSleeve: { name: 'Compression sleeve', slot: 'sleeve', kind: 'rating', k: 'def', icon: 'sleeve' },
+  sweatband: { name: 'Sweatband', slot: 'head', kind: 'rating', k: 'fin', icon: 'headband' },
+  mouthguard: { name: 'Mouthguard', slot: 'head', kind: 'rating', k: 'str', icon: 'mouthguard' },
+  gripBands: { name: 'Grip wristbands', slot: 'wrist', kind: 'rating', k: 'han', icon: 'wristband' },
+  shooterBands: { name: 'Shooter\'s wristbands', slot: 'wrist', kind: 'rating', k: 'sho', icon: 'wristband' },
+  shootingMachine: { name: 'Shooting machine', slot: 'train', kind: 'xp', k: 'sho', icon: 'machine' },
+  weightedVest: { name: 'Weighted vest', slot: 'train', kind: 'xp', k: 'str', icon: 'vest' },
+  dribbleGoggles: { name: 'Dribble goggles', slot: 'train', kind: 'xp', k: 'han', icon: 'goggles' },
+  plyoBox: { name: 'Plyo box', slot: 'train', kind: 'xp', k: 'jmp', icon: 'box' },
+  agilityLadder: { name: 'Agility ladder', slot: 'train', kind: 'xp', k: 'spd', icon: 'ladder' },
+  finishingPads: { name: 'Finishing pads', slot: 'train', kind: 'xp', k: 'fin', icon: 'pads' },
+  slideSled: { name: 'Slide sled', slot: 'train', kind: 'xp', k: 'def', icon: 'sled' },
+  recoveryBoots: { name: 'Recovery boots', slot: 'recovery', kind: 'regen', icon: 'boots' },
+  kneeBrace: { name: 'Knee brace', slot: 'recovery', kind: 'injury', icon: 'brace' },
+};
+// The signature collabs: legendary, Lv4, and +1 to a second rating (inside the cap). The Road to the League gives them.
+const GEAR_SIG = {
+  sigShoes: { base: 'courtShoes', name: 'Signature shoes', also: 'jmp' },
+  sigSleeve: { base: 'shooterSleeve', name: 'Signature sleeve', also: 'fin' },
+  sigBands: { base: 'gripBands', name: 'Signature wristbands', also: 'sho' },
+};
+// An item: a family and a rarity ('courtShoes:rare'), or a collab ('sigShoes').
+function gearItem(id) {
+  if (GEAR_SIG[id]) { const S = GEAR_SIG[id], F = GEAR_FAM[S.base]; return Object.assign({}, F, { id, fam: S.base, rarity: 'legendary', name: S.name, max: GEAR.maxLv.legendary, also: S.also, sig: true }); }
+  const [fam, rarity] = String(id || '').split(':'), F = GEAR_FAM[fam]; if (!F || !GEAR.maxLv[rarity] || rarity === 'legendary') return null;
+  return Object.assign({}, F, { id, fam, rarity, max: GEAR.maxLv[rarity] });
+}
+function gearFits(it, slot) { return !!it && (it.slot === slot || (it.slot === 'train' && (slot === 'train1' || slot === 'train2'))); }
+// What an item does at a level, in a line ('Speed +2 in games', 'Shooting practice XP +15%', ...).
+function gearEffectText(it, lv, short) {
+  if (!it) return ''; if (it.kind === 'rating') return RATING_LONG[it.k] + ' +' + lv + (it.also ? ', ' + RATING_LONG[it.also] + ' +1' : '') + (short ? '' : ' in games');
+  if (it.kind === 'xp') return RATING_LONG[it.k] + ' practice XP +' + Math.round(100 * GEAR.xpPerLv * lv) + '%';
+  if (it.kind === 'regen') return 'Fatigue −' + GEAR.regenPerLv * lv + ' a game';
+  return 'Injury risk −' + Math.round(100 * GEAR.injuryPerLv * lv) + '%';
+}
+
+// ---------------- the state, on the holder (an amateur career, or a pro's c.me) ----------------
+// { v: 2, owned: { id: level }, eq: { slot: id }, stock: { key, ids, featured, sold, fresh }, seen: { id: 1 }, used: { key, ice, film, drink } }
+function gearOf(B) {
+  if (!B) return { v: 2, owned: {}, eq: {} }; let G = B.gear; if (!G || typeof G !== 'object' || G.v !== 2) G = B.gear = gearMigrate(G);
+  if (!G.owned || typeof G.owned !== 'object') G.owned = {}; if (!G.eq || typeof G.eq !== 'object') G.eq = {}; if (!G.seen || typeof G.seen !== 'object') G.seen = {};
+  for (const id in G.owned) { const it = gearItem(id); if (!it) delete G.owned[id]; else G.owned[id] = clamp(G.owned[id] | 0, 1, it.max); }
+  for (const s in G.eq) if (!G.owned[G.eq[s]] || !gearFits(gearItem(G.eq[s]), s)) delete G.eq[s];
+  return G;
+}
+// F8's { piece: level 1–3 } (Basic, Pro, Elite): a common, rare or epic item at that level, worn. The ankle braces
+// become a knee brace; when a recovery kit was there too, the better of the two is worn and the other waits in the locker.
+function gearMigrate(old) {
+  const G = { v: 2, owned: {}, eq: {}, seen: {} }, o = old && typeof old === 'object' ? old : {}, map = { shoes: 'courtShoes', insoles: 'springInsoles', sleeve: 'shooterSleeve', wristbands: 'gripBands', braces: 'kneeBrace', recovery: 'recoveryBoots' };
+  for (const piece in map) { const l = clamp(o[piece] | 0, 0, 3); if (!l) continue; const id = map[piece] + ':' + GEAR_RARITY[l - 1], it = gearItem(id); G.owned[id] = l; const slot = it.slot; if (!G.eq[slot] || (G.owned[G.eq[slot]] || 0) < l) G.eq[slot] = id; }
+  return G;
+}
+// What you wear: [[item, level], ...] in slot order.
+function gearWorn(B) { const G = gearOf(B), out = []; for (const [s] of GEAR_SLOTS) { const id = G.eq[s]; if (!id) continue; const it = gearItem(id); if (it) out.push([it, G.owned[id] | 0, s]); } return out; }
+// The ratings your gear adds in games ({ sho: 2, ... }), never more than GEAR.cap in one rating.
+function gearBonusRaw(B) { const o = {}; for (const [it, lv] of gearWorn(B)) { if (it.kind !== 'rating') continue; o[it.k] = (o[it.k] || 0) + lv; if (it.also) o[it.also] = (o[it.also] || 0) + 1; } return o; }
+function gearBonus(B) { const o = gearBonusRaw(B); for (const k in o) o[k] = Math.min(GEAR.cap, o[k]); return o; }
+function gearXpMul(B, k) { let x = 0; for (const [it, lv] of gearWorn(B)) if (it.kind === 'xp' && it.k === k) x += GEAR.xpPerLv * lv; return 1 + Math.min(GEAR.xpCap, x); } // practice XP in rating k
+function gearInjuryMul(B) { let m = 1; for (const [it, lv] of gearWorn(B)) if (it.kind === 'injury') m -= GEAR.injuryPerLv * lv; return Math.max(0, m); }
+function gearRegen(B) { let r = 0; for (const [it, lv] of gearWorn(B)) if (it.kind === 'regen') r += GEAR.regenPerLv * lv; return r; }
+// Everything you wear, in one line ('Shooting +2 · Speed +1 · injuries −16%'), or ''.
+function gearSummary(B) {
+  const out = [], b = gearBonus(B); for (const k of RATING_KEYS) if (b[k]) out.push(RATING_LONG[k] + ' +' + b[k]);
+  for (const [it, lv] of gearWorn(B)) { if (it.kind === 'xp') out.push(RATING_LONG[it.k] + ' XP +' + Math.round(100 * GEAR.xpPerLv * lv) + '%'); if (it.kind === 'regen') out.push('fatigue −' + GEAR.regenPerLv * lv + ' a game'); if (it.kind === 'injury') out.push('injuries −' + Math.round(100 * GEAR.injuryPerLv * lv) + '%'); }
+  return out.join(' · ');
+}
+
+// ---------------- money and prices ----------------
 // Money in the shop: exact under $10K ($2,500, not $3K), then the usual $250K and $1.2M.
 function gearMoney(n) { n = Math.round(n || 0); return Math.abs(n) < 1e4 ? (n < 0 ? '−$' : '$') + String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : fmtMoney(n); }
-function gearWallet(c) { return isPro(c) ? (c.me.money || 0) : (c.cash || 0); }
-function gearNextPrice(B, id) { const l = gearLevel(B, id); return l >= GEAR.levels ? null : GEAR.price[l]; }
-function gearBuy(c, id) {
-  const B = holderOf(c), it = GEAR_ITEMS.find(x => x.id === id); if (!it) return false; const price = gearNextPrice(B, id); if (price == null || gearWallet(c) < price) return false;
-  if (isPro(c)) c.me.money -= price; else c.cash = (c.cash || 0) - price; gearOf(B)[id] = gearLevel(B, id) + 1; return true;
+function gearWallet(c) { return isPro(c) ? (c.me.money || 0) : (c.cash || 0); } // an amateur's cash, a pro's money
+function gearPay(c, n) { if (isPro(c)) c.me.money = (c.me.money || 0) - n; else c.cash = (c.cash || 0) - n; }
+function gearStage(c) { return isPro(c) ? 'pro' : c && (c.stage === 'college' || c.stage === 'combine') ? 'college' : 'hs'; } // the price list you pay from
+function gearPrice(c, it, lv) { const row = it && GEAR.price[gearStage(c)][it.rarity]; return row && row[lv - 1] != null ? row[lv - 1] : null; } // level lv's price (Lv1: to buy it)
+function gearNextPrice(c, id) { const it = gearItem(id), lv = gearOf(holderOf(c)).owned[id] | 0; return !it || it.sig || lv >= it.max ? null : gearPrice(c, it, lv + 1); } // the next level's (to buy, or upgrade)
+
+// ---------------- the week's stock ----------------
+function gearWeekKey(c) { return isPro(c) ? 'p' + (c.season || 1) + '.' + (c.phase === 'offseason' ? 'off' : c.week || 0) : (c.stage || 'hs') + (c.season || 1) + '.' + ((c.league && c.league.week) || 0); }
+// Six items (no two alike, no collabs), rarities by the stage, one featured, now and then one sold out (S.sold[id]: 'out'
+// when other shoppers took it, 1 when you bought it). New: never in the shop before.
+function gearStock(c) {
+  const B = holderOf(c), G = gearOf(B), key = gearWeekKey(c); if (G.stock && G.stock.key === key && Array.isArray(G.stock.ids)) return G.stock;
+  const rng = new RNG((hashString('stock:' + (c.seed || c.name || 1) + ':' + key) >>> 0) || 11), odds = GEAR.rarityOdds[gearStage(c)], fams = Object.keys(GEAR_FAM), ids = [];
+  for (let t = 0; t < 60 && ids.length < GEAR.stock; t++) { const f = fams[rng.int(fams.length)], x = rng.next(), r = x < odds[0] ? 'common' : x < odds[0] + odds[1] ? 'rare' : 'epic', id = f + ':' + r; if (!ids.some(i => i.split(':')[0] === f)) ids.push(id); }
+  const fresh = ids.filter(id => !G.seen[id]); for (const id of ids) G.seen[id] = 1; const featured = rng.int(ids.length), sold = {};
+  if (ids.length > 1 && rng.next() < GEAR.soldOut) { let k = rng.int(ids.length - 1); if (k >= featured) k++; sold[ids[k]] = 'out'; } // other shoppers got there first
+  return (G.stock = { key, ids, featured, sold, fresh });
 }
-// What your gear shows on your player: the sleeve, the wristbands, and shoes by level (white, black and pink, gold);
-// signature shoes from the Office's looks win over them.
-const GEAR_SHOES = [null, ['#F3F0FF', '#1B1B22'], ['#1B1B22', '#FF4FA3'], ['#FFD23F', '#1A1206']];
-function gearLook(B, look) { const o = Object.assign({}, look); if (gearLevel(B, 'sleeve')) o.sleeves = true; if (gearLevel(B, 'wristbands')) o.wristbands = true; const s = gearLevel(B, 'shoes'); if (s && !o.shoes) o.shoes = GEAR_SHOES[s]; return o; }
+function gearStockPrice(c, id) { const S = gearStock(c), it = gearItem(id), p = gearPrice(c, it, 1); if (p == null) return null; return S.ids[S.featured] === id ? Math.round(p * (1 - GEAR.featuredOff) / 10) * 10 : p; }
+// Buying from the stock: Lv1 into your locker, worn at once if its slot is free. Returns false without the money.
+function gearBuy(c, id) {
+  const B = holderOf(c), G = gearOf(B), S = gearStock(c), it = gearItem(id); if (!it || !S.ids.includes(id) || S.sold[id] || G.owned[id]) return false; const price = gearStockPrice(c, id); if (price == null || gearWallet(c) < price) return false;
+  gearPay(c, price); G.owned[id] = 1; S.sold[id] = 1; const slot = gearFreeSlot(G, it); if (slot) G.eq[slot] = id; gearSpent(B, price); return true;
+}
+// Upgrading an item you own: the next level at today's prices.
+function gearUpgrade(c, id) { const B = holderOf(c), G = gearOf(B), it = gearItem(id), price = gearNextPrice(c, id); if (!G.owned[id] || price == null || gearWallet(c) < price) return false; gearPay(c, price); G.owned[id]++; gearSpent(B, price); return true; }
+function gearSpent(B, n) { B.gearSpent = (B.gearSpent || 0) + n; } // (the career simulator's money report)
+// The slot an item goes to: its own, or a free training slot (null when it's taken: the locker's Wear swaps).
+function gearFreeSlot(G, it) { if (it.slot !== 'train') return G.eq[it.slot] ? null : it.slot; return !G.eq.train1 ? 'train1' : !G.eq.train2 ? 'train2' : null; }
+// Wear an item you own (it swaps with what's in its slot; a training item takes the first training slot that's free,
+// else the first), or take it off.
+function gearEquip(B, id, slot) { const G = gearOf(B), it = gearItem(id); if (!it || !G.owned[id]) return false; for (const s in G.eq) if (G.eq[s] === id) delete G.eq[s]; const sl = slot && gearFits(it, slot) ? slot : gearFreeSlot(G, it) || (it.slot === 'train' ? 'train1' : it.slot); G.eq[sl] = id; return true; }
+function gearUnequip(B, id) { const G = gearOf(B); let n = 0; for (const s in G.eq) if (G.eq[s] === id) { delete G.eq[s]; n++; } return n > 0; }
+function gearWearing(B, id) { const G = gearOf(B); for (const s in G.eq) if (G.eq[s] === id) return s; return null; }
+// A free item (a Road reward: a collab): into the locker and worn. A collab comes at GEAR.sigStart and lifts the collabs
+// you already have a level (a free item that isn't a collab comes at its top level).
+function gearGive(B, id) { const G = gearOf(B), it = gearItem(id); if (!it) return false; if (it.sig) { for (const o in G.owned) { const oi = gearItem(o); if (oi && oi.sig && o !== id) G.owned[o] = Math.min(oi.max, G.owned[o] + 1); } G.owned[id] = Math.max(G.owned[id] || 0, Math.min(it.max, GEAR.sigStart)); } else G.owned[id] = it.max; G.seen[id] = 1; for (const s in G.eq) if (G.eq[s] === id) delete G.eq[s]; G.eq[it.slot === 'train' ? 'train1' : it.slot] = id; return true; }
+// Trying an item on: your ratings in games now, and with it worn in its slot (what it replaces comes off).
+function gearTryOn(B, id) {
+  const it = gearItem(id); if (!it) return null; const before = gearBonus(B), G = gearOf(B), keep = JSON.stringify({ eq: G.eq, owned: G.owned });
+  try { if (!G.owned[id]) G.owned[id] = 1; const slot = it.slot === 'train' ? (gearWearing(B, id) || gearFreeSlot(G, it) || 'train1') : it.slot; for (const s in G.eq) if (G.eq[s] === id) delete G.eq[s]; G.eq[slot] = id; return { before, after: gearBonus(B), raw: gearBonusRaw(B), xp: it.kind === 'xp' ? [gearXpMul(B, it.k)] : null }; }
+  finally { const k = JSON.parse(keep); G.eq = k.eq; G.owned = k.owned; }
+}
+
+// ---------------- the week's consumables: once a week each ----------------
+const GEAR_USE = { ice: ['Ice bath', 'Fatigue −' + GEAR.iceBath + ' now'], film: ['Film session', 'Their scouting card shows ' + GEAR.filmTells + ' more of their tendencies this week'], drink: ['Sports drink', '+' + Math.round(GEAR.drinkStamina * 100) + '% stamina this game'] }; // 2.0 §4.3
+function gearUsed(c) { const B = holderOf(c), G = gearOf(B), key = gearWeekKey(c); if (!G.used || G.used.key !== key) G.used = { key }; return G.used; }
+function gearConsumePrice(c) { return GEAR.consumable[gearStage(c)]; }
+function gearCanConsume(c, kind) { return !!GEAR_USE[kind] && !gearUsed(c)[kind] && gearWallet(c) >= gearConsumePrice(c); }
+function gearConsume(c, kind) {
+  if (!gearCanConsume(c, kind)) return false; const B = holderOf(c), U = gearUsed(c), price = gearConsumePrice(c); gearPay(c, price); gearSpent(B, price); U[kind] = 1; const W = wkOf(B);
+  if (kind === 'ice') B.fatigue = Math.max(0, (B.fatigue || 0) - GEAR.iceBath); if (kind === 'film') W.filmPlus = true; if (kind === 'drink') W.drink = true; return true;
+}
+
+// A lifestyle buy's weekly effect and upkeep (V11, Part 2 §5.1): 'Hype +0.3 a week · upkeep $1,000 a week' (short: '... · $1,000 upkeep').
+function lifeWeeklyText(it, short) { const W = it.weekly || {}, names = { hype: 'Hype', conf: 'Confidence', fame: 'Fame' }, out = []; for (const k in W) out.push(names[k] + ' +' + W[k] + ' a week'); if (it.upkeep) out.push(short ? gearMoney(it.upkeep) + ' upkeep' : 'upkeep ' + gearMoney(it.upkeep) + ' a week'); return out.join(' · '); }
+
+// ---------------- what your gear shows on your player ----------------
+// Colors by rarity: a sleeve, headband or wristband's band; shoes (upper, accent); socks (sock, stripe). A collab is gold.
+const GEAR_BAND = { common: '#F3F0FF', rare: '#4FA3FF', epic: '#B36BFF', legendary: '#FFD23F' };
+const GEAR_SHOE_COLORS = { common: ['#F3F0FF', '#1B1B22'], rare: ['#1B1B22', '#4FA3FF'], epic: ['#2A1840', '#B36BFF'], legendary: ['#FFD23F', '#1A1206'] };
+const GEAR_SOCK_COLORS = { common: ['#F3F0FF', '#1B1B22'], rare: ['#F3F0FF', '#4FA3FF'], epic: ['#1B1B22', '#B36BFF'], legendary: ['#FFD23F', '#1A1206'] };
+function gearLook(B, look) {
+  const o = Object.assign({}, look), W = {}; for (const [it, , s] of gearWorn(B)) W[s] = it;
+  if (W.sleeve) { o.sleeves = true; o.sleeveColor = GEAR_BAND[W.sleeve.rarity]; }
+  if (W.wrist) { o.wristbands = true; o.wristColor = GEAR_BAND[W.wrist.rarity]; }
+  if (W.head && W.head.fam === 'sweatband') { o.headband = true; o.headbandColor = GEAR_BAND[W.head.rarity]; } /* (a mouthguard doesn't show) */
+  if (W.shoes && !o.shoes) o.shoes = GEAR_SHOE_COLORS[W.shoes.rarity].slice();
+  if (W.socks && W.socks.fam !== 'springInsoles') o.socks = GEAR_SOCK_COLORS[W.socks.rarity].slice(); /* (insoles don't show) */
+  return o;
+}
 // A pro's look with the Office's looks (headband, sleeve, signature shoes) and the gear on.
 function proLook(c, look) { const M = c.me, C = M.cosmetics || {}; return gearLook(M, Object.assign({}, look, { headband: !!C.headband && C.headbandOn, sleeves: !!C.sleeves && C.sleevesOn, shoes: C.shoes ? SIGNATURE_SHOES[(C.shoes - 1) % SIGNATURE_SHOES.length] : null })); }
 
-// ---------------- the shop (from the high school and college hub, the Team screen and the Office) ----------------
-// A row per piece: its name and what you have, the level pips, and the next level's price (gold when you can pay).
-function drawGearRow(ctx, b, focused, ui, c) {
-  const B = holderOf(c), it = b.gear, l = gearLevel(B, it.id), price = gearNextPrice(B, it.id), can = price != null && gearWallet(c) >= price; b.enabled = true;
-  kitButton(ctx, Object.assign({}, b, { primary: false, enabled: price != null }), focused, ui.t, {}); const h = b.h - kitBtnLip(b), y1 = b.y + h * 0.33, y2 = b.y + h * 0.7, ink = price == null ? 'rgba(243,240,255,0.75)' : UI_TEXT;
-  ctx.textBaseline = 'middle'; ui.heading(ctx, it.name, b.x + 16, y1, 16, ink, 'left', b.w * 0.56); ui.label(ctx, l ? GEAR_LEVEL[l] + ' · ' + gearEffect(it, l) : 'Not owned yet', b.x + 16, y2, 12, l ? '#FFE9A6' : 'rgba(243,240,255,0.7)', 'left', b.w * 0.62);
-  for (let k = 0; k < GEAR.levels; k++) { ctx.fillStyle = k < l ? UI_GOLD : 'rgba(0,0,0,0.35)'; ctx.fillRect(b.x + b.w - 16 - (GEAR.levels - k) * 16, y1 - 5, 12, 10); } /* the level pips */
-  ui.label(ctx, price == null ? 'MAXED' : (l ? 'Upgrade ' : 'Buy ') + gearMoney(price), b.x + b.w - 16, y2, 13, price == null ? UI_GREEN : can ? UI_GOLD : '#FFB0B0', 'right', b.w * 0.36);
+// ============================================================================
+// SECTION: UI (part 19) — V11 (Part 2 §5.2): the shop's pixel item icons. Each is a 16×16 map: k ink, b the item's base
+// color, a its accent (both by rarity), w white, s a sole's gray, g metal, d dark, c ice blue, y yellow, r red. Painted
+// once per icon and rarity into a 16×16 canvas and drawn scaled, pixels kept sharp.
+// ============================================================================
+const GEAR_ICON_MAPS = {
+  shoe: ['................', '................', '................', '................', '......kkkk......', '.....kbbbbk.....', '....kbbaabbk....', '...kbbbbbbbbkk..', '..kbbbbbbbbbbbk.', '.kbbbbaaaaabbbk.', '.kbbbbbbbbbbbbk.', '.kssssssssssssk.', '..kkkkkkkkkkkk..', '................', '................', '................'],
+  hightop: ['................', '.....kkkkk......', '....kbbbbbk.....', '....kbaabbk.....', '....kbbbbbk.....', '....kbbaabk.....', '....kbbbbbkk....', '...kbbbbbbbbkk..', '..kbbbbbbbbbbbk.', '.kbbbaaaaabbbbk.', '.kbbbbbbbbbbbbk.', '.kssssssssssssk.', '..kkkkkkkkkkkk..', '................', '................', '................'],
+  sock: ['................', '.....kkkkk......', '.....kaaak......', '.....kbbbk......', '.....kaaak......', '.....kbbbk......', '.....kbbbk......', '.....kbbbk......', '.....kbbbbk.....', '.....kbbbbbkk...', '....kbbbbbbbbk..', '....kbbbbbbbbk..', '.....kkkkkkkk...', '................', '................', '................'],
+  insole: ['................', '......kkkk......', '.....kaaaak.....', '....kaabbaak....', '....kabbbbak....', '....kabbbbak....', '....kabbbbak....', '.....kabbak.....', '.....kabbak.....', '....kabbbbak....', '....kabbbbak....', '....kaabbaak....', '.....kaaaak.....', '......kkkk......', '................', '................'],
+  sleeve: ['................', '....kkkkkkkk....', '....kaaaaaak....', '....kbbbbbbk....', '....kbbbbbbk....', '....kbbbbbbk....', '.....kbbbbk.....', '.....kbbbbk.....', '.....kbbbbk.....', '.....kbbbbk.....', '.....kbbbbk.....', '.....kaaaak.....', '.....kkkkkk.....', '................', '................', '................'],
+  headband: ['................', '................', '................', '....kkkkkkkk....', '...kaaaaaaaak...', '..kabbbbbbbbak..', '..kab......bak..', '..kab......bak..', '..kabbbbbbbbak..', '...kaaaaaaaak...', '....kkkkkkkk....', '................', '................', '................', '................', '................'],
+  mouthguard: ['................', '................', '................', '................', '...kkkkkkkkkk...', '..kbbbbbbbbbbk..', '..kbwwwwwwwwbk..', '..kbbbbbbbbbbk..', '...kbbkkkkbbk...', '....kk....kk....', '................', '................', '................', '................', '................', '................'],
+  wristband: ['................', '................', '................', '................', '....kkkkkkkk....', '...kaaaaaaaak...', '...kbbbbbbbbk...', '...kbbbbbbbbk...', '...kbbbbbbbbk...', '...kaaaaaaaak...', '....kkkkkkkk....', '................', '................', '................', '................', '................'],
+  machine: ['...kkkkkkkkkk...', '...kggggggggk...', '...kgkwwwwkgk...', '...kgkwkwkkgk...', '...kgkwwwwkgk...', '...kgkkwwkkgk...', '...kggggggggk...', '....kgk..kgk....', '....kgk..kgk....', '...kaaak.kgk....', '..kaaaaak.kgk...', '..kaaaaak..kgk..', '...kaaak...kgk..', '....kkk....kkk..', '................', '................'],
+  vest: ['................', '....kk....kk....', '...kbbk..kbbk...', '...kbbbkkbbbk...', '..kbbbbbbbbbbk..', '..kbaabbbbaabk..', '..kbaabbbbaabk..', '..kbbbbbbbbbbk..', '..kbaabbbbaabk..', '..kbaabbbbaabk..', '..kbbbbbbbbbbk..', '...kkkkkkkkkk...', '................', '................', '................', '................'],
+  goggles: ['................', '................', '................', '................', '.kkkkkkkkkkkkkk.', 'kaaaaaaaaaaaaaak', 'kakccckkkkccckak', 'kakccckaakccckak', 'kakccckkkkccckak', 'kaaaaaaaaaaaaaak', '.kkkkkkkkkkkkkk.', '................', '................', '................', '................', '................'],
+  box: ['................', '................', '...kkkkkkkkkk...', '..kbbbbbbbbbbk..', '..kbaaaaaaaabk..', '..kbbbbbbbbbbk..', '..kbbbbbbbbbbk..', '..kbbbbbbbbbbk..', '..kbbbbbbbbbbk..', '..kbbbbbbbbbbk..', '..kkkkkkkkkkkk..', '................', '................', '................', '................', '................'],
+  ladder: ['..k..........k..', '..kaaaaaaaaaak..', '..k..........k..', '..k..........k..', '..kaaaaaaaaaak..', '..k..........k..', '..k..........k..', '..kaaaaaaaaaak..', '..k..........k..', '..k..........k..', '..kaaaaaaaaaak..', '..k..........k..', '................', '................', '................', '................'],
+  pads: ['................', '....kkkkkkkk....', '...kbbbbbbbbk...', '..kbbaabbaabbk..', '..kbbbbbbbbbbk..', '..kbbaabbaabbk..', '..kbbbbbbbbbbk..', '..kbbaabbaabbk..', '...kbbbbbbbbk...', '....kkkkkkkk....', '.....kddddk.....', '.....kkkkkk.....', '................', '................', '................', '................'],
+  sled: ['................', '................', '..kk........kk..', '..kak......kak..', '...kak....kak...', '....kkkkkkkk....', '...kbbbbbbbbk...', '...kbaaaaaabk...', '..kkkkkkkkkkkk..', '.kssssssssssssk.', 'kkkkkkkkkkkkkkkk', '................', '................', '................', '................', '................'],
+  boots: ['....kkkk........', '...kbbbbk.......', '...kbaabk.......', '...kbbbbk.......', '...kbaabk.......', '...kbbbbk.......', '...kbaabkkkk....', '...kbbbbbbbbkk..', '..kbbbbbbbbbbbk.', '..kaaaaaaaaaaak.', '...kkkkkkkkkkk..', '................', '................', '................', '................', '................'],
+  brace: ['.....kkkkkk.....', '.....kbbbbk.....', '.....kbbbbk.....', '....kgbbbbgk....', '....kgkaakgk....', '....kgkaakgk....', '....kgbbbbgk....', '.....kbbbbk.....', '.....kbbbbk.....', '.....kkkkkk.....', '................', '................', '................', '................', '................', '................'],
+  ice: ['................', '...kk.....kk....', '..kcwk...kcwk...', '..kcck...kcck...', '.kkkkkkkkkkkkkk.', '.kccccccccccccck', '.kcwccccwcccccck', '.kccccccccccwcck', '..kccccccccccck.', '..kgggggggggggk.', '...kkkkkkkkkkk..', '................', '................', '................', '................', '................'],
+  film: ['................', '....kkkkkkkk....', '...kddddddddk...', '..kddwddddwddk..', '..kddddkkddddk..', '..kdwddkkddwdk..', '..kddddddddddk..', '..kddwddddwddk..', '...kddddddddk...', '....kkkkkkkk....', '..kkkkkkkkkkkk..', '..kyykyykyykyk..', '..kkkkkkkkkkkk..', '................', '................', '................'],
+  drink: ['......kkkk......', '......kddk......', '.....kkkkkk.....', '....kbbbbbbk....', '....kbbbbbbk....', '....kaaaaaak....', '....kawwwwak....', '....kaaaaaak....', '....kbbbbbbk....', '....kbbbbbbk....', '....kbbbbbbk....', '.....kkkkkk.....', '................', '................', '................', '................'],
+};
+const GEAR_ICON_INK = { k: '#1A1626', w: '#F3F0FF', s: '#C9CED8', g: '#8A8FA3', d: '#3A3550', c: '#9BE7FF', y: '#FFD23F', r: '#E24C4C' };
+const _gearIconCache = new Map();
+function gearIconCanvas(icon, rarity) {
+  const key = icon + '|' + rarity; let cv = _gearIconCache.get(key); if (cv) return cv;
+  const map = GEAR_ICON_MAPS[icon] || GEAR_ICON_MAPS.box, R = rarity || 'common', base = (GEAR_SHOE_COLORS[R] || GEAR_SHOE_COLORS.common)[0], band = GEAR_BAND[R] || GEAR_BAND.common;
+  const col = R === 'common' ? { b: '#C9CED8', a: '#7D8396' } : { b: base, a: band }; /* (common: light and mid gray, so its shape reads) */ cv = document.createElement('canvas'); cv.width = cv.height = 16; const g = cv.getContext('2d');
+  for (let y = 0; y < 16; y++) { const row = map[y] || ''; for (let x = 0; x < 16; x++) { const ch = row[x]; if (!ch || ch === '.') continue; g.fillStyle = col[ch] || GEAR_ICON_INK[ch] || '#FF00FF'; g.fillRect(x, y, 1, 1); } }
+  _gearIconCache.set(key, cv); return cv;
 }
-function gearRows(game, c, refresh) {
-  const B = holderOf(c);
-  return GEAR_ITEMS.map(it => ({ kind: 'custom', gear: it, label: it.name, x: 0, y: 0, w: 0, h: 0, enabled: true,
-    onPress() { const l = gearLevel(B, it.id), price = gearNextPrice(B, it.id); if (price == null) { game.ui.toastMsg(it.name + ': maxed out.'); return; } if (gearWallet(c) < price) { game.ui.toastMsg(GEAR_LEVEL[l + 1] + ' ' + it.name.toLowerCase() + ' cost ' + gearMoney(price) + '. You have ' + gearMoney(gearWallet(c)) + '.'); return; }
-      if (gearBuy(c, it.id)) { game.save.save(); game.audio.ui('coin'); game.ui.toastMsg(it.name + ': ' + GEAR_LEVEL[l + 1] + ' · ' + gearEffect(it, l + 1) + '.'); refresh(); } },
-    draw(ctx, focused, ui) { drawGearRow(ctx, this, focused, ui, c); } }));
-}
-// Lays the rows out: a desktop column (x, y, w), or a phone's grid of two columns under the title.
-function layoutGearRows(ui, rows, x, y, w) { if (ui.phone) { phoneGrid(ui, rows, 40, 96, 1200, 2, 0, 8); return; } rows.forEach((b, i) => Object.assign(b, { x, y: y + i * 76, w, h: 68 })); }
-// The side panel: your player in the gear and what it adds up to.
-function drawGearSide(ctx, ui, c, x, y, w, t) {
-  const B = holderOf(c), me = isPro(c) ? meOf(c) : null, def = isPro(c) ? drawDefOf(me, c) : amDrawDef(c), kit = isPro(c) ? clubOf(me.club) : amKit(c);
-  drawPlatform(ctx, x + w / 2, y + 330, 120, kit.colors); drawMannequin(ctx, def, kit, x + w / 2, y + 330, 300, 'hyped', 1, t || 0);
-  ui.heading(ctx, 'ON GAME DAY', x, y + 372, 15, UI_CYAN, 'left', w); ui.para(ctx, gearSummary(B) || 'Nothing yet. Every piece is a small edge, in games only.', x, y + 398, w, 14, UI_TEXT, 'left', 3);
-}
-function gearScreen(game) {
-  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const P = game.ui.phone; let t = 0;
-  const rows = gearRows(game, c, () => game.ui.replace(gearScreen(game))), back = btn('Back', 40, 650, 200, 44, () => game.ui.pop()); const items = rows.concat([back]);
-  layoutGearRows(game.ui, rows, 60, 150, 640); phoneBar(game.ui, [back], null, 40, 300);
-  return { widgets: items, name: 'gear', update(dt) { t += dt; },
-    draw(ctx, ui) {
-      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'GEAR SHOP', 44, 56, 38); ui.heading(ctx, (isPro(c) ? '' : 'Cash ') + gearMoney(gearWallet(c)), 1236, 50, 22, UI_GOLD, 'right');
-      if (P) { ui.label(ctx, gearSummary(holderOf(c)) || 'Small edges, in games only. Your OVR doesn\'t change.', 360, UI_H - tapH(ui, 44) - 50, 15, UI_DIM, 'left', 880); return; }
-      ui.para(ctx, 'Small edges on game day. Your OVR and value don\'t change; your gear comes with you to the pros.', 60, 106, 640, 14, UI_DIM, 'left', 2);
-      kitPanel(ctx, 740, 96, 500, 540, 'rgba(8,12,36,0.55)'); drawGearSide(ctx, ui, c, 770, 120, 440, t);
-    } };
+// An icon at x, y, size px square, with its rarity's glow behind it when asked (common gray, rare blue, epic purple, legendary gold).
+function drawGearIcon(ctx, icon, x, y, size, rarity, glow) {
+  try {
+    if (glow) { const gc = GEAR_BAND[rarity] || GEAR_BAND.common, gr = ctx.createRadialGradient(x + size / 2, y + size / 2, size * 0.1, x + size / 2, y + size / 2, size * 0.72); gr.addColorStop(0, rgba(gc, rarity === 'common' ? 0.28 : 0.55)); gr.addColorStop(1, rgba(gc, 0)); ctx.fillStyle = gr; ctx.fillRect(x - size * 0.25, y - size * 0.25, size * 1.5, size * 1.5); }
+    const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false; ctx.drawImage(gearIconCanvas(icon, rarity), x, y, size, size); ctx.imageSmoothingEnabled = sm;
+  } catch (e) { /* an icon is decoration */ }
 }
 
 // ============================================================================
@@ -15895,10 +16064,12 @@ function guideEntries(game, topic) {
   }
   if (topic === 'body') {
     const fa = B ? B.fatigue || 0 : 0, cut = fatigueCut(fa), ch = WK.injuryBase + WK.injuryPerFatigue * fa;
-    add('Fatigue', c ? Math.round(fa) + ' / 100' : '', ['Above ' + WK.fatigueFreeAt + ', every rating drops by (fatigue − ' + WK.fatigueFreeAt + ')% in games' + (c ? ' (now: ' + (cut > 0 ? '−' + guidePct(cut, 0) : 'none') + ').' : '.'), 'A game adds ' + WK.fatiguePerGame + (B && gearRegen(B) ? ' (your recovery kit takes ' + gearRegen(B) + ' off)' : '') + '; a Rest week takes ' + WK.restFatigue + ' off; a week on the bench, ' + TM.benchRecovery + '.']);
-    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. Ankle braces, a physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.', 'An injury can also cost rating points for good: a 1-game knock ' + guidePct(WK.injuryLoss.odds[0], 0) + ' of the time (' + guidePts(WK.injuryLoss.pts[0]) + '), 2 games ' + guidePct(WK.injuryLoss.odds[1], 0) + ' (' + guidePts(WK.injuryLoss.pts[1]) + '), 3 games ' + guidePct(WK.injuryLoss.odds[2], 0) + ' (' + guidePts(WK.injuryLoss.pts[2]) + '): Speed for an ankle, a hamstring or a foot, Hops for a knee or a calf. A physio cuts those odds too.']);
+    add('Fatigue', c ? Math.round(fa) + ' / 100' : '', ['Above ' + WK.fatigueFreeAt + ', every rating drops by (fatigue − ' + WK.fatigueFreeAt + ')% in games' + (c ? ' (now: ' + (cut > 0 ? '−' + guidePct(cut, 0) : 'none') + ').' : '.'), 'A game adds ' + WK.fatiguePerGame + (B && gearRegen(B) ? ' (your recovery boots take ' + gearRegen(B) + ' off)' : '') + '; a Rest week takes ' + WK.restFatigue + ' off; a week on the bench, ' + TM.benchRecovery + '.']);
+    add('Injuries', B ? (B.injury ? B.injury.games + ' game' + (B.injury.games === 1 ? '' : 's') + ' out' : 'healthy') : '', ['The chance each game is ' + guidePct(WK.injuryBase) + ' + ' + guidePct(WK.injuryPerFatigue, 2) + ' per point of fatigue' + (c ? ' (now ' + guidePct(ch * gearInjuryMul(B)) + ')' : '') + '. A knee brace, a physio and some traits cut it.', 'Hurt, you lose ' + WK.injurySpd + ' Speed until you heal; a Rest week heals a game faster. Settings can turn injuries off.', 'An injury can also cost rating points for good: a 1-game knock ' + guidePct(WK.injuryLoss.odds[0], 0) + ' of the time (' + guidePts(WK.injuryLoss.pts[0]) + '), 2 games ' + guidePct(WK.injuryLoss.odds[1], 0) + ' (' + guidePts(WK.injuryLoss.pts[1]) + '), 3 games ' + guidePct(WK.injuryLoss.odds[2], 0) + ' (' + guidePts(WK.injuryLoss.pts[2]) + '): Speed for an ankle, a hamstring or a foot, Hops for a knee or a calf. A physio cuts those odds too.']);
     add('Slumps', B && B.slump && B.slump.on ? 'in a slump' : '', [MD.slump.games + ' games graded D or F in a row is a slump: confidence drops to ' + MD.slump.conf + ' and Shooting ' + MD.slump.sho + ' until a game graded B or better. Ice Veins never slumps.']); // V6 (Part 2 §1.2)
-    add('Gear', B ? gearSummary(B) || 'none yet' : '', ['Six pieces in the gear shop (Team → Gear shop; in the pros, the Office): +' + GEAR.rating + ' a level to one rating in games, fewer injuries, less fatigue.', 'Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']);
+    { const Pr = GEAR.price, rng = st => gearMoney(Pr[st].common[0]) + '–' + gearMoney(Pr[st].epic[3]); /* V11 (Part 2 §5): the shop */
+      add('Gear', B ? gearSummary(B) || 'none yet' : '', ['Five slots you wear (shoes, socks, a sleeve, a headband, wristbands): each item adds to one rating in games, +1 a level. Gear never adds more than +' + GEAR.cap + ' to one rating. Two training slots: practice XP +' + Math.round(GEAR.xpPerLv * 100) + '% a level in a rating (at most +' + Math.round(GEAR.xpCap * 100) + '%). One recovery slot: fatigue −' + GEAR.regenPerLv + ' a game a level, or injury risk −' + Math.round(GEAR.injuryPerLv * 100) + '% a level.', 'Common items go to level ' + GEAR.maxLv.common + ', rare to ' + GEAR.maxLv.rare + ', epic to ' + GEAR.maxLv.epic + '; the signature collabs (legendary) come from the Road to the League at level ' + GEAR.sigStart + ', and each new one lifts the others a level. Your OVR and value don\'t change, and your gear comes with you to the pros.']);
+      add('The shop', B ? SHOP_NAMES[gearStage(c)].toLowerCase().replace(/^the /, '') : '', ['Six items a week, one featured (' + Math.round(GEAR.featuredOff * 100) + '% off); each sells once. Prices go with the stage you\'re at: high school ' + rng('hs') + ', college ' + rng('college') + ', the pros ' + rng('pro') + '.', 'Extras, once a week each (' + gearMoney(GEAR.consumable.hs) + ', ' + gearMoney(GEAR.consumable.college) + ', ' + gearMoney(GEAR.consumable.pro) + '): an ice bath (fatigue −' + GEAR.iceBath + '), a film session (their scouting card shows ' + GEAR.filmTells + ' more of their tendencies) and a sports drink (+' + Math.round(GEAR.drinkStamina * 100) + '% stamina for one game).']); }
   }
   if (topic === 'team') {
     const lv = c ? teamLevel(c) : null, sg = v => (v > 0 ? '+' : '−') + Math.abs(v); /* F11: your team's level, and which level is better */
@@ -15913,8 +16084,8 @@ function guideEntries(game, topic) {
       add('Your pro stock', c ? 'score ' + sc + ' · ' + cap + '★ offers' : '', ['At the end of your amateur years three franchises make offers; the scouts\' score caps their stars: ' + [2, 3, 4, 5].map(k => k + '★ at ' + FRN.rookieBar[k - 1]).join(', ') + '.', 'Your OVR, your college games (marquee and tournament games count twice), titles, hype and your coach\'s word raise it.']); }
   }
   if (topic === 'money') {
-    if (pro) add('Money', fmtMoney(c.me.money || 0), ['Your salary every week, sponsors (more with hype), shoe royalties.', 'It pays your training staff, the home gym, gear, looks and your lifestyle; houses count in your net worth.']);
-    else add('Cash', c ? gearMoney(c.cash || 0) : '', ['A summer job pays $' + HS.jobPay.toLocaleString('en-US') + '; in college, NIL deals pay for appearances. A skills camp costs $' + HS.campCost + '.', 'Gear costs money too. What you save comes with you to the pros.']);
+    if (pro) add('Money', fmtMoney(c.me.money || 0), ['Your salary every week, sponsors (more with hype), shoe royalties.', 'It pays your staff, the home gym, gear, looks and your lifestyle: a car, a house or a mansion adds hype, confidence or fame every week and costs its upkeep. Houses count in your net worth.']);
+    else add('Cash', c ? gearMoney(c.cash || 0) : '', ['A summer job pays $' + HS.jobPay.toLocaleString('en-US') + ', and in high school your family chips in $' + GEAR.familyHelp + ' a game week; in college, NIL deals pay for appearances. A skills camp costs $' + HS.campCost + '.', 'The shop and its extras cost money too. What you save comes with you to the pros.']);
     if (!pro) { const E = SCH.exam, R = SCH.gpaReq; add('GPA', c && schoolOn(c) ? (c.gpa || 0).toFixed(2) + ' (' + hsGpaLetter(c.gpa || 0) + ')' : '', ['One GPA from 0.0 to 4.0, high school through college. Every game week takes ' + HS.gpaDrift + ' off (' + (HS.gpaDrift + SCH.majorDrift).toFixed(2) + ' in a major); a Study week (behind Rest) adds ' + HS.studyGpa + '. Under ' + HS.autoStudyAt.toFixed(1) + ', your coach makes the week a Study week.', 'A season is a semester: midterms after game ' + HS.reportWeek + ' (college: ' + SCH.collegeMidWeek + ') and finals before the last regular-season game. Before each: Cram (+' + E.cram[0] + ', fatigue +' + E.cram[1] + ', practice XP −' + Math.round(-E.cram[2] * 100) + '%), Balanced (+' + E.balanced[0] + ') or Skip (' + E.skip[0] + ', practice XP +' + Math.round(E.skip[2] * 100) + '%).', 'A report card under ' + HS.gpaMin.toFixed(1) + ' sits you ' + HS.ineligibleGames + ' games. In college, under ' + SCH.probationAt.toFixed(1) + ' is academic probation, and the scholarship is at risk.']); /* V9 (Part 2 §3) */
       add('College offers and money', c && c.stage === 'college' ? (c.scholarship === 'full' ? 'full ride' : c.scholarship === 'lost' ? 'no scholarship' : 'partial') : '', ['Every program has a GPA line: blue bloods ' + R.blue.toFixed(1) + ', elite academic programs ' + R.academic.toFixed(1) + ', everyone else ' + R.other.toFixed(1) + '. No offer comes under it, and a report card under it pulls one. Elite academic programs bring more exposure (×' + SCH.academicExposure + ') and NIL (×' + SCH.academicNil + ').', 'A full ride takes a ' + SCH.fullRideGpa.toFixed(1) + ' and ' + SCH.fullRideStars + '★ at commitment. Otherwise you pay ' + Math.round(SCH.partialShare * 100) + '% of $' + SCH.tuition.toLocaleString() + ' tuition every college season; short of cash, it\'s a student loan: what you have at the draft pays it, then your first paychecks.', 'Your major (picked at commitment) and a degree (' + SCH.degreeYears + ' college years, or summer classes in the pros at ' + fmtMoney(SCH.summerCost) + ') open the best endings: Kinesiology a head coach, Communications the national booth, Business the front office.']); }
     if (pro) { const D = schoolDegreeOf(c) || {}; add('Your degree', D.years >= SCH.degreeYears ? 'graduated' : (D.years || 0) + ' of ' + SCH.degreeYears + ' years', ['Summer classes in the offseason: ' + fmtMoney(SCH.summerCost) + ' for a year toward the degree (one a summer); practice XP −' + Math.round(-SCH.summerXp[0] * 100) + '% for the first ' + SCH.summerXp[1] + ' weeks of the season. Your college seasons count.', 'A degree opens the best version of an ending: Kinesiology a head coach, Communications the national booth, Business the front office (an elite academic school opens the last two).']); } /* V9 */
@@ -15972,6 +16143,164 @@ function statsGuideScreen(game, topic) {
 }
 // An entry's height at width w (the paragraphs wrapped the way drawGuideEntry wraps them).
 function guideEntryH(ctx, ui, e, w) { const split = guideSplit(ctx, e, w); ctx.font = fontStr(13, false); const lh = Math.max(13 * 1.35, rbLineH(ctx)); let h = 26 + (split ? 24 : 0); for (const [l] of e.lines) h += Math.min(6, rbWrap(ctx, l, w).length) * lh + 2; return h + 10; }
+
+// ============================================================================
+// SECTION: UI (part 20) — V11 (Part 2 §5.2): THE SHOP. A pixel storefront: the shopkeeper and a line, the week's six
+// items on two shelves (pixel icons, rarity glows, FEATURED, NEW and SOLD OUT), and Try it on: the item on your player
+// and what it does to your ratings, old → new. Three views: This week, Your locker (wear, take off, upgrade) and Extras
+// (the week's ice bath, film session and sports drink). A phone shows the shelves as cards that open the try-on.
+// ============================================================================
+const SHOP_NAMES = { hs: 'THE CORNER SHOP', college: 'CAMPUS SPORTS', pro: 'THE PRO SHOP' };
+const SHOP_KEEPERS = { hs: 'Mo', college: 'Rae', pro: 'Jules' }; // invented, and never gendered
+const SHOP_VIEWS = [['stock', 'This week'], ['locker', 'Your locker'], ['extras', 'Extras']];
+function shopKeeperDef(c) { const st = gearStage(c); return { name: SHOP_KEEPERS[st], look: stLookFor('shopkeeper:' + st), age: st === 'hs' ? 58 : st === 'college' ? 30 : 44 }; }
+function shopPlayerDef(c) { return isPro(c) ? drawDefOf(meOf(c), c) : amDrawDef(c); }
+function shopKit(c) { return isPro(c) ? clubOf(meOf(c).club) : amKit(c); }
+// The shopkeeper's line: what just happened, else the view's.
+function shopLine(c, st) {
+  const S = gearStock(c), f = gearItem(S.ids[S.featured]), cheap = S.ids.some(id => !S.sold[id] && !gearOf(holderOf(c)).owned[id] && gearWallet(c) >= gearStockPrice(c, id));
+  if (st.say) return st.say; if (st.view === 'locker') return 'Upgrades are where it adds up. Two things on one rating still stop at +' + GEAR.cap + '.';
+  if (st.view === 'extras') return 'One of each a week. An ice bath before a big game never hurt anybody.';
+  return !cheap ? 'Look all you like. New stock every week, and your wallet will catch up.' : 'This week\'s pick: the ' + (f ? f.name.toLowerCase() : 'gear') + ', ' + Math.round(GEAR.featuredOff * 100) + '% off. New stock every week.';
+}
+// What an item does, short, for a shelf card ('Speed +1', 'Shooting XP +5%', 'Fatigue −1 a game', 'Injury risk −8%'),
+// and its best (at its top level: '+2', '+15%', '−3', '−24%').
+function shopCardText(it, lv) {
+  if (it.kind === 'rating') return RATING_LONG[it.k] + ' +' + lv + (it.also ? ', ' + RATING_LONG[it.also] + ' +1' : '');
+  if (it.kind === 'xp') return RATING_LONG[it.k] + ' XP +' + Math.round(100 * GEAR.xpPerLv * lv) + '%';
+  return it.kind === 'regen' ? 'Fatigue −' + GEAR.regenPerLv * lv + ' a game' : 'Injury risk −' + Math.round(100 * GEAR.injuryPerLv * lv) + '%';
+}
+function shopTopVal(it) { const m = it.max; return it.kind === 'rating' ? '+' + m : it.kind === 'xp' ? '+' + Math.round(100 * GEAR.xpPerLv * m) + '%' : it.kind === 'regen' ? '−' + GEAR.regenPerLv * m : '−' + Math.round(100 * GEAR.injuryPerLv * m) + '%'; }
+function shopSlotName(it) { return it.slot === 'train' ? 'Training' : GEAR_SLOTS.find(s => s[0] === it.slot)[1]; }
+// The try-on's lines: each rating it moves, "SPEED 68 → 71" (its own rating even when the cap stops it), or its effect.
+function shopRatingLines(c, id) {
+  const B = holderOf(c), T = gearTryOn(B, id), it = gearItem(id); if (!T || !it) return []; const r = isPro(c) ? meOf(c).r : c.r, out = [], own = it.kind === 'rating' ? [it.k].concat(it.also ? [it.also] : []) : [];
+  for (const k of RATING_KEYS) { const a = T.before[k] || 0, b = T.after[k] || 0; if (a === b && !own.includes(k)) continue; out.push([RATING_LONG[k].toUpperCase() + ' ' + Math.round(r[k] + a) + ' → ' + Math.round(r[k] + b), b > a ? UI_GREEN : b < a ? '#FF8A8A' : UI_DIM, (T.raw[k] || 0) > GEAR.cap ? 'capped at +' + GEAR.cap : '']); }
+  if (it.kind === 'xp') out.push([RATING_LONG[it.k].toUpperCase() + ' PRACTICE XP +' + Math.round((T.xp[0] - 1) * 100) + '%', UI_GREEN, '']);
+  if (it.kind === 'regen') out.push(['FATIGUE −' + GEAR.regenPerLv * (gearOf(B).owned[id] || 1) + ' A GAME', UI_GREEN, '']); if (it.kind === 'injury') out.push(['INJURY RISK −' + Math.round(100 * GEAR.injuryPerLv * (gearOf(B).owned[id] || 1)) + '%', UI_GREEN, '']);
+  return out;
+}
+// What trying it on takes off ('Replaces your court shoes (Lv 2)'), or ''.
+function shopReplaces(c, id) {
+  const B = holderOf(c), G = gearOf(B), it = gearItem(id); if (!it || gearWearing(B, id)) return ''; const slot = it.slot === 'train' ? (gearFreeSlot(G, it) ? null : 'train1') : it.slot, on = slot && G.eq[slot];
+  return on ? 'Replaces your ' + gearItem(on).name.toLowerCase() + ' (Lv ' + G.owned[on] + ')' : '';
+}
+// What a stock item costs, or why you can't have it.
+function shopCardPrice(c, id) { const S = gearStock(c), G = gearOf(holderOf(c)); if (G.owned[id]) return ['IN YOUR LOCKER', UI_CYAN]; if (S.sold[id]) return ['BACK NEXT WEEK', UI_DIM]; const p = gearStockPrice(c, id); return [gearMoney(p), gearWallet(c) >= p ? UI_GOLD : '#FF8A8A']; }
+// A shelf card: the icon in its rarity's glow, the name, rarity and slot, what it does at Lv1 and at its top, the price.
+function drawShopCard(ctx, ui, w, focused, c, id, sel, P) {
+  const it = gearItem(id), S = gearStock(c), R = GEAR_RARITY_INFO[it.rarity], feat = S.ids[S.featured] === id, owned = !!gearOf(holderOf(c)).owned[id], sold = !!S.sold[id] && !owned /* (sold to someone else) */, new_ = (S.fresh || []).includes(id), [pt, pc] = shopCardPrice(c, id), x = w.x, y = w.y, cx = x + w.w / 2, tw = w.w - 20;
+  kitPanel(ctx, x, y, w.w, w.h, sel ? 'rgba(46,36,8,0.92)' : 'rgba(12,16,42,0.9)', { accent: R[1] }); if (focused || sel) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 3; ctx.beginPath(); roundRectPath(ctx, x + 1.5, y + 1.5, w.w - 3, w.h - 3, 12); ctx.stroke(); }
+  const isz = P ? 84 : 80; drawGearIcon(ctx, it.icon, cx - isz / 2, y + (P ? 18 : 16), isz, it.rarity, true);
+  ui.heading(ctx, it.name, cx, y + (P ? 120 : 112), P ? 19 : 15, UI_TEXT, 'center', tw);
+  ui.label(ctx, R[0] + ' · ' + shopSlotName(it), cx, y + (P ? 146 : 136), P ? 15 : 12, R[1], 'center', tw);
+  if (P) ui.label(ctx, shopCardText(it, 1) + (it.max > 1 ? ' (to ' + shopTopVal(it) + ')' : ''), cx, y + 170, 15, UI_GREEN, 'center', tw);
+  else { ui.label(ctx, shopCardText(it, 1), cx, y + 158, 12, UI_GREEN, 'center', tw); if (it.max > 1) ui.label(ctx, 'up to ' + shopTopVal(it) + ' at Lv' + it.max, cx, y + 178, 12, UI_DIM, 'center', tw); }
+  const py = y + w.h - (P ? 24 : 22);
+  if (feat && !sold && pt[0] === '$') { ui.label(ctx, gearMoney(gearPrice(c, it, 1)), cx - 44, py, P ? 15 : 12, UI_DIM, 'center', 100); ctx.fillStyle = UI_DIM; ctx.fillRect(cx - 78, py, 68, 1.5); ui.heading(ctx, pt, cx + 40, py, P ? 19 : 16, pc, 'center', 110); }
+  else ui.heading(ctx, pt, cx, py, P ? 19 : 16, pc, 'center', tw);
+  if (feat) kitChip(ctx, 'FEATURED', x + 10, y + 16, { size: P ? 13 : 11, fill: 'rgba(60,40,0,0.92)', stroke: UI_GOLD, color: UI_GOLD, maxW: w.w * 0.6 });
+  if (new_ && !sold && !owned) kitChip(ctx, 'NEW', x + w.w - 10, y + 16, { size: P ? 13 : 11, fill: 'rgba(8,40,60,0.92)', stroke: UI_CYAN, color: UI_CYAN, align: 'right' });
+  if (sold) { ctx.save(); ctx.translate(cx, y + 62); ctx.rotate(-0.22); ctx.globalAlpha = 0.9; kitStamp(ctx, 'SOLD OUT', 0, 0, P ? 26 : 22, ['#FF6B6B', '#C0392B']); ctx.restore(); }
+}
+// The try-on: your player wearing it, then the item and your ratings old → new. Desktop: a column (the player on top);
+// phone: the player on the left, the words on the right.
+function drawShopTryOn(ctx, ui, c, id, x, y, w, h, t, P) {
+  kitPanel(ctx, x, y, w, h, 'rgba(8,12,36,0.6)'); ui.heading(ctx, 'TRY IT ON', x + 16, y + 24, P ? 20 : 16, UI_CYAN, 'left', w - 32);
+  const B = holderOf(c), it = id ? gearItem(id) : null, def = (() => { if (!it) return shopPlayerDef(c); const G = gearOf(B), keep = JSON.stringify({ eq: G.eq, owned: G.owned }); try { if (!G.owned[id]) G.owned[id] = 1; for (const s in G.eq) if (G.eq[s] === id) delete G.eq[s]; G.eq[it.slot === 'train' ? (gearWearing(B, id) || 'train1') : it.slot] = id; return shopPlayerDef(c); } finally { const k = JSON.parse(keep); G.eq = k.eq; G.owned = k.owned; } })();
+  const mh = P ? h - 90 : 216, mx = x + (P ? w * 0.24 : w / 2), my = y + (P ? h - 34 : 52 + mh);
+  try { drawPlatform(ctx, mx, my, P ? 90 : 92, shopKit(c).colors); drawMannequin(ctx, def, shopKit(c), mx, my, mh * 0.95, 'hyped', 1, t || 0); } catch (e) { /* decoration */ }
+  const tx = P ? x + w * 0.46 : x + 16, tw = P ? w * 0.5 : w - 32; let ty = P ? y + 64 : my + 34;
+  if (!it) { ui.para(ctx, 'Pick an item to try it on: you see it on you, and what it does to your ratings in games.', tx, ty, tw, P ? 17 : 13, UI_DIM, 'left', 4); return; }
+  const R = GEAR_RARITY_INFO[it.rarity], lh = P ? 32 : 22;
+  ui.heading(ctx, it.name, tx, ty, P ? 24 : 17, R[1], 'left', tw); ty += lh;
+  if (P) { ui.label(ctx, R[0] + ' · ' + shopSlotName(it) + ' · up to Lv' + it.max, tx, ty, 17, UI_DIM, 'left', tw); ty += lh; ui.label(ctx, 'Lv1: ' + gearEffectText(it, 1) + (it.max > 1 ? ' (up to ' + shopTopVal(it) + ')' : ''), tx, ty, 17, UI_GREEN, 'left', tw); ty += lh + 8; }
+  const end = y + h - (P ? 56 : 14); for (const [txt, col, note] of shopRatingLines(c, id).slice(0, 3)) { if (ty > end) break; ui.heading(ctx, txt, tx, ty, P ? 21 : 15, col, 'left', P && note ? tw * 0.62 : tw); if (note && P) ui.label(ctx, note, tx + tw, ty, 15, UI_DIM, 'right', tw * 0.36); else if (note) { ty += 18; ui.label(ctx, note, tx + 12, ty, 11, UI_DIM, 'left', tw - 12); } ty += P ? 30 : 22; } // (a desktop's narrow column puts the cap's note under its line)
+  const rep = shopReplaces(c, id); if (rep && ty <= end) ui.para(ctx, rep, tx, ty, tw, P ? 16 : 12, UI_DIM, 'left', 2); /* (two lines in a desktop's narrow column) */
+  if (P) { const [pt, pc] = shopCardPrice(c, id); ui.heading(ctx, pt, tx, y + h - 30, 22, pc, 'left', tw); }
+}
+function shopScreen(game, view0) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const B = holderOf(c), G = gearOf(B), P = game.ui.phone, stage = gearStage(c); let t = 0;
+  const st = game.shopTab || (game.shopTab = { view: 'stock', sel: null, page: 0, sub: null }); if (view0) { st.view = view0; st.sub = null; } if (!SHOP_VIEWS.some(v => v[0] === st.view)) st.view = 'stock';
+  const refresh = say => { if (say != null) st.say = say; game.save.save(); game.ui.replace(shopScreen(game)); }, items = [], S = gearStock(c); S.visited = 1; // (the hub's red dot is for a week's new stock you haven't looked at)
+  const back = btn('Back', 40, 650, 200, 48, () => { st.say = null; if (P && st.sub) { st.sub = null; refresh(); return; } game.ui.pop(); });
+  const buy = id => { const it = gearItem(id), p = gearStockPrice(c, id); if (gearOf(B).owned[id]) { refresh('That one\'s already in your locker.'); return; } if (S.sold[id]) { refresh('Sold out this week, sorry. Back next week.'); return; } if (gearWallet(c) < p) { refresh('That\'s ' + gearMoney(p) + '. You have ' + gearMoney(gearWallet(c)) + '. Next week, maybe.'); return; } if (gearBuy(c, id)) { game.audio.ui('coin'); st.sub = null; refresh('Good pick. The ' + it.name.toLowerCase() + ' ' + (gearWearing(B, id) ? 'is on you' : 'is in your locker') + '.'); } };
+  // the views (desktop: tabs under the title; phone: a View select in the bottom bar)
+  const tabs = SHOP_VIEWS.map(([v, label]) => btn(label, 0, 0, 0, 0, () => { st.view = v; st.sub = null; st.say = null; st.sel = null; refresh(); }, { primary: st.view === v }));
+  const viewSel = sel('View', 0, 0, 0, 0, SHOP_VIEWS.map(v => v[1]), () => SHOP_VIEWS.findIndex(v => v[0] === st.view), i => { st.view = SHOP_VIEWS[i][0]; st.sub = null; st.say = null; st.sel = null; refresh(); });
+  if (!P) tabs.forEach((b, i) => Object.assign(b, { x: 40 + i * 182, y: 96, w: 172, h: 40 }));
+  // desktop geometry: the shelves (three cards a row) on the left, the side panel (the try-on, an item) on the right
+  const SX = 40, SW = 272, SG = 12, SY = 150, SH = 228, RX = 904, RW = 336, RY = 150, RH = 476;
+  let draw2 = null; // the view's own drawing
+  if (st.view === 'stock') {
+    if (!S.ids.includes(st.sel)) st.sel = P ? null : S.ids[S.featured];
+    const cards = S.ids.map(id => ({ kind: 'custom', label: gearItem(id).name, x: 0, y: 0, w: 0, h: 0, enabled: true, onPress() { st.sel = id; st.say = null; if (P) st.sub = 'try'; refresh(); }, draw(ctx, focused, ui) { drawShopCard(ctx, ui, this, focused, c, id, st.sel === id, P); } }));
+    const buyBtn = btn(st.sel && !G.owned[st.sel] && !S.sold[st.sel] ? 'Buy · ' + gearMoney(gearStockPrice(c, st.sel)) : st.sel && G.owned[st.sel] ? 'In your locker' : st.sel ? 'Sold out' : 'Buy', 0, 0, 0, 0, () => { if (st.sel) buy(st.sel); }, { primary: true, enabled: !!st.sel && !G.owned[st.sel] && !S.sold[st.sel] });
+    if (!P) { cards.forEach((b, i) => Object.assign(b, { x: SX + (i % 3) * (SW + SG), y: SY + Math.floor(i / 3) * (SH + 16), w: SW, h: SH })); Object.assign(buyBtn, { x: RX + 14, y: RY + RH - 66, w: RW - 28, h: 52 }); items.push(...tabs, ...cards, buyBtn, back);
+      draw2 = (ctx, ui) => { for (const yy of [SY + SH + 4, SY + 2 * SH + 20]) { ctx.fillStyle = '#5A3A22'; ctx.fillRect(SX - 6, yy, 3 * SW + 2 * SG + 12, 8); ctx.fillStyle = '#8B5A2B'; ctx.fillRect(SX - 6, yy, 3 * SW + 2 * SG + 12, 3); } /* the shelves */ drawShopTryOn(ctx, ui, c, st.sel, RX, RY, RW, RH - 76, t, false); }; }
+    else if (!st.sub) { const cw = (1200 - 24) / 3; cards.forEach((b, i) => Object.assign(b, { x: 40 + (i % 3) * (cw + 12), y: 104 + Math.floor(i / 3) * 246, w: cw, h: 234 })); phoneBar(game.ui, [back, viewSel], [1, 2.4], 40, 1200); items.push(...cards, viewSel, back); }
+    else { phoneBar(game.ui, [back, buyBtn], [1, 1.6], 40, 1200); items.push(buyBtn, back); draw2 = (ctx, ui) => drawShopTryOn(ctx, ui, c, st.sel, 40, 96, 1200, 480, t, true); }
+  }
+  if (st.view === 'locker') {
+    const owned = Object.keys(G.owned).sort((a, b) => { const A = gearItem(a), Bi = gearItem(b), sa = GEAR_SLOTS.findIndex(s => gearFits(A, s[0])), sb = GEAR_SLOTS.findIndex(s => gearFits(Bi, s[0])); return sa - sb || GEAR_RARITY.indexOf(Bi.rarity) - GEAR_RARITY.indexOf(A.rarity); });
+    if (!owned.includes(st.sel)) st.sel = P ? null : owned[0] || null;
+    const per = P ? 6 : 7, pages = Math.max(1, Math.ceil(owned.length / per)); st.page = clamp(st.page || 0, 0, pages - 1); const shown = owned.slice(st.page * per, st.page * per + per);
+    const rows = shown.map(id => ({ kind: 'custom', label: gearItem(id).name, x: 0, y: 0, w: 0, h: 0, enabled: true, onPress() { st.sel = id; st.say = null; if (P) st.sub = 'item'; refresh(); },
+      draw(ctx, focused, ui) { const it = gearItem(id), lv = G.owned[id], R = GEAR_RARITY_INFO[it.rarity], worn = gearWearing(B, id), s = st.sel === id; kitPanel(ctx, this.x, this.y, this.w, this.h, s ? 'rgba(46,36,8,0.92)' : 'rgba(12,16,42,0.9)', { accent: R[1], radius: 10 }); if (focused || s) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 2.5; ctx.beginPath(); roundRectPath(ctx, this.x + 1, this.y + 1, this.w - 2, this.h - 2, 10); ctx.stroke(); }
+        const is = this.h - 16; drawGearIcon(ctx, it.icon, this.x + 10, this.y + 8, is, it.rarity, true); const tx = this.x + is + 22, tw = this.x + this.w - 12 - tx; ui.heading(ctx, it.name, tx, this.y + this.h * 0.32, P ? 19 : 15, UI_TEXT, 'left', tw - (P ? 110 : 90)); ui.label(ctx, R[0] + (it.sig ? '' : ' · Lv ' + lv + '/' + it.max) + ' · ' + shopCardText(it, lv), tx, this.y + this.h * 0.7, P ? 15 : 12, UI_GREEN, 'left', tw); /* (a collab is always at its top level) */
+        if (worn) kitChip(ctx, 'WORN', this.x + this.w - 10, this.y + this.h * 0.32, { size: P ? 13 : 11, fill: 'rgba(8,40,20,0.92)', stroke: UI_GREEN, color: UI_GREEN, align: 'right' }); } }));
+    const it = st.sel ? gearItem(st.sel) : null, worn = st.sel ? gearWearing(B, st.sel) : null, up = st.sel ? gearNextPrice(c, st.sel) : null;
+    const wear = btn(worn ? 'Take it off' : 'Wear it', 0, 0, 0, 0, () => { if (!st.sel) return; if (worn) gearUnequip(B, st.sel); else gearEquip(B, st.sel); refresh(worn ? 'Off it comes. It waits in your locker.' : 'Looks good on you.'); }, { enabled: !!st.sel });
+    const upg = btn(it && it.sig ? (G.owned[st.sel] < it.max ? 'Levels with the Road' : 'A collab: maxed') : up == null ? 'Maxed out' : 'Upgrade · ' + gearMoney(up), 0, 0, 0, 0, () => { if (!st.sel || up == null) return; if (gearWallet(c) < up) { refresh('The next level is ' + gearMoney(up) + '. You have ' + gearMoney(gearWallet(c)) + '.'); return; } if (gearUpgrade(c, st.sel)) { game.audio.ui('coin'); refresh('Level ' + G.owned[st.sel] + '. ' + gearEffectText(gearItem(st.sel), G.owned[st.sel]) + '.'); } }, { primary: true, enabled: !!st.sel && up != null });
+    const prev = btn('◀', 0, 0, 0, 0, () => { st.page = (st.page - 1 + pages) % pages; refresh(); }), next = btn('▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages; refresh(); }); prev.hidden = next.hidden = pages < 2;
+    if (!P) { rows.forEach((b, i) => Object.assign(b, { x: SX, y: SY + i * 66, w: 3 * SW + 2 * SG, h: 60 })); Object.assign(prev, { x: SX + 3 * SW + 2 * SG - 130, y: 612, w: 60, h: 34 }); Object.assign(next, { x: SX + 3 * SW + 2 * SG - 60, y: 612, w: 60, h: 34 }); Object.assign(wear, { x: RX + 14, y: RY + RH - 124, w: RW - 28, h: 48 }); Object.assign(upg, { x: RX + 14, y: RY + RH - 66, w: RW - 28, h: 52 });
+      items.push(...tabs, ...rows, wear, upg, prev, next, back); draw2 = (ctx, ui) => { if (!owned.length) ui.para(ctx, 'Nothing yet. What you buy waits here: wear it, take it off, level it up.', SX + 4, SY + 20, 3 * SW + 2 * SG - 8, 15, UI_DIM, 'left', 3); if (pages > 1) ui.label(ctx, 'Page ' + (st.page + 1) + ' / ' + pages, SX + 3 * SW + 2 * SG - 140, 629, 13, UI_DIM, 'right'); drawShopLockerSide(ctx, ui, c, st.sel, RX, RY, RW, RH - 134, t, false); }; }
+    else if (!st.sub) { const cw = (1200 - 12) / 2, rh = tapH(game.ui, 44); rows.forEach((b, i) => Object.assign(b, { x: 40 + (i % 2) * (cw + 12), y: 104 + Math.floor(i / 2) * (rh + 12), w: cw, h: rh })); phoneBar(game.ui, pages > 1 ? [back, prev, next, viewSel] : [back, viewSel], pages > 1 ? [1, 0.5, 0.5, 2.4] : [1, 2.4], 40, 1200); items.push(...rows, viewSel, prev, next, back); draw2 = (ctx, ui) => { if (!owned.length) ui.para(ctx, 'Nothing yet. What you buy waits here: wear it, take it off, level it up.', 44, 130, 1190, 19, UI_DIM, 'left', 3); }; }
+    else { phoneBar(game.ui, [back, wear, upg], [1, 1.2, 1.6], 40, 1200); items.push(wear, upg, back); draw2 = (ctx, ui) => drawShopLockerSide(ctx, ui, c, st.sel, 40, 96, 1200, 480, t, true); }
+  }
+  if (st.view === 'extras') {
+    const price = gearConsumePrice(c), U = gearUsed(c), kinds = ['ice', 'film', 'drink'];
+    const cards = kinds.map(k => ({ kind: 'custom', label: GEAR_USE[k][0], x: 0, y: 0, w: 0, h: 0, enabled: true, onPress() { if (U[k]) { refresh('One a week. Next week.'); return; } if (gearWallet(c) < price) { refresh('That\'s ' + gearMoney(price) + '. You have ' + gearMoney(gearWallet(c)) + '.'); return; } if (gearConsume(c, k)) { game.audio.ui('coin'); refresh(k === 'ice' ? 'Cold, right? Fatigue −' + GEAR.iceBath + '.' : k === 'film' ? 'You know their moves now. It shows on the scouting card.' : 'Drink up. +' + Math.round(GEAR.drinkStamina * 100) + '% stamina this game.'); } },
+      draw(ctx, focused, ui) { const used = !!U[k], x = this.x, y = this.y, w = this.w, h = this.h; kitPanel(ctx, x, y, w, h, 'rgba(12,16,42,0.9)', { accent: used ? UI_DIM : UI_CYAN }); if (focused) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 3; ctx.beginPath(); roundRectPath(ctx, x + 1.5, y + 1.5, w - 3, h - 3, 12); ctx.stroke(); }
+        drawGearIcon(ctx, k, x + w / 2 - 48, y + 20, 96, 'rare', !used); ui.heading(ctx, GEAR_USE[k][0], x + w / 2, y + 140, P ? 22 : 18, UI_TEXT, 'center', w - 20); ui.para(ctx, GEAR_USE[k][1], x + w / 2, y + 172, w - 28, P ? 16 : 13, UI_GREEN, 'center', 4);
+        ui.heading(ctx, used ? 'USED THIS WEEK' : gearMoney(price), x + w / 2, y + h - 28, P ? 20 : 17, used ? UI_DIM : gearWallet(c) >= price ? UI_GOLD : '#FF8A8A', 'center', w - 20); } }));
+    if (!P) { cards.forEach((b, i) => Object.assign(b, { x: SX + i * (SW + SG), y: SY, w: SW, h: 300 })); items.push(...tabs, ...cards, back); draw2 = (ctx, ui) => { ui.para(ctx, 'Once a week each. They count for this week\'s game (an ice bath, at once). ' + (isPro(c) ? 'Lifestyle buys (a car, a house) are in the Office.' : 'Gear and extras come out of your cash.'), SX, SY + 330, 3 * SW + 2 * SG, 14, UI_DIM, 'left', 3); drawShopGameDay(ctx, ui, c, RX, RY, RW, 300); }; }
+    else { const cw = (1200 - 24) / 3; cards.forEach((b, i) => Object.assign(b, { x: 40 + i * (cw + 12), y: 104, w: cw, h: 470 })); phoneBar(game.ui, [back, viewSel], [1, 2.4], 40, 1200); items.push(...cards, viewSel, back); }
+  }
+  const wallet = (isPro(c) ? '' : 'Cash ') + gearMoney(gearWallet(c));
+  return { widgets: items, name: 'shop', update(dt) { t += dt; }, onBack() { back.onPress(); },
+    draw(ctx, ui) {
+      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, SHOP_NAMES[stage], 44, P ? 50 : 52, P ? 32 : 34); ui.heading(ctx, wallet, 1236, P ? 46 : 50, P ? 24 : 22, UI_GOLD, 'right', 300);
+      if (!P || !st.sub) drawShopKeeper(ctx, ui, c, shopLine(c, st), P ? 500 : 640, P ? 16 : 72, P ? 560 : 600, P);
+      if (draw2) draw2(ctx, ui);
+    } };
+}
+// The shopkeeper: a framed portrait and a speech bubble with the line (on a desktop, the name over it).
+function drawShopKeeper(ctx, ui, c, line, x, y, w, P) {
+  const K = shopKeeperDef(c), ps = 64, bh = P ? 64 : 70, py = y + (bh - ps) / 2; ctx.fillStyle = '#3B2A1C'; ctx.fillRect(x - 3, py - 3, ps + 6, ps + 6); try { drawPortrait(ctx, K, ['#3B2A1C', '#E8D5B0'], x, py, ps, 'neutral'); } catch (e) { /* decoration */ }
+  const bx = x + ps + 16, bw = w - ps - 16; ctx.fillStyle = '#F3F0FF'; ctx.beginPath(); roundRectPath(ctx, bx, y, bw, bh, 10); ctx.fill(); ctx.beginPath(); ctx.moveTo(bx, y + bh / 2 - 8); ctx.lineTo(bx - 10, y + bh / 2); ctx.lineTo(bx, y + bh / 2 + 8); ctx.fill();
+  if (P) { ui.para(ctx, '“' + line + '”', bx + 12, y + 18, bw - 24, 15, UI_INK, 'left', 2); return; }
+  ui.label(ctx, K.name.toUpperCase() + ' · RUNS THE SHOP', bx + 12, y + 13, 11, '#8A5A12', 'left', bw - 24); ui.para(ctx, '“' + line + '”', bx + 12, y + 34, bw - 24, 13, UI_INK, 'left', 2);
+}
+// What your gear adds up to on game day, and your fatigue.
+function drawShopGameDay(ctx, ui, c, x, y, w, h) {
+  kitPanel(ctx, x, y, w, h, 'rgba(8,12,36,0.6)'); const B = holderOf(c);
+  ui.heading(ctx, 'ON GAME DAY', x + 16, y + 24, 15, UI_CYAN, 'left', w - 32); ui.para(ctx, gearSummary(B) || 'Nothing on yet. Gear is an edge in games: your OVR doesn\'t change.', x + 16, y + 52, w - 32, 13, UI_TEXT, 'left', 6);
+  ui.label(ctx, 'Fatigue ' + Math.round(B.fatigue || 0) + ' / 100', x + 16, y + h - 24, 13, UI_DIM, 'left', w - 32);
+}
+// The locker's side: the item (what it does now and at the next level, where it's worn), or your slots.
+function drawShopLockerSide(ctx, ui, c, id, x, y, w, h, t, P) {
+  kitPanel(ctx, x, y, w, h, 'rgba(8,12,36,0.6)'); const B = holderOf(c), G = gearOf(B), it = id ? gearItem(id) : null;
+  if (!it) { ui.heading(ctx, 'YOUR SLOTS', x + 16, y + 24, P ? 20 : 15, UI_CYAN, 'left', w - 32); GEAR_SLOTS.forEach(([s, name], i) => { const yy = y + 56 + i * (P ? 46 : 30), on = G.eq[s] ? gearItem(G.eq[s]) : null; ui.label(ctx, name, x + 16, yy, P ? 17 : 13, UI_DIM, 'left', w * 0.32); ui.label(ctx, on ? on.name + ' · Lv ' + G.owned[G.eq[s]] : 'empty', x + w * 0.36, yy, P ? 17 : 13, on ? UI_TEXT : UI_DIM, 'left', w * 0.62); }); return; }
+  const lv = G.owned[id] || 0, R = GEAR_RARITY_INFO[it.rarity], is = P ? 150 : 84; drawGearIcon(ctx, it.icon, x + (P ? 40 : w / 2 - is / 2), y + (P ? 40 : 16), is, it.rarity, true);
+  const tx = P ? x + 230 : x + 16, tw = P ? w - 250 : w - 32, fs = P ? 17 : 13, lh = P ? 30 : 21; let ty = P ? y + 52 : y + 122;
+  ui.heading(ctx, it.name, tx, ty, P ? 24 : 17, R[1], 'left', tw); ty += P ? 34 : 24;
+  ty += ui.para(ctx, R[0] + (it.sig ? ' · a signature collab' : '') + ' · Lv ' + lv + ' of ' + it.max, tx, ty, tw, fs, UI_DIM, 'left', 2);
+  ty += ui.para(ctx, 'Now: ' + gearEffectText(it, lv, it.kind === 'rating' && !P), tx, ty, tw, fs, UI_GREEN, 'left', 2); if (lv < it.max) ty += ui.para(ctx, (it.sig ? 'With your next collab: ' : 'Next: ') + gearEffectText(it, lv + 1, it.kind === 'rating' && !P), tx, ty, tw, fs, '#B8FFC8', 'left', 2); /* (a collab levels up when the Road gives you another) */
+  const worn = gearWearing(B, id); ui.label(ctx, worn ? 'Worn: ' + GEAR_SLOTS.find(s => s[0] === worn)[1] : 'In your locker', tx, ty + 2, fs, worn ? UI_CYAN : UI_DIM, 'left', tw);
+  if (P) { ui.heading(ctx, 'ON GAME DAY', tx, ty + 44, 19, UI_CYAN, 'left', tw * 0.6); ui.para(ctx, gearSummary(B) || 'Nothing on yet.', tx, ty + 76, tw * 0.6, 16, UI_TEXT, 'left', 4); try { const mx = x + w * 0.84, my = y + h - 34; drawPlatform(ctx, mx, my, 80, shopKit(c).colors); drawMannequin(ctx, shopPlayerDef(c), shopKit(c), mx, my, (h - 90) * 0.95, 'hyped', 1, t || 0); } catch (e) { /* decoration */ } return; } // a phone: your game day, and you in your gear
+  if (!P && ty + 2 < y + h - 150) { ui.heading(ctx, 'ON GAME DAY', x + 16, y + h - 132, 13, UI_CYAN, 'left', w - 32); ui.para(ctx, gearSummary(B) || 'Nothing on yet.', x + 16, y + h - 110, w - 32, 12, UI_TEXT, 'left', 6); } // (when there's room under the item: a full kit takes five lines)
+}
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 19) — V8 (2.0 §4.9): the records book. Your best game at each level (high school,

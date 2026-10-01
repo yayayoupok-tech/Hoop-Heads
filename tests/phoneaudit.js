@@ -86,7 +86,8 @@ const { launch, openPage } = require('./lib');
   await audit('am-simsummary', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); g.ui.push(simSummaryScreen(g, { mode: 'big', weeks: 3, w: 2, l: 1, pts: 37, games: 3, bench: 0, lines: ['Report card.', 'Level up: Clutch Gene (Silver).', 'Road to the League: a college offer. Basic court shoes, free: +0.5 Speed in games.'], stop: 'next: a game against your rival' }, () => g.ui.pop())); }); // V5 (2.0 §4.2)
   await audit('am-hub-play-again', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); });
   for (const t of ['buzz', 'team', 'money', 'staff']) await audit('am-guide-' + t, t => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(statsGuideScreen(g, t)); }, t); // F9: the stats guide (an amateur)
-  await audit('am-gear', () => { const g = HH.game, a = g.save.data.c1; a.cash = 2600; a.gear = { sleeve: 1, shoes: 2 }; g.ui.clearTo(amHub(g)); g.ui.push(gearScreen(g)); }); // F8: the gear shop
+  await audit('am-gear', () => { const g = HH.game, a = g.save.data.c1; a.cash = 2600; a.gear = { sleeve: 1, shoes: 2 }; g.shopTab = null; g.ui.clearTo(amHub(g)); g.ui.push(shopScreen(g)); }); // F8; V11: the shop (F8's gear migrates)
+  for (const v of ['locker', 'extras']) await audit('am-shop-' + v, v => { const g = HH.game; g.shopTab = { view: v, sel: null, page: 0, sub: null }; g.ui.clearTo(amHub(g)); g.ui.push(shopScreen(g)); }, v); // V11: an amateur's locker (F8's gear, migrated) and extras
   await audit('am-tryout', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: tryouts, the shootout first
   await audit('am-tryout-1v1', () => { const g = HH.game, a = g.save.data.c1; if (a.tryout && a.tryout.step === 'drill') hsTryoutDrill(a, 12); g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: then the 1v1 against a senior
   await audit('am-tryout-post', () => { const g = HH.game; g.ui.push(tryoutPostScreen(g, { contest3: { score: 12 }, winner: 0, teams: [{ score: 7 }, { score: 5 }] }, { part: 'none' })); }); // R10: the tryout's result card
@@ -226,6 +227,15 @@ const { launch, openPage } = require('./lib');
   await audit('pro-staff-scandal', staffCard, 'scandal');
   await audit('pro-staff-scandal-answered', answerCase, 'Fire them');
   await ev(() => { const g = HH.game, c = g.save.data.career, [st, ag, m, f] = g.__staff; c.me.staff = JSON.parse(st); c.me.agent = ag; c.me.money = m; c.me.fame = f; c.events.length = 0; delete g.__staff; g.staffTab = null; });
+  // V11 (Part 2 §5): the shop: the shelves, a card's try-on, the locker and one item, the extras (a pro with a kit and a collab)
+  await ev(() => { const g = HH.game, c = g.save.data.career; g.__gear = [JSON.stringify(c.me.gear || null), c.me.money]; c.me.money = 2e7; const G = gearOf(c.me); for (const [id, lv] of [['courtShoes:epic', 3], ['gripSocks:rare', 2], ['shooterSleeve:epic', 4], ['sweatband:rare', 1], ['gripBands:epic', 2], ['shootingMachine:rare', 2], ['recoveryBoots:epic', 3], ['compSleeve:common', 1]]) { G.owned[id] = lv; gearEquip(c.me, id); } gearGive(c.me, 'sigShoes'); });
+  const shopCase = st => { const g = HH.game; g.shopTab = Object.assign({ view: 'stock', sel: null, page: 0, sub: null }, st); if (st.sub === 'try') g.shopTab.sel = gearStock(careerOf(g)).ids[1]; g.ui.clearTo(careerHub(g)); g.ui.push(shopScreen(g)); };
+  await audit('pro-shop-stock', shopCase, {});
+  await audit('pro-shop-try', shopCase, { sub: 'try' });
+  await audit('pro-shop-locker', shopCase, { view: 'locker' });
+  await audit('pro-shop-locker-item', shopCase, { view: 'locker', sel: 'shooterSleeve:epic', sub: 'item' });
+  await audit('pro-shop-extras', shopCase, { view: 'extras' });
+  await ev(() => { const g = HH.game, c = g.save.data.career, [gr, m] = g.__gear; c.me.gear = JSON.parse(gr); c.me.money = m; delete g.__gear; g.shopTab = null; });
   await audit('pro-result', () => { const g = HH.game, c = g.save.data.career; const rec = simUserGame(g.save.data); c.events.length = 0; g.ui.clearTo(careerResultScreen(g, rec, null)); });
   await audit('allstar', () => { const g = HH.game, c = g.save.data.career; for (const k of RATING_KEYS) meOf(c).r[k] = 99; let n = 0; while (!c.allStar && n++ < 30) { c.events.length = 0; simUserGame(g.save.data); } c.events = c.events.filter(e => e.kind === 'allstar'); g.ui.clearTo(careerHub(g)); });
   await audit('allstar-1v1-result', () => { const g = HH.game, c = g.save.data.career; if (c.allStar) g.ui.push(allStar1v1ResultScreen(g, { winner: 0, teams: [{ score: 21 }, { score: 17 }] }, { applied: true, opp: Object.keys(c.players).find(id => String(id) !== String(c.meId)) })); }); // R10: the All-Star 1v1's result

@@ -3,6 +3,168 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V11 — Part 2: the Pro Shop and money (§5); 2.0: the week's extras (§4.3)
+
+The sixth milestone of Part 2 (§5, with 2.0 §4.3's consumables). The career is still 1v1 only. F8's six gear pieces
+become a shop of items in slots, with rarities, levels and a storefront.
+
+**Items in slots.** Five slots you wear, two training slots and one recovery slot (`GEAR_SLOTS`):
+
+| Slot | Items (each adds to one rating in games, +1 a level) |
+| --- | --- |
+| Shoes | Court shoes (Speed), Spring high-tops (Hops) |
+| Socks | Grip socks (Speed), Spring insoles (Hops) |
+| Sleeve | Shooter's sleeve (Shooting), Compression sleeve (Defense) |
+| Headband | Sweatband (Finishing), Mouthguard (Strength) |
+| Wristbands | Grip wristbands (Handles), Shooter's wristbands (Shooting) |
+| Training ×2 | Shooting machine, Weighted vest, Dribble goggles, Plyo box, Agility ladder, Finishing pads, Slide sled: practice XP +5% a level in one rating (at most +20% in a rating) |
+| Recovery | Recovery boots (fatigue −1 a game a level), Knee brace (injury risk −8% a level) |
+
+- **Rarity and levels.** Common items go to Lv2, rare to Lv3, epic to Lv4. Each level is +1 to the effect.
+- **The cap.** Gear never adds more than +4 to one rating, everything you wear together. The try-on says so ("capped at
+  +4").
+- **In games only**, as F8's gear was: your OVR and your value to the franchises don't change.
+- **Signature collabs** (legendary) come from the Road to the League, never from money: a college offer brings the
+  signature shoes (Speed, and Hops +1), a pro offer the signature sleeve (Shooting, and Finishing +1), a 4★ team the
+  signature wristbands (Handles, and Shooting +1). A collab arrives at Lv2 and each later one lifts the ones you
+  have a level, to Lv4.
+
+**Prices by the stage you're at** (`CONFIG.gear.price`; the level you buy or upgrade is priced where you are):
+
+| Stage | Common Lv1–2 | Rare Lv1–3 | Epic Lv1–4 |
+| --- | --- | --- | --- |
+| High school | $50, $80 | $100, $160, $260 | $160, $240, $320, $400 |
+| College (NIL) | $500, $800 | $1,000, $1,600, $2,600 | $1,600, $2,400, $3,500, $5,000 |
+| The pros | $10K, $16K | $25K, $50K, $90K | $60K, $120K, $250K, $500K |
+
+**The week's stock.** Six items a week, no family twice, rarities that lean with the stage (high school mostly common,
+the pros mostly epic). One is featured at 25% off. An item you've never seen is NEW. Each sells once a week, and now
+and then one is already SOLD OUT (other shoppers got there first; 35% of weeks). Your locker keeps everything you own.
+
+**The storefront** (`178_ui_shop.js`): THE CORNER SHOP in high school (Mo), CAMPUS SPORTS in college (Rae), THE PRO SHOP
+in the pros (Jules), each with a pixel portrait and a line in a speech bubble.
+
+- **This week:** the six items on two wooden shelves as cards: a 16×16 pixel icon (20 icons) in its rarity's glow
+  (common gray, rare blue, epic purple, legendary gold), the name, rarity and slot, what it does at Lv1 and at its top,
+  the price (the featured one struck through), FEATURED, NEW and SOLD OUT.
+- **Try it on:** your player wearing it, and your ratings old → new (green up, red down when it replaces something
+  better, the cap's note), what it replaces, and Buy.
+- **Your locker:** wear, take off, upgrade (the next level at today's prices), page through; the item's now and next.
+- **Extras:** the week's ice bath, film session and sports drink.
+- On a phone the shelves are six cards; a card opens Try it on with Buy, a locker row opens the item.
+- The hub's SHOP tab is the shop's front: the shopkeeper's line, the featured item, the rest of the week's stock as
+  icons and prices, your player in their gear and what it adds up to on game day, and three doors. Its red dot means
+  new stock you can afford that you haven't looked at. The Office's Gear tab opens the Pro Shop.
+
+**Gear on your player** (in games, on the hub, in portraits and in pixel mode): shoes in the item's colors, socks (a
+color and a stripe), the sleeve, a sweatband as a headband, wristbands. Insoles and a mouthguard don't show.
+
+**The week's extras** (2.0 §4.3), once a week each: an ice bath (fatigue −20 now), a film session (their scouting
+card shows 2 more of their tendencies) and a sports drink (+5% stamina for one game).
+$20 in high school, $200 in college, $5,000 in the pros.
+
+**Money.**
+
+- **Family help** (2.0 §5.3): in high school your family chips in $15 every regular-season week, played or on the bench.
+- **Lifestyle** pays every week now (§5.1) and costs upkeep: a car (hype +0.3 a week, $1,000 upkeep), a sports car (hype +0.8, $8,000), a house (confidence +0.1, $15,000) and a mansion (fame +0.2, $100,000). The one-off confidence and story card stay.
+- The Codex's money and body pages say so; the first-time gear tip is new.
+
+**Money (§5.3's test).** The career simulator prints the median cash by stage and what's left unspent at retirement,
+before the endings (400 careers, seed 1, smart spending):
+
+| Policy | End of high school | The pro start | At 25 | At 30 | At retirement | Earned | Unspent (after the endings) | Lifestyle upkeep |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Typical | $0 | $13K | $2.2M | $25.1M | $38.5M | $159.9M | 24% (9%) | $6.4M |
+| Great | $1,850 | $21K | $18.8M | $58.4M | $82.2M | $311.4M | 28% (14%) | $11.6M |
+
+- Smart spending buys gear (a stock item for an empty slot, or a rarer one than it wears, while the money covers it
+  twice over, four times in the pros; then the cheapest next level), the extras (an ice bath when tired, a drink and a
+  film session before playoff and rivalry games) and lifestyle when the bank allows it (a car at $1M, a sports car at
+  $5M, a house at $10M, a mansion at $30M; R7's policy waited for $80M and left 37% unspent).
+- Seeds 2 and 3 give 28% and 28% (great) and 24% (typical).
+- Two worthwhile buys you can't afford at once, at every stage (`tests/shop.js`): high school: all 15 of the buys fit in $1,000 one at a time, all of them cost $2,140; college: 18 of 18 within $5,000, all of them $31K; the pros: 20 of 20 within a rookie's $770K, all of them $2.80M.
+
+**Staff balance on V11** (V10's test, the great policy): a smart staff +15.8% legacy over none (target +10–20%); every salaried role alone above none (nutrition +12.4%, mental +6.9%, skills +4.7%, physio +2.1%, strength +1.9%); the agent earns 4.0M more (1,200 careers a policy, seeds 1–3).
+
+**The §1.1 table, recalibrated for gear.** A maxed kit is about +2.9 OVR on game day, and the AI wears none (no stat
+help for the league). The first build moved four rows out of their bands:
+
+| Step (600 careers a policy, seeds 1–3) | Typical: 5★ · titles · Hall of Fame | Great: 5★ · titles · Hall of Fame |
+| --- | --- | --- |
+| V10 | 19.3% · 0.40 · 3.7% | 63.0% · 1.73 · 34.8% |
+| V11 as first built (collabs at Lv4, the drink halving fatigue, the film session +1 Defense and Shooting) | 25.8% · 0.55 · 6.5% | 71.8% · 2.35 · 47.7% |
+| collabs arrive at Lv2 and level with the Road | 25.0% · 0.53 · 5.8% | 70.3% · 2.26 · 47.8% |
+| + young AI players reach their ceilings in an offseason, more room for the next stars, the league's three best veterans +9/+7/+5, the rookie 3★ bar +1 | 18.7% · 0.41 · 4.2% | 65.8% · 1.98 · 39.2% |
+| + the film session and the sports drink as 2.0 §4.3 has them; the Hall of Fame line 93 → 95 | 17.8% · 0.36 · 3.3% | 65.8% · 1.94 · 39.2% |
+| the same on seeds 4–6 (held out) | 17.7% · 0.37 · 3.2% | 66.7% · 1.82 · 36.7% |
+
+- A typical career also reached its first 3★ team a year sooner (median 25: too soon for "by 26–28"). Gear in college
+  lifted its first 3★ offers from 17% to 22%; the rookie bars from 3★ up moved one point (106 → 107, ...): 16%, and
+  the median age is 26 again (25 or younger: 48%).
+- The pros' median stays 75 and their top three open at 87.5 (§1.2: about 74, stars 82–90).
+- Tried and dropped: a stronger league all round (the median), more veterans boosted (+6, +5, +4, +3: typical careers
+  fell to 12% and 0.16 titles), more room for every young AI player (the same), a bigger star edge, and fewer 5★ spots.
+
+
+**Old saves.** F8's gear (`{ piece: level }`) becomes items: Basic, Pro and Elite are common, rare and epic at that
+level; the ankle braces become a knee brace; when a recovery kit was there too, the better of the two is worn and the
+other waits in the locker.
+
+**Calls I made.**
+
+- Rarity sets the top level (common Lv2, rare Lv3, epic Lv4): §5's "Lv1–Lv4, +1 a level" with rarity meaning
+  something.
+- Training: +5% practice XP a level (+20% at Lv4), never more than +20% in one rating. Recovery boots: fatigue −1 a
+  game a level. A knee brace: injury risk −8% a level.
+- The shop: six items a week, one featured at 25% off, one sold out in 35% of weeks (never the featured one). Rarity
+  odds by stage: high school 60/35/5% (common/rare/epic), college 25/50/25%, the pros 15/40/45%.
+- Collabs: Lv2 when they arrive, +1 to the ones you have with each later collab (`gear.sigStart`).
+- The extras: $20, $200 and $5,000 a use. The sports drink's "+5% stamina": in a live game your stamina costs ÷ 1.05
+  and it recovers × 1.05; in a simulated game, fatigue costs 5% less. The film session only shows 2 more tendencies.
+- Lifestyle's weekly effects and upkeep as above; family help $15 a regular-season week in high school.
+- Gear counts in games only, as F8's did: your OVR and value don't change. The AI wears none.
+- Unspent cash is measured at retirement, before the endings (after them: about 9% and 14%).
+- The shopkeepers (Mo, Rae, Jules) are invented, and the game never needs their pronouns.
+- Every number is in `CONFIG.gear` (and `CONFIG.pro.lifestyle`); `CONFIG.career.proStars`, `aiGrowth`, `aiRoom`,
+  `hofScore` and `CONFIG.franchise.rookieBar` moved (above).
+
+**Tests.**
+
+- `tests/shop.js` (new, 10 steps): the catalog and icons; the +4 cap (and the try-on's note), OVR and value
+  untouched; the week's stock (six, no family twice, featured, NEW, sold out, a new week, rarities by stage); prices by
+  stage, buying, upgrading, wearing, two training slots; the extras (the ice bath, the drink live and simulated, the
+  film session's card); lifestyle's weekly effects and upkeep, family help, the Road's collabs and how they level; the
+  look (shoes, socks, sleeve, headband, wristbands, the kit, the face cache, pixel mode); two buys you can't afford at
+  once at every stage; the shop on a desktop and a phone.
+- Smoke's F8 step is V11's now (the migration, the cap, the stock, buying and upgrading, training and recovery, the
+  look, the pros, the screens), and its guide check reads the migrated sleeve's +2.
+- Flow's Road check: the collab arrives at Lv2.
+- The career simulator: the money line and a gear line; smart spending's gear, extras and lifestyle; `--gear=none`.
+  Fixed on the way: R7's `rec.money` (a number) overwrote the new money record.
+- The phone audit has 7 new cases: an amateur's locker and extras; a pro's shelves, try-on, locker, one item and
+  extras.
+- 18 screenshots in `shots/v11`.
+
+**Suite.** Everything passed on the commit's build:
+
+- smoke (desktop and phone, 137 steps), every mode, old saves (34), the dev tools, the phone audit (230 screens) and
+  the Art Lab;
+- shop (10 steps), the money line on both policies (above), staff (11 steps), the staff balance on both policies (+15.8%
+  on the great one), school (8 steps), story (13 steps: 15 arcs, 72 choices), climb (9 steps: the pros' median 75, their
+  top three 87.5), difficulty (the §1.1 table above), flow, gameplay, traits, steals, fixes, the HUD audit and the style
+  mix;
+- the full career (859 actions, retiring at 36 after 14 pro seasons), and the desktop and 1.25× text audits;
+- the balance gate, the balance run, the career simulator (40 careers, none stuck) and the trait balance (400 careers ×
+  3 seeds: Common +5%, Uncommon +14%, Rare +27%, Legendary +54%, every rarity in its band).
+
+The suite's run failed one test, fixed above: **flow** read the hub's Shop tab for F8's rows ("Court shoes … Recovery
+kit"); it reads the shop's three doors now (12 of 12 on a rerun). The desktop audit flagged five texts the font cut on
+V11's own screens: the hub's shop doors (no sub-labels now), the Office's lifestyle lines (two lines each), the try-on's
+"Replaces your …" (two lines) and the locker's game-day summary (up to six lines). The three UI audits were rerun on
+the final build: 229–230 screens each, no flags; shop again 10 of 10.
+
+Still open from V4: the style mix's Slashers drive on 46% of possessions against a 60% target (V14).
+
 ## V10 — Part 2: your staff (§4)
 
 The fifth milestone of Part 2 (§4). The career is still 1v1 only. Staff are a pro thing: the agent you sign in college
