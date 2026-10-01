@@ -21,13 +21,13 @@ async function openPage(browser, opts = {}) {
     else if (m.type() === 'warning' && /^\[(frame|art lab|invariant|ui)\]/.test(t)) errors.push('[warning] ' + t);
   });
   page.on('request', r => { const u = r.url(); if (!u.startsWith('file:') && !u.startsWith('data:') && !u.startsWith('blob:') && !isFont(u)) errors.push('[network] unexpected request ' + u); });
-  await page.addInitScript(tips => { window.HH_NO_TIPS = !tips; }, !!opts.tips); /* R10: first-time tips stay out of the scripted tests unless a test asks for them */
+  await page.addInitScript(([tips, road]) => { window.HH_NO_TIPS = !tips; window.HH_NO_ROAD_CARDS = !road; }, [!!opts.tips, !!opts.road]); /* R10: first-time tips stay out of the scripted tests unless a test asks for them (V5: Road to the League cards too; their rewards still come) */
   await page.goto(FILE + (opts.query || '')); await page.waitForTimeout(opts.wait || 600);
   const ev = (f, a) => page.evaluate(f, a);
   const api = {
     page, context, errors, notes, ev,
     screen: () => ev(() => (HH.game.ui.screen ? HH.game.ui.screen.name : '(none)')),
-    async press(re) { await ev(src => { const s = HH.game.ui.screen; if (!s) throw new Error('no screen'); if (s.finish) s.finish(); /* R9: a dialogue box's page typed out first */ const w = (s.widgets || []).find(w => !w.hidden && w.label && new RegExp(src).test(w.label)); if (!w) throw new Error('no widget /' + src + '/ on ' + s.name + ': ' + (s.widgets || []).filter(w => !w.hidden && w.label).map(w => w.label).join(' | ')); (w.onPress || (() => w.set && w.set(!w.get())))(); }, re.source); await page.waitForTimeout(opts.stepWait || 200); },
+    async press(re) { await ev(src => { const s = HH.game.ui.screen; if (!s) throw new Error('no screen'); if (s.finish) s.finish(); /* R9: a dialogue box's page typed out first */ const find = () => (s.widgets || []).find(w => !w.hidden && w.label && new RegExp(src).test(w.label)); let w = find(); if (!w && s.build && (s.widgets || []).some(x => x.hubTab)) { const was = HH.game.hubTab; for (const id of HUB_TAB_IDS) { HH.game.hubTab = id; s.build(); w = find(); if (w) break; } if (!w) { HH.game.hubTab = was; s.build(); } } /* V5: the hub's tabs: look on each, the way a player switches tabs */ if (!w) throw new Error('no widget /' + src + '/ on ' + s.name + ': ' + (s.widgets || []).filter(w => !w.hidden && w.label).map(w => w.label).join(' | ')); (w.onPress || (() => w.set && w.set(!w.get())))(); }, re.source); await page.waitForTimeout(opts.stepWait || 200); },
     async expectScreen(name) { const n = await api.screen(); if (n !== name) throw new Error('expected screen ' + name + ', got ' + n); },
     async shot(file, type) { await page.screenshot({ path: file, type: type || (file.endsWith('.png') ? 'png' : 'jpeg'), quality: file.endsWith('.png') ? undefined : 88 }); },
     frameErrors: () => ev(() => (window.HH_ERRORS || []).slice()),
@@ -40,10 +40,10 @@ function runner(title) {
   r.step = async (name, fn, pageApi) => {
     if (process.env.ONLY && !new RegExp(process.env.ONLY).test(name)) return true; // ONLY=<regex> runs just the matching steps
     const before = pageApi ? pageApi.errors.length : 0; let err = null;
-    try { await fn(); } catch (e) { err = e; }
+    let info = ''; try { const v = await fn(); if (typeof v === 'string') info = v; } catch (e) { err = e; } // a step may return a short string: its measurements, printed after PASS
     const newErr = pageApi ? pageApi.errors.slice(before) : [];
     const good = !err && !newErr.length; good ? r.ok++ : r.fail++;
-    const line = (good ? 'PASS ' : 'FAIL ') + name + (err ? '  — ' + String(err.message).split('\n')[0] : '') + (newErr.length ? '  — ' + newErr.slice(0, 3).join(' || ') : '');
+    const line = (good ? 'PASS ' : 'FAIL ') + name + (good && info ? '  · ' + info : '') + (err ? '  — ' + String(err.message).split('\n')[0] : '') + (newErr.length ? '  — ' + newErr.slice(0, 3).join(' || ') : '');
     r.lines.push(line); console.log(line); return good;
   };
   r.done = () => { console.log(title + ': ' + r.ok + ' passed, ' + r.fail + ' failed'); return r.fail; };

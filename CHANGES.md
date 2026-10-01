@@ -3,6 +3,226 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V5 — 2.0 career flow: pace, the week, playing time, the Road, sim ahead, a five-tab hub, the PBL (§4.1, 4.2, 4.6–4.8, §5)
+
+The fifth milestone of Hoop Heads 2.0. The career is still 1v1 only, and old saves load as they are. New fields fill in
+on load; the league's old name is renamed in the save's text.
+
+**Pace (§4.7).** Career games now run under pace rules. Quick Play, the modes and the balance gate keep the old rules.
+
+| Rule | Pace rules | Old rules |
+| --- | --- | --- |
+| Shot clock (`pace.shotClock`) | 8 s | 10 s |
+| Beat after a make (`pace.madeBeat`) | 0.45 s | 0.8 s |
+| Beat after a violation or turnover (`pace.deadBeat`) | 0.6 s | 1.0 s |
+
+- **Clocks wait in the backcourt.** After an inbound, both clocks wait until the ball crosses half court
+  (`holdToHalf`). The same applies after a rebound or a steal in the backcourt (`holdAll`). They wait at most 4 s
+  (`holdMaxS`), so nobody can stall.
+- **The game clock stops during shots.** It stops while a shot is in the air (`flightStop`) and through the rebound
+  until somebody has the ball (`reboundStop`). This doesn't apply in the last 3 s of a period (`flightStopUntil`), so
+  buzzer-beaters still count.
+- **The HUD shows it.** The clock is dimmed while it is stopped.
+
+Measured in bot-vs-bot games (the Pro mirror, one-minute career games, 300 games):
+
+| | Points a side | p10–p90 | Winner / loser | PPP | Possessions a side |
+| --- | --- | --- | --- | --- | --- |
+| Old rules | 6.7 | — | 8.4 / 5.0 | 1.075 | — |
+| Pace rules | 13.3 | 8–20 | 15.8 / 10.7 | 1.109 | 12.0 |
+
+How the rules got there (200 games each):
+
+| Step | Points a side |
+| --- | --- |
+| Short clock and beats, the inbound hold | 11.9 |
+| + the clock stops through the rebound | 12.8 |
+| + `flightStopUntil` 3 and `holdMaxS` 4 | 13.3 |
+
+Scripted humans against a career bot (32 games each; the human's points first, then the bot's):
+
+| Script | Old rules | Pace rules | Human PPP |
+| --- | --- | --- | --- |
+| Reads the defense | 4.9 – 8.5 | 8.9 – 14.8 | 0.67 |
+| Perfect-release threes | 11.3 – 8.9 | 22.9 – 15.1 | 1.59 |
+| Drives | 5.2 – 8.6 | 8.8 – 14.4 | 0.63 |
+| Brute force | 4.5 – 6.2 | 8.4 – 11.3 | 0.86 |
+
+Efficiency (PPP) stays where the gate keeps it; the extra points come from more possessions.
+
+**Simulated games and per-game counts follow the pace.** Every count that grows with scoring was raised to match:
+
+| Setting | New | Old | Why |
+| --- | --- | --- | --- |
+| `career.simWinPts`: a simmed amateur winner's points | 16.0 | 8.4 | Measured: 15.8 |
+| `career.paceMul`: scales the per-game numbers fitted to the old formats (pro box scores, stock, big nights) through `gameScale` | 1.98 | — | 13.3 / 6.7 |
+| `traits.thirdAt`: career points for a third trait | 2,000 | 1,000 | — |
+| `traits.hotMakes`: makes for a hot game | 8 | 4 | — |
+| `traits.heatMakes`: makes for a heat-check game | 10 | 5 | — |
+| Clutch Gene deed (clutch makes) | 10 / 30 | 5 / 15 | — |
+| Showman deed (highlights) | 20 / 60 | 10 / 30 | — |
+| Paint Protector deed (blocks) | 12 / 40 | 6 / 20 | — |
+| Freak Athlete deed (dunks) | 40 / 120 | 20 / 60 | — |
+| Floor General deed (games without a turnover) | 9 / 31 | 15 / 50 | Twice the possessions make a clean game rarer |
+
+**The week (§4.2).**
+
+Fatigue builds half as fast:
+
+| Source | New | Old |
+| --- | --- | --- |
+| A game (`week.fatiguePerGame`) | 5 | 10 |
+| Overtime (`week.fatigueOt`) | 1.5 | 3 |
+| Hard practice (`week.intensity.hard.fatigue`) | 3 | 6 |
+| The AAU summer (`aauFatigue`) | 18 | 35 |
+| An NIL appearance (`nilFatigue`) | 4 | 8 |
+
+- **Rest by default when tired.** Over 70 fatigue (`week.restAt`), the next week's plan starts on Rest; you can change
+  it. A standing Rest ends once you are back to 50 (`fatigueFreeAt`).
+- **The press room comes after big games only.**
+  - Always: a rival, an amateur final, a title or an elimination.
+  - With the 3-game gap (`pressGap`): other playoff games, a points record, a big night or an upset.
+  - A big night is at least `bigPts` × the game scale and 1.5× your average.
+  - Debuts and routine wins get none.
+  - Measured over three simulated high school careers: 31 press rooms in 89 games (V4: about one game in two).
+- **Teammate challenges are rarer.**
+  - None in a season's first 3 weeks (`team.chalFirstWeeks`).
+  - Then at most one every 3 weeks (`team.chalGap`).
+  - Only from a teammate within 3 OVR of you (`team.chalWithin`).
+
+**Playing time (§4.6).**
+
+- **Challenging the starter.** Benched, your weekly challenge is against the starter. Win it and you take the start,
+  and everyone between moves down a rung.
+- **Spot starts.** Three bench weeks in a row (`team.spotAfter`) earn a spot start. An A or B grade in it
+  (`team.spotUpGrades`) moves you up a rung. The news says so.
+- **Trades.** A pro with 4 bench weeks in a season (`team.tradeBenchWeeks`) can ask for a trade that season, even
+  inside the usual gap between trade requests. The request must still come before the deadline.
+
+**Road to the League (§4.1).** The road is eleven milestones from varsity to the Hall of Fame. It shows as a banner at
+the top of the Play tab: the next milestone, eleven pips and THE GOAL, a 5★ team. Tap the banner for the whole road.
+
+| Milestone | Reached by | Reward |
+| --- | --- | --- |
+| Make varsity | High school | $250 |
+| A top 100 recruit | High school | A level of your signature trait |
+| A college offer | High school | A free level of court shoes |
+| Start in college | College | $2,500 |
+| A pro offer | The combine | A free level of the sleeve |
+| Make the rotation | Pros | $250,000 |
+| A 3★ team | Pros | A trait level |
+| A 4★ team | Pros | A free level of wristbands |
+| **A 5★ team (the goal)** | Pros | A trait level |
+| Win a title | Pros | $1,000,000 |
+| The Hall of Fame | Pros | — |
+
+- Each milestone gets a card with its reward and the next step, and a line in the timeline.
+- A reward that can't be given pays the stage's cash instead (`road.fallbackCash`). That happens when the trait is at
+  its top level or the gear is already Elite.
+- A stage you leave without a milestone marks it missed.
+- Old saves check the road quietly on load: what they already did is marked done, with no cards.
+
+**Sim ahead (§4.2, §4.8).** The Play tab has two new buttons.
+
+- **Sim to next big moment** sims week by week. It stops:
+  - before a playoff, rival or Boss game, or a spot start;
+  - after a story choice, a level-up, a new trait or a milestone;
+  - for any injury, offer or decision.
+- **Sim the rest of the season** stops only for injuries, offers, decisions and the first playoff game.
+- Cards along the way are answered for you:
+  - press questions get the team answer (the confident one after a win, if you're confident);
+  - story choices take their default;
+  - a teammate's challenge is simmed.
+- A summary screen shows:
+  - the weeks simmed, the record, your points a game and your bench weeks;
+  - what it stopped for (UP NEXT / STOPPED FOR);
+  - what happened along the way.
+- The offseason has the same button. It runs to the next contract decision or the next season.
+- A run is capped at 80 weeks (`simAhead.maxWeeks`).
+
+**Quick results.** A new setting in Settings → Gameplay, off by default. With it on, a routine simmed game is a toast on
+the hub ("W 16–11 vs …") instead of the result screen. Big games still get the full screen.
+
+**The hub (§5).** Both career hubs (amateur and pro) are now one hub with five tabs.
+
+| Tab | What's on it |
+| --- | --- |
+| Play | The Road, the next game, PLAY/SIM, sim ahead, the calendar |
+| Train | The week's plan, focus and the depth chart |
+| Me | Stats or player card, news, trophies, timeline, the Codex |
+| Team | Team, standings or league, recruiting or office, the depth chart |
+| Shop | Gear |
+
+- **Navigation.** Desktop has a rail on the left with Settings and Main menu. Phones have a bottom bar. Keys 1–5 switch
+  tabs, and a result screen brings you back to Play.
+- **Red dots** mark a tab with something new:
+  - Shop: gear you can afford.
+  - Me: a trait to pick, or unread news.
+  - Team: a new offer.
+  - Train: a challenge you can take.
+- **The calendar** shows every week of the season as a tile:
+  - home or away, the opponent's face and stars;
+  - the result (a W/L chip);
+  - tags: RIVAL, BOSS, PLAYOFF and others.
+  - Weeks that don't fit are counted ("3 earlier · 5 later").
+
+**The Pro Basketball League (PBL).** The pro league is called the Pro Basketball League everywhere:
+
+- the menu, the banners and the card backs;
+- the press room;
+- All-PBL First Team and PBL champion.
+
+No real league or team names appear. Old saves' news, timeline, awards, history and social feed are renamed on load
+(`pblMigrate`).
+
+**First-time tips.** The tips now describe the hub, the depth chart's new rules and trades after bench weeks. A save
+that saw the old week tip gets one new tip about the hub. A long tip's card grows to fit its text. The coach's lines on
+losing and winning the start match the new rules.
+
+**Fixes.**
+
+- The shot feedback's second line no longer overlaps the first (LATE over SMOTHERED).
+- The desktop practice chart on the HUD has room for its labels.
+- Stat tiles fit long values ("Lost in the semifinals").
+- Phones: the genes card's closing line no longer runs under CONTINUE, and the hidden trait's hint fits its card.
+- A long scouting tendency ("Loves the step-back three") wraps instead of being cut, and the tale of the tape lifts
+  a tall scouting card clear of TIP OFF.
+- The phone Road banner is a full-size tap target.
+- Touch buttons centre their labels again. The stick's side label (POST UP) had left the text alignment at "left", so
+  in phone games every button's label started at its circle's centre and a big text size cut SHOOT. A label that
+  still can't fit its circle uses a short word.
+- Desktop and 1.25× text:
+  - the hub rail's Settings button is a gear (the word didn't fit);
+  - calendar chips use a short form in a narrow tile;
+  - the depth chart's notes and coach trust clear its buttons;
+  - a long trait name on a card drops the rarity to the level row;
+  - the Codex splits a topic too long for two columns (the move list) into pages, and a requirement chip that doesn't
+    fit beside its move gets its own row;
+  - the film room keeps its note clear of STUDY THE TAPE.
+
+**Tests.**
+
+- `tests/flow.js` is new: pace, sims, fatigue, press, the depth chart, playing time, the Road, sim ahead (amateur, pro,
+  offseason), Quick results, the hub and the PBL.
+- `smoke.js` has the new score ranges.
+- `fullcareer.js` plays a whole career through the tabs and sim ahead: 709 actions, a whole career to the Hall of Fame, 163 of them on sim summaries (V4: 1,099 actions).
+- The phone audit has every tab of both hubs, the Road, a road card and a sim summary.
+- The test runner prints each step's measurements.
+- The older tests now follow the V5 rules:
+  - the trait deeds and the third trait read their counts from CONFIG;
+  - the trait chip is on the hub's Me tab;
+  - the career simulator lets a spot start play;
+  - the bench-season recap check turns spot starts off;
+  - the old-save driver knows the Road card and the sim summary.
+- Scripted tests hold Road cards back unless they ask for them, as they already do with first-time tips; the rewards
+  still come.
+
+**Suite.** Everything passed on the commit's build: smoke (desktop and phone), every mode, old saves, the dev tools,
+the phone audit, the Art Lab, flow, gameplay, traits, steals, fixes, the HUD audit, the style mix, the full career, the
+desktop and 1.25× text audits (no flags), the balance gate, the balance run, the career simulator (40 careers, none
+stuck) and the trait balance (every rarity in its band). The simulator's F6 targets still read high for a typical career
+(titles 1.63 a career, Hall of Fame 38%); V6 retunes the climb.
+
 ## V4 — 2.0 gameplay: scouting, signature moves, feedback, defense feel, phones, overtime, AI variety (§3)
 
 The fourth milestone of Hoop Heads 2.0. The career is still 1v1 only. No new modes, no power-ups in the career.

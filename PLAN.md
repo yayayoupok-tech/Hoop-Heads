@@ -247,6 +247,42 @@ your team, its level and which level is better.
 **F12 — The beard you pick shows** *(done)* — the user: "the beards don't show when I select them". Your player's
 facial hair shows at every age (it grew in at 16 to 18, and careers start at 14); generated players still grow theirs.
 
+## Hoop Heads 2.0 (V1–V14)
+
+Two requests from the user, done together: "Hoop Heads 2.0: the big update" and "Part 2: harder climb, real story,
+school, shop, staff, pro teams" (where they overlap, Part 2 wins). The rules stand: one `index.html`, renderers never
+throw, a commit per milestone after the full suite and a look at the screenshots, old saves migrate, the career is 1v1
+only, invented league and team names (the Pro Basketball League, PBL), and the story stays PG.
+
+**V1 — Must-fix bugs** *(done)* — eleven bugs from the 2.0 list (steals, contest racks, generated players' rarity, sim
+box scores, overlays, recaps, press rows and more), each with a test.
+**V2 — Performance at 4× CPU** *(done)* — cached poses and baked faces, shoes and nets, a calmer frame guard; paint
+p50 21.6 → 13.4 ms at 4×, with a perf test.
+**V3 — Traits** *(done)* — rarer is stronger, Bronze → Silver → Gold by doing the trait's thing, a third trait late in
+a career, trait cards everywhere and the Codex.
+**V4 — Gameplay** *(done)* — scouting cards and opponents who play to them, a Boss each season, signature moves at 70
+and 80, shot feedback, defense feel, phone controls, next-basket overtime.
+**V5 — Career flow and the hub** *(done)* — the pace rules (12–20 points a side in a minute), fatigue and press only
+when it matters, playing time (spot starts, the starter challenge), the Road to the League, Sim to next big moment,
+Quick results, a five-tab hub with a calendar, and the PBL.
+**V6 — A hard climb** — Part 2 §1: XP that costs more near the top and past your potential, game grades and simmed games
+paying less, a weekly practice cap, setbacks (injuries that cost rating points, slumps), stronger leagues, and pro
+teams with scarce spots. The career simulator plays 600 careers × 3 seeds with a typical and a great policy and prints
+the §1.1 table.
+**V7 — Story engine** — Part 2 §2: flags, conditions, the cast with relationship meters, cutscene backgrounds, and the
+first five arcs.
+**V8 — Arcs, epilogues, records** — the remaining arcs (6–8 a career, none in over 70% of careers), at least four
+epilogues, the Story so far screen, ceremonies and records.
+**V9 — GPA and school** — Part 2 §3: exams, eligibility, offers that need a GPA, scholarships and tuition, majors.
+**V10 — Staff** — Part 2 §4: agent, skills coach, strength trainer, physio, nutritionist, mental coach; hired, paid and
+poached.
+**V11 — The Pro Shop and money** — Part 2 §5: slots, levels and the +4 cap, a storefront with weekly stock and try-on,
+gear drawn on your player, money useful at every stage.
+**V12 — Pro teams and championships** — Part 2 §6: franchise identity and owners, title odds, best-of-3 playoffs, the
+ring ceremony, banners, dynasties, franchise moves, retired jerseys.
+**V13 — Codex, tooltips, badges, What's new** — the rest of the 2.0 UI and content.
+**V14 — Release** — balance, the full suite, version 2.0, the artifact republished.
+
 ## Testing every milestone
 
 ```

@@ -1,6 +1,6 @@
 // 2.0 §2 (V3): traits. Rarer is stronger (the numbers by rarity, printed as a table), every trait levels up Bronze →
 // Silver → Gold by doing its thing (each level adds half the Bronze upside; rarity sets the top level), a third trait
-// at 1,000 career points, the Legendary abilities in the engine (Takeover, Ice Veins, Unbreakable), the in-game banner,
+// at TR.thirdAt career points (V5: 2,000), the Legendary abilities in the engine (Takeover, Ice Veins, Unbreakable), the in-game banner,
 // "Traits that helped", the cards and chips (a tap opens the card, a resting mouse shows it), the Codex's Traits page
 // and old saves. The career balance by rarity is tests/traitbalance.js.   node tests/traits.js
 const path = require('path'), fs = require('fs');
@@ -32,19 +32,19 @@ const { launch, openPage, runner } = require('./lib');
       if (trHead(C, 'spd') !== 7.5) bad.push('Fast Twitch Silver Speed cap ' + trHead(C, 'spd')); return bad; });
     if (r.length) throw new Error(r.join('; '));
   });
-  await step('deeds (§2.2): Clutch Gene levels up after 5 and 15 clutch makes, Gym Rat after 20 Practice weeks (Common: Silver is its top); each level-up is a celebration card; a career\'s simulated games and weeks count them', async () => {
+  await step('deeds (§2.2): Clutch Gene levels up after its Silver and Gold counts of clutch makes (V5: 10 and 30), Gym Rat after 20 Practice weeks (Common: Silver is its top); each level-up is a celebration card; a career\'s simulated games and weeks count them', async () => {
     const r = await ev(() => { const save = defaultSave(), c = amCreate(save, { name: 'Deed Test', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 811, traits: ['clutch', 'gymrat'] }); c.tr.found = true; c.events.length = 0; const out = {};
-      trDeed(c, 'clutch', 4); out.l4 = trLvOf(c, 'clutch'); trDeed(c, 'clutch', 1); out.l5 = trLvOf(c, 'clutch'); trDeed(c, 'clutch', 10); out.l15 = trLvOf(c, 'clutch'); trFlush(c); out.cards = c.events.filter(e => e.kind === 'traitlevel').map(e => e.title + ' → ' + trLevelName(e.level) + ' | ' + e.lines.slice(1).join(' / ')); c.events.length = 0;
+      const [S1, G1] = TR.list.clutch.deed[1]; out.S1 = S1; out.G1 = G1; /* V5: the counts from CONFIG (the pace rules doubled them) */ trDeed(c, 'clutch', S1 - 1); out.l4 = trLvOf(c, 'clutch'); trDeed(c, 'clutch', 1); out.l5 = trLvOf(c, 'clutch'); trDeed(c, 'clutch', G1 - S1); out.l15 = trLvOf(c, 'clutch'); trFlush(c); out.cards = c.events.filter(e => e.kind === 'traitlevel').map(e => e.title + ' → ' + trLevelName(e.level) + ' | ' + e.lines.slice(1).join(' / ')); c.events.length = 0;
       trDeed(c, 'practice', 19); out.g19 = trLvOf(c, 'gymrat'); trDeed(c, 'practice', 1); out.g20 = trLvOf(c, 'gymrat'); trDeed(c, 'practice', 100); out.g120 = trLvOf(c, 'gymrat');
       const d2 = defaultSave(), a = amCreate(d2, { name: 'Sim Deeds', look: PRESET_LOOKS[4], number: 9, style: 'big', seed: 912, traits: ['paintprotector'] }); a.events.length = 0; let n = 0; while (n++ < 60 && a.stage === 'hs') { a.events.length = 0; hsAutoResolve(a); if (a.summer && a.summer.pending) { hsSummerChoose(a, 'rest'); continue; } if (a.decision) break; if (!amSimGame(a)) break; } out.sim = Object.assign({}, a.tr.deeds); return out; });
-    console.log('     Clutch Gene: 4 makes → ' + r.l4 + ', 5 → ' + r.l5 + ', 15 → ' + r.l15 + ' · Gym Rat: 19 weeks → ' + r.g19 + ', 20 → ' + r.g20 + ', 120 → ' + r.g120 + '\n     cards: ' + r.cards.join(' · ') + '\n     a simulated high school career\'s deeds: ' + JSON.stringify(r.sim));
+    console.log('     Clutch Gene: ' + (r.S1 - 1) + ' makes → ' + r.l4 + ', ' + r.S1 + ' → ' + r.l5 + ', ' + r.G1 + ' → ' + r.l15 + ' · Gym Rat: 19 weeks → ' + r.g19 + ', 20 → ' + r.g20 + ', 120 → ' + r.g120 + '\n     cards: ' + r.cards.join(' · ') + '\n     a simulated high school career\'s deeds: ' + JSON.stringify(r.sim));
     if (r.l4 !== 1 || r.l5 !== 2 || r.l15 !== 3) throw new Error('Clutch Gene levels ' + [r.l4, r.l5, r.l15]); if (r.g19 !== 1 || r.g20 !== 2 || r.g120 !== 2) throw new Error('Gym Rat levels ' + [r.g19, r.g20, r.g120]);
     if (r.cards.length !== 2) throw new Error('level-up cards: ' + r.cards.length); if (!(r.sim.games > 10 && r.sim.practice > 0 && r.sim.pts > 0 && r.sim.blocks >= 0)) throw new Error('simulated deeds ' + JSON.stringify(r.sim));
   });
-  await step('the third trait (§2.2): 1,000 career points offer 3 Common or Uncommon traits you don\'t have; the pick starts at Bronze and plays', async () => {
+  await step('the third trait (§2.2): TR.thirdAt career points (V5: 2,000) offer 3 Common or Uncommon traits you don\'t have; the pick starts at Bronze and plays', async () => {
     const r = await ev(() => { const save = defaultSave(), c = amCreate(save, { name: 'Third Test', look: PRESET_LOOKS[1], number: 3, style: 'shooter', seed: 77, traits: ['microwave', 'clutch'] }); c.tr.found = true; c.events.length = 0;
-      trDeed(c, 'pts', 999); const before = !!c.tr.offer; trDeed(c, 'pts', 1); trFlush(c); const ev0 = c.events.find(e => e.kind === 'traitpick'), offer = (c.tr.offer || []).slice(); const ok = trPickThird(c, offer[1]); return { before, offer: offer.map(id => id + ':' + TR.list[id].r), ev: !!ev0, ok, third: c.tr.third, active: trActive(c), lv: trLvOf(c, offer[1]), again: trPickThird(c, offer[0]) }; });
-    console.log('     at 1,000 points: ' + r.offer.join(', ') + ' · picked ' + r.third + ' (' + ['', 'Bronze', 'Silver', 'Gold'][r.lv] + ') · active: ' + r.active.join(', '));
+      trDeed(c, 'pts', TR.thirdAt - 1); const before = !!c.tr.offer; trDeed(c, 'pts', 1); /* V5: TR.thirdAt (2,000) */ trFlush(c); const ev0 = c.events.find(e => e.kind === 'traitpick'), offer = (c.tr.offer || []).slice(); const ok = trPickThird(c, offer[1]); return { before, offer: offer.map(id => id + ':' + TR.list[id].r), ev: !!ev0, ok, third: c.tr.third, active: trActive(c), lv: trLvOf(c, offer[1]), again: trPickThird(c, offer[0]) }; });
+    console.log('     at the third-trait mark: ' + r.offer.join(', ') + ' · picked ' + r.third + ' (' + ['', 'Bronze', 'Silver', 'Gold'][r.lv] + ') · active: ' + r.active.join(', '));
     if (r.before || !r.ev || r.offer.length !== 3 || r.offer.some(x => !/:[CU]$/.test(x)) || r.offer.some(x => /^(microwave|clutch):/.test(x))) throw new Error('the offer ' + JSON.stringify(r));
     if (!r.ok || r.lv !== 1 || r.active.length !== 3 || r.again) throw new Error('the pick ' + JSON.stringify(r));
   });
@@ -57,13 +57,13 @@ const { launch, openPage, runner } = require('./lib');
       m.period = m.periods; m.gameClock = 40; out.ice40 = +trShotMul(q, 'jumper').toFixed(3); m.gameClock = 10; out.ice10 = +trShotMul(q, 'jumper').toFixed(3); m.gameClock = 40; m.playoff = true; out.icePO = +trShotMul(q, 'jumper').toFixed(3); m.playoff = false;
       g.renderSceneAny(g.ctx, m, 1, 0); g.drawHUD(g.ctx, m, 1, 0); g.quitToMenu();
       const B = { tr: { sig: 'iceveins', hidden: null, found: true }, hype: 50, confidence: 1.5 }; mdAfterGame(B, false, 2, 12); out.conf = B.confidence;
-      const U = { tr: { sig: 'unbreakable', hidden: null, found: true }, fatigue: 90 }; let hurt = 0; const rng = new RNG(5); for (let i = 0; i < 3000; i++) { U.fatigue = 90; U.injury = null; const w = wkAfterGame(U, rng, {}); if (w.injury) hurt++; } U.fatigue = 0; wkAfterGame(U, rng, {}); out.unb = { hurt, fat: U.fatigue, age: trAgeShift(U) };
+      const U = { tr: { sig: 'unbreakable', hidden: null, found: true }, fatigue: 90 }; let hurt = 0; const rng = new RNG(5); for (let i = 0; i < 3000; i++) { U.fatigue = 90; U.injury = null; const w = wkAfterGame(U, rng, {}); if (w.injury) hurt++; } U.fatigue = 0; wkAfterGame(U, rng, {}); out.unb = { hurt, fat: U.fatigue, age: trAgeShift(U), exp: WK.fatiguePerGame * trMul(U, 'fatigue') }; /* V5: a game's fatigue from WK */
       const G = { tr: { sig: 'generational', hidden: null, found: true } }; out.gen = { xp: +trXpMul(G, 25).toFixed(3), cap: trHead(G, 'sho') };
       return out; });
     console.log('     Takeover: ' + JSON.stringify(r.take) + ' · Ice Veins ×' + r.ice40 + ' at 0:40, ×' + r.ice10 + ' at 0:10, ×' + r.icePO + ' in the playoffs; confidence after a loss ' + r.conf + ' (was 1.5) · Unbreakable: ' + r.unb.hurt + ' injuries in 3,000 tired games, fatigue +' + r.unb.fat + ' a game, ages ' + r.unb.age + ' years slower · Generational XP ×' + r.gen.xp + ', caps +' + r.gen.cap);
     if (r.take.until !== 10 || r.take.shot !== 1.15 || r.take.speed !== 1.1 || !r.take.banner.includes('generational')) throw new Error('Takeover ' + JSON.stringify(r.take));
     if (r.ice40 !== 1 || r.ice10 !== 1.25 || r.icePO !== 1.25 || r.conf < 1.5) throw new Error('Ice Veins ' + [r.ice40, r.ice10, r.icePO, r.conf]);
-    if (r.unb.hurt || Math.abs(r.unb.fat - 6) > 1e-9 || r.unb.age !== 4) throw new Error('Unbreakable ' + JSON.stringify(r.unb)); if (r.gen.xp !== 1.3 || r.gen.cap !== 10) throw new Error('Generational ' + JSON.stringify(r.gen));
+    if (r.unb.hurt || Math.abs(r.unb.fat - r.unb.exp) > 1e-9 || r.unb.age !== 4) throw new Error('Unbreakable ' + JSON.stringify(r.unb)); if (r.gen.xp !== 1.3 || r.gen.cap !== 10) throw new Error('Generational ' + JSON.stringify(r.gen));
   });
   await step('the banner (§2.3): a trait kicking in shows its icon and name under the HUD for 1.2 s of game time; "Traits that helped" after a played game (a playoff game with Clutch Gene: its makes, by the engine\'s own numbers)', async () => {
     const r = await ev(() => { const g = HH.game, t0 = teamWithRoster(TEAMS[0]), t1 = teamWithRoster(TEAMS[1]); t0.players[0] = Object.assign({}, t0.players[0], { traits: ['clutch', 'paintprotector'], traitLv: { clutch: 2 } });
@@ -74,7 +74,7 @@ const { launch, openPage, runner } = require('./lib');
     if (r.shown !== 1 || r.gone !== 0) throw new Error('the banner'); if (!r.lines.some(l => /^Clutch Gene: \+[0-9.]+ make/.test(l))) throw new Error('no Clutch Gene line: ' + r.lines.join(' | '));
   });
   await step('cards and chips (§2.3): a tap on your trait chip on the hub opens its card; a mouse resting on it shows the card; the Codex lists all 17 by rarity (yours highlighted, your hidden one as ??? with its rarity and a hint)', async () => {
-    await ev(() => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Chip Test', look: PRESET_LOOKS[5], number: 8, style: 'shooter', seed: 4321, traits: ['streaky', 'iceveins'] }); g.save.data.c1 = a; a.events.length = 0; g.ui.clearTo(amHub(g)); });
+    await ev(() => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Chip Test', look: PRESET_LOOKS[5], number: 8, style: 'shooter', seed: 4321, traits: ['streaky', 'iceveins'] }); g.save.data.c1 = a; a.events.length = 0; g.hubTab = 'me'; /* V5: the chips are on the hub's Me tab */ g.ui.clearTo(amHub(g)); });
     await page.waitForTimeout(500);
     const hot = await ev(() => { const s = HH.game.ui.screen, h = (s._hots || []).find(x => x.info && x.info.trait === 'streaky'); if (!h) return null; const ui = HH.game.ui; return { x: ui.ox + (h.x + h.w / 2) * ui.scale, y: ui.oy + (h.y + h.h / 2) * ui.scale }; });
     if (!hot) throw new Error('no chip on the hub');
@@ -85,11 +85,11 @@ const { launch, openPage, runner } = require('./lib');
     console.log('     hover shows the card: ' + hover + ' · a click opens: ' + top + ' · Codex: ' + codex.tiles + ' tiles, yours ' + codex.mine.join(', ') + ', the hidden note ' + codex.hidden);
     if (!hover || top !== 'traitcard') throw new Error('the chip'); if (codex.tiles !== 17 || codex.mine.join() !== 'streaky' || !codex.hidden) throw new Error('the Codex ' + JSON.stringify(codex));
   });
-  await step('old saves (V3): levels start at Bronze and the deeds from what the save knows (games, wins, points); a save past 1,000 points gets its third-trait pick', async () => {
+  await step('old saves (V3): levels start at Bronze and the deeds from what the save knows (games, wins, points); a save past the third-trait mark gets its pick', async () => {
     const FIX = path.join(__dirname, 'fixtures'); const raw = JSON.parse(fs.readFileSync(path.join(FIX, 'save_r8_pro_midseason.json'), 'utf8'));
     const r = await ev(raw => { const a = migrateSave(JSON.parse(JSON.stringify(raw))); const M = a.career.me, out = { deeds: M.tr.deeds, lv: M.tr.lv, offer: M.tr.offer || null };
-      raw.career.me.careerStats.pts = 900; const b2 = migrateSave(raw); out.offer2 = b2.career.me.tr.offer; out.ev2 = (b2.career.events || []).some(e => e.kind === 'traitpick'); return out; }, raw);
-    console.log('     r8 pro save: deeds ' + JSON.stringify(r.deeds) + ' · past 1,000 points: offer ' + (r.offer2 || []).join(', ') + ', the pick queued ' + r.ev2);
+      raw.career.me.careerStats.pts = TR.thirdAt; /* V5: 2,000 */ const b2 = migrateSave(raw); out.offer2 = b2.career.me.tr.offer; out.ev2 = (b2.career.events || []).some(e => e.kind === 'traitpick'); return out; }, raw);
+    console.log('     r8 pro save: deeds ' + JSON.stringify(r.deeds) + ' · past the third-trait mark: offer ' + (r.offer2 || []).join(', ') + ', the pick queued ' + r.ev2);
     if (!r.deeds || !(r.deeds.games > 50) || !(r.deeds.pts > 700) || r.offer) throw new Error('the migration ' + JSON.stringify(r)); if (!r.offer2 || r.offer2.length !== 3 || !r.ev2) throw new Error('no third trait for a veteran');
   });
   await step('simulated games: what each trait is worth (OVR points, from its numbers): Bronze / Silver / Gold, regular season and playoffs', async () => {

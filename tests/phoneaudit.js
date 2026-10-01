@@ -79,7 +79,12 @@ const { launch, openPage } = require('./lib');
   await audit('halloffame', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(hallOfFameScreen(HH.game)); });
   await audit('create', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(createPlayerScreen(HH.game)); });
   await audit('customize-face', () => { const g = HH.game; const s = g.ui.screen; const w = (s.widgets || []).find(x => /face|Customize|Edit/i.test(x.label || '')); if (w) w.onPress(); });
-  await audit('am-hub', () => { const g = HH.game; g.ui.clearTo(amHub(g)); });
+  await audit('am-hub', () => { const g = HH.game; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); });
+  for (const tab of ['train', 'me', 'team', 'shop']) await audit('am-hub-' + tab, t => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = t; g.ui.clearTo(amHub(g)); }, tab); // V5 (2.0 §5): the hub's five tabs
+  await audit('am-road', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); g.ui.push(roadScreen(g)); }); // V5 (2.0 §4.1)
+  await audit('am-roadcard', () => { const g = HH.game, a = g.save.data.c1; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); a.events = [{ kind: 'road', id: 'offer', title: 'A COLLEGE OFFER', reward: 'Basic court shoes, free: +0.5 Speed in games.', lines: ['Get a college scholarship offer.', 'Reward: Basic court shoes, free: +0.5 Speed in games.', 'Next on the road: start in college.'] }]; g.ui.push(amEventScreen(g)); });
+  await audit('am-simsummary', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); g.ui.push(simSummaryScreen(g, { mode: 'big', weeks: 3, w: 2, l: 1, pts: 37, games: 3, bench: 0, lines: ['Report card.', 'Level up: Clutch Gene (Silver).', 'Road to the League: a college offer. Basic court shoes, free: +0.5 Speed in games.'], stop: 'next: a game against your rival' }, () => g.ui.pop())); }); // V5 (2.0 §4.2)
+  await audit('am-hub-play-again', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); });
   for (const t of ['buzz', 'team', 'money']) await audit('am-guide-' + t, t => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(statsGuideScreen(g, t)); }, t); // F9: the stats guide (an amateur)
   await audit('am-gear', () => { const g = HH.game, a = g.save.data.c1; a.cash = 2600; a.gear = { sleeve: 1, shoes: 2 }; g.ui.clearTo(amHub(g)); g.ui.push(gearScreen(g)); }); // F8: the gear shop
   await audit('am-tryout', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: tryouts, the shootout first
@@ -152,7 +157,10 @@ const { launch, openPage } = require('./lib');
   await audit('combine', () => { const g = HH.game, a = g.save.data.c1; a.decision = null; a.stage = 'combine'; a.events.length = 0; g.ui.clearTo(amHub(g)); g.ui.push(amCombineScreen(g)); });
   await audit('pro-offers', () => { const g = HH.game, a = g.save.data.c1; g.save.data.career = null; a.stage = 'combine'; a.decision = null; a.proOffers = null; a.events.length = 0; g.ui.clearTo(proOffersScreen(g)); }); // F7: no draft
   await audit('signing', () => { const g = HH.game; const c = testProLeague(12, g.save.data); g.save.data.c1.handedOff = true; c.events.length = 0; const s = signingScreen(g); g.ui.clearTo(s); s.onTap(); s.onTap(); });
-  await audit('pro-hub', () => { const g = HH.game; const c = testProLeague(12, g.save.data); g.save.data.c1.handedOff = true; c.events.length = 0; g.save.save(); g.ui.clearTo(careerHub(g)); });
+  await audit('pro-hub', () => { const g = HH.game; const c = testProLeague(12, g.save.data); g.save.data.c1.handedOff = true; c.events.length = 0; roadCheck(c); c.events.length = 0; g.save.save(); g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); });
+  for (const tab of ['train', 'me', 'team', 'shop']) await audit('pro-hub-' + tab, t => { const g = HH.game, c = g.save.data.career; c.events.length = 0; g.hubTab = t; g.ui.clearTo(careerHub(g)); }, tab); // V5 (2.0 §5)
+  await audit('pro-road', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); g.ui.push(roadScreen(g)); });
+  await audit('pro-hub-play-again', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); });
   await audit('pro-team', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(teamScreen(g)); }); // R3
   await audit('career-menu', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(careerMenuScreen(g)); }); // F7
   await audit('league-franchises', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.leagueTab = { tab: 1, player: 0 }; g.ui.push(leagueScreen(g)); }); // F7

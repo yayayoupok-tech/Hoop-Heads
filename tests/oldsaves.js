@@ -39,6 +39,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
       case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^START SEASON/) || by(/^RETIRE/)); break;
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
+      case 'roadcard': case 'simsummary': pr(by(/^(Continue|CONTINUE)$/) || W.find(w => w.primary)); break; // V5: a Road to the League milestone, a sim-ahead summary
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result
       case 'ladder': pr(by(/^Back$/)); break;
       case 'tryout': pr(by(/^SIM IT$/)); break; // R5: tryouts (both parts simmed)
