@@ -38,6 +38,13 @@ const { launch, openPage } = require('./lib');
     if (g.mode !== 'match' && top && top.overlay) for (const n of [...new Set(drawn)]) out.push('(' + n + ' drawn under the ' + (top.name || '?') + ' overlay)'); // a screen under an overlay shows its art and sprite text too
     for (const u of U) for (const b of Tp) { const px = Math.max(u.s, b.s), ix = Math.min(u.x + u.w, b.x + b.w) - Math.max(u.x, b.x), iy = Math.min(u.y + u.h, b.y + b.h) - Math.max(u.y, b.y); if (ix > px && iy > px) { const k = '"' + String(u.t).slice(0, 24) + '" (' + u.under + ') under "' + String(b.t).slice(0, 24) + '"'; if (!out.includes(k)) out.push(k); } }
     return out; }; });
+  // V13 (2.0 §5): legibility: every string a screen shows, the ones baked into its trading cards too (the card cache is
+  // emptied first so they bake inside this draw), at the menus' pixel or bigger: a glyph 10 font pixels tall is then at
+  // least 10 internal pixels (RBF.kUI device px each: the 360-row grid of the 1280×720 area, rounded the way the menus
+  // round it).
+  await ev(() => { window.__legib = () => { const g = HH.game; try { _cards.clear(); } catch (e) { /* no cards yet */ } RBF.audit = []; RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } catch (e) { /* the audit's own draw */ } const sc = RBF.audit || [], bx = (RBF.boxes || []).filter(b => !b.under && String(b.t).trim()); RBF.audit = null; RBF.boxes = null; const k = RBF.kUI || 1, out = [];
+    for (const b of bx) if (b.s < k) { const t = '"' + String(b.t).slice(0, 24) + '" at ' + b.s + ' < ' + k; if (!out.includes(t)) out.push(t); }
+    const min = sc.length ? Math.min(...sc) : k; if (min < k && !out.length) out.push('baked text at ' + min + ' < ' + k); return { out, min, k }; }; });
   // V1 (§1.8): a push or pop never shows two screens at once (the old one is gone before the new one shows)
   { const tr = await ev(() => { if (typeof uiTransAlphas !== 'function') return { bad: ['0 to 1 (a cross-fade)'], end: [0, 1] }; const bad = []; for (let i = 0; i <= 100; i++) { const a = uiTransAlphas(i / 100); if (Math.min(a[0], a[1]) > 0) bad.push((i / 100).toFixed(2)); } const end = uiTransAlphas(1); return { bad, end }; });
     console.log((tr.bad.length || tr.end[0] !== 0 || tr.end[1] !== 1 ? 'FLAG  ' : 'ok    ') + 'transitions (push/pop: never two screens at once)' + (tr.bad.length ? ': TWO SCREENS at k = ' + tr.bad.slice(0, 6).join(', ') : '')); }
@@ -55,10 +62,11 @@ const { launch, openPage } = require('./lib');
     for (const o of await ev(() => window.__textCuts())) r.bad.push('TEXT CUT "' + o + '"'); // F7
     for (const o of await ev(() => window.__twoScreens())) r.bad.push('TWO SCREENS ' + o); // V1 (§1.8)
     for (const o of await ev(() => window.__artOverText())) r.bad.push('ART OVER TEXT ' + o); // F10
+    { const L = await ev(() => window.__legib()); for (const o of L.out) r.bad.push('SMALL TEXT ' + o); legib.push(L.min / L.k); } // V13 (2.0 §5)
     const minTxt = tx.length ? tx[0].px : 99; texts.push({ name, min: minTxt, tx });
     console.log((r.bad.length ? 'FLAG  ' : 'ok    ') + name + ' (' + r.name + ', ' + r.n + ' widgets, min text ' + minTxt.toFixed(1) + ' px)' + (r.bad.length ? ': ' + r.bad.slice(0, 12).join(' | ') + (r.bad.length > 12 ? ' …+' + (r.bad.length - 12) : '') : ''));
   };
-  const texts = [];
+  const texts = [], legib = []; // (V13: each screen's smallest glyph against the menus' pixel)
   await audit('menu-new', () => { const g = HH.game; g.__c1 = g.save.data.c1; g.save.data.c1 = null; g.ui.clearTo(mainMenu(g)); }); await ev(() => { const g = HH.game; g.save.data.c1 = g.__c1; delete g.__c1; }); // F10: a new player's menu (no career yet: the league's pitch beside two players)
   await audit('title', () => HH.game.ui.clearTo(titleScreen(HH.game))); // R10: every screen
   await audit('menu', () => HH.game.ui.clearTo(mainMenu(HH.game)));
@@ -85,9 +93,13 @@ const { launch, openPage } = require('./lib');
   await audit('am-roadcard', () => { const g = HH.game, a = g.save.data.c1; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); a.events = [{ kind: 'road', id: 'offer', title: 'A COLLEGE OFFER', reward: 'Basic court shoes, free: +0.5 Speed in games.', lines: ['Get a college scholarship offer.', 'Reward: Basic court shoes, free: +0.5 Speed in games.', 'Next on the road: start in college.'] }]; g.ui.push(amEventScreen(g)); });
   await audit('am-simsummary', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); g.ui.push(simSummaryScreen(g, { mode: 'big', weeks: 3, w: 2, l: 1, pts: 37, games: 3, bench: 0, lines: ['Report card.', 'Level up: Clutch Gene (Silver).', 'Road to the League: a college offer. Basic court shoes, free: +0.5 Speed in games.'], stop: 'next: a game against your rival' }, () => g.ui.pop())); }); // V5 (2.0 §4.2)
   await audit('am-hub-play-again', () => { const g = HH.game, a = g.save.data.c1; a.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); });
-  for (const t of ['buzz', 'team', 'money', 'staff']) await audit('am-guide-' + t, t => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(statsGuideScreen(g, t)); }, t); // F9: the stats guide (an amateur)
+  for (const t of ['buzz', 'team', 'money', 'staff', 'shop']) await audit('am-guide-' + t, t => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(statsGuideScreen(g, t)); }, t); // F9: the stats guide (an amateur)
   await audit('am-gear', () => { const g = HH.game, a = g.save.data.c1; a.cash = 2600; a.gear = { sleeve: 1, shoes: 2 }; g.shopTab = null; g.ui.clearTo(amHub(g)); g.ui.push(shopScreen(g)); }); // F8; V11: the shop (F8's gear migrates)
-  for (const v of ['locker', 'extras']) await audit('am-shop-' + v, v => { const g = HH.game; g.shopTab = { view: v, sel: null, page: 0, sub: null }; g.ui.clearTo(amHub(g)); g.ui.push(shopScreen(g)); }, v); // V11: an amateur's locker (F8's gear, migrated) and extras
+  for (const v of ['locker', 'extras', 'celebs']) await audit('am-shop-' + v, v => { const g = HH.game; g.shopTab = { view: v, sel: null, page: 0, sub: null }; g.ui.clearTo(amHub(g)); g.ui.push(shopScreen(g)); }, v); // V11: an amateur's locker (F8's gear, migrated) and extras (V13: and the celebrations)
+  await audit('am-shop-celebs-item', () => { const g = HH.game; g.shopTab = { view: 'celebs', sel: 'earCup', page: 0, sub: 'celeb' }; g.ui.clearTo(amHub(g)); g.ui.push(shopScreen(g)); }); // V13 (2.0 §6): one celebration (a phone: its own page)
+  await audit('am-stattip', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(statTipScreen(g, 'fatigue')); }); // V13 (2.0 §5): a stat's card (a tap on a phone)
+  await audit('whatsnew', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(whatsNewScreen(g)); }); // V13 (2.0 §5): What's new in 2.0
+  await audit('whatsnew-p3', () => { const s = HH.game.ui.screen, n = s.widgets.find(w => w.label === '▶' && !w.hidden); if (n) { n.onPress(); n.onPress(); } }); // (a phone's last page)
   await audit('am-tryout', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: tryouts, the shootout first
   await audit('am-tryout-1v1', () => { const g = HH.game, a = g.save.data.c1; if (a.tryout && a.tryout.step === 'drill') hsTryoutDrill(a, 12); g.ui.clearTo(amHub(g)); g.ui.push(tryoutScreen(g)); }); // R5: then the 1v1 against a senior
   await audit('am-tryout-post', () => { const g = HH.game; g.ui.push(tryoutPostScreen(g, { contest3: { score: 12 }, winner: 0, teams: [{ score: 7 }, { score: 5 }] }, { part: 'none' })); }); // R10: the tryout's result card
@@ -201,7 +213,7 @@ const { launch, openPage } = require('./lib');
   await audit('pro-film', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(filmRoomScreen(HH.game)); }); // R10: every screen
   await audit('league', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(leagueScreen(HH.game)); });
   await audit('player', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(playerScreen(HH.game)); });
-  for (const t of ['you', 'buzz', 'body', 'team', 'money', 'staff']) await audit('guide-' + t, t => { const g = HH.game, c = g.save.data.career; c.me.hype = 66; c.me.fatigue = 57; c.me.gear = { sleeve: 2, braces: 1 }; g.ui.clearTo(careerHub(g)); g.ui.push(statsGuideScreen(g, t)); }, t); // F9: the stats guide (a pro)
+  for (const t of ['you', 'buzz', 'body', 'shop', 'team', 'money', 'staff']) await audit('guide-' + t, t => { const g = HH.game, c = g.save.data.career; c.me.hype = 66; c.me.fatigue = 57; c.me.gear = { sleeve: 2, braces: 1 }; g.ui.clearTo(careerHub(g)); g.ui.push(statsGuideScreen(g, t)); }, t); // F9: the stats guide (a pro)
   await audit('career-menu', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(careerMenuScreen(g)); }); // F7/F9: the Career menu's tiles
   for (let t = 0; t < 8; t++) await audit('management-tab' + t, t => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.mgmtTab = { tab: t }; const s = managementScreen(HH.game); HH.game.ui.push(s); }, t);
   for (const t of [1, 3, 5]) await audit('business-r7-tab' + t, t => { const g = HH.game, c = g.save.data.career; c.me.money = 3e7; c.me.hype = PR.shoeHype * MD.hypeMax; g.ui.clearTo(careerHub(g)); g.mgmtTab = { tab: t }; g.ui.push(managementScreen(g)); }, t); // R7: contract & money (agent, shoe line), training, lifestyle
@@ -235,6 +247,8 @@ const { launch, openPage } = require('./lib');
   await audit('pro-shop-locker', shopCase, { view: 'locker' });
   await audit('pro-shop-locker-item', shopCase, { view: 'locker', sel: 'shooterSleeve:epic', sub: 'item' });
   await audit('pro-shop-extras', shopCase, { view: 'extras' });
+  await audit('pro-shop-celebs', shopCase, { view: 'celebs', sel: 'raiseRoof' }); // V13 (2.0 §6)
+  await audit('pro-shop-celebs-item', shopCase, { view: 'celebs', sel: 'iceVeins', sub: 'celeb' });
   await ev(() => { const g = HH.game, c = g.save.data.career, [gr, m] = g.__gear; c.me.gear = JSON.parse(gr); c.me.money = m; delete g.__gear; g.shopTab = null; });
   // V12 (Part 2 §6, 2.0 §4.4/4.5): the franchises, the bracket, a title's scenes, the owners' moves, free agency's cards, a trade side by side (a second career, swapped back after)
   await ev(() => { const g = HH.game; g.__v12 = [g.save.data.career, g.save.data.c1]; const c = testProLeague(36, g.save.data); g.save.data.career = c; g.save.data.c1.handedOff = true; c.events.length = 0; });
@@ -286,6 +300,7 @@ const { launch, openPage } = require('./lib');
   await audit('pause-practice', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); const a = soloTeam(extrasPool(g)[0], false), b2 = soloTeam(extrasPool(g)[1], true); g.startMatch({ mode: '1v1', teams: [a, b2], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'rookie', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'legends', seed: 11, controlMode: 'lock', practice: { noDefender: true, infiniteStamina: true, breakdown: true, chart: true } }, { kind: 'practice' }); const pr = g.match.practice; for (let i = 0; i < 12; i++) { const k = ['lay', 'mid', 'three', 'deep'][i % 4]; pr.shots++; pr.byZone[k][1]++; if (i % 3) { pr.makes++; pr.byZone[k][0]++; } pr.marks.push({ x: 0, d: [1.5, 5, 7.5, 9][i % 4], zone: k, make: !!(i % 3), type: k === 'lay' ? 'layup' : 'jumper', grade: k === 'lay' ? -1 : i % 2, id: 100 + i * 17 }); } g.pause(); }); // V4: practice's shot chart on the pause menu
   await audit('postgame-quick', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); const a = soloTeam(extrasPool(g)[0], false), b = soloTeam(extrasPool(g)[1], true); g.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 3 }, court: 'blacktop', seed: 5, controlMode: 'lock' }, { kind: 'quick' }); for (const p of g.match.players) p.controlled = false; for (let i = 0; i < 120 * 240 && !g.match.ended; i++) simStep(g.match, STEP); });
   await wait(4000); await audit('postgame-quick-later', () => {});
+  console.log('legibility: the smallest glyph is ' + (legib.length ? Math.min(...legib).toFixed(2) : '?') + '× the menus\' pixel over ' + legib.length + ' screens (1.00 or more: every string at least 10 internal pixels tall)');
   console.log('smallest text (CSS px): ' + texts.slice().sort((a, b) => a.min - b.min).slice(0, 25).map(o => o.name + ' ' + o.min.toFixed(1) + ' "' + (o.tx[0] ? o.tx[0].t : '') + '"').join(' | '));
   console.log('errors: ' + (P.errors.length ? P.errors.join(' | ') : 'none')); await browser.close();
 })();

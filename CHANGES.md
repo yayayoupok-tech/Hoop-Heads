@@ -3,6 +3,180 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V13 — 2.0: the Codex everywhere, tooltips, dots, What's new, legibility (§5); celebrations, arenas, names and looks (§6)
+
+The UI and content milestone of 2.0 (§5 and §6). The career is still 1v1 only.
+
+**The Codex from every screen.** Press **?** (a gamepad's View button) on any screen, or tap the **?** chip in a
+phone's margin beside the 1280×720 area (64 CSS px to tap, on no button; a tablet gets it in the top margin, a
+16:9 touch screen in the top right corner). On a desktop the key hint reads **? Codex · Enter select · Esc back**
+and "? Codex" is a link; the hub's left rail has its own **?** beside the settings gear. Each opens the page about
+the screen you're on: the hub's Play tab opens The season, Train opens OVR & ratings, Me opens Hype, fame,
+confidence, Team opens Team & pro value, Shop opens Gear & the shop; a press conference opens the buzz page, the
+recruiting screens Money & school, the Office and the franchise pages Team & pro value, and so on (`codexTopicFor`).
+Back returns to where you were. There's no chip on the Codex itself, the boot splash, the title screen, the title
+cinematics, the tips, the keyboard or the dev tools.
+
+**The Codex's pages** cover every term §5 names, each with what it is, what raises and lowers it, and its numbers
+(read from CONFIG):
+
+| Term | Page |
+| --- | --- |
+| Ratings, OVR, potential, XP | OVR & ratings (OVR now gives its range, the 2-OVR depth-chart rule and the value formula) |
+| Traits | Traits (as before) |
+| Hype, fame, confidence | Hype, fame, confidence |
+| Coach trust, team stars | Team & pro value (**Team stars** is new: how the twelve franchises are ranked, how prestige moves each offseason, what a star is worth, and the calendar's opponent stars) |
+| Fatigue, injuries, slumps | Fatigue & injuries |
+| Money, GPA, legacy | Money & school (a pro's Money entry now gives the sponsor and shoe-line numbers) |
+| The shop | **Gear & the shop** (new page): Gear, The shop, Celebrations and Lifestyle |
+
+**Stat tooltips.** Rest the mouse on a stat chip or meter and a line says what it does, with "Click: the Codex →"; a
+click opens its page. On a phone a tap opens a small card with the line and a **Codex →** button. Hot spots: the
+hub's Me and Team rows (hype, fame, confidence, cash or money, GPA, coach trust, franchise stars, title odds), the
+fatigue meter on the Train tab, every OVR badge and trading card, the star ratings (the hub's header, the calendar,
+the franchise pages), coach trust on the team screen, the Office's fame meter and the news screen's buzz meters. A
+stat inside a button stays the button's (no tooltip there). Hot spots are now stored through the canvas's own
+transform, so one drawn in a scaled panel (the phone's Me tab) lands where it shows; the trait chips there were off
+before.
+
+**Red dots.** The hub's tabs had dots for new offers, gear you can afford, a trait to pick, unread news and a
+challenge you can take; they now cover unread story too (the saga's chapters since you last opened Story), and the
+button behind a dot has one as well: News, Story, Recruiting, the Office (new offers) and the Depth chart. Opening
+it clears it.
+
+**What's new in 2.0.** A page of eleven items (traits, gameplay, the Road, the harder climb, the story, school, the
+shop, the staff, the pro teams, the new looks, the Codex). It opens once on the first main menu after the update for a
+save from before 2.0 (Got it saves that); a new player never sees it uninvited. The main menu has a **What's new**
+button (2.0). A desktop shows all eleven in three columns; a phone pages them four at a time.
+
+**Stacked screens** stay opaque (V1 §1.8): an overlay in the menus draws over the backdrop alone. The new stat card is
+one too; the test checks the screen underneath never draws.
+
+**Legibility (no text under 10 internal pixels).** Every glyph of the Retro font is 10 font pixels tall, and the menus
+draw each font pixel at least the menus' own pixel (RBF.kUI device px: the 360-row grid of the 1280×720 area, rounded
+the way the menus round it), so a string is at least 10 internal pixels tall. That already held for everything the
+menus draw on screen; it didn't hold for text baked into the trading cards (their chips, tier, sub-line and the OVR
+badge's "OVR" were drawn at 1 device px a font pixel: about 5 internal pixels on a phone). Cards now bake their text
+at the menus' pixel too (`RBF.bakeMin`); their chips grow to fit, a long name or school line ends in "…", and a chip
+that no longer fits drops out. The overflow audit enforces it: every screen's strings, the baked ones included (the
+card cache is emptied first), are checked against the menus' pixel. All 250 screens pass at all three sizes.
+
+**Six more celebrations** (`178_celebs.js`, the rig in `027_rig.js`): **Can't Hear You** (a hand cupped at the
+ear), **Raise the Roof**, **Take a Bow**, **Ice Veins** (two fingers tapping the wrist), **Shush** (a finger to the
+lips) and **The Robot**. Everyone has the old eight; the six are yours alone. Four unlock on the Road to the League
+(make varsity: Raise the Roof; start in college: Shush; a 5★ team: Take a Bow; win a ring: The Robot; the milestone's
+card says so, and an old save's milestones already done count). Two are sold in the shop's new **Celebrations**
+shelf: Can't Hear You and Ice Veins, at $150 in high school, $900 in college, $40,000 in the pros. The shelf lists
+all fourteen with how to get each and a looping preview on your player; pick one ("Use it") or **Mix them all**.
+After a basket your player does yours (a mix picks one of yours by the play, never from the match's random numbers);
+the league's players keep the eight. They come with you to the pros.
+
+**One more arena a level.** The same buildings, each painted its own way (`VENUE_STYLE`): **The Fieldhouse** (high
+school: blue-gray block, gray bleachers, REGIONAL FINALS pennants, a lighter maple), **The Pavilion** (college: green
+stands and bowl, a cream-stone wall, SWEET SIXTEEN and ELITE EIGHT banners) and **The Foundry** (the pros: a rust and
+brick bowl, warm trusses, rust courtside pads, its own title banners). High school and college play at home in their
+gym and on the road (and in the playoffs, on a neutral floor) in the other building. Six PBL franchises (the Ballers,
+Raccoons, Vandals, Nephews, Comets and Pilots) play in the Foundry, the rest in the Pro Arena; every pro game is in
+the home club's building, and a franchise page names it (IRONBRIDGE · THE FOUNDRY). All three are in Quick 1v1 and
+Practice too, and on the Art Lab's venue page.
+
+**Names and looks.** First names 60 → 168 and last names 70 → 172, all invented, no repeats. Every hairstyle can now
+come up for every skin tone (weighted: the light pool had no twists, locs, cornrows or braids, the dark one no bun,
+side part, mohawk or long hair), brown hair joins the darker pool, dyes come up 8% of the time (were 6%), and a
+quarter of the headbands, sleeves and wristbands come in a color of their own. The generator makes exactly the
+draws it made before, so a seed's league is the same league with other names and faces; fewer name retries do shift
+later draws a little, which the career simulator's lines below include.
+
+**New and changed in CONFIG** (each with its one-line comment):
+
+| Setting | Value | What it is |
+| --- | --- | --- |
+| `ui.whatsNew` | '2.0' (new) | the update What's new describes; a save that hasn't seen it gets it once |
+| `celebs.shop` | ['earCup', 'iceVeins'] (new) | the two celebrations the shop sells |
+| `celebs.price` | hs 150, college 900, pro 40,000 (new) | their price at each stage ($) |
+| `road.list[].celeb` | varsity raiseRoof, colstart shush, team5 takeBow, title robot (new) | the celebration a milestone also unlocks |
+| `amateur.stages.hs.away`, `college.away` | 'fieldhouse', 'pavilion' (new) | the floor away from home and in the playoffs |
+
+(The look generator's pools, `LOOK_POOL` in `025_art.js`, are art data: the hair pools, the 8% dye share and the
+accessory colors.)
+
+**Calls I made.**
+
+- "10 internal pixels": an internal pixel is the menus' pixel, RBF.kUI device px (the 360-row grid of the 1280×720
+  area, rounded the way the menus round it); a glyph is 10 font pixels tall. On an 844×390 phone that's 20 device px
+  (10 CSS px). Raising it to whole 360-row pixels of the full window (15 CSS px there) would have broken every phone
+  layout.
+- The "?" button: a chip where there's room outside the 1280×720 area (every phone; it never covers the screen), and
+  the key hint's "? Codex" on a desktop, where windows rarely leave a margin; the hub's rail gets a real button.
+- The Codex opens at the page about the screen you're on, not at its first page.
+- Tooltips: a hover on a desktop (a click goes to the Codex), a tap card on a phone. A stat inside a button belongs to
+  the button.
+- What's new shows uninvited only to saves from before 2.0; a new player can open it from the main menu.
+- The celebrations: four on the Road, two in the shop, as cosmetics (looks only). The shop sells one at a time; a mix
+  is the default.
+- Three Goggles (both fists round the eyes) didn't read: the big head hides the back hand. It became Can't Hear You.
+- The new arenas are the old buildings with their own palettes and banners, not new painters; the away games and the
+  playoffs take the second building, and the pros split six and six.
+- The shop's "Your locker" tab is "Locker" now, so four tabs fit beside the shopkeeper (each tab as wide as its word).
+
+**Found in the screenshots** (fixed before the commit):
+
+- The tooltip panel was 97% opaque: the rows under it showed through. It is solid now.
+- The "›" in "Codex ›" isn't in the Retro font (it drew a "?"); it is "→".
+- What's new in two columns on a desktop ran its three-line items into the next title: three columns.
+- Three Goggles was unreadable (above); Shush pointed at the nose (the finger is at the lips now).
+- The four shop tabs at one width cut "Your locker" and "Celebrations" short (the menus' pixel won't shrink further).
+
+**Found by the audits** (fixed too): the Gear entry ran past six lines in the Codex's two columns (split in three
+paragraphs); a Codex title next to its value chip was held to half the column ("LEGACY AND THE HALL OF FAME" cut: it
+gets the room the chip leaves now); the celebrations shelf's footer passed its arguments in the wrong order; and the
+phone's All-Star weekend cut "Sim the contest" by 4 px when you are invited to the 3-point contest (the new names'
+draws reached that case; the bar is rebalanced).
+
+**Tests.**
+
+- `tests/polish.js` (new, 14 steps): the ? key from 32 screens (each at its page, Back returning); the desktop hint
+  and its click, the hub's rail button; the phone chip on 7 screens (in the margin, 64 px, on no button) and a real
+  tap; every term on a Codex page with numbers (26 entries, an amateur and a pro); the tooltips' hover and click on
+  the hubs and the team screen (OVR, hype, confidence, money, GPA, fatigue, trust, stars, fame, odds); a phone's tap
+  card and its Codex button; the six dots and the buttons behind them; What's new for an old save, a new player and
+  the menu button; overlays drawing alone; legibility on a desktop and a phone (cards included); the celebrations
+  (unlocks, an old save, the buy, the pick, the rig's choice, the league's eight, carried to the pros, every pose);
+  the arenas (kinds, styles, home/away/playoffs, the Foundry six, the pro court, the Art Lab shots); the name and
+  look pools (500 names never repeat; all 14 hairstyles for both skin groups; 24% colored headbands).
+- The overflow audit checks legibility on every screen and has nine new cases (the Codex's shop page for an
+  amateur and a pro, the celebrations shelf and one celebration for both, the stat card, What's new and its last
+  page).
+- Old saves: the driver presses Got it on What's new (and fails if it comes back). The shop test opens "Locker".
+- Smoke: a pro game is in the home club's arena (the Pro Arena or the Foundry), the away courts are their level's;
+  an old save meets What's new before CONTINUE CAREER.
+- 25 screenshots in `shots/v13` (desktop and phone: the hub's tooltip and dots, the key hint, the Codex's shop and
+  team pages, a stat card, What's new, the main menu, the celebrations shelf and one celebration, a franchise in the
+  Foundry; and three grids: the celebrations, the six career venues, 32 generated faces).
+
+**Suite.** Everything passed:
+
+- smoke (desktop and phone, 137 steps), every mode (13), old saves (34), the dev tools, the phone audit (250 screens)
+  and the Art Lab (58 shots, among them the ten venues);
+- polish (14 steps); the career simulator's V12 line again on both policies (400 careers each: a ring in 15% and 61%
+  of careers, Finals MVPs 0.26 and 1.80 a career, a franchise player 69% and 98%, a jersey retired 25% and 70%,
+  back-to-back 3% and 28%, a three-peat 1% and 12%, rebuild trades 0.56 and 0.18 a career: V12's line within its
+  noise); pro teams (14 steps); shop (10); staff (11); school (8); story (13); climb (9: the pros' median 75, their
+  top three 87); difficulty (every row of the §1.1 table in its band: a 5★ team 16.3% and 65.0%, titles 0.31 and
+  1.71, the Hall of Fame 3.8% and 37.2%); flow (12); gameplay (12); traits (9); steals; fixes (15); the HUD audit (35
+  scenes, none flagged) and the style mix;
+- the full career (876 actions, retiring at 35 after 13 pro seasons), and the desktop (249 screens) and 1.25× text
+  (250) audits: nothing flagged, every string at the menus' pixel or bigger;
+- the balance gate, the balance run (Legend beats Pro 83%), the career simulator (40 careers, none stuck) and the
+  trait balance (400 careers × 3 seeds: Common +5%, Uncommon +12%, Rare +24%, Legendary +51%, every rarity in its
+  band).
+
+The style mix's standing miss is unchanged: the Slasher drives 46% of the time (target 60%).
+
+The suite's smoke run failed 15 steps, all from its own expectations: it wanted every pro game in the Pro Arena, and
+CONTINUE CAREER on the main menu right after loading an old save (What's new comes first now). Both are updated
+(above), and smoke passes 137 of 137 on the suite's build.
+
 ## V12 — Part 2: the pro teams and championships (§6); 2.0: pro teams and getting there (§4.4, §4.5)
 
 The seventh milestone of Part 2 (§6, with 2.0 §4.4 and §4.5). The career is still 1v1 only: each franchise's league
