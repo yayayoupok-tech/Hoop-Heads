@@ -3,6 +3,234 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V12 — Part 2: the pro teams and championships (§6); 2.0: pro teams and getting there (§4.4, §4.5)
+
+The seventh milestone of Part 2 (§6, with 2.0 §4.4 and §4.5). The career is still 1v1 only: each franchise's league
+player plays its games, and you are one of them.
+
+**Twelve franchises with an identity** (`162_franchise_id.js`; the static part is `FR_INFO`, a career's part lives on
+each franchise's row of the prestige table and fills in on an old save's first look):
+
+| Franchise | City | Owner | Market | Fans | Rival | Titles before you |
+| --- | --- | --- | --- | --- | --- | --- |
+| Parking Lot Prophets | Calder Bay | Margo Whitfield (win-now) | big | 940K | Pilots | 8 |
+| Bodega Ballers | Eastbrook | Sal Benedetti (cheap) | mid | 610K | Comets | 4 |
+| Late Bus Legends | Maple Falls | June Albright (patient) | small | 380K | Nephews | 5 |
+| Rooftop Raccoons | Highmoor | Dex Calloway (win-now) | big | 880K | Owls | 5 |
+| Vending Machine Vandals | Port Avery | Priya Rao (patient) | mid | 520K | Kings | 2 |
+| Night Shift Nephews | Ironbridge | Walt Kessler (cheap) | small | 350K | Legends | 4 |
+| Sprinkler Park Sharks | Coral Shore | Renata Cruz (win-now) | big | 820K | Monarchs | 6 |
+| Mailroom Monarchs | Kingsmere | Harold Fenwick (patient) | mid | 670K | Sharks | 7 |
+| Laundromat Kings | Westhaven | Tasha Monroe (win-now) | big | 900K | Vandals | 6 |
+| Corner Store Comets | Northgate | Lou Pastor (cheap) | mid | 560K | Ballers | 3 |
+| Overnight Owls | Duskwood | Agnes Whitlock (patient) | small | 330K | Raccoons | 2 |
+| Parking Garage Pilots | Redrock | Bud Garrity (cheap) | small | 300K | Prophets | 0 |
+
+- **A pixel crest** for each: a 16×18 shield in the franchise's two colors with a 10×10 mark (a traffic cone, the
+  bodega cat, the late bus, a masked raccoon, a soda can, the night-shift moon, a fin, a crown on an envelope, a washing
+  machine, a comet, an owl, a plane). It's on the offers, the league's franchises, the bracket, the banners and the
+  hub.
+- **An owner**: win-now, patient or cheap (four each). The story's Owner arc meets the franchise's own owner.
+- **A coach** (a name and a style) who stays with the franchise; when you sign, your coach is theirs. **Facilities**
+  from the stars, as before. **A market** (big, mid, small: fame you gain ×1.08, ×1, ×0.92) and **a fan base** that
+  grows with winning, series won and titles (and shrinks with losing).
+- **History**: every season from 1979 to 2030 has a champion (52 titles dealt out once, the same for every career: the
+  Prophets have 8, the Pilots none), one banner each; one to three retired jerseys (legends with a number and a
+  nickname). Your career's titles and your jersey join them. Your first pro season is 2031.
+- **Rivalries**: six pairs. A rivalry game is tagged RIVALRY on the calendar (RIVALS on a narrow tile) and is a big game (Sim to next big moment
+  stops for it); a rivalry series in the playoffs makes the news.
+- **A franchise page** (the hub's Team tab → Franchise, or a row of the League's Franchises tab): the crest, city and
+  stars, the title odds, the owner, the coach, the market and fans, the gym, the rival, what they need, the banners,
+  the retired jerseys and the best players. Previous and Next flip through the table.
+
+**Team strength and title odds** (`162_franchise_odds.js`). A team's strength in a simulated game is its league
+player's (strengthOf) plus 1.3 points a star (LG.starEdge: its roster and gym) and its owner's moves this season. The
+title odds play the rest of the season and the playoffs 400 times with the same numbers (from a seed fixed for the
+week, so they hold still): on the hub (the header and the Team tab), on the franchise pages, on every offer (out of
+school, as a rookie; in free agency, next season; a trade, this season).
+
+**The season.** The top 8 make the playoffs (were 4): quarterfinals, semifinals and the Finals, every round best of 3
+(the higher seed hosts games 1 and 3). A playoff game is tighter than a regular-season one (its points noise × 0.75: the
+better team wins more often; see the balance below). The calendar has a tile a round (QF, SF, FIN); the hub's Team tab opens the
+bracket during the playoffs. **The Finals MVP** is the champion's top scorer in the Finals: when you won it from the
+bench, the teammate who started the Finals takes it (you keep the ring). MVP, All-League, Defensive Player and Most
+Improved as before.
+
+**Winning a title** (`179_ui_title.js`): THE PARADE (your city's street, your fans, the bus, you on its roof with the
+trophy), THE RING (your ring turns in the light: its year, its number, the run it extends, FINALS MVP), BANNER NIGHT
+(the banner rises into your arena's rafters beside the franchise's old ones). Then awards night. The ring goes in your
+trophy case (a title is a ring now). **Dynasties**: titles in a row are a run, yours across franchises and the
+franchise's: back-to-back, a three-peat, a four-peat.
+
+**Franchise moves** (`162_franchise_moves.js`). Each offseason every owner reads the franchise's stars: a win-now owner
+at 3★ or better goes all in (a trade for a rebuilding franchise's veteran of 28 or more, at least as good as their
+younger player; or a free agent: +0.35 stars of strength next season); a patient or cheap owner at 2★ or less rebuilds
+(their veteran goes to a contender for the younger player); a cheap owner who isn't winning lets a veteran walk (−0.35
+stars). The offseason's League moves step lists them; the news says so. Stars still rise and fall with the standings.
+**A rebuild can trade you** (a story beat): your patient or cheap owner at 2★ or less offers a veteran (27+) on a deal
+that runs past the season to a contender (never a 5★ team without its open spot): go (your contract comes along) or
+stay (coach trust +10, fame +2).
+
+**The Road to the League** has the career goals: A FRANCHISE PLAYER (a whole season started and an All-League team),
+WIN A RING, FINALS MVP and JERSEY RETIRED (when you retire, a franchise where you played 6+ seasons with a title or 3
+All-League teams retires your number). A save from before marks what it already did, quietly.
+
+**The legacy screen**: your rings and Finals MVPs, your main franchise's banners in the rafters, your jersey rising
+into them when a franchise retired it (framed otherwise), and your history there.
+
+**The offers (2.0 §4.4/4.5).** Every offer is a team card: the crest, city and name, the stars, the title odds, what it
+wins on (BEST TITLE ODDS, MOST MONEY, THE START IS YOURS, BIGGEST STAGE, BEST GYM: each offer a different one where it
+can; an offer that wins nothing says its kind), the money, the role, the market and fans, the gym, the fame, the coach's
+style, its best players with portraits and ratings (the bench you get when you sign) and what it needs ("Looking for a
+shooter: you fit"). Out of school, the rebuild that starts you pays the most (the best team has the odds, the starter
+the role); in free agency the agent's rebuild does too. Free agency shows its offers side by side; a trade request shows
+your team and the trade side by side (money, role, stars, odds). **The bar in plain words**: "5★ teams want overall 81 +
+fame 40. You: 76 / 22" (on Moving up and free agency). **The combine** reveals each measurement after a drumroll with a
+STOCK ↑ / ↓ tag and ends on the scout score and the stars that are calling. **Commitment Day and Signing Day** end on
+the team (the hat, the jersey card), its full name and confetti, with the skip prompt in view.
+
+**The §1.1 table, recalibrated for eight playoff teams.** With eight of the twelve teams in, a typical career won a
+third more titles and a great one reached the Hall of Fame a fifth more often:
+
+| Step (600 careers a policy, seeds 1–3) | Typical: 5★ · titles · Hall of Fame | Great: 5★ · titles · Hall of Fame |
+| --- | --- | --- |
+| V11 | 17.8% · 0.36 · 3.3% | 65.8% · 1.94 · 39.2% |
+| V12 with V11's four playoff teams | 20.2% · 0.37 · 2.5% | 68.0% · 2.02 · 41.5% |
+| V12 as first built (the top 8) | 20.2% · 0.49 · 3.8% | 72.8% · 2.19 · 49.2% |
+| + the league's next stars: a young AI player's ceiling room +6, +5 and +2 at 21, 24 and 27 | 18.5% · 0.39 · 2.7% | 65.8% · 1.75 · 39.8% |
+| + a playoff game's noise × 0.75 (the better team wins more often) | 16.5% · 0.31 · 3.0% | 63.2% · 1.72 · 37.7% |
+| + the Hall of Fame line 95 → 92 | 16.5% · 0.31 · 3.2% | 63.2% · 1.72 · 38.7% |
+| the same on seeds 4–6 (held out) | 16.2% · 0.26 · 3.2% | 64.8% · 1.66 · 37.0% |
+
+- Why it moved: the league's best teams were bunched (the best team's margin over the 4th best was 3.4 points against
+  about 9 points of noise a game), so with eight teams in, the 3rd- to 8th-best won too often. In 400 typical careers
+  the seasons when yours was the 5th- to 8th-strongest team won 3.3% of the time and gave 52 of 189 titles. The extra
+  playoff games also added about 11 points to a great career's legacy (titles, MVPs, All-League teams and the
+  playoffs' points).
+- The pros still open at a median of 75 with their top three near 87.5 (§1.2: about 74, stars 82–90). Their mean
+  after 5 and 10 seasons is 79.3 and 80.1 (was 78.2 and 78.4), and the best player 91.1 and 88.8 (was 90.3 and 86.6).
+- Tried and dropped:
+  - half the playoffs' fame and series value: no change;
+  - fewer 5★ spots (`spot5Odds` 0.35): no change. 76 of the 80 typical careers that reach a 5★ team get there with
+    their own team rising;
+  - a bigger owner's edge (1.0 star): more titles;
+  - prestige that keeps longer (0.65, 0.7), or a smaller title boost: no change;
+  - the veterans' stars at +12, +9 and +7: −0.02 titles;
+  - a wider veteran spread (`proSd` 9.5): more titles;
+  - a bigger star edge (1.6) with playoff noise × 0.7: no change;
+  - playoff noise alone: at × 0.5 typical careers won 0.33 titles, but great ones 2.69, with a 47% Hall of Fame;
+  - reweighting the legacy (titles, MVPs, All-League teams, seasons, points): no weighting puts great careers near 35%
+    with typical ones in 3–8%, because a typical Hall of Famer's career looks like a great one.
+
+**Old saves.** The franchise rows fill in their identity on first look (your coach stays; the story's owner too); a
+season from before V12 has no bench count (a full season of games counts); four-seed playoffs in progress finish as
+they were (the bracket draws two rounds, the calendar two tiles); a title before V12 is a ring.
+
+**New and changed in CONFIG** (each with its one-line comment):
+
+| Key | Value | What it does |
+| --- | --- | --- |
+| `career.playoffSeeds` | 4 → 8 | the top 8 make the playoffs |
+| `career.aiRoom` | [[21, 8, 22], [24, 5, 15], [27, 2, 8]] → [[21, 8, 28], [24, 5, 20], [27, 2, 10]] | a young AI player's ceiling room by age: the league's next stars (the balance above) |
+| `career.hofScore` | 95 → 92 | the Hall of Fame line (the balance above) |
+| `league.poHomeEdge` | 0.5 (new) | the home edge in a playoff game (the higher seed hosts games 1 and 3) |
+| `league.poNoise` | 0.75 (new) | a playoff game's points noise × this |
+| `amateur.combineStock` | new | where a combine row reads STOCK ↓ or ↑ |
+| `franchise.year1`, `founded` | 2031, 1979 | your first pro season as a year; the PBL's first season |
+| `franchise.marketFame` | small 0.92, mid 1, big 1.08 | fame you gain × this by the market |
+| `franchise.fansTitle`, `fansSeries`, `fansWin` | 0.08, 0.02, 0.04 | a fan base's growth with a title, a series won and winning |
+| `franchise.oddsRuns` | 400 | the seasons the title odds play |
+| `franchise.jerseySeasons`, `jerseyAllLeague` | 6, 3 | a retired jersey's seasons, and its All-League teams without a title |
+| `franchise.ownerEdge` | 0.35 | an owner's move in stars of strength for a season |
+| `franchise.rebuildOdds`, `rebuildAge` | 0.45, 27 | how often a rebuilding owner offers you to a contender, and from what age |
+| `franchise.contendAt` | 3 | the stars at which a win-now owner goes all in |
+| `franchise.wantFame` | [0, 10, 20, 30, 40] | the fame each bar is said with in plain words |
+
+**Calls I made.**
+
+- Twelve franchises (the spec allows 12–16): adding four would re-seed every save's prestige table.
+- The cities, owners, legends and crests are invented. The owners are fixed per franchise (the identity), not per career.
+- Team strength stays simBox's (the league player + stars); the owner's moves add ±0.35 stars for a season. Title odds
+  are a Monte Carlo of the same model (400 seasons), not the game engine.
+- Fans and the market: the market sets a fame multiplier (×1.08 big, ×0.92 small); the fan base is flavor (it grows and
+  shrinks, and fills the parade), not a stat.
+- The Finals MVP in a 1v1 league: the champion's top scorer in the Finals (a teammate can take it when you sat).
+- The three title scenes play at the season's end (before awards night), not at next season's home opener: a career
+  can end or move on before then.
+- A franchise player: a season with no bench weeks and an All-League team (1st or 2nd).
+- Jerseys are retired at retirement (6+ seasons, a title or 3 All-League teams at one franchise).
+- A rebuild's offer is a choice (go or stay), never a forced move; the career simulator goes.
+- Finals MVPs count in the legacy screen, not the legacy score (it would move the Hall of Fame line).
+
+**Found in the screenshots** (fixed before the commit):
+
+- On a phone, CONTINUE on the parade, the ring and banner night sat in the top-left corner, mostly off the screen. The
+  phone's button bar skips hidden buttons, and CONTINUE stays hidden until the reveal ends. It is placed first now (so
+  is Commitment Day's, which kept its desktop size on a phone), right of the ring's FINALS MVP chip.
+- The franchise page: on a phone the cards' last line (IN THE PBL, BENCH) sat on the panel's edge; on a desktop the
+  owner's note crowded it.
+- On a phone the owners' moves stopped at four; now as many as fit, then "+N more in the news".
+- The legacy screen on a phone: the franchise line ran under MAIN MENU. Signing Day on a phone: the welcome panel ran
+  under START YOUR PRO CAREER.
+- The trophy case's legacy note ran past its panel under the new Earned line: four short lines now, from CONFIG.
+- Banner night counts the banner going up (it said banner 5 for the sixth).
+- The calendar's narrow rivalry chip reads RIVALS (was RIVL).
+
+**Found by the audits** (phone, desktop and 1.25× text; fixed too):
+
+- Three of the Road's new goals were cut short on its screen (more rows, smaller room): now "Start all season; make
+  All-League.", "Lead the Finals winner in scoring." and "6+ seasons, a ring or 3 All-League."
+- The League's franchise rows were too thin to tap on a phone. A phone gets a Franchise pages button, and every
+  franchise page has Previous and Next, which flip through the table.
+- The hub's Team tab in the playoffs on a phone pushed Depth chart into the tab bar: there, Playoffs takes its place
+  (the Train tab has it too).
+- On a desktop the League's franchise rows drew their text under their own tap areas: each row draws itself now.
+- At 1.25× text on a phone, a long franchise name ran into the page's history column: it shrinks to fit.
+
+**Tests.**
+
+- `tests/proteams.js` (new, 14 steps): identity; a career's franchises; team strength and odds; the season and
+  the playoffs (top 8, best-of-3 rounds, the Finals, the calendar); the Finals MVP; a title's scenes, banner, ring and
+  fans; dynasties; the 5★ spots' scarcity; the owners' moves; a rebuild's offer; the Road's goals and jerseys; the
+  offers (axes, odds, the plain-words bar, free agency, a trade); every new screen on a desktop and a phone (no errors,
+  nothing cut).
+- The phone and desktop audits have 12 new cases (the franchise pages, a trade, the parade, ring and banner, a rebuild's
+  offer, the bracket, the hub in the playoffs, the owners' moves, free agency).
+- The career simulator's V12 line: rings, Finals MVPs, franchise players, jerseys, runs and rebuild trades; it answers a
+  rebuild's offer (go).
+- Smoke's trophy check reads a ring; smoke, the full UI career and old saves skip the new scenes and reveals (smoke's
+  college step waited for a CONTINUE that Commitment Day now shows after its reveal).
+- Flow counts the Road's fourteen milestones and a calendar tile for each playoff round.
+- The career simulator's `--seasons` diagnostic also records your club and your team's strength rank at each season's
+  start (the calibration above used it).
+- 38 screenshots in `shots/v12`.
+
+**Suite.** Everything passed (the reruns on the commit's build are at the end):
+
+- smoke (desktop and phone, 137 steps), every mode, old saves (34), the dev tools, the phone audit (242 screens) and
+  the Art Lab;
+- pro teams (14 steps); the career simulator's V12 line on both policies (400 careers each: a ring in 17% and 62% of
+  careers, Finals MVPs 0.32 and 1.80 a career, a franchise player 65% and 98%, a jersey retired 25% and 72%,
+  back-to-back 4% and 27%, a three-peat 1% and 12%, rebuild trades 0.50 and 0.18 a career); shop (10 steps); staff
+  (11 steps); the staff balance on both policies (+13.9% on the great one, +7.1% on the typical one); school (8
+  steps); story (13 steps: 15 arcs, 72 choices); climb (9 steps: the pros' median 75, their top three 87.5);
+  difficulty (the §1.1 table above, every row in its band); flow (12 steps); gameplay; traits; steals; fixes; the HUD
+  audit (35 scenes, none flagged) and the style mix;
+- the full career (859 actions, retiring at 35 after 13 pro seasons), and the desktop (241 screens) and 1.25× text
+  (242) audits;
+- the balance gate, the balance run, the career simulator (40 careers, none stuck) and the trait balance (400 careers ×
+  3 seeds: Common +0%, Uncommon +8%, Rare +20%, Legendary +49%, every rarity in its band).
+
+The style mix's standing miss is unchanged: the Slasher drives 46% of the time (target 60%). The 40-career simulator
+reads titles (0.45) and the Hall of Fame (10%, 4 of 40) high; the 600-career table is the reference (0.31 and 3.2%).
+
+The suite's run failed two tests, both fixed above. **Smoke** waited for a CONTINUE that Commitment Day now shows
+after its reveal (137 of 137 on a rerun). **Flow** counted V5's eleven Road milestones and one playoff tile on the
+calendar (fourteen and three now; 12 of 12 on a rerun). The audits flagged the Road's new goals, the franchise rows
+and a long franchise name; those are fixed above too. The build changed during the run (the screenshot and audit
+fixes are UI only), so smoke, the modes, old saves, the dev tools, the three audits, pro teams, flow, shop and staff
+were rerun on the final build: all pass, and the audits flag nothing.
+
 ## V11 — Part 2: the Pro Shop and money (§5); 2.0: the week's extras (§4.3)
 
 The sixth milestone of Part 2 (§5, with 2.0 §4.3's consumables). The career is still 1v1 only. F8's six gear pieces

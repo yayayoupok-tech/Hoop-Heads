@@ -16,7 +16,7 @@ const { launch, openPage, runner } = require('./lib');
     const g = HH.game; g.ui.update(1 / 60, g.input); const s = g.ui.screen; if (!s) return { name: g.mode === 'match' ? 'match' : '(none)' };
     if (s.finish) s.finish(); // a dialogue box's page typed out (its answers show then)
     const at = s.name; window.__fcSeen = window.__fcSeen || {}; window.__fcSeen[at] = (window.__fcSeen[at] || 0) + 1;
-    if ((s.name === 'combine' || s.name === 'draft') && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal
+    if (/^(combine|draft|commitday|title-parade|title-ring|title-banner)$/.test(s.name) && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal (V12: commitment day, a title's parade, ring and banner)
     if (s.build && s.tab && s.tab !== 'play') { g.hubTab = 'play'; s.build(); } // V5: the hub's Play tab
     const W = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && (w.kind === 'button' || (w.kind === 'custom' && w.onPress))); const by = re => W.find(w => re.test(w.label || ''));
     const pr = w => { if (!w) throw new Error('dead end on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
@@ -64,7 +64,9 @@ const { launch, openPage, runner } = require('./lib');
       case 'colchoice': pr(W[i % 2] || W[0]); break;
       case 'negotiate': pr(by(/^SIGN$/)); break;
       case 'epilogue': { const opt = W.find(w => /^(Foundation|Academy|A stake|Coach|Broadcast|Walk away)/i.test(w.label || '')); if (opt && !g._epi) { g._epi = true; opt.onPress(); return { name: s.name }; } pr(by(/^FINISH$/)); break; }
-      case 'ceremony': case 'allstarpick': case 'hofinduction': pr(by(/^CONTINUE$/)); break; // V8: awards night, the All-Star reveal, the Hall of Fame induction
+      case 'ceremony': case 'allstarpick': case 'hofinduction': case 'title-parade': case 'title-ring': case 'title-banner': pr(by(/^CONTINUE$/)); break; // V8: awards night, the All-Star reveal, the Hall of Fame induction; V12: a title's parade, ring and banner
+      case 'franchise': case 'bracket': pr(by(/^Back$/)); break; // V12
+      case 'tradecompare': pr(by(/^Stay$/)); break; // V12
       case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8 (only if a press lands on them)
       case 'legacy': case 'halloffame': return { name: s.name, done: !!(c && c.phase === 'retired') };
       default: throw new Error('the driver does not know screen ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']');

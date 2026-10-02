@@ -14,7 +14,7 @@ const FIX = path.join(__dirname, 'fixtures');
   // one action on the current screen, the way a player would move forward; returns the screen name
   const act = (i) => ev(i => {
     const g = HH.game; g.ui.update(1 / 60, g.input); const s = g.ui.screen; if (!s) throw new Error('no screen');
-    if ((s.name === 'combine' || s.name === 'draft') && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal
+    if (/^(combine|draft|commitday|title-parade|title-ring|title-banner)$/.test(s.name) && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal (V12: commitment day, a title's parade, ring and banner)
     if (s.name === 'dialog' && s.finish) s.finish(); // R9: type the page out (a choice shows once its text is done)
     const W = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && (w.kind === 'button' || (w.kind === 'custom' && w.onPress))); const by = re => W.find(w => re.test(w.label || ''));
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
@@ -52,7 +52,9 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'negotiate': pr(by(/^SIGN$/)); break; // R7: the negotiation (the offer's own years and role)
       case 'epilogue': pr(by(/^FINISH$/)); break; // R7
       case 'moneybuilt': case 'networth': pr(by(/^Back$/)); break; // R7
-      case 'ceremony': case 'allstarpick': case 'hofinduction': pr(by(/^CONTINUE$/)); break; // V8: the ceremonies
+      case 'ceremony': case 'allstarpick': case 'hofinduction': case 'title-parade': case 'title-ring': case 'title-banner': pr(by(/^CONTINUE$/)); break; // V8: the ceremonies; V12: a title's parade, ring and banner
+      case 'franchise': case 'bracket': pr(by(/^Back$/)); break; // V12
+      case 'tradecompare': pr(by(/^Stay$/)); break; // V12
       case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8
       default: throw new Error('the driver does not know screen ' + s.name);
     }
