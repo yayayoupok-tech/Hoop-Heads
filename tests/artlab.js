@@ -30,7 +30,7 @@ const { ROOT, launch, openPage } = require('./lib');
   // phone: the same moment at 844×390
   const Q = await openPage(browser, { phone: true, wait: 900 });
   await Q.ev(() => { const g = HH.game; const a = LAB_CAST[3], b = LAB_CAST[9]; const tA = Object.assign({}, TEAMS[0], { id: 'labA', name: a.name, abbr: 'MAR', colors: a.colors, pattern: 'solid', players: [labDef(a, 3)] }), tB = Object.assign({}, TEAMS[1], { id: 'labB', name: b.name, abbr: 'ASH', colors: b.colors, pattern: 'solid', players: [labDef(b, 9)] }); g.startMatch({ mode: '1v1', teams: [tA, tB], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 21 }, court: 'arena', seed: 5, controlMode: 'lock' }, { kind: 'quick' }); const m = g.match; g.guard.lock = true; let k = 0; for (const p of m.players) p.controlled = false; while (k < 120 * 40 && !m.players.some(p => p.state === 'jumpshot' && p.stateT > 0.12)) { simStep(m, STEP); k++; } g.paused = true; });
-  await Q.page.waitForTimeout(800); await Q.shot(path.join(out, 'phone-match-arena.jpg')); n++;
+  await Q.page.waitForTimeout(800); for (let i = 0; i < 40 && await Q.ev(() => !!HH.game.wipe); i++) await Q.page.waitForTimeout(100); /* V14: past the match's opening wipe (it advances on frames, slow on this page) */ await Q.shot(path.join(out, 'phone-match-arena.jpg')); n++;
   errs.push(...Q.errors);
   console.log('saved ' + n + ' screenshots to ' + path.relative(ROOT, out));
   console.log(errs.length ? 'ERRORS:\n  ' + errs.join('\n  ') : 'no errors');

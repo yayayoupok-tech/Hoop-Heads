@@ -3,6 +3,275 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## Hoop Heads 2.0 (V1–V14): the report
+
+Two specs, built together: "Hoop Heads 2.0" and "Hoop Heads 2.0, Part 2: harder climb, real story, school, shop,
+staff, pro teams" (where they overlap, Part 2 wins). Fourteen milestones, V1–V14, a commit each. Before every commit:
+the whole suite (smoke on desktop and phone, every mode, old saves migrated and never wiped, the dev tools, the
+overflow audits, the Art Lab, the §2 gate, the balance harness, the career simulator, trait balance and each
+milestone's own tests) and screenshots, looked at. The rules held throughout: one `index.html`, renderers never
+throw, old saves migrate, the career is 1v1 only, every league and team name is invented (the Pro Basketball League,
+the PBL), and the story stays PG. The version is 2.0 (the title screen and the credits say so), and What's new in 2.0
+shows once.
+
+| The spec | Milestone | What changed |
+| --- | --- | --- |
+| 2.0 §1, the must-fix bugs (items 1, 3–12) | V1 | Steals count only when the defense secures the ball (STEAL, or a grey POKED); one low rack stands behind the 3-point shooter; the press answers fit at both text sizes; every generated player rolls one trait at your odds; simmed box scores add up; no cut text; no screen bleeds through another; recruiting cards, Negotiate, Signing Day and a benched season's recap fixed. Each has a test. |
+| 2.0 §1, item 2: the lag | V2 | At 4× CPU throttling the median frame went 32 → 14–15 ms (phone layout) and 40 → 12–14 ms (desktop) in V2's runs; the frame guard sheds within 0.2 s (it took 2.3 s). |
+| 2.0 §2, traits | V3 | Rarer is stronger (Common about +5–8%, Legendary about +30% or game-changing; small downsides, a Legendary's only flavor); Bronze, Silver and Gold levels earned by doing the trait's thing; a third trait at 1,000 career points; one card layout everywhere; the Codex's Traits page; the in-game banner and the results summary. |
+| 2.0 §3, gameplay | V4 | Opponent scouting (a personality and four tendencies the bots play to, a weakness and a tip), the season's Boss, signature moves at 70 and 80, shot feedback (the release timing and the make chance), a practice shot chart, defense feel (a contest ring; sounds for a poke, a steal, a block and a perfect release), phone buttons of 80 px, a next-basket overtime in every ruleset. |
+| 2.0 §4.1, 4.2, 4.6–4.8 and §5's hub | V5 | Pace in one-minute career games, the week (rest when tired, the press after big games only), playing time (challenging the starter, spot starts, trades after bench weeks), the Road to the League, Sim to next big moment and Sim the rest of the season, Quick results, the five-tab hub with a calendar and red dots, and the PBL. |
+| Part 2 §1, a harder climb | V6 | The XP curve (20 × 1.11^(rating − 40) a point), hidden potential (×3 past it), XP by grade, simmed games at half, a weekly practice cap, slumps and injuries that cost points, and scarcity; tuned until the §1.1 table passed on both policies. |
+| Part 2 §2, the story | V7, V8 | The saga: fifteen arcs over three acts (6–8 a career), a cast with meters, flags that carry choices forward, cutscene backgrounds, six endings and the Story so far; 2.0 §4.9's ceremonies (awards night, the All-Star reveal, a Hall of Fame induction), the record book and 96 story templates. |
+| Part 2 §3, school | V9 | One GPA from high school through college: exam weeks, eligibility, offers with GPA lines (elite academic programs 3.3), scholarships, tuition and student loans, majors and a degree that change the ending, Academic Probation. |
+| Part 2 §4, staff | V10 | Six roles (agent, skills coach, strength trainer, physio, nutritionist, mental coach), 1–5★ by your fame, salaries, personalities, two-season contracts, buyouts, a rival club's call and a shady agent's scandal. |
+| Part 2 §5 and 2.0 §4.3, the shop and money | V11 | Gear in slots, common to epic with levels, never more than +4 to a rating; signature collabs from the Road; a weekly stock in three storefronts with keepers; try-on and the locker; gear drawn on the player; consumables, a lifestyle and family help. |
+| Part 2 §6 and 2.0 §4.4–4.5, pro teams | V12 | Twelve franchises with an identity (city, crest, owner, coach, market, fans, history, rivalries), team strength and title odds, top-8 best-of-3 playoffs and a Finals MVP, a parade, the ring and the banner, dynasties, owners' moves (a rebuild can trade you), the 5★ spots' scarcity, distinct offers, the combine's reveal, Commitment Day and Signing Day. |
+| 2.0 §5–6, UI and content | V13 | The Codex from every screen, stat tooltips with a link, red dots, What's new in 2.0, a legibility floor of 10 internal pixels, six new celebrations, a new arena at every level, more names and looks. |
+| 2.0 §7, Part 2 §7–8: balance, tests, release | V14 | Balance (the Slasher's drives into the style mix's band, the shake tendency back over its bar), the dev menu's Jump to pro and a full career through it, the overflow audit at two more window sizes (three V13 regressions fixed), the full suite, version 2.0, the README, and the republish. |
+
+### The tables (Part 2 §7: print every table)
+
+**Difficulty: the §1.1 table** (`tests/difficulty.js`: the career simulator, 600 careers per policy over seeds 1–3, 200
+each; 0 stuck). "Typical" makes sensible choices and sims its games. "Great" plays every game (no simmed-game cut), with
+an edge of 2.5 OVR in its box scores and depth-chart games, and takes the strongest college offer short of a blue
+blood's bench.
+
+| Milestone | Typical: target | Typical: measured | Great: target | Great: measured |
+| --- | --- | --- | --- | --- |
+| Makes varsity | sophomore or junior (freshman 20–25%) | ✓ freshman 22%, median year 2 | freshman | ✓ freshman 56% |
+| Recruit stars at graduation | 2–3★ | ✓ 2–3★ 80%, median 3★ | 4–5★ | ✓ 4–5★ 65%, median 4★ |
+| Starts in college | year 2–3 | ✓ year 2–3 93%, median year 2 | year 1 | ✓ year 1 87% |
+| First pro offer | 1–2★ or undrafted | ✓ 1–2★ 82%, median 2★ | 3★ | ✓ median 3★ |
+| Reaches a 3★ team | by 26–28 in 50% | ✓ by 28 69%, median age 26 | by 24 | ✓ by 24 83% |
+| Reaches a 5★ team | 15–25% (was 55–65%) | ✓ 16.3% | about 60% | ✓ 65.0% |
+| Championships per career | about 0.3 | ✓ 0.31 | 1–3 | ✓ 1.71 |
+| Hall of Fame | 3–8% | ✓ 3.8% | about 35% | ✓ 37.2% |
+
+By seed (1 | 2 | 3): a 5★ team, typical 17.5% | 13.0% | 18.5%, great 63.5% | 60.0% | 71.5%; titles, typical 0.28 |
+0.24 | 0.40, great 1.86 | 1.42 | 1.86; the Hall of Fame, typical 3.5% | 3.5% | 4.5%, great 40.5% | 28.5% | 42.5%.
+"About" is read as 52–68% (a 5★ team), 0.2–0.4 titles and 30–40% (the Hall of Fame), as in V6.
+
+**XP stays hard (2.0 §7).** Each +1 costs 20 × 1.11^(rating − 40): 40 → 60 is 1,284 XP, 60 → 70 2,696, 80 → 90 21,739
+(8.1×); past your hidden potential ×3. In 400 typical careers (`careersim.js 400 1`) the median OVR at 17 / 21 / 25 /
+29 is 56 / 64 / 68 / 70 and the median peak 70 (64–79); in 400 great ones, 58 / 68 / 73 and a peak of 75.
+
+**Story** (`tests/story.js`, 13 of 13; the career simulator, 400 careers a policy):
+
+| Check | Target | Measured |
+| --- | --- | --- |
+| Arcs per career | 6–8 | typical mean 6.41 (6–8 in 85%), great 6.40 (85%); the careers with fewer are mostly short ones, with fewer act III seasons (as in V8) |
+| Arc frequency | none above 70% | typical: the owner 62%, the booster 60%, contract year 59%, the bills 59%, the trade demand 58%, … the Finals rematch 4%; above 70%: none. Great: the owner 62% at most |
+| Every epilogue reachable | all six | ✓ Passing the Torch, The Legend, Two Old Rivals, Home, The Long Road, The Work (each reached in the test; the simulator's default answers reach The Long Road 74%, The Work 23%, The Legend 3%; the great policy The Legend 38%) |
+| Flags persist through a save and a reload | yes | ✓ meters and flags survive a save, a reload and the handoff to the pros |
+
+**GPA** (`tests/school.js`, 8 of 8):
+
+| Check | Measured |
+| --- | --- |
+| Offers depend on GPA | ✓ 1,008 offers: none under its program's line (blue bloods 2.5, elite academic programs 3.3, the rest 2.0). Offers by GPA: 0 at 1.7, 120 at 2.1, 140 at 3.29, 174 at 3.3 and up. An elite academic offer never appears under 3.3 |
+| A report card under a line pulls that offer | ✓ only that program's (the elite academic one at 3.2, a blue blood at 2.4, everyone under 2.0) |
+| Eligibility | ✓ a report card under 2.0 sits 2 games in high school and in college; under 1.5 in college opens Academic Probation (risk it, still under 2.0: the scholarship goes and 2 more games) |
+| Exam weeks | ✓ midterms after the fifth game, finals before the last; Cram 2.75 → 3.05, Skip 2.85 → 2.65 |
+| Tuition is charged | ✓ a full ride (3.5 and four stars) pays nothing; partial pays $6,000 at each college season's start; a lost scholarship $12,000; a $40,000 loan: $25,000 paid at the draft, $15,000 from pay. In 400 typical careers: tuition paid $16,275 on average, a loan at the draft in every one (median $14,260) |
+
+**Staff** (`tests/staff.js`, 11 of 11; `tests/staffbalance.js`, 400 careers × 3 seeds a run):
+
+The great policy (judged; 1,200 careers a row, the same careers in every row):
+
+| Staff | Legacy | vs none | Titles | Hall of Fame | Peak | A 5★ team | Injuries | Earned | On staff | Net worth |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| None | 79.2 | | 1.48 | 32% | 74.8 | 59% | 2.67 | $282.9M | $0 | $276.5M |
+| Smart (the best agent, then the salaried roles within half the salary) | 89.0 | +12.4% | 1.77 | 38% | 75.3 | 65% | 2.16 | $319.9M | $187.4M | $101.4M |
+| The agent alone | 79.7 | +0.7% | 1.48 | 32% | 74.8 | 58% | 2.67 | $306.9M | $0 | $286.1M |
+| The skills coach alone | 82.0 | +3.6% | 1.55 | 34% | 75.0 | 61% | 2.69 | $294.3M | $82.0M | $180.8M |
+| The strength trainer alone | 80.8 | +2.0% | 1.53 | 33% | 74.9 | 60% | 2.22 | $292.2M | $81.4M | $175.3M |
+| The physio alone | 79.7 | +0.7% | 1.48 | 32% | 74.9 | 59% | 1.92 | $294.5M | $81.5M | $176.9M |
+| The nutritionist alone | 89.2 | +12.7% | 1.76 | 39% | 75.1 | 63% | 2.63 | $309.3M | $87.7M | $185.7M |
+| The mental coach alone | 81.5 | +2.9% | 1.55 | 33% | 74.8 | 61% | 2.67 | $292.7M | $82.3M | $177.5M |
+
+Targets: smart spending +10–20% legacy over none ✓ (+12.4%); every salaried role alone above none ✓; the agent (a cut,
+no salary) earns you more ✓ (+$24.0M). Each role pays where its card says: the physio cuts injuries 2.67 → 1.92, the
+strength trainer to 2.22, the agent's deals add $24M, and the nutritionist (games tire you less, the legs age later)
+moves legacy most.
+
+The typical policy (reported; the band is judged on the great one, as in V10): no staff 38.9 legacy, 0.21 titles, 2%
+in the Hall of Fame; smart spending 41.8 (+7.2%), 0.29 titles, 3%, 17% reaching a 5★ team (13% without); each role alone
++1.0% (the agent, +$11.6M earned) to +5.8% (the nutritionist); injuries 2.15 → 1.68 with the physio.
+
+**Shop** (`tests/shop.js`, 10 of 10):
+
+| Check | Measured |
+| --- | --- |
+| The +4 cap can't be exceeded (property test) | ✓ every combination of worn items: at most +4 to a rating, a collab's second rating included; in games only (OVR and value never move) |
+| Gear shows on the player (screenshot test) | ✓ shoes, socks, the sleeve, the headband and the wristbands in the item's colors, in games, on the hub and in portraits; pixel mode keeps a gear color in the palette |
+| The try-on preview works | ✓ desktop and phone: your player wearing it, ratings old → new, what it replaces, the cap's note, Buy |
+| Money worth spending at every stage | ✓ high school: 15 of 15 buys within $1,000 (all of them $2,140); college: 18 of 18 within $5,000 ($31K); a rookie pro: 20 of 20 within $770K ($2.80M) |
+
+**Pro teams** (`tests/proteams.js`, 14 of 14):
+
+| Check | Measured |
+| --- | --- |
+| Playoff and Finals flow | ✓ the top 8, quarterfinals, semifinals and the Finals, every series best of 3 (the higher seed hosts games 1 and 3); the champion wins the Finals; the Finals MVP is the champion's top scorer in the Finals (a teammate takes it when you won from the bench) |
+| Ring ceremony and banner | ✓ the parade, the ring and the banner, in that order, before awards night; the banner joins the franchise's history; the ring goes in the trophy case; the fans grow (520K → 572K) |
+| Dynasty tracking | ✓ titles in a row are a run, yours across franchises and the franchise's: 1 → 2 → 3, then 0 after a season without one |
+| Scarcity: at most one 5★ spot per team per season | ✓ 233 spots opened in 480 5★ team-seasons (49%), never more than one a team |
+
+### 2.0 §7's tests
+
+| Test | Result |
+| --- | --- |
+| Steal consistency (`tests/steals.js`) | 2 × 500 scripted steals, 0 mismatches between the STEAL callout, the stat and a real change of possession. Defense 6: clean 64.6% (target 63%), STEAL 428, POKED 72; Defense 9: clean 71.6% (72%) |
+| Trait rarity distribution (`tests/rarity.js`) | 1,000 generated players (365 teammates, 268 opponents, 67 rivals, 300 pros): Legendary 3.4% (3–5%); 20,000: 54.8 / 27.9 / 13.3 / 4.02% against 55 / 28 / 13 / 4 |
+| Trait power by rarity (`tests/traitbalance.js`, 400 careers a trait on 3 seeds) | every rarity in its band and rising with rarity (median legacy against no trait, the great policy, 1,200 careers a trait): Common +5% (0…8%), Uncommon +12% (6…15%), Rare +24% (15…30%), Legendary +51% (35…60%); Generational +81%, Unbreakable +58%, Late Bloomer +41%, Fast Twitch +0% |
+| Box-score invariants (`tests/boxscore.js`) | 1,000 simmed amateur games and 1,000 simmed pro games: every line adds up (3PM ≤ 3PA ≤ FGA, 3PM ≤ FGM ≤ FGA, the points), 0 failures |
+| The overflow audit at three sizes and 1.25× text (`tests/phoneaudit.js`) | every screen (about 250) at 844×390 and 1280×720, both at 1.25× text, 1920×1080 and 800×1000: nothing flagged on the final build (overlapping or cut text, text under a figure, 64 px tap targets on the phone, off-screen widgets, two screens at once), and every string at least the menus' pixel (10 internal pixels for a 10-pixel glyph) at every size. The two new sizes caught three V13 regressions, fixed in V14 (above) |
+| Perf at 4× CPU throttle (`tests/perf4x.js`) | not met on today's machine, and no slower than V2 (the table below) |
+| A full career with the pro phase, through Jump to pro (`tests/fullcareer.js --jump`) | desktop: Jump to pro from freshman year (95 weeks simmed: 22, OVR 65, out of Coastal University), the combine, the offers and signing day, then 14 pro seasons through the screens (481 actions, a real high school game and a real pro game), retired at 36, the epilogue and the Hall of Fame; phone: the same jump, 13 pro seasons, 473 actions, retired at 35. Both passed (the final build) |
+| The career simulator's targets | XP stays hard: the curve above (60 → 70 2,696 XP, 80 → 90 21,739). A 5★ team stays an achievement: Part 2 replaced 2.0's "keep 55–65% by age 29" with 15–25% of typical careers and about 60% of great ones (§1.1's own line reads "15–25% of careers (now 55–65%)"). Measured over 400 careers: typical 17% reach a 5★ team (7% by 29; median age at the first 30), great 64% (44% by 29; median age 28) |
+
+**Perf at 4×** (`tests/perf4x.js`, the device clock: a live pro-arena 1v1, AI against AI, 5 forced dunks and 3 forced
+blocks). The V14 build and V2's own build (its commit and its test), run back to back and alternating, twice, on the same
+quiet machine:
+
+| | V14, phone | V2, phone | V14, desktop | V2, desktop |
+| --- | --- | --- | --- | --- |
+| Median frame (target ≤ 25 ms) | 29.2, 27.2 ms | 27.5, 29.0 ms | 22.7, 24.3 ms | 27.2, 23.2 ms |
+| Frames over 50 ms in dunks, celebrations and blocks (target 0) | 73, 35 | 72, 90 | 30, 32 | 44, 21 |
+| The frame guard's first shed (target ≤ 0.5 s) | 0.18, 0.18 s | 0.23, 0.22 s | 0.18, 0.17 s | 0.20, 0.10 s |
+
+When V2 was committed this test measured its build at 13.9–14.9 ms (phone) and 11.7–13.6 ms (desktop). The same build
+runs about twice as slow on today's host, so the medians are over 25 ms for both; V14 is inside V2's own run-to-run
+spread, so V3–V14 added no frame time this test can see. The guard sheds within 0.2 s.
+
+### Tests on the 2.0 build (V14)
+
+The whole suite ran on the V14 build; five small changes followed it (the shake tendency, the Codex chip's width, the Me
+card's second trait chip, the dead contest screen, jersey letters out of the legibility count), and everything they can
+touch ran again on the final build (marked "final"). The rest doesn't read what changed: the career simulator and its
+tests don't play engine games, and the gate and the harness play bots without tendencies.
+
+| Test | Result |
+| --- | --- |
+| Syntax (`tests/check-syntax.js`) | ok (final) |
+| Smoke: the game through the UI at 1280×720 and 844×390 | 137 of 137 (final) |
+| Modes: every mode played to its end | 13 of 13 (final) |
+| Old saves: every fixture from the first 1v1 career on, reloaded and played on | 34 of 34, never wiped (final) |
+| Dev tools | all OK (final) |
+| The overflow audit: 844×390, 1280×720, both at 1.25× text, 1920×1080, 800×1000 | about 250 screens at each size, nothing flagged; the smallest glyph 1.00× the menus' pixel everywhere (final) |
+| 2.0's page fixes (`tests/fixes.js`) | 15 of 15 (final), the rack check 16 of 16 |
+| The Codex, tooltips, dots, What's new, legibility, celebrations, arenas (`tests/polish.js`) | 14 of 14 (final) |
+| Gameplay: scouting, bots playing to their card, signature moves, overtime (`tests/gameplay.js`) | 12 of 12 (final; "Shakes you with moves" +38%) |
+| The style mix | Post 51% post-ups (45%), Shooter 60% jumpers (55%) with 52% threes (half), Slasher 64% drives (60%) ✓ (final) |
+| A whole career through the screens | 927 actions: a real game in high school, college and the pros, retired after 14 pro seasons at 36 (final) |
+| The same with Jump to pro | desktop 481 actions, phone 473: passed (final) |
+| Art Lab | 58 screenshots, no errors (final) |
+| Steals, rarity, box scores | 2 of 2 each (above) |
+| Traits (`tests/traits.js`) · the climb · the flow | 9 of 9 · 9 of 9 · 12 of 12 |
+| Story · school · staff · shop · pro teams | 13 of 13 · 8 of 8 · 11 of 11 · 10 of 10 · 14 of 14 |
+| The §1.1 table (`tests/difficulty.js`) | every row in its band, both policies |
+| The HUD's text (`tests/hudaudit.js`) | 35 scenes at several window sizes, 0 flagged |
+| §2 gate (300 mirror games, 200 Legend-vs-Pro games) | Pro mirror 1.17 PPP (0.95–1.25 ✓), side A 50% (45–55% ✓), Legend beats Pro 81% (75–95% ✓), brute force vs Pro 0.89 (≤ 1.30 ✓), timing and reads 1.50 ✓ |
+| Balance harness (Classic) | brute force vs Pro 1.06 (≤ 1.30 ✓), perfect timing 2.02, Legend beats Pro 83% (75–95% ✓) |
+| Career simulator, 40 careers | every target met: a 5★ team 20%, 0.40 titles, Hall of Fame 8%, OVR 56 / 64 / 68 at 17 / 21 / 25, 0 stuck |
+| Career simulator, 400 careers a policy | typical: 5★ 17%, 0.27 titles, Hall of Fame 3%; great: 64%, 1.80, 39%; 0 stuck (final) |
+| Trait balance · staff balance | every rarity in its band · smart spending +12.4% (great), every role above none |
+| Perf at 1× and 4× (`tests/perf.js`, `tests/perf4x.js`) | the table above (final) |
+
+### Deviations and known limits
+
+1. **The 5★ target.** 2.0 §7 asked to keep reaching a 5★ team at 55–65% by age 29; Part 2 (which wins) calls that too
+   easy and sets 15–25% for a typical career and about 60% for a great one. The game meets Part 2's numbers; the
+   by-29 share is printed beside them.
+2. **XP near the top.** Part 2's prose says 80 → 90 costs "about 3×" the 60 → 70 stretch; its formula,
+   20 × 1.11^(rating − 40), gives 8.1×. The formula was kept (V6), and the Codex prints the ratio.
+3. **One league player per franchise.** The career is 1v1, so each franchise's games are played by its league player,
+   and your franchise's depth chart decides whether that's you. Rosters, trades and signings move league players.
+4. **Arcs per career.** 85% of careers see 6–8 arcs; the rest are mostly short careers with fewer act III seasons.
+5. **A steal's loose ball** goes toward the stealer 63–66% of the time against 2.0 §1.1's 70% (the clean-steal share,
+   the test's bar, is on target). V1 measured 69.4% over 1,000 pokes; it is reported, not judged.
+6. **Perf is measured in headless Chromium**, which draws the canvas on the CPU; nothing was measured on a real phone.
+   On today's host neither V2's build nor V14's meets the 4× targets (the medians run 23–29 ms, and dozens of frames go
+   over 50 ms in dunks and blocks); measured side by side, V14 is as fast as V2, and V2 met the medians on the host it
+   was committed on.
+7. **Jump to pro is a dev tool.** It plays the amateur years as the career simulator does (the AUTO week, the league
+   model's games, the default answers), not as a player would; the pro flow after it is the real one.
+
+## V14 — 2.0: balance, Jump to pro, the full suite, version 2.0 (2.0 §7; Part 2 §7–8)
+
+The last milestone of Hoop Heads 2.0 and its Part 2. The career is still 1v1 only.
+
+**Version 2.0.** `CONFIG.version` is '2.0'. The title screen's line reads "v2.0 · one file · no network · everything
+drawn in code", and the credits show VERSION 2.0 in their top right corner. What's new and the main menu's What's new
+button read their version from `CONFIG.ui.whatsNew` (2.0); the screen still shows once after the update.
+
+**Jump to pro (2.0 §7).** The dev menu (the backtick key, or five taps on the title logo) has a **Jump to pro** button,
+beside the money cheat (the two share a row: the menu's column was full). It sims the rest of the amateur career the
+way the career simulator plays it: each week's auto plan and the league model's game, every card answered
+automatically (story choices the default, the press the default answer, a trait pick, an NIL deal or an agent as the
+simulator answers them), the simulator's calls (summers: a job, the camp, then the AAU circuit; the best college that
+wants you; turn pro once the scouts project a top-30 signing or after the third college season). It stops at the pro
+combine and opens it, so the pro and team flow (the combine, the offers, signing day, the pros) is a minute away. With
+no career it starts one ("Dev Prospect", from the dev menu's seed); a pro career gets "Already in the pros." It is
+`devJumpToPro` (`159_sim.js`); nothing outside the dev menu calls it.
+
+`tests/fullcareer.js --jump` is 2.0 §7's full career with the pro phase: it plays the first high school game for real,
+opens the dev menu with the backtick key (the game loop opens it, as for a player), presses Jump to pro and plays the
+rest through the screens, the combine and signing day to the Hall of Fame, with a real pro game.
+
+**The Slasher drives (balance).** The style mix's standing miss since V4: the Slasher drove on 46% of possessions
+(target 60%). Its plan (`ai.stylePlan.slasher`) moves from drive 0.35, three 0.28, mid 0.32 to 0.49, 0.18, 0.28. At
+0.55 it drove 66–68%.
+
+**The shake tendency.** With the Slasher driving more, "Shakes you with moves" added only +20% dribble moves on the
+gameplay test's games (a Slasher with it against one without; the bar is +25%, and it was +41% in V4). On another 24
+games it added +34%: at 1.45 the lift swings with the games. `scout.tend.shake.ai.move` goes from 1.45 to 1.9: +38% and
++36% on the two sets (1.6: +30%; 1.75: +23%; 2.1: +39%; 2.4: +33%: the lift levels off near +35–40%).
+
+**Two more window sizes in the overflow audit.** V14 also audits 1920×1080 and a tall 800×1000 window (besides
+1280×720, 844×390 and both at 1.25× text). They found three things from V13:
+
+- **The Codex chip in a tall window** sits in the top margin, 48 layout units wide. At 800×1000 the menus' pixel is one
+  device pixel, 1.6 layout units, so the menus' text is bigger than their layout there, and "CODEX" was cut on 198 of
+  250 screens. The chip is now as wide as its label at the menus' pixel (62 units there); a phone's or a tablet's
+  64 px chip is already wider and doesn't change.
+- **The Me card's second trait chip** took whatever the first one left: 80 units at 800×1000, cut to "GY…". It's drawn
+  only when it fits whole. (At 1280×720 the first chip leaves too little and the second never showed; the TRAITS line
+  beside the card lists both.)
+- **At 1920×1080 the legibility check flagged 12 screens**: a player's jersey letters, drawn at the sprite's pixel size
+  (2 device pixels a font pixel) under the menus' pixel there (3). They're the character's art, not the menus' text, so
+  `rbStack` (the jersey's letters only) no longer adds to the count. Every string the menus draw is still checked.
+
+**Removed:** R7's old contest screen (`allStarScreen`), which nothing had opened since R7 (the F pass's known limit 7).
+The All-Star weekend's result screen stays.
+
+**The rack check (#127).** `tests/fixes.js`'s check that the 3-point racks never cover the player failed about one run
+in five under load (the tryout shootout, Smooth graphics, the phone: 23 pixels in a 70×10 strip). Repeating it showed
+the player's own pixels changing between identical renders (1,480–2,864 px each time): hanging hair strands run a
+verlet sim on `performance.now()`, and the held ball eases on it. Strands that sat in one pose on the three plain
+renders and in another on the two with the racks would pass for a rack. The five renders and the player's own draw now
+share one frozen wall-clock instant, the same renders differ in 0 pixels, and all 16 rack checks pass.
+
+**The README** describes 2.0: What's new, the career's new systems (traits, the climb, the story, school, the shop and
+staff, the pro teams, the Codex, the Road and the hub), Jump to pro and every test.
+
+**Tuning** (each in CONFIG with its comment):
+
+| Value | Was | Now | Why |
+| --- | --- | --- | --- |
+| `version` (new) | — | '2.0' | the version on the title screen and in the credits |
+| `ai.stylePlan.slasher` | post 0.05, drive 0.35, three 0.28, mid 0.32 | 0.05, 0.49, 0.18, 0.28 | the Slasher drove on 46% of possessions (target 60%): 64% now (0.55 drove 66–68%) |
+| `scout.tend.shake.ai.move` | 1.45 | 1.9 | after the Slasher's change, "Shakes you with moves" added +20% dribble moves on the test's games (bar +25%): +38% now, +36% on another 24 games |
+
+**Tests.**
+
+- `tests/fullcareer.js --jump` (new): the full career through Jump to pro, desktop and phone.
+- `tests/fixes.js`: the rack check renders at one frozen wall-clock instant.
+- `tests/careersim.js`: the franchise line adds the share reaching a 5★ team by 29 (2.0 §7's old line).
+- `tests/artlab.js`: the phone's match shot waits out the opening wipe (the shot always caught it).
+- The suite's extras (`v14/extra.sh`): every test 2.0 §7 and Part 2 §7 name, the audit at five sizes, both policies
+  of the career simulator and of the staff balance.
+
 ## V13 — 2.0: the Codex everywhere, tooltips, dots, What's new, legibility (§5); celebrations, arenas, names and looks (§6)
 
 The UI and content milestone of 2.0 (§5 and §6). The career is still 1v1 only.

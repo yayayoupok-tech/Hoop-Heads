@@ -34,6 +34,7 @@
 // SECTION: CONFIG — every tuning number in the game lives here (one-line comment each)
 // ============================================================================
 const CONFIG = {
+  version: '2.0',               // V14: the game's version (the title screen, the credits)
   sim: {
     step: 1 / 120,             // fixed simulation step in seconds (120 Hz)
     ballSubsteps: 4,           // ball integration substeps per sim step (480 Hz total)
@@ -658,7 +659,7 @@ const CONFIG = {
       postscorer:   { post: 0.5, drive: 0.25, three: 0.05, mid: 0.2 },
       rimprotector: { post: 0.22, drive: 0.6, three: 0.0, mid: 0.18 },
       sharpshooter: { post: 0.0, drive: 0.42, three: 0.29, mid: 0.29 },
-      slasher:      { post: 0.05, drive: 0.35, three: 0.28, mid: 0.32 },
+      slasher:      { post: 0.05, drive: 0.49, three: 0.18, mid: 0.28 }, // V14: drive 0.35 → 0.49 (three 0.28 → 0.18, mid 0.32 → 0.28): the Slasher drove on 46% of possessions (target 60%: 65% now over 32 games a build, PPP 1.51 and 53% wins against the neutral build; 0.55 drove 66–68%)
       playmaker:    { post: 0.05, drive: 0.5, three: 0.25, mid: 0.2 },
       lockdown:     { post: 0.15, drive: 0.45, three: 0.2, mid: 0.2 },
     },
@@ -1121,7 +1122,7 @@ const CONFIG = {
       fade: { side: 'o', text: 'Fadeaway artist', tip: 'Body them up early: a fadeaway needs room.', ai: { fade: 1.9 } },
       post: { side: 'o', text: 'Backs smaller players down', tip: 'Front the post. Don\'t let them back you under the rim.', ai: { post: 1.9, planPost: 0.3 }, minH: 1.96 },
       pumpfake: { side: 'o', text: 'Pump-fakes a lot', tip: 'Stay down on the pump fake.', ai: { pumpfake: 1.4 } }, // (×2.2 had a bot faking 11 times a game)
-      shake: { side: 'o', text: 'Shakes you with moves', tip: 'Don\'t reach on the crossover. Hold your ground.', ai: { move: 1.45, snatch: 1.5 } },
+      shake: { side: 'o', text: 'Shakes you with moves', tip: 'Don\'t reach on the crossover. Hold your ground.', ai: { move: 1.9, snatch: 1.5 } }, // V14: move 1.45 → 1.9: with the Slasher's drive-first plan the tendency added +20% dribble moves on the gameplay test's games (+34% on another 24); 1.9 adds +38% and +36%
       gambler: { side: 'd', text: 'Gambles for steals', tip: 'Keep the dribble alive: a quick crossover beats the reach.', ai: { discipline: -0.15, stealCd: 0.55 } },
       biter: { side: 'd', text: 'Bites on pump fakes', tip: 'Pump-fake, then go right by.', ai: { bite: 0.25 } },
       sagger: { side: 'd', text: 'Sags off shooters', tip: 'They give you room: take the open jumper.', ai: { sag: 0.6 } },
@@ -3469,7 +3470,7 @@ function rbStack(ctx, text, x, y, layers) {
     else { c = document.createElement('canvas'); c.width = Math.max(1, (rbWidth(text) + 2 * om) * s); c.height = (10 + 2 * om) * s; const g = c.getContext('2d'); for (let i = 0; i < layers.length; i++) g.drawImage(rbSprite(text, layers[i][0], s, os[i]), (om - os[i]) * s, (om - os[i]) * s); RBF.cache.set(key, c); if (RBF.cache.size > ART.rbCacheN) RBF.cache.delete(RBF.cache.keys().next().value); }
     let X = M.a * x + M.c * y + M.e, Y = M.b * x + M.d * y + M.f; const al = ctx.textAlign, w = rbWidth(text) * s; if (al === 'center') X -= w / 2; else if (al === 'right' || al === 'end') X -= w;
     Y -= rbBaselineRow(ctx.textBaseline) * s; X = Math.round(X) - om * s; Y = Math.round(Y) - om * s;
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(c, X, Y); ctx.restore(); if (RBF.audit) for (let i = 0; i < layers.length; i++) RBF.audit.push(s); return true;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.drawImage(c, X, Y); ctx.restore(); return true; // (V14: not in RBF.audit's legibility count: a jersey's letters are the character's art, at its sprite's pixel size)
   } catch (e) { return false; }
 }
 CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxW) { const px = rbFontPx(this.font); if (px == null) return _rbNative.fill.call(this, text, x, y, maxW); try { rbDraw(this, text, x, y, px, 0, this.fillStyle, maxW); } catch (e) { /* text never throws */ } };
@@ -8854,7 +8855,7 @@ const CREDITS = [['HOOP HEADS', 'A one-on-one basketball career, from a high sch
 function creditsScreen(game) {
   const P = game.ui.phone; let t = 0; const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop(), { primary: true }); Object.assign(back, P ? { x: 40, y: UI_H - tapH(game.ui, 44) - 12, w: 1200, h: tapH(game.ui, 44) } : { x: 770, y: 590, w: 400, h: 46 });
   return { widgets: [back], name: 'credits', update(dt) { t += dt; },
-    draw(ctx, ui) { ui.panel(ctx, P ? 20 : 80, P ? 10 : 30, P ? 1240 : 1120, P ? 700 : 620); kitLogo(ctx, P ? 640 : 640, P ? 70 : 96, P ? 44 : 50);
+    draw(ctx, ui) { ui.panel(ctx, P ? 20 : 80, P ? 10 : 30, P ? 1240 : 1120, P ? 700 : 620); kitLogo(ctx, P ? 640 : 640, P ? 70 : 96, P ? 44 : 50); ui.label(ctx, 'VERSION ' + CONFIG.version, P ? 1236 : 1176, P ? 46 : 62, P ? 16 : 14, UI_DIM, 'right'); // V14: the version, top right
       let y = P ? 136 : 172; for (const [h, l] of CREDITS.slice(1)) { ui.heading(ctx, h, P ? 60 : 140, y, P ? 20 : 17, UI_CYAN, 'left'); y += P ? 30 : 26; y += ui.para(ctx, l, P ? 60 : 140, y, P ? 1160 : 1000, P ? 20 : 16, UI_TEXT, 'left', 3) + (P ? 12 : 14); }
       if (P) ui.label(ctx, CREDITS[0][1], 60, UI_H - tapH(game.ui, 44) - 36, 16, UI_DIM, 'left', 1160); else ui.para(ctx, CREDITS[0][1], 140, 600, 600, 14, UI_DIM, 'left', 2); } }; /* F7: two lines beside Back (one line was cut) */
 }
@@ -9415,7 +9416,8 @@ function uiHelpOn(ui, s) { return !!s && !s.noHelp && !UI_NO_HELP.test(s.name ||
 // The chip's tap box in design units (64 CSS px on a touch screen), or null (a desktop without a margin: the hint).
 function uiHelpRect(ui, s) {
   if (!uiHelpOn(ui, s) || s.ownHelp) return null; const g = ui.game, sf = g.safe || {}, k = Math.max(0.01, ui.scale), touch = ui.phone || (g.input && g.input.lastDevice === 'touch');
-  const x0 = ((sf.left || 0) - ui.ox) / k, x1 = (ui.W - ui.ox - (sf.right || 0)) / k, y0 = ((sf.top || 0) - ui.oy) / k, sz = touch ? Math.max(48, CONFIG.ui.touchMinPx / k) : 48, pad = 6; // the safe area's edges
+  const x0 = ((sf.left || 0) - ui.ox) / k, x1 = (ui.W - ui.ox - (sf.right || 0)) / k, y0 = ((sf.top || 0) - ui.oy) / k, pad = 6; // the safe area's edges
+  const sz = Math.max(touch ? Math.max(48, CONFIG.ui.touchMinPx / k) : 48, rbWidth('CODEX') * (RBF.kUI || RBF.minMain || 1) / (k * (g.dpr || 1)) + 8); // V14: wide enough for its label at the menus' pixel (a small window's menus draw text bigger than their layout: 800×1000 cut "CODEX")
   if (x1 - UI_W >= sz + pad * 2) return { x: UI_W + (x1 - UI_W - sz) / 2, y: Math.max(y0, 0) + pad, w: sz, h: sz };
   if (-x0 >= sz + pad * 2) return { x: x0 + (-x0 - sz) / 2, y: Math.max(y0, 0) + pad, w: sz, h: sz };
   if (-y0 >= sz + pad * 2) return { x: Math.min(x1, UI_W) - sz - pad, y: y0 + (-y0 - sz) / 2, w: sz, h: sz };
@@ -9520,7 +9522,7 @@ function mainMenu(game) {
   if (any) items.push(btn('CONTINUE CAREER', 0, 0, 0, 0, () => game.ui.replace(c ? careerHub(game) : amHub(game)), { primary: true, sub: c ? 'pro · season ' + c.season : am.stage === 'combine' ? 'pro combine' : amStageLabel(am) }));
   else if (s.career && s.career.phase === 'retired' && !s.career.epilogue) items.push(btn('YOUR RETIREMENT', 0, 0, 0, 0, () => { game.ui.replace(epilogueScreen(game)); eventChain(game, s.career); /* V8: any story beat still waiting */ }, { primary: true, sub: 'what your money builds' })); /* R7: a retirement left before its epilogue */
   items.push(btn(any ? 'New career' : 'START YOUR CAREER', 0, 0, 0, 0, () => { if (any) game.ui.push(confirmScreen(game, 'Start over? Your current career ends.', () => { s.career = null; s.c1 = null; game.save.save(); game.ui.replace(createPlayerScreen(game)); })); else game.ui.replace(createPlayerScreen(game)); }, any ? {} : { primary: true }));
-  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(practiceHubScreen(game)), { sub: 'shooting · 3-pt' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('What\'s new', 0, 0, 0, 0, () => game.ui.push(whatsNewScreen(game)), { sub: '2.0' }), btn('Save slots', 0, 0, 0, 0, () => game.ui.push(slotsScreen(game)), { sub: 'slot ' + game.save.slot + ' of ' + CONFIG.save.slots })); // R10: three save slots; F1: Practice replaces the Extras menu (the credits are in Settings)
+  items.push(btn('Quick 1v1', 0, 0, 0, 0, () => game.ui.push(quickPlayScreen(game))), btn('Practice', 0, 0, 0, 0, () => game.ui.push(practiceHubScreen(game)), { sub: 'shooting · 3-pt' }), btn('Hall of Fame', 0, 0, 0, 0, () => game.ui.push(hallOfFameScreen(game))), btn('How to play', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('What\'s new', 0, 0, 0, 0, () => game.ui.push(whatsNewScreen(game)), { sub: CONFIG.ui.whatsNew }), btn('Save slots', 0, 0, 0, 0, () => game.ui.push(slotsScreen(game)), { sub: 'slot ' + game.save.slot + ' of ' + CONFIG.save.slots })); // R10: three save slots; F1: Practice replaces the Extras menu (the credits are in Settings)
   column(items, 70, 120, 380, 44, 8); items[0].h = 54; for (let i = 1; i < items.length; i++) items[i].y += 10;
   phoneGrid(game.ui, items, 40, 90, 440, 2, 1, 6); // a phone: big buttons in two columns (R10: five rows fit with a save-slots button)
   let wn = false; return { widgets: items, name: 'menu', update(dt) { t += dt; if (!wn && game.ui.screen === this) { wn = true; if (whatsNewDue(game)) game.ui.push(whatsNewScreen(game)); } } /* V13 (2.0 §5): What's new, once */, onBack() { game.ui.replace(titleScreen(game)); },
@@ -9746,14 +9748,7 @@ function careerResultScreen(game, rec, m) { game.hubTab = 'play'; // V5: back to
 
 // ---------------- practice, drills and film: the career week (UI part 7) ----------------
 
-// ---------------- the All-Star 3-point contest ----------------
-function allStarScreen(game) {
-  const c = careerOf(game); const A = c.allStar; const me = meOf(c);
-  const items = [btn('PLAY IT', 0, 0, 0, 0, () => { const mine = matchTeamDef(c, c.meId, false); game.startMatch({ mode: '1v1', teams: [mine, Object.assign({}, mine)], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'arena', seed: (Date.now() % 100000) >>> 0, controlMode: 'ball', contest3: {} }, { kind: 'allstar' }); }, { primary: true }), btn('Sim it', 0, 0, 0, 0, () => { const my = botThreeScore(me, careerRng(c)); finishAllStar(c, my); game.save.save(); game.ui.replace(allStarResultScreen(game)); }), btn('Back', 0, 0, 0, 0, () => game.ui.pop())];
-  column(items, 790, 470, 400, 48, 10);
-  return { widgets: items, name: 'allstar', draw(ctx, ui) { ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'ALL-STAR WEEKEND', 60, 62, 40); ui.label(ctx, 'The four best shooters in the league, plus the fans\' pick. 60 seconds, 25 balls, money balls worth 2.', 60, 104, 16, UI_TEXT);
-      A.field.forEach((id, i) => { const p = c.players[id]; const y = 150 + i * 110; recPortrait(ctx, p, 60, y, 90); ui.heading(ctx, p.name.toUpperCase() + (id === c.meId ? '  (you)' : ''), 170, y + 30, 22, id === c.meId ? UI_GOLD : UI_TEXT); const s = c.stats[id]; ui.label(ctx, 'Shooting ' + Math.floor(p.r.sho) + ' · ' + (s.tpa ? Math.round(100 * s.tpm / s.tpa) : 0) + '% from three this season', 170, y + 60, 15, UI_DIM); }); } };
-}
+// ---------------- the All-Star weekend's result (V14: R7's old contest screen, which nothing opened since R7, is gone) ----------------
 function allStarResultScreen(game) {
   const c = careerOf(game); const A = c.allStar; const items = [btn('BACK TO THE HUB', 0, 0, 0, 0, () => game.ui.clearTo(careerHub(game)), { primary: true })]; column(items, UI_W / 2 - 180, 610, 360, 50, 0); const P = phoneBar(game.ui, items, null, UI_W / 2 - 240, 480);
   return { widgets: items, name: 'allstarres', onBack() { game.ui.clearTo(careerHub(game)); }, draw(ctx, ui) { ui.panel(ctx, 240, P ? 12 : 60, 800, P ? 700 : 610, UI_PANEL2); ui.title(ctx, '3-POINT CONTEST', 280, P ? 62 : 110, 40); const SC = A.scores || {}, order = A.field.slice().sort((a, b) => (SC[b] || 0) - (SC[a] || 0)); /* R10: before the contest, every score is 0 */ order.forEach((id, i) => { const p = c.players[id]; const y = (P ? 100 : 170) + i * (P ? 82 : 90); recPortrait(ctx, p, 280, y, P ? 70 : 74); ui.heading(ctx, (i + 1) + '. ' + p.name, 370, y + 26, 22, id === c.meId ? UI_GOLD : UI_TEXT); ui.heading(ctx, String(SC[id] != null ? SC[id] : '—'), 980, y + 26, 30, i === 0 ? UI_GOLD : UI_TEXT, 'right'); }); if (A.winner === c.meId) ui.heading(ctx, 'CHAMPION · +' + fmtMoney(LG.allStarPrize) + ' · fame up', 280, P ? 530 : 560, 20, UI_GOLD); } };
@@ -10027,12 +10022,14 @@ function devScreen(game) {
     sel('Shot lab zone', 0, 0, 0, 0, zones, () => st.zone, i => { st.zone = i; }), sel('Shot lab grade', 0, 0, 0, 0, GRADE_NAMES, () => st.grade, i => { st.grade = i; }), sel('Shot lab contest', 0, 0, 0, 0, contests.map(String), () => st.contest, i => { st.contest = i; }),
     btn('Shot lab (200 shots)', 0, 0, 0, 0, () => { const r = shotLab({ zone: zones[st.zone], grade: st.grade, contest: contests[st.contest], n: 200, seed: st.seed }); log(['SHOT LAB · ' + r.zone + ' · ' + GRADE_NAMES[r.grade] + ' · contest ' + r.contest, 'model P ' + (100 * r.modelP).toFixed(1) + '%   actual ' + (100 * r.actual).toFixed(1) + '%   diff ' + r.diffPct.toFixed(1) + ' pts   roll honored ' + (100 * r.rollHonored).toFixed(1) + '%', 'avg solver tries ' + r.avgTries.toFixed(2) + '  fallbacks ' + r.fallbacks + '  flavors ' + JSON.stringify(r.flavors)]); }),
     btn('Tunneling test (1000 balls)', 0, 0, 0, 0, () => { const r = tunnelTest(1000); log(['TUNNELING · ' + r.n + ' balls at 15–30 m/s', 'tunneled: ' + r.tunnels + '   rim hits ' + r.rimHits + '   board hits ' + r.boardHits]); }),
-    btn('Career: +$1M and +20 fame', 0, 0, 0, 0, () => { const c = careerOf(game); if (c) { c.me.money += 1e6; c.me.fame = Math.min(100, c.me.fame + 20); game.save.save(); log(['Done.']); } else log(['No career.']); }),
+    btn('+$1M, +20 fame', 0, 0, 0, 0, () => { const c = careerOf(game); if (c) { c.me.money += 1e6; c.me.fame = Math.min(100, c.me.fame + 20); game.save.save(); log(['Done.']); } else log(['No career.']); }),
     tgl('F1 AI overlay', 0, 0, 0, 0, () => game.overlays.f1, v => { game.overlays.f1 = v; }), tgl('F2 hitboxes & lanes', 0, 0, 0, 0, () => game.overlays.f2, v => { game.overlays.f2 = v; }), tgl('F3 last shot', 0, 0, 0, 0, () => game.overlays.f3, v => { game.overlays.f3 = v; }), tgl('FPS graph', 0, 0, 0, 0, () => game.save.data.settings.showFps, v => { game.save.data.settings.showFps = v; }),
     btn('Art Lab', 0, 0, 0, 0, () => game.ui.push(artLabScreen(game))), /* F1: from the old Extras menu */
     btn('Back', 0, 0, 0, 0, () => game.ui.pop()),
   ];
   column(items, 60, 50, 460, 28, 4);
+  { const i = items.findIndex(w => w.label === '+$1M, +20 fame'), cheat = items[i]; cheat.w = 226; /* V14 (2.0 §7): Jump to pro shares the cheat's row (the column is full) */
+    const jump = btn('Jump to pro', cheat.x + 234, cheat.y, 226, cheat.h, () => { const r = devJumpToPro(game, st.seed); log([r.msg]); if (r.ok) { game.ui.clearTo(amHub(game)); game.ui.push(amCombineScreen(game)); } }); items.splice(i + 1, 0, jump); }
   return { widgets: items, name: 'dev', update(dt) { if (st.job) { const t0 = performance.now(); while (st.job && performance.now() - t0 < 30) st.job.step(); } },
     draw(ctx, ui) { ui.panel(ctx, 30, 30, 520, 670); ui.panel(ctx, 570, 30, 690, 670, 'rgba(0,0,0,0.75)'); ctx.fillStyle = UI_GREEN; ctx.font = fontStr(13, false); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; const lines = st.job ? [st.job.label, 'running ' + st.job.i + ' / ' + st.job.n + ' …'] : st.lines, lh = Math.max(17, rbLineH(ctx)); let yy = 50; for (const l of lines) for (const w of rbWrap(ctx, String(l), 650)) { ctx.fillText(w, 590, yy); yy += lh; } } }; /* F7: long lines wrap (they were cut at the screen's edge) */
 }
@@ -10642,7 +10639,7 @@ function titleScreen(game) {
       const k = clamp01(T / 0.9), ly = lerp(-120, 168, easeOutBounce(k)); kitLogo(ctx, cx, ly, 150, { tilt: -2.5 });
       const sub = clamp01((T - 0.8) / 0.4); if (sub > 0) { ctx.globalAlpha = sub; kitStamp(ctx, '1-ON-1 CAREER', cx, 262, 34, [UI_TEXT, UI_CYAN], { outline: 0.2 }); ctx.globalAlpha = 1; }
       if (T > 1.1 && (reduce || Math.sin(t * 4) > -0.3)) { const w = 300, h = 46; ctx.fillStyle = 'rgba(8,12,36,0.7)'; ctx.beginPath(); roundRectPath(ctx, cx - w / 2, 316, w, h, h / 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,210,63,0.8)'; ctx.lineWidth = 2; ctx.stroke(); ui.heading(ctx, game.input.hasTouch ? 'TAP TO START' : 'PRESS ENTER', cx, 340, 24, UI_GOLD, 'center'); }
-      ui.label(ctx, 'one file · no network · everything drawn in code', cx, 700, 12, 'rgba(243,240,255,0.5)', 'center');
+      ui.label(ctx, 'v' + CONFIG.version + ' · one file · no network · everything drawn in code', cx, 700, 12, 'rgba(243,240,255,0.5)', 'center'); // V14: the version
     } };
 }
 
@@ -11615,7 +11612,7 @@ function drawHubMePanel(ctx, ui, H, t) {
   hexBadge(ctx, 76, 548, 34, M.ovr, {}); if (M.delta) { kitChip(ctx, (M.delta > 0 ? '▲ ' : '▼ ') + Math.abs(M.delta), 76, 596, { size: 13, align: 'center', fill: M.delta > 0 ? 'rgba(76,224,122,0.25)' : 'rgba(255,90,90,0.25)', stroke: false, color: M.delta > 0 ? UI_GREEN : UI_RED }); }
   const nm = String(M.def.name || '').toUpperCase(); const ns = fitFont(ctx, nm, 250, 22, true); ctx.font = fontStr(ns, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(nm, 124, M.tr ? 524 : 532);
   let cx = 124; for (const ch of [('AGE ' + M.age), M.style ? String(M.style).toUpperCase() : null].filter(Boolean)) cx += kitChip(ctx, ch, cx, M.tr ? 550 : 562, { size: 12 }) + 6;
-  if (M.tr) { let tx = 124; tx += traitChip(ctx, M.tr.sig, tx, 576, { T: M.tr, maxW: 236 }) + 6; if (tx < 300) traitChip(ctx, M.tr.found ? M.tr.hidden : null, tx, 576, { T: M.tr, maxW: 372 - tx }); }
+  if (M.tr) { let tx = 124; tx += traitChip(ctx, M.tr.sig, tx, 576, { T: M.tr, maxW: 236 }) + 6; const h2 = M.tr.found ? M.tr.hidden : null; if (tx < 300 && traitChip(ctx, h2, 0, 0, { T: M.tr, measure: true, size: 9 }) <= 372 - tx) traitChip(ctx, h2, tx, 576, { T: M.tr, maxW: 372 - tx }); } // V14: the second chip only whole (an 800×1000 window cut it to "GY…"); the TRAITS line lists both
   if (M.info) ui.label(ctx, M.info, 124, M.tr ? 601 : 590, 12, UI_DIM, 'left', 250);
   hubRatingBars(ctx, M.r, 40, 616, 328, 80);
 }
@@ -11786,6 +11783,34 @@ function simOffseason(game) {
     newSeason(c); game.save.save(); game.hubTab = 'play'; game.ui.clearTo(careerHub(game)); game.ui.toastMsg('Season ' + c.season + ': here we go.'); return;
   }
   game.save.save(); game.ui.replace(offseasonScreen(game));
+}
+
+// V14 (2.0 §7): the dev menu's "Jump to pro". Sims the rest of the amateur career (high school and college) the way the
+// career simulator plays it: each week's auto plan and the league model's game, every card answered automatically
+// (story choices: the default; the press: the default answer; a trait pick, an NIL deal or an agent: the simulator's
+// answers), the simulator's decisions (summers: a job, the camp, then the AAU circuit; the best college that wants you;
+// turn pro once the scouts project a top-30 signing or after the third college season) and stops at the pro combine,
+// so the pro and team flow (the combine, the offers, signing day, the pros) can be tested quickly. With no career it
+// starts one. Dev only: the dev menu is the only way in. Returns { ok, msg }.
+function devJumpToPro(game, seed) {
+  const s = game.save.data; if (careerOf(game)) return { ok: false, msg: 'Already in the pros.' };
+  let a = amateurOf(game); if (!a) { a = amCreate(s, { name: 'Dev Prospect', look: PRESET_LOOKS[0], number: 1, style: 'slasher', seed: ((seed || 1) * 7919) >>> 0 }); game.newCareer = null; }
+  const card = ev => { const k = ev.kind; try { if (k === 'traitpick') trPickAuto(a); else if (k === 'dialog') stAutoChoose(a, ev); else if (k === 'press') pressAuto(a, ev); else if (k === 'nil') colNilAnswer(a, ev, (ev.apps || 0) <= 1); else if (k === 'agent') colAgentAnswer(a, ev, true); else if (k === 'ladder') ladderSimChallenge(a, ev.mate, 'them'); } catch (e) { /* a card that can't be answered is skipped, as in a sim run */ } };
+  let weeks = 0, stuck = '';
+  for (let guard = 0; guard < 2000 && a.stage !== 'combine' && !a.handedOff; guard++) {
+    if (!Array.isArray(a.events)) a.events = []; for (const ev of a.events.splice(0)) card(ev);
+    if (a.stage === 'combine') break;
+    if (a.decision) { const d = a.decision; if (d.kind === 'portal') colPortalChoose(a, null);
+      else if (d.kind === 'college') { const skip = d.offers.find(o => o.draft), byTier = d.offers.filter(o => !o.draft).sort((x, y) => (y.tier - x.tier) || ((y.academic ? 1 : 0) - (x.academic ? 1 : 0))); amChooseCollege(a, skip && amPickFrom(amDraftScore(a)) <= 10 ? skip : byTier[0] || d.offers[0]); }
+      else amDeclare(a, amPickFrom(amDraftScore(a)) <= 30 || a.stageYear >= 3); continue; }
+    if (a.summer && a.summer.pending) { hsSummerChoose(a, ['job', 'camp', 'aau'][(a.summer.year || 1) - 1] || 'rest'); continue; }
+    if (a.tryout && a.tryout.step !== 'done') { hsSimTryout(a); continue; }
+    const r = amSimGame(a); if (!r) { if (!a.decision && !(a.events && a.events.length) && a.stage !== 'combine') { stuck = 'no game and no decision (' + a.stage + ', year ' + a.stageYear + ')'; break; } continue; } weeks++;
+  }
+  if (Array.isArray(a.events)) for (const ev of a.events.splice(0)) card(ev);
+  game.save.save();
+  if (a.stage !== 'combine') return { ok: false, msg: 'Jump to pro stopped: ' + (stuck || 'the run\'s guard') + '.' };
+  return { ok: true, msg: 'Jumped ' + weeks + ' weeks: ' + a.name + ', age ' + a.age + ', OVR ' + amOvr(a) + (a.college ? ', from ' + a.college : '') + '. The pro combine is next.' };
 }
 
 // ============================================================================
@@ -17796,7 +17821,7 @@ function whatsNewScreen(game) {
   const items = P ? [prev, next, ok] : [ok]; phoneBar(ui, items, [1, 1, 3]);
   return { widgets: items, name: 'whatsnew', focus: P ? 2 : 0, onBack: done,
     draw(ctx, ui) {
-      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'WHAT\'S NEW IN 2.0', 44, 56, P ? 40 : 38); if (P) kitChip(ctx, 'PAGE ' + (page + 1) + ' / ' + pages, 1236, 56, { size: 20, fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(94,224,255,0.6)', color: UI_CYAN, align: 'right' }); else ui.label(ctx, 'Hoop Heads 2.0 and its Part 2', 1236, 56, 15, UI_DIM, 'right', 520);
+      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'WHAT\'S NEW IN ' + CONFIG.ui.whatsNew, 44, 56, P ? 40 : 38); if (P) kitChip(ctx, 'PAGE ' + (page + 1) + ' / ' + pages, 1236, 56, { size: 20, fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(94,224,255,0.6)', color: UI_CYAN, align: 'right' }); else ui.label(ctx, 'Hoop Heads ' + CONFIG.ui.whatsNew + ' and its Part 2', 1236, 56, 15, UI_DIM, 'right', 520);
       const list = WHATS_NEW.slice(page * per, page * per + per), cols = P ? 2 : 3, cw = P ? 560 : 360, gap = P ? 40 : 30, rows = Math.ceil(list.length / cols), top = P ? 110 : 108, bottom = P ? UI_H - tapH(ui, 44) - 30 : 630, rh = (bottom - top) / Math.max(1, rows), hs = P ? 24 : 17, ls = P ? 19 : 14;
       list.forEach(([title, line], i) => { const x = 60 + (i % cols) * (cw + gap), y = top + Math.floor(i / cols) * rh + hs * 0.6; ui.heading(ctx, title.toUpperCase(), x, y, hs, UI_GOLD, 'left', cw); ui.para(ctx, line, x, y + hs * 0.9 + 8, cw, ls, UI_TEXT, 'left', 4); });
     } };

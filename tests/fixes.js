@@ -20,14 +20,20 @@ async function racksStep(R, P, label) {
         m.human.controlled = false; for (const p of m.players) p.controlled = false;
         const grab = (racks, hide) => { c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); RT.level = lvl; RT.over = RT.under = RT.overT = RT.underT = 0; if (!racks) g.drawRacks = () => {}; m.human.hidden = hide; try { g.renderSceneAny(c, m, 1, 0); } finally { g.drawRacks = saved; m.human.hidden = false; } return c.getImageData(0, 0, W, H).data; };
         for (let i = 0; i < 400 && faceWarmTick() > 0; i++); for (let i = 0; i < 4; i++) { grab(true, false); grab(false, true); }
-        const A1 = grab(false, false), rec = gfx === 'smooth' ? null : RT.last.get(m.human), C = grab(true, false), A2 = grab(false, false), C2 = grab(true, false), A3 = grab(false, false);
+        // V14 (#127): the grabs and the player's own draw happen at one frozen wall-clock instant. Hanging hair strands run a
+        // verlet sim on performance.now() (and the held ball eases on it); under load its 50 ms step clamp can flip the strands
+        // between two poses on alternate renders, which lined up with the A-C-A-C-A order below as a false "rack" (1 run in ~5)
+        const realNow = performance.now, T0 = realNow.call(performance); performance.now = () => T0;
+        let A1, rec, C, A2, C2, A3; const own = new Uint8Array(W * H);
+        try {
+        A1 = grab(false, false); rec = gfx === 'smooth' ? null : RT.last.get(m.human); C = grab(true, false); A2 = grab(false, false); C2 = grab(true, false); A3 = grab(false, false);
         // the player's own pixels: the retro sprite's opaque pixels, or the player drawn alone on a clear canvas (smooth)
-        const own = new Uint8Array(W * H);
         if (rec) { const sc = document.createElement('canvas'); sc.width = rec.spr.width; sc.height = rec.spr.height; const sg = sc.getContext('2d'); sg.drawImage(rec.spr, 0, 0); const d = sg.getImageData(0, 0, sc.width, sc.height).data, k = RT.k;
           for (let y = 0; y < sc.height; y++) for (let x = 0; x < sc.width; x++) if (d[(y * sc.width + x) * 4 + 3] > 0) for (let yy = 0; yy < k; yy++) for (let xx = 0; xx < k; xx++) { const X = (rec.X + x) * k + xx, Y = (rec.Y + y) * k + yy; if (X >= 0 && Y >= 0 && X < W && Y < H) own[Y * W + X] = 1; } }
         else { const oc = document.createElement('canvas'); oc.width = W; oc.height = H; const og = oc.getContext('2d'); og.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); const p = m.human, b = m.ball;
           drawPlayer(og, g.cam, p, 1, b, m.teams[p.team], { noShadow: true, depth: p._depth || 0, ballPaint: b.owner === p ? () => drawBallNew(og, g.cam, b, 1, b.skin, false, {}) : null });
           const d = og.getImageData(0, 0, W, H).data; for (let i = 0; i < W * H; i++) if (d[i * 4 + 3] === 255) own[i] = 1; } // fully opaque only: an anti-aliased edge blends with whatever is behind it
+        } finally { performance.now = realNow; }
         { const er = gfx === 'smooth' ? 2 : 1, e = new Uint8Array(W * H); // the player's solid inside: their outer 1–2 px (anti-aliased edges, a held ball's rim) can shift a hair between draws
           for (let y = er; y < H - er; y++) for (let x = er; x < W - er; x++) { const i = y * W + x; if (!own[i]) continue; let ok = 1; for (let d = 1; d <= er && ok; d++) ok = own[i - d] && own[i + d] && own[i - d * W] && own[i + d * W]; e[i] = ok ? 1 : 0; } own.set(e); }
         let mask = 0, covered = 0, rackPx = 0, x0 = W, y0 = H, x1 = 0, y1 = 0;
