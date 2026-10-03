@@ -3,6 +3,89 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W1 (2.1) — Playtest round 3: the fixes (§1.9–12) and the game length (§1.8)
+
+The first of the ten 2.1 milestones: the playtest's four fixes and the running clock. The test is
+`tests/playtest3.js` (one step a fix, 11 steps); flow, smoke and traits were updated for the new scoring scale.
+
+**The game length (§1.8): a running clock.** A timed game's clock now runs through made baskets, violations, fouls,
+free throws, check balls, inbounds and the pace holds (bringing the ball up, a shot in the air, the rebound), until the
+last `rules.runningStopS` (10) seconds of a period; there, and in overtime, it stops on dead balls as before (so the
+end of a close game still plays out). Practice, the 3-point contest and the tutorial keep their own clocks. Measured
+on 60 AI vs AI career games (the flow test's setup):
+
+| One-minute career game | Real seconds (median) | Points a side | Possessions a side | Points a possession |
+| --- | --- | --- | --- | --- |
+| 2.0: the clock stops on dead balls and holds | 127.6 | 12.7 | 12.1 | 1.05 |
+| 2.1: the running clock | 75.8 | 7.3 | 6.9 | 1.05 |
+
+The playtest test's eight career games (other teams and seeds) take a median 72.5 s (69–91). The efficiency is unchanged; a minute just holds fewer possessions. The numbers fitted to the old scoring
+scale with it (all ×0.57, the measured ratio):
+
+- `career.paceMul` 1.98 → 1.13: what a career game scores against the old engine's per-minute points. Everything that
+  scales by `gameScale` (the pro box scores, game grades, highlights, the press's "big night", college stock, the MVP
+  race) follows it.
+- `career.simWinPts` 16.0 → 8.9: a simulated amateur game's winner (the running clock's AI vs AI winner averages
+  8.85 and the loser 5.67; the sim now gives 8.9 and 5.1). The pro sim's box scores average 10.6 a side (the flow
+  test's 300 games; 18.5 at the old multiplier).
+- `traits.thirdAt` 2,000 → 1,150 career points for a third trait; `traits.hotMakes` 8 → 5 and `traits.heatMakes`
+  10 → 6 made shots for a hot game and a heat-check game.
+- Still on the old scale: the records book's level records (21 points in high school, 31 in the pros). W2 re-derives
+  them from simulated careers along with the sim/play parity (§1.3), which also settles the player's simmed points.
+
+**Sim buttons with a choice waiting (§1.9).** With your summer, tryouts, the combine or a decision waiting, the hub's
+"Sim to next big moment" and "Sim the rest of the season" are greyed out and say why ("Pick your summer first",
+"Finish tryouts first", "Go to the combine first", "Make your decision first"). A sim started anyway goes back to the
+hub, so "0 weeks simmed" can't show.
+
+**The All-Star 3-point contest is one attempt (§1.10).** No career game's pause menu has Restart or Quit (the contest's
+had both); leaving the contest keeps the score you had; the weekend screen shows "YOUR SCORE: n · 2nd of 4" where the
+Play button was.
+
+**Records show once, on the hub (§1.11).** A NEW RECORD toast waits in a queue until you're back on a hub (high school,
+college or pro; not during a game or a screen change), shows once at its foot (above the phone's tab bar), and is never
+drawn over another screen: dialogs, events, ceremonies, the press, the pro offers, signing day and the shop header are
+clear of it (part of §1.12).
+
+**Still open from the last playtest (§1.12).**
+
+- The Road to the League banner: on a desktop's short banner the title and NEXT share the first row and the
+  explanation takes the second; the phone keeps three rows. No two rows come within 3 px.
+- The trading cards' names: a long name first shrinks (to `ART.cardNameMinK`, 70% of its size), then takes two lines
+  (SAOIRSE / MCKENNA), then shortens (S. MCKENNA, then MCKENNA), then splits the last name (MCKEN- / NA, at double
+  letters or a syllable-like break); a cut (`…`) is only the last resort on very small cards. The band grows to hold
+  the name and the sub line, and the sub goes when they don't both fit (no more "ROOKIE" over "Central T…"). The tier
+  label shows only where it clears the OVR badge.
+- The phone hub's matchup: the pills, both heights and the height gap moved to the middle column, so the two cards
+  grew from about 93×130 to 131×184 (UI px). Every one of the 172 last names in the name pool now fits uncut at the
+  phone's text floor (2 and 2.5 UI px a font pixel), with a 9-letter first name.
+- A benched player's matchup: the height under the left card is the starter's (it was yours) and the gap chip says US.
+- Facilities: every franchise's gym now pays practice XP by its stars, `franchise.facXp` (it was `career.facilityBonus`
+  × the old facility level, which gave 1★ and 2★ clubs, most of a rookie's offers, +0%):
+
+  | Stars | 1★ | 2★ | 3★ | 4★ | 5★ |
+  | --- | --- | --- | --- | --- | --- |
+  | 2.0 | +0% | +0% | +10% | +10% | +20% |
+  | 2.1 | +3% | +5% | +8% | +11% | +15% |
+
+  The offers, the team's office, the teams table and the franchise screen show it with the stars (★★★☆☆).
+- Skills stop at 95 for everyone: league players', rivals' and All-Star shooters' Shooting, Finishing, Handles and
+  Defense (and their ceilings) are capped at `amateur.genes.skillCap` like yours (physical ratings keep 99). An old
+  save's players over 95 are clamped on load.
+
+**Found by the quick checks.** Esc pressed while a game is still warming up (V15's Warming up bar) was dropped, so
+the pause menu didn't open (smoke caught it with the machine busy). The press now waits for the game's first frame and
+opens the pause menu then.
+
+**New and changed constants.** New: `rules.runningClock`, `rules.runningStopS`, `franchise.facXp`,
+`ART.cardNameMinK`. Changed: `career.paceMul` (1.98 → 1.13), `career.simWinPts` (16.0 → 8.9), `traits.thirdAt`
+(2,000 → 1,150), `traits.hotMakes` (8 → 5), `traits.heatMakes` (10 → 6). Removed: `career.facilityBonus`.
+
+**Tests.** `tests/playtest3.js` (new, 11 steps, all pass; the last one is the warm-up pause). Quick checks this milestone: flow (its pace step now checks
+6–10 points a side, the shot clock waiting through the bring-up, the game clock running through it until the last 10 s
+and waiting there; the sims at the new scale), smoke (the pro sim's 5–13 a side; the pause step waits out the warm-up), traits (comments), phoneaudit. The full suite runs
+once, at W10.
+
 ## V15 — The loading lag: bakes ahead of time, off the main thread, kept for the session
 
 A follow-up to 2.0: the freezes on loading. Measured with Chrome's CPU throttled 4× (phone speed) and a long-task

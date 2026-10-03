@@ -550,8 +550,10 @@ const CONFIG = {
     checkGap: 1.4,             // ...with the defender this far in front of the ball
     checkBeat: 0.7,            // ...and this dead-ball beat before it's live (s)
     midlinePad: 0.3,           // half court: players stay on the hoop's side of the midcourt line, less this (m); a loose ball past it is out
+    runningClock: true,        // 2.1 (§1.8): a timed game's clock runs through dead balls, inbounds, check balls and the pace holds...
+    runningStopS: 10,          // ...until the last this-many seconds of a period; there (and in overtime) it stops on dead balls as before
   },
-  pace: {                      // V5 (2.0 §4.7): career games (match option pace) score 12–20 a side in one minute
+  pace: {                      // V5 (2.0 §4.7): career games (match option pace) score more a minute. 2.1 (§1.8): with the running clock (rules.runningClock) 6–10 a side in a one-minute game (12–20 with the clock stopping); the holds below stop the game clock only in the last rules.runningStopS seconds and overtime
     shotClock: 8,              // the career's shot clock (s; Quick Play keeps rules.shotClock)
     madeBeat: 0.45,            // the beat after a make before the inbound (s; rules.madeBasketBeat 0.8)
     deadBeat: 0.6,             // ...after a violation or a turnover (s; rules.violationBeat 1.0)
@@ -822,8 +824,8 @@ const CONFIG = {
     gameSecs: 60,              // F5: every career game is one timed period this long (s) (the user: "games shouldn't be this long, like 1 min")
     gameSecsOptions: [60, 120, 180], // ...Settings → Gameplay → Career game length
     otSecs: 30,                // ...and a tie goes to a sudden-death overtime this long (the first basket wins; another one if nobody scores)
-    simWinPts: 16.0,           // simulated amateur games: the winner's points in a 60 s game (the engine's AI vs AI average; the loser's is about 10.6) (V5: was 8.4 before the pace rules)
-    paceMul: 1.98,             // V5 (2.0 §4.7): a paced career game scores this many times the old engine's per-minute points (13.3 vs 6.7 a side, AI vs AI); per-game numbers fitted to the old formats scale by it (gameScale)
+    simWinPts: 8.9,            // simulated amateur games: the winner's points in a 60 s game (the engine's AI vs AI average; the loser's is about 5.7) (2.1: was 16.0 before the running clock; V5: 8.4 before the pace rules)
+    paceMul: 1.13,             // V5 (2.0 §4.7): a paced career game scores this many times the old engine's per-minute points; per-game numbers fitted to the old formats scale by it (gameScale). 2.1 (§1.8): the running clock scores 7.3 a side where the stopped clock scored 12.7 (60 AI vs AI games): 1.98 × 0.57
     otSimEdge: 0.5,            // simulated pro overtime (one basket): this share of the better player's whole-game edge (one-minute games tie 14% of the time, the old ones 3.5%)
     simRefSecs: { hs: 119, college: 169, pro: 240 }, // the game clock that scores like each old format (first to 15, first to 21, two 2:00 halves): per-game numbers fitted to those scale by length ÷ this
     playoffSeeds: 8,           // players who make the playoffs (V12, Part 2 §6: the top 8: quarterfinals, semifinals, the Finals; was 4)
@@ -850,7 +852,6 @@ const CONFIG = {
     xpGame: { base: 14, win: 12, perfCap: 24, pts: 0.4, reb: 0.5, stops: 1.5, simmed: 0.5, focusShare: 0.45 }, // XP per game = (base + win + min(perfCap, pts·p + reb·r + (stl+blk)·s)) × age × grade (gradeXp) × (simmed: V6 §1.2 0.5, was 0.75); focusShare goes to the training focus
     usage: { sho3: 3, shoMid: 1.5, rim: 2, reb: 0.4, blk: 1, stops: 2, floor: 0.5, move: 1, body: 0.3 }, // where the rest of the XP goes: makes → Shooting, rim finishes → Finishing, rebounds → Strength and Hops, steals and blocks → Defense (floor/move/body: baseline shares)
     trainFocus: { shooting: { label: 'Shooting', staff: 'shooting', split: { sho: 1 } }, finishing: { label: 'Finishing', staff: 'skills', split: { fin: 1 } }, handles: { label: 'Handles', staff: 'skills', split: { han: 1 } }, speed: { label: 'Speed', staff: 'strength', split: { spd: 1 } }, hops: { label: 'Hops', staff: 'strength', split: { jmp: 1 } }, defense: { label: 'Defense', staff: 'skills', split: { def: 1 } }, strength: { label: 'Strength', staff: 'strength', split: { str: 1 } } }, // training focuses, one drill per rating (R3 §3.2; was six, two of them split): the week's Practice works on one; it also takes 45% of every game's XP
-    facilityBonus: 0.1,        // training XP +10% per club facility star above one
     fame: { win: 0.6, loss: -0.2, perPt: 0.02, highlight: 0.25, playoff: 0.8, potw: 1.5, allStar: 4, title: 10, mvp: 12, decayAbove: 30, decay: 0.022 }, // popularity changes; above decayAbove it fades each week by decay × the excess
     gymCost: [0, 2000000, 6000000, 15000000], // personal gym levels ($)
     gymBonus: 0.1,             // training XP +10% per gym level
@@ -1063,7 +1064,7 @@ const CONFIG = {
     levelColor: ['#D9925A', '#D5DDEB', '#FFD23F'], // V3: each level's pip color
     levelUp: 0.5,              // V3 (§2.2): each level adds this share of the Bronze upside (Silver 1.5×, Gold 2×); downsides don't grow
     top: { C: 2, U: 3, R: 3, L: 3 }, // V3 (§2.2): the top level by rarity: Common → Silver; Uncommon and Rare → Gold; Legendary starts at Gold (its numbers are its Gold numbers)
-    thirdAt: 2000,             // V3 (§2.2): a third trait at this many career points (high school, college and the pros together)... (V5: was 1,000; the pace rules score 1.98× a game)
+    thirdAt: 1150,             // V3 (§2.2): a third trait at this many career points (high school, college and the pros together)... (2.1: was 2,000 before the running clock, which scores 0.57× a game; V5: 1,000)
     thirdOffer: 3,             // ...picked from this many Common or Uncommon traits you don't have (it starts at Bronze)
     bannerS: 1.2,              // V3 (§2.3): the in-game banner (icon + name) under the HUD when a trait kicks in (s)...
     bannerGap: 8,              // ...and the same trait's banner at most once in this many seconds of game time
@@ -1078,8 +1079,8 @@ const CONFIG = {
     teenAge: 19,               // Iron Man's teen XP cost applies through this age
     lateAge: 17,               // V3: Late Bloomer's XP counts from this age
     clutchMargin: 3,           // Clutch Gene's story beat: a playoff win by this many points or fewer
-    hotMakes: 8,               // V3: a game with this many made shots is a hot game (Streaky levels up on them)... (V5: was 4 before the pace rules)
-    heatMakes: 10,             // ...and this many a heat-check game (Microwave) (V5: was 5)
+    hotMakes: 5,               // V3: a game with this many made shots is a hot game (Streaky levels up on them)... (2.1: was 8 before the running clock; V5: 4)
+    heatMakes: 6,              // ...and this many a heat-check game (Microwave) (2.1: was 10 before the running clock; V5: 5)
     sim: { perPct: 0.1, hot: 0.34, cold: 0.12, crunch: 0.25, early: 0.5, heat: 0.18, takeover: 0.04, last: 0.13, block: 0.006, steal: 0.004, bite: 0.005, effort: 0.02, turnover: 0.004, speed: 0.05 }, // V3: simulated games count a trait's in-game numbers as OVR points. perPct: +1% make chance on every shot of a one-minute game is worth 0.1 OVR (measured: +10% → 1.03 OVR, 1,200 paired engine games). The shares of a game's shots each condition touches (measured at 6,329 releases): after 2 straight makes 0.34, after 2 misses 0.12, crunch time 0.25, the first half 0.5, a Microwave heat 0.18, a Takeover 0.04, the last 15 s 0.13. OVR per 1% of blocks, steals against you, move bite, defensive effort, turnovers and speed: estimated from their points a game
     list: {                    // V3 (§2.1): up = the Bronze upside (× 1.5 Silver, × 2 Gold), down = the downside (fixed). Multipliers are signed shares (+0.08 = +8%); head moves a rating's ceiling in rating points (10 = +1.0); what/when/deed explain it (deed: [what counts, the counts for Silver (and Gold)])
       gymrat: { name: 'Gym Rat', r: 'C', icon: 'dumbbell', what: 'You live in the gym, and your practice sticks.', when: 'Every Practice week and drill', up: { practiceXp: 0.08 }, down: { recovery: -0.03 }, deed: ['practice', [20]] }, // (§2.2's "20 and 60 practice weeks": a Common trait tops out at Silver, so 20)
@@ -1339,7 +1340,8 @@ const CONFIG = {
     hypeDiv: 30,               // see bar
     rookieBar: [0, 99, 107, 113, 119], // pro offers out of college or high school: the scouts' score (the old draft score) a 1–5★ franchise wants (most start at 1–3★) V11: 3★ and up +1 (106 → 107 …): gear in college lifted a typical career's first 3★ offers from 17% to 22%; 16% now
     benchStar: 3,              // a franchise's bench OVR + this per star above 3 (a 5★ depth chart is harder to top)
-    facByStars: [1, 1, 2, 2, 3], // training facilities (the XP bonus) by stars
+    facByStars: [1, 1, 2, 2, 3], // training facilities' old 1-3 levels by stars (a club's tier in old saves)
+    facXp: [0.03, 0.05, 0.08, 0.11, 0.15], // 2.1 (§1.12): practice XP from a franchise's training facilities by its stars (1-5): every pro gym helps (it was +0% at 1-2 stars, +10% at 3-4, +20% at 5)
     payByStars: [0.85, 0.92, 1, 1.1, 1.25], // salary offers × this by stars
     fameByStars: [0.85, 0.92, 1, 1.12, 1.25], // fame you gain × this by stars (a bigger stage)
     rookieMore: 0.1,           // a rebuilding franchise's rookie offer pays this much more (and starts you)
@@ -3555,6 +3557,21 @@ CanvasRenderingContext2D.prototype.measureText = function (text) {
   return { width: w, actualBoundingBoxLeft: 0, actualBoundingBoxRight: w, actualBoundingBoxAscent: r * s / T, actualBoundingBoxDescent: (10 - r) * s / T, fontBoundingBoxAscent: r * s / T, fontBoundingBoxDescent: (10 - r) * s / T };
 };
 // The height of one line of text in the context's current font (user units): the 10-pixel cell and ART.rbLineGap.
+// 2.1 (§1.12): how wide a string draws on this context at the least: the text floor's width (the menus' pixel on the
+// screen, RBF.bakeMin in a bake), in the context's units. A string wider than its room at the floor gets cut ('…').
+function rbMinWidth(ctx, text) { const M = rbM(ctx), T = Math.hypot(M.a, M.b) || 1, min = ctx.canvas === RBF.mainCanvas ? RBF.minMain : RBF.bakeMin || 1; return rbWidth(String(text)) * min / T; }
+// The width a string draws at in the current font on this context (its size, or the floor if that's wider).
+function rbDrawWidth(ctx, text) { const w = ctx.measureText(String(text)).width; return rbFontPx(ctx.font) == null ? w : Math.max(w, rbMinWidth(ctx, text)); } // (the floor is the pixel font's)
+// A name's lines that fit maxW in the current font (the size it may shrink to): the whole name, then with room for two
+// lines the first name over the rest (SAOIRSE / MCKENNA), then the first initial and the last name (S. MCKENNA), then the
+// last name, then with two lines the last name split (PELLE- / GRINI); the last name alone (rbDraw cuts it) only when
+// none of those fit. 2.1 (§1.12): instead of 'SAOIRSE M…'.
+function rbNameLines(ctx, name, maxW, two) {
+  const n = String(name || '').trim(), parts = n.split(/\s+/).filter(Boolean), last = parts[parts.length - 1] || n, C = [[n]];
+  if (parts.length > 1) { if (two) C.push([parts[0], parts.slice(1).join(' ')]); C.push([parts[0].charAt(0) + '. ' + parts.slice(1).join(' ')], [last]); }
+  if (two && last.length >= 5) { const V = ch => /[AEIOUY]/.test(ch), S = []; for (let i = 2; i <= last.length - 2; i++) { const a = last.slice(0, i), b = last.slice(i); S.push([a, b, -Math.abs(i - last.length / 2) + (last[i - 1] === last[i] ? 2 : 0) + (V(last[i - 1]) && !V(last[i]) && V(last[i + 1] || '') ? 1.5 : 0) + (!V(last[i - 1]) && !V(last[i]) ? 1 : 0) - (/[AEIOUY]/.test(a) && /[AEIOUY]/.test(b) ? 0 : 3)]); } S.sort((p, q) => q[2] - p[2]); for (const [a, b] of S) C.push([a + '-', b]); } /* (a split's score: balanced, between double letters (KEN-NA), before a consonant-vowel (MERRI-WEATHER), between consonants (ASH-GROVE), a vowel on each side) */
+  for (const L of C) if (L.every(t => rbDrawWidth(ctx, t) <= maxW)) return L; return [last];
+}
 function rbLineH(ctx) { const px = rbFontPx(ctx.font); if (px == null) return 0; const M = rbM(ctx), T = Math.hypot(M.a, M.b) || 1; return (10 + ART.rbLineGap) * rbScaleOf(ctx, px, M) / T; }
 // The UI's pixel size: device px per UI pixel (the same grid as the game world, §1.1).
 function uiK(canvas) { const h = (canvas && canvas.height) || 720; return Math.max(2, Math.round(h / 360)); }
@@ -6105,7 +6122,13 @@ function paceHold(m, dt) {
   return P.flightStop && m.gameClock > P.flightStopUntil && b.shot && (P.reboundStop ? !b.owner : b.mode === 'flight' && !b.shot.resolved) ? 1 : 0; // (reboundStop: until somebody has the rebound)
 }
 // For the HUD: are a career game's clocks waiting right now (the score bug dims the clock)?
-function paceHeldNow(m) { const P = m && m.pace; if (!P || m.phase !== 'live') return false; const b = m.ball; return !!m.clockHold || !!(P.flightStop && m.gameClock > P.flightStopUntil && b && b.shot && (P.reboundStop ? !b.owner : b.mode === 'flight' && !b.shot.resolved)); }
+function paceHeldNow(m) { const P = m && m.pace; if (!P || m.phase !== 'live' || runningClockOn(m)) return false; /* 2.1: the running clock isn't held */ const b = m.ball; return !!m.clockHold || !!(P.flightStop && m.gameClock > P.flightStopUntil && b && b.shot && (P.reboundStop ? !b.owner : b.mode === 'flight' && !b.shot.resolved)); }
+// 2.1 (§1.8): the running clock. A timed game's clock runs through everything until the last RU.runningStopS seconds
+// of a period (and never in overtime): dead balls, inbounds, check balls and a career game's pace holds don't stop it,
+// so a one-minute game takes about 70-80 s. Not in practice, the contest or the tutorial (they have their own clocks).
+function runningClockOn(m) { return !!RU.runningClock && m.format.type === 'timed' && !m.overtime && m.gameClock > RU.runningStopS && !m.practice && !m.contest3 && !m.tutorial; }
+const RUN_PHASES = new Set(['madebasket', 'violation', 'foul', 'freethrow', 'check']); // the dead-ball phases the running clock runs through
+function runningClockTick(m, dt) { if (RUN_PHASES.has(m.phase) && runningClockOn(m)) m.gameClock = Math.max(RU.runningStopS, m.gameClock - dt); }
 function paceHoldStart(m) { if (m.pace && m.pace.holdToHalf && !m.halfCourt) { m.clockHold = true; m.clockHoldT = 0; } }
 function freezeBall(m) { const b = m.ball; b.setOwner(null); b.mode = 'loose'; b.vx = 0; b.vy = 0; b.shot = null; b.pass = null; }
 
@@ -6115,6 +6138,7 @@ function updateRules(m, dt) {
   if (m.practice) { updatePracticeRules(m, dt); return; }
   if (m.contest3) { updateContest3Rules(m, dt); return; }
   if (m.tutorial && m.phase === 'live') { updateLive(m, dt); return; }
+  runningClockTick(m, dt); // 2.1 (§1.8)
   switch (m.phase) {
     case 'pregame': if (m.phaseT >= RU.pregameBeat) { if (m.halfCourt) doCheckBall(m, m.drill ? m.drill.attack : m.rng.int(2)); else startTipoff(m); } break;
     case 'check': if (m.phaseT >= RU.checkBeat) { goLive(m); m.bus.emit('CHECKED', { team: m.possession }); } break;
@@ -6168,7 +6192,7 @@ function updateLive(m, dt) {
   m.inboundHoldT = Math.max(0, m.inboundHoldT - dt); if (m.inboundHoldT <= 0) m.inboundPlayer = null;
   if (m.clockRunning) { const held = paceHold(m, dt); // V5: a career game's clocks wait while the ball is brought up
     if (held < 2) m.shotClock = Math.max(0, m.shotClock - dt);
-    if (timed && !held) { m.gameClock -= dt; if (m.gameClock <= 0) { m.gameClock = 0; const shotUp = b.shot && b.mode === 'flight' && !b.shot.resolved; if (shotUp) { m.buzzerPending = true; m.clockRunning = false; } else { periodOver(m); return; } } }
+    if (timed && (!held || runningClockOn(m))) { m.gameClock -= dt; /* 2.1 (§1.8): the pace holds stop it only in the last seconds */ if (m.gameClock <= 0) { m.gameClock = 0; const shotUp = b.shot && b.mode === 'flight' && !b.shot.resolved; if (shotUp) { m.buzzerPending = true; m.clockRunning = false; } else { periodOver(m); return; } } }
   }
   if (m.buzzerPending) { const shotUp = b.shot && !b.shot.resolved && (b.mode === 'flight' || (b.mode === 'loose' && b.y > 0.3 && !b.rimTouched && !b.boardTouched)); if (!shotUp && m.phase === 'live') { m.buzzerPending = false; periodOver(m); return; } }
   if (m.shotClock <= 0 && m.clockRunning) {
@@ -9447,6 +9471,7 @@ Object.assign(ART, {
   cardTiers: [60, 75, 85],          // card frames: bronze under 60, silver 60–74, gold 75–84, diamond 85 and up
   foilPeriod: 3.2,                  // the foil sheen crosses a gold or diamond card every this many seconds
   cardCacheN: 16,                   // trading cards kept baked (LRU)
+  cardNameMinK: 0.7,                // 2.1 (§1.12): a card's name shrinks to this share of its size before it takes two lines or shortens (S. MCKENNA)
   iconBudget: 2,                    // swatch icons (faces with a hairstyle) painted per frame at most
   crownStand: 1.036,                // the skull top of a standing menu figure, as a multiple of its height (measured on the L4 body: median of 12 faces, 1.006–1.074 by face shape)
   crownStance: 0.994,               // the same in a defensive stance (measured on the L4 body)
@@ -9729,18 +9754,27 @@ function paintCard(g, P, w, h) {
   try { const L = normLook(P.look, P.name);
     if (P.__pix) { const k = P.__pix, T = P.__res, u = w * 0.35, n = Math.max(12, Math.round(u * T / (0.52 * k))), spr = rtPortrait({ look: P.look, name: P.name, age: P.age || 24 }, col, n, P.expr || 'focused', { bg: false, headOnly: true }); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(spr, Math.round(cx * T - n * k * 0.5), Math.round((by - h * 0.29) * T - n * k * 0.52), n * k, n * k); g.restore(); } // R1: the same pixel head as everywhere
     else drawFace(g, L, cx, by - h * 0.29, w * 0.35, 1, P.expr || 'focused', { name: P.name, age: P.age || 24, team: col, noBlink: true, force: true }); } catch (e) { /* a card never throws */ }
-  // name band
-  const ny = by, nh = ih * 0.15; g.fillStyle = 'rgba(4,6,20,0.78)'; g.fillRect(ins, ny, iw, nh); g.fillStyle = M[2]; g.fillRect(ins, ny, iw, Math.max(1, h * 0.006));
-  const name = String(P.name || '').toUpperCase(); const ns = fitFont(g, name, iw * 0.9, nh * 0.62, true); g.font = fontStr(ns, true); g.fillStyle = '#FFFFFF'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(name, cx, ny + nh * 0.42, iw * 0.94);
-  if (P.sub) { g.font = fontBody(Math.max(7, nh * 0.26), 600); g.fillStyle = 'rgba(243,240,255,0.7)'; g.fillText(String(P.sub), cx, ny + nh * 0.82, iw * 0.94); }
-  g.restore();
-  // chips: height and play style
+  // chips' place (drawn below): the name band stops above them
   const chipY = ins + ih * 0.86, cs = Math.max(8, w * 0.058); let x = ins + iw * 0.06; const chipsOf = [P.height ? fmtHeight(P.height) : null, P.style ? String(P.style).toUpperCase() : null, P.age ? 'AGE ' + P.age : null].filter(Boolean);
   g.font = fontStr(cs, true); const chh = Math.max(cs * 1.7, (rbLineH(g) || 0) + 2), cy0 = Math.min(chipY, ins + ih - chh / 2 - 2); /* V13: as tall as its text at the text's floor */
+  // name band (2.1 §1.12: a long name shrinks to ART.cardNameMinK of its size, then takes two lines (SAOIRSE / MCKENNA),
+  // then shortens (S. MCKENNA, MCKENNA, PELLE- / GRINI) instead of a cut ('SAOIRSE M…'); the band grows to hold the name
+  // and the sub line, and the sub goes when there's no room for both)
+  const nh = ih * 0.15, nameMax = iw * 0.95, chipTop = chipsOf.length ? cy0 - chh / 2 - 1 : ins + ih - 1, n0 = nh * 0.62, nMin = Math.max(8, n0 * ART.cardNameMinK), room = chipTop - (by - ih * 0.17); /* (two lines may rise a little higher, to the chin; a name line is 10 font px: the 8-px caps and a 2-px gap) */
+  const lhAt = s => { g.font = fontStr(s, true); return Math.max(s, (rbLineH(g) || 0) * 10 / (10 + ART.rbLineGap)); }, two = lhAt(nMin) * 2 + nh * 0.12 <= room;
+  const lines = rbNameLines(g, String(P.name || '').toUpperCase(), nameMax, two), nL = lines.length; g.font = fontStr(n0, true); const long = lines.reduce((a, l) => rbDrawWidth(g, l) > rbDrawWidth(g, a) ? l : a);
+  let ns = fitFont(g, long, nameMax, n0, true); if (nL > 1) while (ns > nMin && lhAt(ns) * nL + nh * 0.12 > room) ns--; const nLH = lhAt(ns);
+  let sub = '', sLH = 0; if (P.sub) { g.font = fontBody(Math.max(7, nh * 0.26), 600); sub = String(P.sub); if (rbDrawWidth(g, sub) > iw * 0.94) sub = ''; else sLH = Math.max(nh * 0.3, (rbLineH(g) || 0) * 0.9); }
+  const rise = by - ih * (nL > 1 ? 0.17 : 0.12); let bh = Math.max(nh, nL * nLH + sLH + nh * 0.12), ny = by; if (ny + bh > chipTop) ny = Math.max(rise, chipTop - bh); if (sub && ny + bh > chipTop) { sub = ''; sLH = 0; bh = Math.max(nh, nL * nLH + nh * 0.1); ny = Math.min(by, Math.max(rise, chipTop - bh)); }
+  g.fillStyle = 'rgba(4,6,20,0.78)'; g.fillRect(ins, ny, iw, bh); g.fillStyle = M[2]; g.fillRect(ins, ny, iw, Math.max(1, h * 0.006));
+  const pad = (bh - nL * nLH - sLH) / 2; g.font = fontStr(ns, true); g.fillStyle = '#FFFFFF'; g.textAlign = 'center'; g.textBaseline = 'middle'; lines.forEach((l, i) => g.fillText(l, cx, ny + pad + nLH * (i + 0.5), iw * 0.97));
+  if (sub) { g.font = fontBody(Math.max(7, nh * 0.26), 600); g.fillStyle = 'rgba(243,240,255,0.7)'; g.fillText(sub, cx, ny + pad + nL * nLH + sLH / 2, iw * 0.94); }
+  g.restore();
+  // chips: height and play style
   for (const tx of chipsOf) { g.font = fontStr(cs, true); const cw = g.measureText(tx).width + chh * 0.7; if (x + cw > ins + iw * 0.96) break; g.fillStyle = 'rgba(4,6,20,0.7)'; g.beginPath(); roundRectPath(g, x, cy0 - chh / 2, cw, chh, chh / 2); g.fill(); g.strokeStyle = M[2]; g.lineWidth = 1; g.stroke(); g.fillStyle = '#FFFFFF'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(tx, x + cw / 2, cy0 + 0.5); x += cw + cs * 0.5; }
   // the hexagon OVR badge
   hexBadge(g, ins + w * 0.15, ins + w * 0.15, w * 0.13, P.ovr, { tier, sub: P.badgeSub });
-  g.font = fontStr(Math.max(7, w * 0.045), true); g.fillStyle = M[3]; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(tier.toUpperCase(), w - ins - w * 0.04, ins + w * 0.07);
+  g.font = fontStr(Math.max(7, w * 0.045), true); g.fillStyle = M[3]; g.textAlign = 'right'; g.textBaseline = 'middle'; if (rbDrawWidth(g, tier.toUpperCase()) <= w - 2 * ins - w * 0.35) g.fillText(tier.toUpperCase(), w - ins - w * 0.04, ins + w * 0.07); /* 2.1 (§1.12): only where it clears the OVR badge (a small card at the text floor has no room) */
 }
 // Draw a card at (x, y), w × h design px. opts.t animates the foil; opts.res is the bake resolution (default 2).
 function drawTradingCard(ctx, x, y, w, h, P, opts) {
@@ -9810,6 +9844,8 @@ function drawPagerLabel(ctx, P, x, y, align) { if (!P || P.pages < 2) return; co
 const UI_W = CONFIG.ui.designW, UI_H = CONFIG.ui.designH;
 const UI_INK = '#0B1030', UI_TEXT = '#F3F0FF', UI_DIM = 'rgba(243,240,255,0.65)', UI_GOLD = '#FFD23F', UI_ORANGE = '#FF8A2A', UI_CYAN = '#5EE0FF', UI_RED = '#FF5A5A', UI_GREEN = '#4CE07A', UI_PANEL = ART.uiPanel, UI_PANEL2 = ART.uiPanel2;
 const PAPER = UI_PANEL, PAPER2 = UI_PANEL2, UI_POP = UI_GOLD, UI_ACC = UI_ORANGE, UI_LIME = UI_GREEN, UI_SKY = UI_CYAN;
+// 2.1 (§1.11): is a career hub the screen on top (and settled)? Record toasts show there and nowhere else.
+function uiOnHub(ui) { const s = ui && ui.screen; return !!s && (s.name === 'amhub' || s.name === 'career') && !(ui.game && ui.game.mode === 'match'); }
 function btn(label, x, y, w, h, onPress, extra) { return Object.assign({ kind: 'button', label, x, y, w, h, onPress, enabled: true }, extra || {}); }
 function sel(label, x, y, w, h, options, get, set, extra) { return Object.assign({ kind: 'select', label, x, y, w, h, options, get, set, enabled: true }, extra || {}); }
 function sld(label, x, y, w, h, min, max, step, get, set, fmt) { return { kind: 'slider', label, x, y, w, h, min, max, step, get, set, fmt: fmt || (v => Math.round(v * 100) + '%'), enabled: true }; }
@@ -9861,7 +9897,7 @@ class UI {
   moveFocusX(s, dir) { const f = this.focusables(s); const cur = (s.widgets || [])[s.focus]; if (!cur) return false; let best = null, bd = 1e9; for (const o of f) { const w = o.w; if (w === cur) continue; if (Math.abs((w.y + w.h / 2) - (cur.y + cur.h / 2)) > Math.max(cur.h, w.h) * 0.6) continue; const dx = (w.x - cur.x) * dir; if (dx <= 0) continue; if (dx < bd) { bd = dx; best = o.i; } } if (best == null) return false; s.focus = best; this.game.audio.ui('move'); return true; }
   toastMsg(text, kind) { this.toast = text; this.toastKind = kind || null; this.toastT = kind === 'record' ? 3.2 : 2.2; } // V8: a record's toast is gold and stays longer
   update(dt, input) {
-    this.t += dt; if (this.toastT > 0) this.toastT -= dt; if (this.toastT <= 0 && REC_TOASTS.length && !(this.game && this.game.mode === 'match' && !this.screen)) this.toastMsg(REC_TOASTS.shift(), 'record'); /* V8: records broken, one at a time (not over a game in play) */ if (this.trans && this.t - this.trans.t0 > this.trans.dur) this.trans = null; const s = this.screen; if (!s) return; const ev = input.takeUI(); const rep = input.uiRepeatDir(dt);
+    this.t += dt; if (this.toastT > 0) this.toastT -= dt; if (this.toastT <= 0 && REC_TOASTS.length && uiOnHub(this) && !this.trans) this.toastMsg(REC_TOASTS.shift(), 'record'); /* V8: records broken, one at a time; 2.1 (§1.11): each once, on a hub only (a toast at its foot), never over another screen */ if (this.toastKind === 'record' && this.toastT > 0 && !uiOnHub(this)) this.toastT = 0; /* (left the hub: that one has been seen) */ if (this.trans && this.t - this.trans.t0 > this.trans.dur) this.trans = null; const s = this.screen; if (!s) return; const ev = input.takeUI(); const rep = input.uiRepeatDir(dt);
     if (s.update) s.update(dt, ev, input);
     if (s !== this.screen) return; // the screen changed itself
     if (!s._tipChecked) { s._tipChecked = true; if (tipOnce(this.game, tipFor(this.game, s))) return; } // R10: a first-time tip
@@ -9931,7 +9967,7 @@ class UI {
     else if (w.kind === 'slider') { ctx.font = fontStr(Math.min(w.h * 0.4, 18), false); ctx.textAlign = 'left'; ctx.fillText(w.label, w.x + 14, my, w.w * 0.5 - 24); const bx = w.x + w.w * 0.5, bw = w.w * 0.36, by = w.y + w.h / 2; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); roundRectPath(ctx, bx, by - 4, bw, 8, 4); ctx.fill(); const t = clamp01(invLerp(w.min, w.max, w.get())); const gr = ctx.createLinearGradient(bx, 0, bx + bw, 0); gr.addColorStop(0, '#F2A91C'); gr.addColorStop(1, UI_GOLD); ctx.fillStyle = gr; ctx.beginPath(); roundRectPath(ctx, bx, by - 4, Math.max(8, bw * t), 8, 4); ctx.fill(); ctx.fillStyle = focused ? '#FFFFFF' : UI_TEXT; ctx.beginPath(); ctx.arc(bx + bw * t, by, 8, 0, TAU); ctx.fill(); ctx.strokeStyle = UI_INK; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(14, true); ctx.textAlign = 'right'; ctx.fillText(w.fmt(w.get()), w.x + w.w - 10, my); }
     else if (w.kind === 'toggle') { ctx.font = fontStr(Math.min(w.h * 0.4, 18), false); ctx.textAlign = 'left'; ctx.fillText(w.label, w.x + 14, my, w.w - 96); const on = !!w.get(), sw = 58, sh = Math.min(28, w.h * 0.6), sx = w.x + w.w - sw - 14, sy = w.y + (w.h - sh) / 2; ctx.fillStyle = on ? UI_GOLD : 'rgba(0,0,0,0.45)'; ctx.beginPath(); roundRectPath(ctx, sx, sy, sw, sh, sh / 2); ctx.fill(); ctx.strokeStyle = on ? 'rgba(122,78,0,0.7)' : 'rgba(94,224,255,0.35)'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.fillStyle = on ? UI_INK : UI_DIM; ctx.beginPath(); ctx.arc(on ? sx + sw - sh / 2 : sx + sh / 2, sy + sh / 2, sh / 2 - 3, 0, TAU); ctx.fill(); ctx.font = fontStr(11, true); ctx.textAlign = 'center'; ctx.fillStyle = on ? UI_INK : UI_DIM; ctx.fillText(on ? 'ON' : 'OFF', on ? sx + sh * 0.75 : sx + sw - sh * 0.75, sy + sh / 2 + 1); }
   }
-  drawToast(ctx) { if (this.toastT <= 0) return; ctx.globalAlpha = clamp01(this.toastT / 0.4); if (this.toastKind === 'record') { const w = 820, x = UI_W / 2 - w / 2, y = 92; kitPanel(ctx, x, y, w, 70, 'rgba(46,30,4,0.96)', { radius: 18, accent: UI_GOLD }); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = UI_GOLD; ctx.font = fontStr(14, true); ctx.fillText('★ NEW RECORD ★', UI_W / 2, y + 20, w - 40); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(19, true); ctx.fillText(this.toast, UI_W / 2, y + 48, w - 40); ctx.globalAlpha = 1; return; } /* V8: the records book */ kitPanel(ctx, UI_W / 2 - 250, UI_H - 76, 500, 46, 'rgba(20,28,80,0.95)', { radius: 23, accent: UI_GOLD }); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.toast, UI_W / 2, UI_H - 52); ctx.globalAlpha = 1; }
+  drawToast(ctx) { if (this.toastT <= 0) return; if (this.toastKind === 'record' && !uiOnHub(this)) return; ctx.globalAlpha = clamp01(this.toastT / 0.4); if (this.toastKind === 'record') { const w = 820, x = UI_W / 2 - w / 2, y = UI_H - (this.phone ? hubBarH(this) + 92 : 96); /* 2.1 (§1.11): at the hub's foot (a phone: over its tab bar) */ kitPanel(ctx, x, y, w, 70, 'rgba(46,30,4,0.96)', { radius: 18, accent: UI_GOLD }); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = UI_GOLD; ctx.font = fontStr(14, true); ctx.fillText('★ NEW RECORD ★', UI_W / 2, y + 20, w - 40); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(19, true); ctx.fillText(this.toast, UI_W / 2, y + 48, w - 40); ctx.globalAlpha = 1; return; } /* V8: the records book */ kitPanel(ctx, UI_W / 2 - 250, UI_H - 76, 500, 46, 'rgba(20,28,80,0.95)', { radius: 23, accent: UI_GOLD }); ctx.fillStyle = UI_TEXT; ctx.font = fontStr(18, true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.toast, UI_W / 2, UI_H - 52); ctx.globalAlpha = 1; }
   // One screen's content in design space (no background).
   drawScreen(ctx, s, noFocus) { s._prep = true; this.begin(ctx); /* (V15: a screen drawn once needs no dry pass: its pictures are asked for) */ const top = s === this.screen && !s.noHots; if (top) { UI_HOTS = s._hots = []; UI_HOT_CTX = ctx; UI_HOT_UI = this; } try { if (s.draw) s.draw(ctx, this); this.drawWidgets(ctx, s, noFocus); if (top && s._hover && !(this.game.input && this.game.input.hasTouch)) { UI_HOTS = null; if (s._hover.info.stat) drawStatHover(ctx, this, s._hover); else drawTraitHover(ctx, this, s._hover); } } finally { UI_HOTS = null; UI_HOT_CTX = null; this.end(ctx); } } // V3: trait chips and cards register their boxes (UI_HOTS); a resting mouse shows the card
   // F4: menus draw in the letterboxed 1280×720 area, so their text keeps the pixel size of that area (RBF.kUI): a window
@@ -10163,7 +10199,7 @@ function howToScreen(game) {
     } };
 }
 function pauseScreen(game) {
-  const inCareer = game.after && (game.after.kind === 'career' || game.after.kind === 'amateur');
+  const inCareer = game.after && CAREER_KINDS.includes(game.after.kind); // 2.1 (§1.10): every career game (the All-Star contest, tryouts, a drill, a challenge) is one attempt: no restart, no quit
   const items = [btn('Resume', 0, 0, 0, 0, () => game.resume())];
   if (inCareer) items.push(btn('Sim the rest of the game', 0, 0, 0, 0, () => game.simRestOfMatch())); else items.push(btn('Restart match', 0, 0, 0, 0, () => game.restartMatch()));
   items.push(btn('Controls', 0, 0, 0, 0, () => game.ui.push(howToScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))));
@@ -10377,7 +10413,7 @@ function colorblindTeams(a, b) { a = Object.assign({}, a); b = Object.assign({},
 function leagueFrRow(ctx, c, id, y) {
   const T = frTable(c), v = frValue(c), me = meOf(c), cx = [96, 450, 470, 750, 830, 930, 1010], F = T[id], fc = clubOf(id), pid = c.active.find(x => c.players[x].club === id), p = pid ? c.players[pid] : null, mine = id === me.club, bar = FRN.bar[F.stars - 1], ok = v >= bar; if (mine) { ctx.fillStyle = 'rgba(255,214,63,0.12)'; ctx.fillRect(50, y - 15, 1180, 30); }
           drawCrest(ctx, id, cx[0] - 34, y - 14, 25); /* V12: the crest; a row opens the franchise's page */ ctx.font = fontStr(14, mine); ctx.fillStyle = mine ? UI_GOLD : UI_TEXT; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = fontStr(12, mine); ctx.fillText(fc.name, cx[0], y, 300); drawStarsShort(ctx, F.stars, cx[1], y, 12, 'right');
-          ctx.font = fontStr(14, false); ctx.fillStyle = UI_TEXT; ctx.fillText(p ? p.name : '—', cx[2], y, 262); ctx.textAlign = 'center'; ctx.fillText(p ? String(recOvr(p)) : '—', cx[3], y); ctx.fillText('+' + Math.round(CR.facilityBonus * 100 * (FRN.facByStars[F.stars - 1] - 1)) + '%', cx[4], y); ctx.fillText(bar ? String(bar) : '—', cx[5], y);
+          ctx.font = fontStr(14, false); ctx.fillStyle = UI_TEXT; ctx.fillText(p ? p.name : '—', cx[2], y, 262); ctx.textAlign = 'center'; ctx.fillText(p ? String(recOvr(p)) : '—', cx[3], y); ctx.fillText('+' + Math.round(frFacPct(F.stars) * 100) + '%', cx[4], y); ctx.fillText(bar ? String(bar) : '—', cx[5], y);
           ctx.textAlign = 'left'; ctx.fillStyle = mine ? UI_GOLD : ok ? UI_GREEN : UI_DIM; ctx.fillText(mine ? 'your team' : ok ? 'calls you' : 'needs +' + (bar - v).toFixed(1), cx[6], y, 210);
 }
 // ---------------- league pages ----------------
@@ -10456,7 +10492,7 @@ function managementScreen(game) {
       if (!P) { kitPanel(ctx, 660, 140, 560, 490, 'rgba(8,12,36,0.55)'); ui.heading(ctx, G.label, 684, 184, 16, UI_GOLD, 'left', 512); ui.para(ctx, G.line, 684, 212, 512, 14, UI_TEXT, 'left', 3);
         let y = 290; for (const l of ['Move up: raise your OVR (games, practice, the trainer), win (fame) and make noise (hype).', 'When your deal ends, the best franchise that wants you makes an offer, plus one a star lower that starts you.', 'Or ask for a trade: one star up at most, every ' + FRN.tradeGap + ' seasons, before the deadline. It costs hype, and you earn the start.', 'Stars move each offseason with the standings: a title lifts a franchise, a bad season drops it.']) /* F7: three lines each at most (the trade line was cut) */ y += ui.para(ctx, l, 684, y, 512, 13, UI_DIM, 'left', 3) + 10; } }
     if (st.tab === 1) { const K = M.contract; if (!P) drawTeamCard(ctx, club, 60, 150, 300, 110, true, null); const tx = P ? 60 : 390; ui.heading(ctx, club.name.toUpperCase(), tx, P ? 118 : 170, 22, UI_TEXT); ui.label(ctx, fmtMoney(K.salary) + ' a season · ' + K.years + ' season' + (K.years === 1 ? '' : 's') + ' left' + (K.rookie ? ' · rookie deal' : K.promise ? ' · promised start' : ''), tx, P ? 148 : 200, 16, UI_TEXT, 'left', P ? 1160 : 840);
-      if (!P) { const hm = ui.para(ctx, 'Market value today: ' + fmtMoney(marketValue(c, me)) + ' a season. When your deal runs out, clubs make offers in the offseason.', 390, 228, 840, 14, UI_DIM); ui.label(ctx, 'Facilities: ' + '★'.repeat(c.facilities[club.id]) + '☆'.repeat(3 - c.facilities[club.id]) + ' · home court: ' + clubCourt(club.id).name + (proBigMarket(c) ? ' · big market (fame ×' + PR.bigFame + ')' : ''), 390, 228 + hm + 2, 14, UI_DIM, 'left', 840); }
+      if (!P) { const hm = ui.para(ctx, 'Market value today: ' + fmtMoney(marketValue(c, me)) + ' a season. When your deal runs out, clubs make offers in the offseason.', 390, 228, 840, 14, UI_DIM); ui.label(ctx, 'Facilities: ' + frFacStarsText(frStars(c, club.id)) + ' (practice XP +' + Math.round(frFacPct(frStars(c, club.id)) * 100) + '%)' + ' · home court: ' + clubCourt(club.id).name + (proBigMarket(c) ? ' · big market (fame ×' + PR.bigFame + ')' : ''), 390, 228 + hm + 2, 14, UI_DIM, 'left', 840); }
       const roy = proShoeRoyalty(c); let inc = salaryWeek(c) + roy; for (const e of M.endorsements) inc += e.weekly; const exp = proStaffCost(M, c); const y1 = P ? 196 : 320; ui.heading(ctx, 'EACH WEEK', 60, y1, 15, UI_CYAN); const wk = ui.para(ctx, 'Game check ' + fmtMoney(salaryWeek(c)) + (M.agent ? ' (after your agent)' : '') + ' · sponsors ' + fmtMoney(inc - salaryWeek(c) - roy) + (roy ? ' · shoe royalties ' + fmtMoney(roy) : '') + (exp ? ' · training −' + fmtMoney(exp) : ' · no training staff') + ' · net ' + fmtMoney(inc - exp), 60, y1 + 26, P ? 1160 : 600, 16, UI_TEXT);
       if (!P) { const fy = Math.max(420, y1 + 26 + wk + 24); ui.heading(ctx, 'FAME ' + Math.round(M.fame), 60, fy, 15, UI_CYAN); meterBar(ctx, 60, fy + 20, 400, 12, M.fame / 100, UI_GOLD); statHot(ctx, 'fame', 56, fy - 12, 408, 46); ui.para(ctx, 'Winning, big nights, highlights and awards raise it. Sponsors and All-Star votes follow it.', 60, fy + 52, 600, 14, UI_DIM);
         ui.heading(ctx, 'YOUR AGENT', 700, 330, 15, UI_CYAN); { const ag = staffOf(c).agent; ui.para(ctx, ag ? ag.name + ' (' + ag.tier + '★, ' + STAFF_PERS_INFO[ag.pers][0].toLowerCase() + ') gets you ' + Math.round(staffAgentRaise(c) * 100) + '% more on every contract and takes ' + Math.round(staffAgentCut(c) * 100) + '% of your pay and sponsors.' : 'No agent: you keep all your pay, and your next contract is ' + Math.round(SF.agentRaise[1] * 100) + '–' + Math.round(SF.agentRaise[5] * 100) + '% smaller than it could be. The staff room has agents.', 700, 356, 520, 14, UI_TEXT); } /* V10 */
@@ -11472,7 +11508,8 @@ function amHub(game) {
     else if (nx && nx.opp && (!playsThisWeek(c) || c.ineligible > 0)) out.push(btn('SIM THE GAME', 0, 0, 0, 0, () => afterSim(amSimGame(c)), { primary: true })); /* R4: on the bench your teammate starts */
     else if (nx && nx.opp) out.push(btn('PLAY', 0, 0, 0, 0, () => game.ui.push(amPregameScreen(game)), { primary: true }), btn('SIM', 0, 0, 0, 0, () => afterSim(amSimGame(c)))); /* V4: the scouting report first */
     return out; };
-  const sims = () => nx && nx.opp && !c.decision ? [btn('Sim to next big moment', 0, 0, 0, 0, () => simAheadFromHub(game, 'big', hubOf)), btn('Sim the rest of the season', 0, 0, 0, 0, () => simAheadFromHub(game, 'season', hubOf))] : []; // V5 (2.0 §4.2)
+  const sims = () => { if (!(nx && nx.opp)) return []; const why = simBlockedBy(c); if (why) return [btn(why, 0, 0, 0, 0, () => {}, { enabled: false }), btn('Sim the rest of the season', 0, 0, 0, 0, () => {}, { enabled: false })]; /* 2.1 (§1.9): a choice comes first */
+    return [btn('Sim to next big moment', 0, 0, 0, 0, () => simAheadFromHub(game, 'big', hubOf)), btn('Sim the rest of the season', 0, 0, 0, 0, () => simAheadFromHub(game, 'season', hubOf))]; }; // V5 (2.0 §4.2)
   const ladderBtn = () => c.team ? [btn('Depth chart', 0, 0, 0, 0, () => game.ui.push(ladderScreen(game)), { dot: () => hubChallengeOpen(c) })] : [];
   return hubScreen(game, { name: 'amhub', data: () => amHubData(game, c),
     tabs: {
@@ -11566,7 +11603,7 @@ function signingScreen(game) {
       if (T > tFlip + 0.5) { ctx.globalAlpha = clamp01((T - tFlip - 0.5) / 0.4); kitPanel(ctx, 840, 214, 400, ui.phone ? 352 : 380, 'rgba(10,14,40,0.92)', { accent: club.colors[0] }); /* (a phone's taller button sits under it) */ drawTeamCard(ctx, club, 864, 236, 352, 96, true, null); drawCrest(ctx, club.id, 1040 - 30, 246, 60); /* V12 (2.0 §4.5): the crest and the full name */
         ui.heading(ctx, 'WELCOME TO ' + frCity(club.id).toUpperCase(), 1040, 356, 20, UI_GOLD, 'center', 360); drawStarsTxt(ctx, stars, 1040, 384, 20, 'center'); ui.label(ctx, 'The ' + club.name, 1040, 410, 15, UI_TEXT, 'center', 360);
         ui.heading(ctx, fmtMoney(G.salary) + ' a season × ' + G.years, 1040, 440, 20, UI_TEXT, 'center', 360); ui.label(ctx, c.me.contract && c.me.contract.promise ? 'The starting spot is yours.' : 'You compete for the start.', 1040, 470, 14, UI_TEXT, 'center', 360);
-        if (!ui.phone) { ui.label(ctx, 'Training facilities ' + '★'.repeat(c.facilities[club.id] || 1) + '☆'.repeat(3 - (c.facilities[club.id] || 1)), 1040, 494, 13, UI_DIM, 'center', 360); ui.label(ctx, stars >= 5 ? 'The goal now: start here, then a title.' : 'The goal: a 5★ team.', 1040, 516, 13, UI_DIM, 'center', 360); }
+        if (!ui.phone) { ui.label(ctx, 'Training facilities ' + frFacStarsText(stars) + ' · practice XP +' + Math.round(frFacPct(stars) * 100) + '%', 1040, 494, 13, UI_DIM, 'center', 360); ui.label(ctx, stars >= 5 ? 'The goal now: start here, then a title.' : 'The goal: a 5★ team.', 1040, 516, 13, UI_DIM, 'center', 360); }
         if (c.rivalId) ui.para(ctx, 'Your rival ' + c.players[c.rivalId].name + ' signed with the ' + clubOf(c.players[c.rivalId].club).abbr + '.', 1040, ui.phone ? 498 : 546, 340, 13, UI_GOLD, 'center', 2); ctx.globalAlpha = 1; }
       if (T > tFlip && T < tFlip + 3.5) drawConfetti(ctx, T - tFlip, 40); if (T < tDone) kitChip(ctx, game.input.hasTouch ? 'TAP TO SKIP' : 'ENTER TO SKIP', 1240, ui.phone ? 670 : 664, { size: ui.phone ? 18 : 14, align: 'right', fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(255,210,63,0.7)', color: UI_GOLD }); /* V12: a short celebration; the skip prompt in view */
     } };
@@ -11969,6 +12006,7 @@ function allStarWeekendScreen(game, c, ev, done) {
       const order = A.done && A.scores ? A.field.slice().sort((a, b) => A.scores[b] - A.scores[a]) : A.field;
       order.forEach((id, i) => { const p = c.players[id], y = 176 + i * 88; recPortrait(ctx, p, 60, y, 72); ui.heading(ctx, (A.done ? (i + 1) + '. ' : '') + p.name + (id === c.meId ? ' (you)' : ''), 146, y + 26, 18, id === c.meId ? UI_GOLD : UI_TEXT); ui.label(ctx, 'Shooting ' + Math.floor(p.r.sho), 146, y + 52, 14, UI_DIM); if (A.done && A.scores) ui.heading(ctx, String(A.scores[id]), 600, y + 36, 28, i === 0 ? UI_GOLD : UI_TEXT, 'right'); });
       if (!A.invited) ui.label(ctx, 'You were not invited this year.', 60, 526, 14, UI_DIM);
+      else if (A.done && A.scores && A.scores[c.meId] != null) { const pl = order.indexOf(c.meId) + 1; ui.heading(ctx, 'YOUR SCORE: ' + A.scores[c.meId] + ' · ' + ['', '1st', '2nd', '3rd', '4th'][pl] + ' of ' + order.length, 60, P ? 580 : 586, P ? 20 : 18, pl === 1 ? UI_GOLD : UI_CYAN, 'left', 560); } /* 2.1 (§1.10): one attempt; your score takes the button's place */
       // the 1v1 bracket
       kitPanel(ctx, 640, 120, 600, 420, ART.uiPanel2); ui.heading(ctx, 'ALL-STAR 1V1 · ' + gameLenLabel().toUpperCase() + ' GAMES', 660, 150, 20, UI_GOLD, 'left', 560); const O = A.one;
       if (O) { const slot = (id, x, y, win) => { const p = c.players[id]; if (!p) return; recPortrait(ctx, p, x, y, 56); ui.heading(ctx, p.nick.toUpperCase() + (id === c.meId ? ' (YOU)' : ''), x + 66, y + 20, 15, win ? UI_GOLD : id === c.meId ? UI_CYAN : UI_TEXT); ui.label(ctx, 'OVR ' + recOvr(p), x + 66, y + 42, 12, UI_DIM); };
@@ -12133,13 +12171,17 @@ function drawHubNext(ctx, ui, H, x, y, w, h, t) {
   const fs = P ? 17 : 13; ui.label(ctx, O.label || 'NEXT', cx, y + (P ? 20 : 22), fs, H.bench ? UI_ORANGE : UI_CYAN, 'center', w - 30);
   const vs = 'vs ' + String(O.def.name || '').toUpperCase(), vsz = fitFont(ctx, vs, w - 60, P ? 30 : 30, true); kitStamp(ctx, vs, cx, y + (P ? 50 : 52), vsz, [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
   const pills = []; if (H.spot) pills.push(['SPOT START', UI_GREEN, UI_INK]); if (H.bench) pills.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.rival) pills.push(['RIVAL', 'rgba(255,90,90,0.9)', '#FFFFFF']); if (O.playoff) pills.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.boss) pills.push(['BOSS', '#FFD23F', UI_INK]); if (O.pers) pills.push([scoutPersName(O.pers).toUpperCase(), SCOUT_PERS_COLOR[O.pers] || UI_CYAN, UI_INK]); if (O.where) pills.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]);
-  const ps = P ? 15 : 12, py = y + (P ? 82 : 82); if (pills.length) { ctx.font = fontStr(ps, true); let tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + ps * 1.3 + 6, -6); while (tw > w - 30 && pills.length > 2) { pills.pop(); tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + ps * 1.3 + 6, -6); } let px = cx - tw / 2; for (const p of pills) px += kitChip(ctx, p[0], px, py, { size: ps, fill: p[1], color: p[2], stroke: false }) + 6; }
-  const scoutH = H.scout && !P ? 48 : 0, top = py + (P ? 16 : 18), avail = y + h - top - (P ? 34 : 40) - scoutH, ch = Math.max(90, Math.min(P ? 220 : 216, avail)), cw = Math.round(ch * 0.715), cy = top;
+  // 2.1 (§1.12): on a phone the pills, both heights and the height gap sit in the middle column, so the cards take the
+  // panel's height (about 130 px wide: a long name fits on two lines instead of 'ALVAR…')
+  const scoutH = H.scout && !P ? 48 : 0, top = y + (P ? 70 : 100), avail = y + h - top - (P ? 6 : 40) - scoutH, ch = Math.max(90, Math.min(P ? 250 : 216, avail)), cw = Math.round(ch * 0.715), cy = top;
+  const ps = P ? 15 : 12, py = P ? cy + 14 : y + 82, pw = P ? w - 48 - 2 * cw - 24 : w - 30; if (pills.length) { ctx.font = fontStr(ps, true); let tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + ps * 1.3 + 6, -6); while (tw > pw && pills.length > 2) { pills.pop(); tw = pills.reduce((a, p) => a + ctx.measureText(p[0]).width + ps * 1.3 + 6, -6); } let px = cx - tw / 2; for (const p of pills) px += kitChip(ctx, p[0], px, py, { size: ps, fill: p[1], color: p[2], stroke: false }) + 6; }
   drawTradingCard(ctx, x + 24, cy, cw, ch, H.myCard, { t }); drawTradingCard(ctx, x + w - 24 - cw, cy, cw, ch, H.oppCard, { t: t + 1.1 });
   kitStamp(ctx, 'VS', cx, cy + ch / 2, P ? 34 : 32, [UI_GOLD, '#F2A91C'], { outline: 0.2 });
-  if (P && H.B && schoolOn(H.B) && H.B.gpa != null) { const gw = w - 48 - 2 * cw - 16; ctx.font = fontStr(13, true); const g = schoolGpaLine(H.B), lines = rbWrap(ctx, g, gw).slice(0, 2); lines.forEach((l, i) => ui.label(ctx, l, cx, cy + ch / 2 + 40 + i * 20, 13, schoolGpaColor(H.B), 'center', gw)); } /* V9: a phone's Play tab has no week line: the GPA under the VS */
-  const hy = cy + ch + (P ? 20 : 20), dh = Math.round((O.h - M.h) / 0.0254); ctx.font = fontStr(P ? 24 : 22, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fmtHeight(M.h), x + 24 + cw / 2, hy); ctx.fillText(fmtHeight(O.h), x + w - 24 - cw / 2, hy);
-  kitChip(ctx, dh === 0 ? 'SAME HEIGHT' : (dh > 0 ? '+' + dh + '″ THEM' : '+' + (-dh) + '″ YOU'), cx, hy, { size: P ? 15 : 12, align: 'center', fill: 'rgba(8,12,36,0.95)', color: dh > 0 ? UI_RED : dh < 0 ? UI_GREEN : UI_TEXT });
+  if (P && H.B && schoolOn(H.B) && H.B.gpa != null) { const gw = w - 48 - 2 * cw - 16; ctx.font = fontStr(13, true); const g = schoolGpaLine(H.B), lines = rbWrap(ctx, g, gw).slice(0, 2); lines.forEach((l, i) => ui.label(ctx, l, cx, cy + ch / 2 + 66 + i * 20, 13, schoolGpaColor(H.B), 'center', gw)); } /* V9: a phone's Play tab has no week line: the GPA under the VS */
+  // the heights under the cards (on a phone beside the VS); the cards' own (a benched player's left card is the starter's)
+  const mh = (H.myCard && H.myCard.height) || M.h, oh = (H.oppCard && H.oppCard.height) || O.h, dh = Math.round((oh - mh) / 0.0254), hx = P ? (w / 2 - 24 - cw - 8 + 24) / 2 : 0, hy = P ? cy + ch / 2 : cy + ch + 20;
+  ctx.font = fontStr(P ? 24 : 22, true); ctx.fillStyle = UI_TEXT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(fmtHeight(mh), P ? cx - hx : x + 24 + cw / 2, hy); ctx.fillText(fmtHeight(oh), P ? cx + hx : x + w - 24 - cw / 2, hy);
+  kitChip(ctx, dh === 0 ? 'SAME HEIGHT' : (dh > 0 ? '+' + dh + '″ THEM' : '+' + (-dh) + '″ ' + (H.bench ? 'US' : 'YOU')), cx, P ? cy + ch / 2 + 38 : hy, { size: P ? 15 : 12, align: 'center', fill: 'rgba(8,12,36,0.95)', color: dh > 0 ? UI_RED : dh < 0 ? UI_GREEN : UI_TEXT });
   if (scoutH) { ctx.font = fontStr(15, false); ctx.fillStyle = UI_GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, '“' + H.scout + '”', cx, hy + 16, w - 40, 19); }
 }
 // ---------------- the season calendar (§4.2) ----------------
@@ -12306,6 +12348,9 @@ function simDrain(c, mode, S) {
   return '';
 }
 function simStopWhy(ev) { const k = ev.kind; return ev.offer ? 'an offer' : k === 'recap' ? 'the season\'s end' : k === 'traitpick' ? 'a trait to pick' : k === 'traitlevel' ? 'a level-up' : k === 'road' ? 'a Road to the League milestone' : k === 'commit' ? 'commitment day' : k === 'nil' || k === 'agent' || k === 'shoe' ? 'an offer' : k === 'trade' ? 'a trade question' : k === 'allstar' ? 'All-Star weekend' : k === 'dialog' || k === 'story' || k === 'rival' || k === 'growth' || k === 'trait' || k === 'traitnew' ? 'a story moment' : 'news'; }
+// 2.1 (§1.9): a choice the sims can't make for you (your summer, tryouts, the combine, a decision) greys the sim buttons
+// with what to do first (they used to sim 0 weeks forever). '' when nothing blocks them.
+function simBlockedBy(c) { if (!c || isPro(c)) return ''; if (c.stage === 'combine') return 'Go to the combine first'; if (c.decision) return 'Make your decision first'; if (c.summer && c.summer.pending) return 'Pick your summer first'; if (c.tryout && c.tryout.step !== 'done') return 'Finish tryouts first'; return ''; }
 // What comes next: { kind: 'game' | 'stop', big, playoff, why }.
 function simNext(c) {
   if (isPro(c)) {
@@ -12369,6 +12414,7 @@ function simSummaryScreen(game, S, back) {
 }
 // Runs a sim from a hub and shows what it did (the summary card, or a toast with Quick results).
 function simAheadFromHub(game, mode, hubOf) {
+  { const a = amateurOf(game); if (a && simBlockedBy(a)) { game.ui.clearTo(hubOf()); return; } } /* 2.1 (§1.9): the hub's primary button opens the choice */
   const S = simAhead(game, mode); if (!S) return; const back = () => { game.hubTab = 'play'; game.ui.clearTo(hubOf()); };
   if (game.save.data.settings.quickResults) { back(); game.ui.toastMsg('Simmed ' + S.weeks + ' week' + (S.weeks === 1 ? '' : 's') + ' (' + S.w + '-' + S.l + '). Stopped: ' + S.stop + '.'); return; }
   game.ui.clearTo(hubOf()); game.ui.push(simSummaryScreen(game, S, () => game.ui.clearTo(hubOf())));
@@ -12568,6 +12614,7 @@ function migrateSave(obj) {
   try { genTraitsMigrate(merged); } catch (e) { console.warn('[save] trait migration skipped', e && e.message); } // V1 (§1.5)
   try { pblMigrate(merged); } catch (e) { console.warn('[save] league rename skipped', e && e.message); } // V5: the ISO League is the PBL now
   try { trMigrateSave(merged); } catch (e) { console.warn('[save] trait levels skipped', e && e.message); } // V3 (§2.2)
+  try { const pc = merged.career; if (pc && pc.players) for (const id in pc.players) { const p = pc.players[id]; if (p && !p.isMe) skillClampP(p); } if (merged.c1 && merged.c1.rival) skillClampP(merged.c1.rival); } catch (e) { console.warn('[save] skill caps skipped', e && e.message); } // 2.1 (§1.12): league skills stop at 95
   merged.version = CONFIG.save.version; return merged;
 }
 // Converts every stored look to the v2 look model (faces are seeded from the owner's name, so they never change).
@@ -12650,12 +12697,16 @@ function genName(rng, used, avoid) { for (let i = 0; i < 60; i++) { const f = rn
 function genLook(rng, teen) { return randomLook(rng, { teen: !!teen }); } // v2 look with a seeded face
 
 // ---------------- generated pros: ratings shaped by play style, centered on a target OVR ----------------
+// 2.1 (§1.12): skills (Shooting, Finishing, Handles, Defense) stop at the skill cap for everyone (AMC.genes.skillCap, 95),
+// league players and the rival too (an All-Star shooter showed 100); Speed, Hops and Strength keep their own limits.
+function skillMaxOf(k, hi) { return PHYS_KEYS.includes(k) ? hi : Math.min(hi, AMC.genes.skillCap); }
+function skillClampP(p) { if (!p || !p.r) return p; const m = AMC.genes.skillCap; for (const k of RATING_KEYS) { if (PHYS_KEYS.includes(k)) continue; if (p.r[k] > m) p.r[k] = m; if (p.caps && p.caps[k] > m) p.caps[k] = m; } return p; }
 function genProRatings(arch, h, target, rng) {
   const base = (ARCHETYPES[arch] || ARCHETYPES.slasher).base; const avg = RATING_KEYS.reduce((a, k) => a + base[k], 0) / RATING_KEYS.length; const r = {};
-  for (const k of RATING_KEYS) r[k] = clamp(Math.round(base[k] * target / avg + rng.gauss() * 5), 20, 99);
-  const diff = target - ovrOf(r, h); for (const k of RATING_KEYS) r[k] = clamp(r[k] + diff, 20, 99); return r;
+  for (const k of RATING_KEYS) r[k] = clamp(Math.round(base[k] * target / avg + rng.gauss() * 5), 20, skillMaxOf(k, 99));
+  const diff = target - ovrOf(r, h); for (const k of RATING_KEYS) r[k] = clamp(r[k] + diff, 20, skillMaxOf(k, 99)); return r;
 }
-function capsAbove(r, age, rng) { const G = CR.aiRoom; const o = {}; for (const k of RATING_KEYS) { const band = G.find(b => age <= b[0]); o[k] = clamp(r[k] + (band ? rng.range(band[1], band[2]) : 0), 20, 100); } return o; }
+function capsAbove(r, age, rng) { const G = CR.aiRoom; const o = {}; for (const k of RATING_KEYS) { const band = G.find(b => age <= b[0]); o[k] = clamp(r[k] + (band ? rng.range(band[1], band[2]) : 0), 20, skillMaxOf(k, 100)); } return o; }
 function heightForArch(arch, rng) { const A = CONFIG.amateur; return Math.round(clamp(A.heightMean + rng.gauss() * 0.07 + (arch === 'rimprotector' || arch === 'postscorer' ? 0.09 : arch === 'playmaker' || arch === 'sharpshooter' ? -0.05 : 0), 1.76, 2.2) * 100) / 100; }
 // ---------------- players, clubs and the league ----------------
 const CLUB_COURT = { prophets: 'blacktop', ballers: 'blacktop', legends: 'gym', raccoons: 'rooftop', vandals: 'gym', nephews: 'rooftop', sharks: 'beach', monarchs: 'beach', kings: 'gym', comets: 'blacktop', owls: 'rooftop', pilots: 'blacktop' }; // (F7: the four new franchises)
@@ -12710,7 +12761,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
   rng.shuffle(pool);
   for (const d of pool.slice(0, CR.leagueSize - 4)) { if (used.has(d.name)) continue; const id = 'p' + c.nextId++; used.add(d.name); c.players[id] = genVet(d, id, rng, 23 + rng.int(11)); c.active.push(id); }
-  { const vets = c.active.map(id => c.players[id]).sort((x, y) => recOvr(y) - recOvr(x)); (CR.proStars || []).forEach((n, i) => { const p = vets[i]; if (p && n) for (const k of RATING_KEYS) { p.r[k] = clamp(p.r[k] + n, 20, 99); p.caps[k] = clamp(p.caps[k] + n, 20, 99); } }); } // V10 (§1.2): the league's stars
+  { const vets = c.active.map(id => c.players[id]).sort((x, y) => recOvr(y) - recOvr(x)); (CR.proStars || []).forEach((n, i) => { const p = vets[i]; if (p && n) for (const k of RATING_KEYS) { p.r[k] = clamp(p.r[k] + n, 20, skillMaxOf(k, 99)); p.caps[k] = clamp(p.caps[k] + n, 20, skillMaxOf(k, 99)); } }); } // V10 (§1.2): the league's stars
   const rookies = [];
   if (a.rival && a.rival.r) { const rv = a.rival, id = 'p' + c.nextId++; const age = rv.age || a.age; const rec = { id, name: rv.name, nick: rv.nick || String(rv.name).split(' ')[0], arch: ARCHETYPES[rv.style] ? rv.style : 'slasher', h: rv.height, wing: rv.wing || 1.03, age, r: Object.assign({}, rv.r), caps: null, look: Object.assign({}, rv.look), club: null, contract: { years: CR.rookieYears, salary: 0 }, since: 1, isMe: false, rookie: true, fromAmateur: true };
     rec.caps = capsAbove(rec.r, age, rng); used.add(rv.name); c.players[id] = rec; c.active.push(id); rookies.push(rec); c.rivalId = id; }
@@ -13344,7 +13395,7 @@ function amOffseason(c, rng, lines) {
   const got = offseasonDevelop(c.r, c.caps, Object.keys((CR.trainFocus[c.focus] || CR.trainFocus.shooting).split), c.age, trAgeShift(c));
   if (got.length) lines.push('Offseason work: ' + got.join(', '));
   lines.push('OVR ' + ovr0 + ' → ' + amOvr(c) + ' · age ' + c.age);
-  const r = c.rival; if (r) { r.age = (r.age || AMC.startAge) + 1; for (const k of RATING_KEYS) if (r.age <= 27 && rng.next() < 0.6) r.r[k] = Math.min(CR.ratingMax, r.r[k] + CR.xpStep); if (r.age <= 18) r.height = Math.round((r.height + 0.015) * 100) / 100; }
+  const r = c.rival; if (r) { r.age = (r.age || AMC.startAge) + 1; for (const k of RATING_KEYS) if (r.age <= 27 && rng.next() < 0.6) r.r[k] = Math.min(skillMaxOf(k, CR.ratingMax), r.r[k] + CR.xpStep); /* 2.1: skills stop at 95 */ if (r.age <= 18) r.height = Math.round((r.height + 0.015) * 100) / 100; }
   return grow;
 }
 function amAfterSeason(c, rng, lines) {
@@ -13467,6 +13518,9 @@ function frNewTable(seed, fac) { const rng = new RNG((((seed >>> 0) * 7331) + 11
 function frTable(c) { if (!c.fr || Object.keys(c.fr).length !== TEAMS.length) frMigrate(c); return c.fr; }
 function frStars(c, id) { const T = frTable(c)[id]; return T ? T.stars : 1; }
 function frMine(c) { return frStars(c, meOf(c).club); }
+// 2.1 (§1.12): a franchise's training facilities by its stars: the practice XP bonus (FRN.facXp) and five stars to show.
+function frFacPct(stars) { const L = FRN.facXp; return L[clamp((stars | 0) || 1, 1, L.length) - 1]; }
+function frFacStarsText(stars) { const s = clamp((stars | 0) || 1, 1, 5); return '★'.repeat(s) + '☆'.repeat(5 - s); }
 function frSyncFacilities(c) { const T = frTable(c); c.facilities = c.facilities || {}; for (const id in T) c.facilities[id] = FRN.facByStars[T[id].stars - 1]; }
 function starsTxt(n) { n = clamp(n | 0, 0, 5); return '★'.repeat(n) + '☆'.repeat(5 - n); }
 // Stars as text: filled in gold, empty dim. Returns the width drawn.
@@ -13994,7 +14048,7 @@ function amFilm(c) { const g = amNext(c); const ok = wkFilm(c, g && g.opp ? g.op
 function amStartGame(c) { wkFill(c); amBossEnsure(c); /* V4: the season's Boss */ ladderSettlePending(c); if (c.wk.done) return null; if (c.stage === 'hs' && hsFill(c).gpa < HS.autoStudyAt) return wkStudy(c); /* R5: grades first (the coach's rule) */ const p = c.plan === 'study' ? 'practice' : c.plan; return p === 'rest' ? amRest(c) : p === 'film' ? amFilm(c) : amPractice(c, c.focus, c.intensity, amSessionXp(c, c.intensity)); }
 
 // --- the pro week ---
-function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proXpMul(c) * /* the pro XP base (V10: the skills coach works rating by rating, in wkPractice) */ (1 + CR.facilityBonus * (((c.facilities && c.facilities[me.club]) || 1) - 1) + CR.gymBonus * (M.gym || 0)); }
+function proTrainMul(c, focus) { const M = c.me, me = meOf(c); return proXpMul(c) * /* the pro XP base (V10: the skills coach works rating by rating, in wkPractice) */ (1 + frFacPct(frStars(c, me.club)) /* 2.1 (§1.12) */ + CR.gymBonus * (M.gym || 0)); }
 function proSessionXp(c, focus, intensity) { return CR.xpEarn /* F6 */ * WK.simSessionXp * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proDrillXp(c, focus, intensity, score) { return CR.xpEarn /* F6 */ * drillXpFor(focus, score) * (WK.intensity[intensity] || WK.intensity.normal).xp * practiceAgeMul(meOf(c).age) * proTrainMul(c, focus) * trPracticeMul(c.me, meOf(c).age) * trustXpMul(c); }
 function proPractice(c, focus, intensity, xpIn, drill) {
@@ -14418,7 +14472,7 @@ function drawScoutCard(ctx, ui, D, x, y, w, opts) {
 // Rarity: Common 55%, Uncommon 28%, Rare 13%, Legendary 4%, each with its own card frame color. V3: rarer is stronger
 // (CONFIG.traits.list: the Bronze upside by rarity, a small fixed downside, a flavor drawback only on a Legendary),
 // every trait levels up Bronze → Silver → Gold by doing its thing (its deed), each level adds half the Bronze upside,
-// and TR.thirdAt career points (2,000; 1,000 before the V5 pace rules) bring a third trait (a pick of three Common or Uncommon ones). The holder is whoever carries
+// and TR.thirdAt career points (1,150 with the 2.1 running clock; 2,000 with the V5 pace rules, 1,000 before) bring a third trait (a pick of three Common or Uncommon ones). The holder is whoever carries
 // the career: the amateur career itself, or the pro career's player record (meOf(c)); both keep { sig, hidden, found,
 // third, lv, deeds, offer, pend } in .tr. The engine reads a player def's .traits (an id list) and .traitLv (levels).
 // ============================================================================
@@ -14883,7 +14937,7 @@ function teamScreen(game) {
     const light = luminance(col[0]) > 0.5, ink = light ? UI_INK : UI_TEXT, lv = teamLevel(c), lvw = lv && !pro ? drawLevelRungs(ctx, lv, 0, 0, ink, true) : 0; const nm = (T.name + (T.mascot ? ' ' + T.mascot : '')).toUpperCase(); const ns = fitFont(ctx, nm, Math.min(760, 1160 - lvw - 40), 34, true); ctx.font = fontStr(ns, true); ctx.fillStyle = ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(nm, 60, 58); /* F11: the name stops short of the levels */
     const lvWord = T.kind === 'hs' ? (lv && lv.at === 0 ? 'JV' : lv && lv.at === 1 ? 'Varsity' : 'High school') : T.kind === 'college' ? AMC.tiers[T.tier || 0] + ' college' : 'A ' + frMine(c) + '★ franchise' + (lv ? ', #' + lv.rank + ' of ' + TEAMS.length : ''); /* F11: your level first */
     const line2 = lvWord + ' · your record here ' + T.w + '-' + T.l + (T.titles ? ' · ' + T.titles + ' title' + (T.titles > 1 ? 's' : '') : ''); ctx.font = fontStr(14, false); ctx.fillStyle = ink; const l2w = ctx.measureText(line2).width; ctx.fillText(line2, 60, 94, 760);
-    ctx.textAlign = 'right'; ctx.font = fontStr(13, false); if (pro) { const s = frMine(c), fac = FRN.facByStars[s - 1]; ctx.fillText('practice XP +' + Math.round(CR.facilityBonus * 100 * (fac - 1)) + '% · pay ×' + FRN.payByStars[s - 1] + ' · fame ×' + FRN.fameByStars[s - 1], 1220, 94, 520); drawStarsTxt(ctx, s, 1220, 56, 26, 'right'); } /* F7: the franchise's stars and what they bring */ else if (lv) { drawLevelRungs(ctx, lv, 1220, 56, ink); ctx.font = fontStr(13, false); const cap = [lv.caption, lv.short].find(t => t && ctx.measureText(t).width <= 1220 - 60 - Math.min(760, l2w) - 30); if (cap) { ctx.fillStyle = ink; ctx.textAlign = 'right'; ctx.fillText(cap, 1220, 94); } } /* the caption, or its short form, where it fits beside the record (the pixel font doesn't shrink under its 1× size) */ /* F11: the levels, yours filled, and which is better (the 1v1 note is at the bottom) */
+    ctx.textAlign = 'right'; ctx.font = fontStr(13, false); if (pro) { const s = frMine(c); ctx.fillText('practice XP +' + Math.round(frFacPct(s) * 100) + '% · pay ×' + FRN.payByStars[s - 1] + ' · fame ×' + FRN.fameByStars[s - 1], 1220, 94, 520); drawStarsTxt(ctx, s, 1220, 56, 26, 'right'); } /* F7: the franchise's stars and what they bring */ else if (lv) { drawLevelRungs(ctx, lv, 1220, 56, ink); ctx.font = fontStr(13, false); const cap = [lv.caption, lv.short].find(t => t && ctx.measureText(t).width <= 1220 - 60 - Math.min(760, l2w) - 30); if (cap) { ctx.fillStyle = ink; ctx.textAlign = 'right'; ctx.fillText(cap, 1220, 94); } } /* the caption, or its short form, where it fits beside the record (the pixel font doesn't shrink under its 1× size) */ /* F11: the levels, yours filled, and which is better (the 1v1 note is at the bottom) */
     // the coach
     const cx = P ? 50 : 60, cy = 136; kitHeader(ctx, 'The coach', cx, cy + 6, P ? 520 : 360); try { drawPortrait(ctx, { name: T.coach.name, look: T.coach.look, age: T.coach.age || 50 }, col, cx, cy + 22, P ? 92 : 104); } catch (e) { /* decoration */ }
     const S_ = coachStyle(T.coach); ui.heading(ctx, T.coach.name, cx + (P ? 104 : 118), cy + 40, P ? 18 : 20, UI_TEXT, 'left', P ? 400 : 240); ui.label(ctx, S_.label.toUpperCase(), cx + (P ? 104 : 118), cy + 66, 13, UI_GOLD, 'left', P ? 400 : 240); ui.para(ctx, S_.line, cx + (P ? 104 : 118), cy + 92, P ? 420 : 250, 12, UI_DIM, 'left', P ? 2 : 3);
@@ -15571,9 +15625,13 @@ function drawRoadBanner(ctx, ui, B, x, y, w, h, t) {
   if (!B) return; const P = ui.phone, pad = 12, fs = P ? 19 : 15;
   ctx.fillStyle = 'rgba(255,210,63,0.10)'; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, 10); ctx.fill(); ctx.strokeStyle = 'rgba(255,210,63,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
   const n = B.states.length, pipR = P ? 9 : 7, gap = P ? 26 : 22, pw = (n - 1) * gap + pipR * 2 + 8, px0 = x + w - pad - pw + pipR + 4, py = y + (P ? h * 0.42 : 22), tw = w - pad * 3 - pw;
-  ui.heading(ctx, 'ROAD TO THE LEAGUE', x + pad, y + (P ? 18 : 15), P ? 14 : 12, UI_CYAN, 'left', tw);
-  const nl = B.next ? 'NEXT: ' + B.next.label : 'EVERY MILESTONE DONE'; ui.heading(ctx, nl, x + pad, y + (P ? 42 : 34), fs, UI_GOLD, 'left', tw);
-  if (!P || h >= 84) ui.label(ctx, B.line, x + pad, y + (P ? 66 : 50), P ? 15 : 12, UI_TEXT, 'left', tw);
+  const nl = B.next ? 'NEXT: ' + B.next.label : 'EVERY MILESTONE DONE';
+  if (!P && h < 84) { /* 2.1 (§1.12): a desktop banner has room for two lines at the menus' pixel (three overlapped): the title and the next milestone on one, the line under them */
+    ui.heading(ctx, 'ROAD TO THE LEAGUE', x + pad, y + 20, 12, UI_CYAN, 'left', tw); const w1 = rbDrawWidth(ctx, 'ROAD TO THE LEAGUE') + 14;
+    ui.heading(ctx, nl, x + pad + w1, y + 20, fs, UI_GOLD, 'left', Math.max(40, tw - w1)); ui.label(ctx, B.line, x + pad, y + 45, 12, UI_TEXT, 'left', tw); }
+  else { ui.heading(ctx, 'ROAD TO THE LEAGUE', x + pad, y + (P ? 18 : 15), P ? 14 : 12, UI_CYAN, 'left', tw);
+    ui.heading(ctx, nl, x + pad, y + (P ? 42 : 34), fs, UI_GOLD, 'left', tw);
+    if (!P || h >= 84) ui.label(ctx, B.line, x + pad, y + (P ? 66 : 50), P ? 15 : 12, UI_TEXT, 'left', tw); }
   for (let i = 0; i < n; i++) { const st = B.states[i], cx = px0 + i * gap, goal = ROAD.list[i].goal, r = goal ? pipR + 3 : pipR;
     if (i > 0) { ctx.strokeStyle = st === 'done' || st === 'missed' ? 'rgba(255,210,63,0.55)' : 'rgba(243,240,255,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - gap + pipR, py); ctx.lineTo(cx - r, py); ctx.stroke(); }
     if (goal) { ctx.save(); ctx.translate(cx, py); ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.5 : r * 1.15; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); if (st === 'done') { ctx.fillStyle = UI_GOLD; ctx.fill(); } else { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill(); ctx.strokeStyle = st === 'next' ? UI_GOLD : 'rgba(255,210,63,0.7)'; ctx.lineWidth = 2; ctx.stroke(); } ctx.restore(); continue; }
@@ -16629,7 +16687,7 @@ function franchiseScreen(game, id) {
       row('OWNER', owner.name + ' · ' + FR_OWNER_WORD[owner.kind] + ': ' + FR_OWNER_LINE[owner.kind]);
       row('COACH', coach.name + ' · ' + coachStyle(coach).label);
       row('MARKET', FR_MARKET_WORD[I.market] + ' · ' + frFansText(F ? F.fans : I.fans), null, 1);
-      row('GYM', 'Facilities ' + '★'.repeat(FRN.facByStars[stars - 1]) + '☆'.repeat(3 - FRN.facByStars[stars - 1]) + ' · practice XP +' + Math.round(CR.facilityBonus * 100 * (FRN.facByStars[stars - 1] - 1)) + '%', null, 1);
+      row('GYM', 'Facilities ' + frFacStarsText(stars) + ' · practice XP +' + Math.round(frFacPct(stars) * 100) + '%', null, 1);
       row('RIVAL', 'The ' + clubOf(I.rival).name, null, 1);
       if (need) row('NEEDS', need.word + (c && frFits(meOf(c).r, need) ? ' · you fit' : ''), c && frFits(meOf(c).r, need) ? UI_GREEN : null, 1);
       if (F && F.moves && F.moves.length && !P) row('LAST MOVE', F.moves[0], UI_DIM, 2);
@@ -16670,7 +16728,7 @@ function drawOfferTeamCard(ctx, ui, d, x, y, w, h, hot, compact) {
   let yy = y + hh + (P ? 26 : 22);
   if (d.axis) { kitChip(ctx, d.axis, x + w / 2, yy, { size: P ? 15 : 13, align: 'center', fill: 'rgba(255,210,63,0.92)', color: UI_INK, stroke: false, maxW: w - 20 }); yy += P ? 34 : 30; }
   if (d.odds != null) { ui.heading(ctx, oddsPct(d.odds), x + 22, yy + 4, P ? 30 : 28, UI_GOLD, 'left'); ctx.font = fontStr(P ? 30 : 28, true); const ow = ctx.measureText(oddsPct(d.odds)).width; ui.label(ctx, 'title odds' + (d.oddsWhen ? ' ' + d.oddsWhen : ''), x + 30 + ow, yy + 6, P ? 15 : 13, UI_TEXT, 'left', w - ow - 50); yy += P ? 40 : 36; }
-  const rows = [['MONEY', fmtMoney(d.salary) + ' × ' + d.years], ['ROLE', d.start ? 'starts you' : 'earn the start'], ['MARKET', FR_MARKET_WORD[frMarket(d.club)].replace(' market', '') + ' · ' + frFansText(d.fans != null ? d.fans : frInfo(d.club).fans).replace(' fans', '')], ['GYM', '+' + Math.round(CR.facilityBonus * 100 * (FRN.facByStars[d.stars - 1] - 1)) + '% XP'], ['FAME', '×' + (d.fameMul || frFameMul(null, d.club, d.stars)).toFixed(2) + ' a game'], ['COACH', d.coach ? coachStyle(d.coach).label : '—']].slice(0, P ? (compact ? 3 : 3) : 6);
+  const rows = [['MONEY', fmtMoney(d.salary) + ' × ' + d.years], ['ROLE', d.start ? 'starts you' : 'earn the start'], ['MARKET', FR_MARKET_WORD[frMarket(d.club)].replace(' market', '') + ' · ' + frFansText(d.fans != null ? d.fans : frInfo(d.club).fans).replace(' fans', '')], ['GYM', '+' + Math.round(frFacPct(d.stars) * 100) + '% XP'], ['FAME', '×' + (d.fameMul || frFameMul(null, d.club, d.stars)).toFixed(2) + ' a game'], ['COACH', d.coach ? coachStyle(d.coach).label : '—']].slice(0, P ? (compact ? 3 : 3) : 6);
   rows.forEach(([k, v]) => { ui.label(ctx, k, x + 22, yy, P ? 14 : 12, UI_CYAN, 'left', 90); ui.label(ctx, v, x + w - 20, yy, P ? 16 : 13, UI_TEXT, 'right', w - 120); yy += P ? 34 : 23; });
   const room = y + h - 10; if (d.mates && d.mates.length && yy + (P ? 52 : 44) <= room) { const ps = P ? 52 : 44, n = Math.min(3, d.mates.length), gw = (w - 44) / n; d.mates.slice(0, n).forEach((m, i) => { const mx = x + 22 + i * gw; drawPortrait(ctx, { name: m.name, look: m.look, height: m.height }, club.colors, mx, yy - 6, ps); ui.heading(ctx, String(m.ovr), mx + ps + 6, yy + ps * 0.3, P ? 16 : 13, UI_GOLD, 'left', gw - ps - 8); }); yy += ps + 6; }
   if (d.need && yy + (P ? 18 : 14) <= room) { ui.label(ctx, 'Looking for ' + d.need.word + (d.fit ? ': you fit' : ''), x + 22, yy + 4, P ? 14 : 12, d.fit ? UI_GREEN : UI_DIM, 'left', w - 44); yy += P ? 26 : 22; }
@@ -16679,7 +16737,7 @@ function drawOfferTeamCard(ctx, ui, d, x, y, w, h, hot, compact) {
 // The axis each offer wins on (2.0 §4.5): the best title odds, the most money, the start, the biggest market, the best
 // gym, the most fame; each offer gets a different one where it can.
 function offerAxes(list) {
-  const axes = [['BEST TITLE ODDS', o => o.odds != null ? Math.round(o.odds * 100) : -1], ['MOST MONEY', o => o.salary], ['THE START IS YOURS', o => o.start ? 1 : 0], ['BIGGEST STAGE', o => Math.round((o.fameMul || 1) * 100) * 10000 + (o.fans != null ? o.fans : frInfo(o.club).fans)], ['BEST GYM', o => FRN.facByStars[o.stars - 1]]];
+  const axes = [['BEST TITLE ODDS', o => o.odds != null ? Math.round(o.odds * 100) : -1], ['MOST MONEY', o => o.salary], ['THE START IS YOURS', o => o.start ? 1 : 0], ['BIGGEST STAGE', o => Math.round((o.fameMul || 1) * 100) * 10000 + (o.fans != null ? o.fans : frInfo(o.club).fans)], ['BEST GYM', o => frFacPct(o.stars)]];
   const out = list.map(() => null); /* an axis is an offer's only when it alone is best there (a tie wins nothing); an offer that wins nothing shows its kind */
   for (const [name, f] of axes) { const v = list.map(f), best = Math.max(...v); if (!(best > 0) || v.filter(x => x === best).length !== 1) continue; const i = v.indexOf(best); if (!out[i]) out[i] = name; }
   return out.map((ax, i) => ax || (list[i].kindLabel ? list[i].kindLabel.toUpperCase() : null));
@@ -16723,7 +16781,7 @@ function negotiateScreen(game, i) {
   return { widgets: items, name: 'negotiate', draw(ctx, ui) {
     ui.panel(ctx, 20, 14, 1240, 690); ui.title(ctx, 'NEGOTIATE', 40, 52, 34); const club = clubOf(o.club), sal = proOfferSalary(o, st.years, st.promise);
     if (!P) drawTeamCard(ctx, club, 60, 100, 300, 110, true, null); const tx = P ? 60 : 390; ui.heading(ctx, club.name.toUpperCase(), tx, P ? 110 : 124, 24, UI_TEXT); kitChip(ctx, proOfferKind(o).toUpperCase(), P ? 1236 : tx, P ? 52 : 160, { size: 14, color: o.kind === 'best' || o.kind === 'big' ? UI_CYAN : o.kind === 'starter' ? UI_GREEN : UI_GOLD, align: P ? 'right' : 'left' }); { ctx.font = fontStr(14, true); const kw = ctx.measureText(proOfferKind(o).toUpperCase()).width + 30; drawStarsTxt(ctx, o.stars || frStars(c, o.club), P ? 1236 - kw - 10 : tx + kw + 10, P ? 52 : 160, 18, P ? 'right' : 'left'); } /* F7 */
-    const lines = ['Facilities ' + '★'.repeat(o.facilities) + '☆'.repeat(3 - o.facilities) + ' (practice XP +' + Math.round(CR.facilityBonus * 100 * (o.facilities - 1)) + '%) · home court ' + clubCourt(o.club).short, o.kind === 'best' || o.kind === 'big' ? 'The best franchise that wants you (' + (o.stars || frStars(c, o.club)) + '★): fame ×' + FRN.fameByStars[(o.stars || frStars(c, o.club)) - 1] + ', pay ×' + FRN.payByStars[(o.stars || frStars(c, o.club)) - 1] + '. You compete for the start with a deeper bench.' : o.kind === 'starter' ? 'A franchise a star lower that promises you the start: first on the depth chart every season of the deal.' : o.promised ? 'You start here now; the deal keeps it that way every season.' : 'You compete for the start on the depth chart.'];
+    const lines = ['Facilities ' + frFacStarsText(o.stars) + ' (practice XP +' + Math.round(frFacPct(o.stars) * 100) + '%) · home court ' + clubCourt(o.club).short, o.kind === 'best' || o.kind === 'big' ? 'The best franchise that wants you (' + (o.stars || frStars(c, o.club)) + '★): fame ×' + FRN.fameByStars[(o.stars || frStars(c, o.club)) - 1] + ', pay ×' + FRN.payByStars[(o.stars || frStars(c, o.club)) - 1] + '. You compete for the start with a deeper bench.' : o.kind === 'starter' ? 'A franchise a star lower that promises you the start: first on the depth chart every season of the deal.' : o.promised ? 'You start here now; the deal keeps it that way every season.' : 'You compete for the start on the depth chart.'];
     let y = P ? 150 : 200; for (const l of lines) y += ui.para(ctx, l, tx, y, P ? 1160 : 820, P ? 17 : 15, UI_DIM) + 4;
     const sy = P ? 250 : c.me.agent ? 494 : 520; ui.heading(ctx, fmtMoney(sal) + ' A SEASON', P ? 60 : 860, sy, P ? 30 : 34, UI_GOLD); ui.label(ctx, st.years + ' season' + (st.years > 1 ? 's' : '') + ' · ' + fmtMoney(sal * st.years) + ' in all', P ? 60 : 860, sy + 34, 15, UI_TEXT, 'left', P ? 1160 : 380); if (c.me.agent) ui.para(ctx, 'Your agent got this deal +' + Math.round(staffAgentRaise(c) * 100) + '%. Their cut: ' + Math.round(staffAgentCut(c) * 100) + '% of each check.', /* V10: by tier */ P ? 660 : 860, P ? sy - 8 : sy + 58, P ? 560 : 380, P ? 15 : 13, UI_DIM, 'left', 2); /* V1 (§1.10): two lines, never cut short (a phone: beside the pay) */
     if (!P) ui.para(ctx, 'Longer deals pay a little less each season (security); shorter ones pay more but you negotiate again sooner. ' + (o.maxYears < 5 ? 'At ' + meOf(c).age + ' clubs offer ' + o.maxYears + ' seasons at most.' : ''), 60, 470, 620, 14, UI_DIM);
@@ -17263,9 +17321,9 @@ function guideEntries(game, topic) {
     add('Team stars', pro ? frMine(c) + '★' : c ? 'opponents 1★–5★' : '', ['The twelve PBL franchises are ranked by prestige: ' + [5, 4, 3, 2, 1].map(k => FRN.starsDist[k - 1] + ' at ' + k + '★').join(', ') + '. Every offseason a franchise keeps ' + Math.round(FRN.keep * 100) + '% of its prestige and takes the rest from its finish (first place 1, last 0, a title +' + FRN.titleBoost + ').', 'Each star is +' + LG.starEdge + ' points a game in the sim, with better facilities and pay; a 5★ team is THE goal. In high school and college the calendar rates opponents: 3★ is your level\'s average OVR, a star for every 5 OVR more or less.']); /* V13 (2.0 §5): the stars */
     const TT = TM.trust; add('Coach trust', T ? trustOf(c) + ' / 100' : '', ['Practice XP up to +' + Math.round(TM.trustXp * 100) + '% at full trust' + (T ? ' (now +' + Math.round(100 * (trustXpMul(c) - 1)) + '%)' : '') + '. In high school colleges ask your coach about you; in college, scouts do.', 'A win +' + TT.win + ', a loss ' + TT.loss + ' (a blowout ' + TT.blowout + '); a practice week +' + TT.practice + '; a challenge won +' + TT.challengeWin + ', lost ' + TT.challengeLoss + '; your spot defended +' + TT.defended + ', lost ' + TT.lostSpot + '; resting when fresh ' + TT.restFresh + '.']);
     add('Depth chart', T ? '#' + ladderRank(c) + ' of ' + (ladderOf(c) || []).length : '', ['Only the top rung plays the week\'s game; the rest practice.', 'Beat the starter in a practice challenge (first to 7): if you are within ' + TM.takeGap + ' OVR of them, the spot is yours; further back, the coach keeps them in front (your trust still goes up). The one below you can challenge you too.']);
-    if (pro) { const v = frValue(c), s = frMine(c), fac = FRN.facByStars[s - 1];
+    if (pro) { const v = frValue(c), s = frMine(c);
       add('Your value', v.toFixed(1), ['OVR + fame / ' + FRN.fameDiv + ' + hype / ' + FRN.hypeDiv + ' + ' + FRN.playoffVal + ' a playoff series won in your last two seasons (at most ' + FRN.playoffMax + '). A franchise calls when it reaches its bar: ' + [2, 3, 4, 5].map(k => k + '★ ' + FRN.bar[k - 1]).join(', ') + '.', 'A 5★ franchise also wants a playoff series won or an All-League team in your last two seasons' + (frElite(c) ? ' (you have one).' : ' (not yet).') + ' Stars stay put: each offseason a 5★ franchise opens one spot at most (' + guidePct(FRN.spot5Odds, 0) + ' of the time), and named free agents chase it with you: the best value gets it.', 'Free agency brings three offers when your deal ends; a trade request goes at most a star up, every ' + FRN.tradeGap + ' seasons (a 5★ franchise trades for you ' + guidePct(FRN.trade5Odds, 0) + ' of the time).']); // V6 (Part 2 §1.3)
-      const club = meOf(c).club, O = frOwnerOf(c, club), OD = frMyOdds(c); add('Your franchise', s + '★ · #' + lv.rank + ' of ' + TEAMS.length, ['Practice XP +' + Math.round(CR.facilityBonus * 100 * (fac - 1)) + '%, pay ×' + FRN.payByStars[s - 1] + ', fame ×' + frFameMul(c, club).toFixed(2) + ' a game (its stars and its ' + FR_MARKET_WORD[frMarket(club)].toLowerCase() + '); a deeper bench at 4★ and 5★ (a harder depth chart).', 'Stars move every offseason with the standings: a title lifts a franchise, a bad season drops it.', 'Its owner, ' + O.name + ', is ' + FR_OWNER_WORD[O.kind].toLowerCase() + ': win-now owners at ' + FRN.contendAt + '★+ sign free agents and trade for veterans; patient and cheap owners at 2★ or less rebuild (and may offer you to a contender: you can stay).']); /* V12 (Part 2 §6) */
+      const club = meOf(c).club, O = frOwnerOf(c, club), OD = frMyOdds(c); add('Your franchise', s + '★ · #' + lv.rank + ' of ' + TEAMS.length, ['Practice XP +' + Math.round(frFacPct(s) * 100) + '%, pay ×' + FRN.payByStars[s - 1] + ', fame ×' + frFameMul(c, club).toFixed(2) + ' a game (its stars and its ' + FR_MARKET_WORD[frMarket(club)].toLowerCase() + '); a deeper bench at 4★ and 5★ (a harder depth chart).', 'Stars move every offseason with the standings: a title lifts a franchise, a bad season drops it.', 'Its owner, ' + O.name + ', is ' + FR_OWNER_WORD[O.kind].toLowerCase() + ': win-now owners at ' + FRN.contendAt + '★+ sign free agents and trade for veterans; patient and cheap owners at 2★ or less rebuild (and may offer you to a contender: you can stay).']); /* V12 (Part 2 §6) */
       add('Title odds', OD ? OD.text : '', ['Your chance to win the title: the rest of the season and the playoffs played ' + FRN.oddsRuns + ' times. A team\'s strength is its starter\'s ratings plus ' + LG.starEdge + ' points a game for each franchise star (its roster and gym) and its owner\'s moves.', 'The top ' + CR.playoffSeeds + ' make the playoffs: quarterfinals, semifinals and the Finals, every round best of ' + CR.semisBestOf + '. The Finals MVP is the champion\'s top scorer in the Finals.']);
       add('Rings and banners', String(ringsOf(c).length), ['A title is a ring in your trophy case, a parade, and a banner in your arena. Titles in a row are a run: back-to-back, then a three-peat.', 'A franchise retires your number when you retire after ' + FRN.jerseySeasons + '+ seasons there with a title or ' + FRN.jerseyAllLeague + ' All-League teams.']); }
     else { const sc = c ? Math.round(amDraftScore(c)) : 0, cap = c ? frCap(sc, FRN.rookieBar) : 1;
@@ -18566,7 +18624,7 @@ class Game {
   }
   startTutorial() { const c = careerOf(this); const a = c ? matchTeamDef(c, c.meId, false) : Object.assign({}, TEAMS[2], { players: [ROSTER.legends[1]] }), b = Object.assign({}, TEAMS[5], { players: [ROSTER.nephews[2]] }); this.startMatch({ mode: '1v1', teams: [a, b], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'rookie', ruleset: 'arcade', format: { type: 'first', target: 999 }, court: 'blacktop', seed: 7, controlMode: 'ball', practice: { noDefender: false, infiniteStamina: true, slowMo: false, breakdown: false, chart: false, easyTiming: true }, tutorial: true }, { kind: 'tutorial' }); }
   restartMatch(newSeed) { const o = Object.assign({}, this.matchOpts); if (newSeed || true) o.seed = (Date.now() % 1000000) >>> 0; if (o.contest3) o.contest3 = {}; /* V15: a new contest starts from a fresh state, as START gives it (the last one's state, with its shots and players, made the bake's copy of the options throw) */ const after = { kind: this.after.kind, nextKind: this.after.nextKind, opp: this.after.opp }; this.startMatch(o, after); }
-  quitToMenu() { if (this.warming && this.warming.gen) this.warming.gen.return(); this.warming = null; this.flushPosters(this.match); this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
+  quitToMenu() { if (this.after && this.after.kind === 'allstar' && this.match && this.match.contest3) { const c = careerOf(this); if (c && c.allStar && !c.allStar.done) { finishAllStar(c, this.match.contest3.score || 0); this.save.save(); } } /* 2.1 (§1.10): leaving the All-Star contest keeps the score so far: one attempt */ if (this.warming && this.warming.gen) this.warming.gen.return(); this.warming = null; this.flushPosters(this.match); this.mode = 'ui'; this.match = null; this.wipe = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.tutorial = null; this.input.touch.visible = false; this.audio.stopCrowd(); this.ui.clearTo(careerOf(this) ? careerHub(this) : amateurOf(this) ? amHub(this) : mainMenu(this)); }
   // Career games always count: the pause menu can finish one headlessly, with a bot playing your player on your ratings.
   simRestOfMatch() { const m = this.match; if (!m || m.ended) { this.resume(); return; } for (const p of m.players) { if (p.controlled) { p.controlled = false; p.input.reset(); if (p.brain) { p.brain.intent = null; p.brain.commitT = 0; } } } m.controlledPlayer = null; let n = 0; const wasHeadless = m.headless; m.headless = true; while (!m.ended && n < 120 * 60 * 20) { simStep(m, STEP); n++; } m.headless = wasHeadless; this.ui.stack.length = 0; this.paused = true; this.postgameOpened = false; this.openPostgame(); }
   pause() { if (this.mode !== 'match' || this.ui.screen) return; this.paused = true; this.ui.push(pauseScreen(this)); this.input.touch.clearAll(); }
@@ -18622,7 +18680,7 @@ class Game {
   }
   matchFrame(dt) {
     const m = this.match, ctx = this.ctx, W_ = this.W, H_ = this.H, fx = this.fx; this.cam.retroLock = graphicsMode(this) !== 'smooth'; if (this.cam.retroLock) this.cam.punch = 0;
-    if (this.warming) { const W8 = this.warming, el = (performance.now() - W8.t0) / 1000; if (!W8.gen && this.bake && !BAKE_M.done.has(this.bake.sig) && (el >= CONFIG.bake.warmMaxS || !bakeLive())) { W8.gen = bakeMatchSteps(this); W8.late = true; } /* (the worker is late or gone: the rest is baked here, a slice a frame, behind the same bar) */ else if (W8.gen && W8.late && this.bake && BAKE_M.done.has(this.bake.sig)) { W8.gen.return(); W8.gen = null; } /* (...until the worker's bakes come after all) */ if (W8.gen ? !bakeStepsRun(W8, CONFIG.bake.warmSliceMs) : this.bake && !BAKE_M.done.has(this.bake.sig)) { this.input.consumePause(); this.guard.hold(CONFIG.perf.holdSeconds); drawWarming(ctx, this, el); return; } BAKE_M.warmed++; BAKE_M.waitMs += el * 1000; this.warming = null; this.acc = 0; } // V15: the game's bakes are coming from the worker (or, without one, are made here a slice a frame; the frame guard's hold starts when they're done: a slow warm-up isn't the game's speed)
+    if (this.warming) { const W8 = this.warming, el = (performance.now() - W8.t0) / 1000; if (!W8.gen && this.bake && !BAKE_M.done.has(this.bake.sig) && (el >= CONFIG.bake.warmMaxS || !bakeLive())) { W8.gen = bakeMatchSteps(this); W8.late = true; } /* (the worker is late or gone: the rest is baked here, a slice a frame, behind the same bar) */ else if (W8.gen && W8.late && this.bake && BAKE_M.done.has(this.bake.sig)) { W8.gen.return(); W8.gen = null; } /* (...until the worker's bakes come after all) */ if (W8.gen ? !bakeStepsRun(W8, CONFIG.bake.warmSliceMs) : this.bake && !BAKE_M.done.has(this.bake.sig)) { this.guard.hold(CONFIG.perf.holdSeconds); /* (2.1: a pause pressed now waits for the first frame: it used to be dropped) */ drawWarming(ctx, this, el); return; } BAKE_M.warmed++; BAKE_M.waitMs += el * 1000; this.warming = null; this.acc = 0; } // V15: the game's bakes are coming from the worker (or, without one, are made here a slice a frame; the frame guard's hold starts when they're done: a slow warm-up isn't the game's speed)
     if (this.ui.screen) { this.input.consumePause(); if (this.ui.screen.name === 'dev' && this.ui.screen.update) {} this.ui.update(dt, this.input); }
     else {
       if (this.input.consumePause()) { if (m.ended && this.after.kind !== 'practice') this.openPostgame(); else if (this.replayPlayer) { this.replayPlayer.done = true; } else this.pause(); }

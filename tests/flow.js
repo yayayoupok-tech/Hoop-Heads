@@ -7,30 +7,31 @@ const { launch, openPage, runner } = require('./lib');
   const browser = await launch(); const R = runner('flow'); const D = await openPage(browser, { road: true }); const { ev } = D; const step = (n, f) => R.step(n, f, D);
   const newAm = (seed, style) => ev(([seed, style]) => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Flow Test', look: PRESET_LOOKS[seed % 16], number: 4, style: style || 'slasher', seed, seasonLength: 11, gameLength: 120 }); g.save.data.c1 = a; a.events.length = 0; hsAutoResolve(a); a.events.length = 0; return true; }, [seed, style]);
 
-  await step('pace (§4.7): career games score 12–20 a side in one minute at the gate\'s efficiency; Quick Play keeps its rules', () => ev(() => {
+  await step('pace (§4.7, 2.1 §1.8): career games score 6–10 a side in a one-minute running-clock game at the gate\'s efficiency; the shot clock waits while the ball is brought up, the game clock only in the last 10 s; Quick Play keeps its rules', () => ev(() => {
     const games = 60, pts = [], poss = []; let sc = 0;
     for (let i = 0; i < games; i++) { const R_ = fullRoster('legends'); const A = teamWithRoster(teamDef('legends')), B = teamWithRoster(teamDef('legends')); A.players = [R_[i % R_.length]]; B.players = [R_[(i * 7 + 3) % R_.length]]; B.abbr += '2';
       const m = new Match({ mode: '1v1', teams: [A, B], difficulty: 'pro', ruleset: 'arcade', format: careerFormat(), seed: 7000 + i, humanTeam: -1, headless: true, dev: true, controlMode: 'lock', adaptive: false, layout: 'legends', pace: true });
       if (i === 0) { m.bus.on('INBOUND', () => { sc = Math.max(sc, m.shotClock); }); } let n = 0; while (!m.ended && n < 120 * 60 * 10) { simStep(m, STEP); n++; }
       if (m.invariantCount) throw new Error('invariants: ' + Object.values(m.invariantFails).join('; ')); pts.push(m.teams[0].score, m.teams[1].score); poss.push(m.teams[0].possessions, m.teams[1].possessions); }
     const avg = a => a.reduce((s, v) => s + v, 0) / a.length, ppS = avg(pts), ppp = avg(pts) / avg(poss);
-    if (!(ppS >= 12 && ppS <= 20)) throw new Error('points a side ' + ppS.toFixed(1) + ' (12–20)'); if (!(ppp >= 0.95 && ppp <= 1.25)) throw new Error('PPP ' + ppp.toFixed(3) + ' (0.95–1.25)');
+    if (!(ppS >= 6 && ppS <= 10)) throw new Error('points a side ' + ppS.toFixed(1) + ' (6–10)'); if (!(ppp >= 0.95 && ppp <= 1.25)) throw new Error('PPP ' + ppp.toFixed(3) + ' (0.95–1.25)');
     if (sc !== CONFIG.pace.shotClock) throw new Error('the career shot clock is ' + sc);
-    // the clocks wait while the ball is brought up after an inbound; the game clock waits while a shot is in the air
+    // the shot clock waits while the ball is brought up after an inbound; the game clock runs through it (2.1: the running
+    // clock) until the last rules.runningStopS seconds, and waits there
     const R_ = fullRoster('legends'); const A = teamWithRoster(teamDef('legends')), B = teamWithRoster(teamDef('legends')); A.players = [R_[0]]; B.players = [R_[1]];
     const m = new Match({ mode: '1v1', teams: [A, B], difficulty: 'pro', ruleset: 'arcade', format: careerFormat(), seed: 5, humanTeam: -1, headless: true, dev: true, controlMode: 'lock', adaptive: false, layout: 'legends', pace: true });
-    let heldSteps = 0, heldMoved = 0, n = 0; while (!m.ended && n < 120 * 30) { const g0 = m.gameClock, s0 = m.shotClock, held = m.phase === 'live' && m.clockHold; simStep(m, STEP); n++; if (held && m.clockHold) { heldSteps++; if (m.gameClock !== g0 || m.shotClock !== s0) heldMoved++; } }
-    if (!heldSteps) throw new Error('the clocks never waited'); if (heldMoved) throw new Error('a held clock moved ' + heldMoved + ' times');
+    let heldSteps = 0, shotMoved = 0, early = 0, earlyStill = 0, late = 0, lateMoved = 0, n = 0; while (!m.ended && n < 120 * 100) { const g0 = m.gameClock, s0 = m.shotClock, ot = m.overtime, held = m.phase === 'live' && m.clockHold; simStep(m, STEP); n++; if (held && m.clockHold && m.phase === 'live' && m.overtime === ot) { heldSteps++; if (m.shotClock !== s0) shotMoved++; if (g0 > CONFIG.rules.runningStopS && !ot) { early++; if (m.gameClock === g0) earlyStill++; } else { late++; if (m.gameClock !== g0) lateMoved++; } } }
+    if (!heldSteps || !early) throw new Error('the clocks never waited'); if (shotMoved) throw new Error('a held shot clock moved ' + shotMoved + ' times'); if (earlyStill) throw new Error('the game clock stopped for a hold ' + earlyStill + ' times before the last ' + CONFIG.rules.runningStopS + ' s'); if (lateMoved) throw new Error('a held game clock moved ' + lateMoved + ' times in the last ' + CONFIG.rules.runningStopS + ' s');
     const q = new Match({ mode: '1v1', teams: [A, B], difficulty: 'pro', ruleset: 'arcade', format: careerFormat(), seed: 5, humanTeam: -1, headless: true, dev: true, layout: 'legends' }); if (q.pace || shotClockLen(q) !== CONFIG.rules.shotClock) throw new Error('Quick Play should keep its shot clock');
     for (const o of [amMatchOpts, careerMatchOpts]) if (!/pace: true/.test(String(o))) throw new Error(o.name + ' should set pace');
-    return ppS.toFixed(1) + ' a side, PPP ' + ppp.toFixed(3);
+    return ppS.toFixed(1) + ' a side, PPP ' + ppp.toFixed(3) + '; holds ' + early + ' steps early (the game clock ran), ' + late + ' late (it waited)';
   }));
   await step('the sims at the new pace: an amateur winner scores CR.simWinPts; pro box scores scale with gameScale (×CR.paceMul)', () => ev(() => {
     const rng = new RNG(9); let w = 0, l = 0; const N = 2000; for (let i = 0; i < N; i++) { const s = amSimScore(rng, 60, 60); w += Math.max(s[0], s[1]); l += Math.min(s[0], s[1]); }
-    const wa = w / N, la = l / N; if (Math.abs(wa - CR.simWinPts) > 1.5) throw new Error('winner ' + wa.toFixed(2) + ' vs ' + CR.simWinPts); if (!(la > 7 && la < 12)) throw new Error('loser ' + la.toFixed(2));
+    const wa = w / N, la = l / N; if (Math.abs(wa - CR.simWinPts) > 1.5) throw new Error('winner ' + wa.toFixed(2) + ' vs ' + CR.simWinPts); if (!(la > 4 && la < 7.5)) throw new Error('loser ' + la.toFixed(2)); /* 2.1: the running clock's scale (7–12 before) */
     if (Math.abs(gameScale('pro') - careerSecs() * CR.paceMul / CR.simRefSecs.pro) > 1e-9) throw new Error('gameScale');
     const c = testProLeague(17); const r2 = careerRng(c); let p = 0, k = 0; for (let i = 0; i < 300; i++) { const ids = c.active; const a = ids[i % ids.length], b = ids[(i * 5 + 1) % ids.length]; if (a === b) continue; const r = simBox(c, a, b, r2); p += r.hs + r.as; k += 2; }
-    const pa = p / k; if (!(pa >= 9 && pa <= 22)) throw new Error('pro sim points a side ' + pa.toFixed(1)); return 'amateur ' + wa.toFixed(1) + '/' + la.toFixed(1) + ' · pro ' + pa.toFixed(1);
+    const pa = p / k; if (!(pa >= 5 && pa <= 13)) throw new Error('pro sim points a side ' + pa.toFixed(1)); /* 2.1: the running clock's scale (9–22 before) */ return 'amateur ' + wa.toFixed(1) + '/' + la.toFixed(1) + ' · pro ' + pa.toFixed(1);
   }));
   await step('fatigue (§4.2): it builds half as fast; over 70 the week defaults to Rest; a standing Rest ends once you\'re fresh', () => ev(() => {
     if (WK.fatiguePerGame !== 5 || WK.fatigueOt !== 1.5 || WK.intensity.hard.fatigue !== 3) throw new Error('builders not halved');

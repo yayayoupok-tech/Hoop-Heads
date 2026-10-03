@@ -1,6 +1,6 @@
 // 2.0 §2 (V3): traits. Rarer is stronger (the numbers by rarity, printed as a table), every trait levels up Bronze →
 // Silver → Gold by doing its thing (each level adds half the Bronze upside; rarity sets the top level), a third trait
-// at TR.thirdAt career points (V5: 2,000), the Legendary abilities in the engine (Takeover, Ice Veins, Unbreakable), the in-game banner,
+// at TR.thirdAt career points (2.1: 1,150), the Legendary abilities in the engine (Takeover, Ice Veins, Unbreakable), the in-game banner,
 // "Traits that helped", the cards and chips (a tap opens the card, a resting mouse shows it), the Codex's Traits page
 // and old saves. The career balance by rarity is tests/traitbalance.js.   node tests/traits.js
 const path = require('path'), fs = require('fs');
@@ -41,9 +41,9 @@ const { launch, openPage, runner } = require('./lib');
     if (r.l4 !== 1 || r.l5 !== 2 || r.l15 !== 3) throw new Error('Clutch Gene levels ' + [r.l4, r.l5, r.l15]); if (r.g19 !== 1 || r.g20 !== 2 || r.g120 !== 2) throw new Error('Gym Rat levels ' + [r.g19, r.g20, r.g120]);
     if (r.cards.length !== 2) throw new Error('level-up cards: ' + r.cards.length); if (!(r.sim.games > 10 && r.sim.practice > 0 && r.sim.pts > 0 && r.sim.blocks >= 0)) throw new Error('simulated deeds ' + JSON.stringify(r.sim));
   });
-  await step('the third trait (§2.2): TR.thirdAt career points (V5: 2,000) offer 3 Common or Uncommon traits you don\'t have; the pick starts at Bronze and plays', async () => {
+  await step('the third trait (§2.2): TR.thirdAt career points (2.1: 1,150) offer 3 Common or Uncommon traits you don\'t have; the pick starts at Bronze and plays', async () => {
     const r = await ev(() => { const save = defaultSave(), c = amCreate(save, { name: 'Third Test', look: PRESET_LOOKS[1], number: 3, style: 'shooter', seed: 77, traits: ['microwave', 'clutch'] }); c.tr.found = true; c.events.length = 0;
-      trDeed(c, 'pts', TR.thirdAt - 1); const before = !!c.tr.offer; trDeed(c, 'pts', 1); /* V5: TR.thirdAt (2,000) */ trFlush(c); const ev0 = c.events.find(e => e.kind === 'traitpick'), offer = (c.tr.offer || []).slice(); const ok = trPickThird(c, offer[1]); return { before, offer: offer.map(id => id + ':' + TR.list[id].r), ev: !!ev0, ok, third: c.tr.third, active: trActive(c), lv: trLvOf(c, offer[1]), again: trPickThird(c, offer[0]) }; });
+      trDeed(c, 'pts', TR.thirdAt - 1); const before = !!c.tr.offer; trDeed(c, 'pts', 1); /* TR.thirdAt (2.1: 1,150) */ trFlush(c); const ev0 = c.events.find(e => e.kind === 'traitpick'), offer = (c.tr.offer || []).slice(); const ok = trPickThird(c, offer[1]); return { before, offer: offer.map(id => id + ':' + TR.list[id].r), ev: !!ev0, ok, third: c.tr.third, active: trActive(c), lv: trLvOf(c, offer[1]), again: trPickThird(c, offer[0]) }; });
     console.log('     at the third-trait mark: ' + r.offer.join(', ') + ' · picked ' + r.third + ' (' + ['', 'Bronze', 'Silver', 'Gold'][r.lv] + ') · active: ' + r.active.join(', '));
     if (r.before || !r.ev || r.offer.length !== 3 || r.offer.some(x => !/:[CU]$/.test(x)) || r.offer.some(x => /^(microwave|clutch):/.test(x))) throw new Error('the offer ' + JSON.stringify(r));
     if (!r.ok || r.lv !== 1 || r.active.length !== 3 || r.again) throw new Error('the pick ' + JSON.stringify(r));
@@ -88,7 +88,7 @@ const { launch, openPage, runner } = require('./lib');
   await step('old saves (V3): levels start at Bronze and the deeds from what the save knows (games, wins, points); a save past the third-trait mark gets its pick', async () => {
     const FIX = path.join(__dirname, 'fixtures'); const raw = JSON.parse(fs.readFileSync(path.join(FIX, 'save_r8_pro_midseason.json'), 'utf8'));
     const r = await ev(raw => { const a = migrateSave(JSON.parse(JSON.stringify(raw))); const M = a.career.me, out = { deeds: M.tr.deeds, lv: M.tr.lv, offer: M.tr.offer || null };
-      raw.career.me.careerStats.pts = TR.thirdAt; /* V5: 2,000 */ const b2 = migrateSave(raw); out.offer2 = b2.career.me.tr.offer; out.ev2 = (b2.career.events || []).some(e => e.kind === 'traitpick'); return out; }, raw);
+      raw.career.me.careerStats.pts = TR.thirdAt; /* 2.1: 1,150 */ const b2 = migrateSave(raw); out.offer2 = b2.career.me.tr.offer; out.ev2 = (b2.career.events || []).some(e => e.kind === 'traitpick'); return out; }, raw);
     console.log('     r8 pro save: deeds ' + JSON.stringify(r.deeds) + ' · past the third-trait mark: offer ' + (r.offer2 || []).join(', ') + ', the pick queued ' + r.ev2);
     if (!r.deeds || !(r.deeds.games > 50) || !(r.deeds.pts > 700) || r.offer) throw new Error('the migration ' + JSON.stringify(r)); if (!r.offer2 || r.offer2.length !== 3 || !r.ev2) throw new Error('no third trait for a veteran');
   });
