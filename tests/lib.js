@@ -8,7 +8,7 @@ function loadPlaywright() {
   for (const id of ['playwright', '/opt/node22/lib/node_modules/playwright']) { try { return require(id); } catch (e) { /* try the next one */ } }
   throw new Error('Playwright not found. Run: npm i -D playwright && npx playwright install chromium');
 }
-async function launch() { const { chromium } = loadPlaywright(); const o = {}; if (process.env.CHROMIUM_PATH) o.executablePath = process.env.CHROMIUM_PATH; return chromium.launch(o); }
+async function launch() { const { chromium } = loadPlaywright(); const o = {}; if (process.env.CHROMIUM_PATH) o.executablePath = process.env.CHROMIUM_PATH; if (process.env.CHROMIUM_ARGS) o.args = process.env.CHROMIUM_ARGS.split(' ').filter(Boolean); return chromium.launch(o); } // (CHROMIUM_ARGS: extra browser flags, space separated)
 const isFont = u => /^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(u || '');
 async function openPage(browser, opts = {}) {
   const phone = !!opts.phone;
@@ -22,6 +22,7 @@ async function openPage(browser, opts = {}) {
   });
   page.on('request', r => { const u = r.url(); if (!u.startsWith('file:') && !u.startsWith('data:') && !u.startsWith('blob:') && !isFont(u)) errors.push('[network] unexpected request ' + u); });
   await page.addInitScript(([tips, road]) => { window.HH_NO_TIPS = !tips; window.HH_NO_ROAD_CARDS = !road; }, [!!opts.tips, !!opts.road]); /* R10: first-time tips stay out of the scripted tests unless a test asks for them (V5: Road to the League cards too; their rewards still come) */
+  if (opts.before) await opts.before(page, context); /* V15: a test's own setup before the page loads (CPU throttling, observers) */
   await page.goto(FILE + (opts.query || '')); await page.waitForTimeout(opts.wait || 600);
   const ev = (f, a) => page.evaluate(f, a);
   const api = {
@@ -29,7 +30,7 @@ async function openPage(browser, opts = {}) {
     screen: () => ev(() => (HH.game.ui.screen ? HH.game.ui.screen.name : '(none)')),
     async press(re) { await ev(src => { const s = HH.game.ui.screen; if (!s) throw new Error('no screen'); if (s.finish) s.finish(); /* R9: a dialogue box's page typed out first */ const find = () => (s.widgets || []).find(w => !w.hidden && w.label && new RegExp(src).test(w.label)); let w = find(); if (!w && s.build && (s.widgets || []).some(x => x.hubTab)) { const was = HH.game.hubTab; for (const id of HUB_TAB_IDS) { HH.game.hubTab = id; s.build(); w = find(); if (w) break; } if (!w) { HH.game.hubTab = was; s.build(); } } /* V5: the hub's tabs: look on each, the way a player switches tabs */ if (!w) throw new Error('no widget /' + src + '/ on ' + s.name + ': ' + (s.widgets || []).filter(w => !w.hidden && w.label).map(w => w.label).join(' | ')); (w.onPress || (() => w.set && w.set(!w.get())))(); }, re.source); await page.waitForTimeout(opts.stepWait || 200); },
     async expectScreen(name) { const n = await api.screen(); if (n !== name) throw new Error('expected screen ' + name + ', got ' + n); },
-    async shot(file, type) { await page.screenshot({ path: file, type: type || (file.endsWith('.png') ? 'png' : 'jpeg'), quality: file.endsWith('.png') ? undefined : 88 }); },
+    async shot(file, type) { await ev(() => window.HH && HH.bakeWait ? HH.bakeWait(8000) : 0).catch(() => 0); /* V15: the pictures the bake worker is still painting */ await page.screenshot({ path: file, type: type || (file.endsWith('.png') ? 'png' : 'jpeg'), quality: file.endsWith('.png') ? undefined : 88 }); },
     frameErrors: () => ev(() => (window.HH_ERRORS || []).slice()),
   };
   return api;

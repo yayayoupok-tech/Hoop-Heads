@@ -22,30 +22,32 @@ const sizes = [['phone 844×390 @2x', { phone: true }], ['desktop 1280×720', {}
   for (const [label, o] of sizes) for (const clock of clocks) {
     const P = await openPage(b, Object.assign({ wait: 800 }, o));
     const cdp = await P.context.newCDPSession(P.page); await cdp.send('Emulation.setCPUThrottlingRate', { rate }); // the phone is slow from the start: the match opens (and bakes) at this speed
-    const r = await P.ev(device => {
+    const r = await P.ev(async device => {
       const g = HH.game, G0 = g.guard; G0.level = 0; G0.slowT = G0.fastT = 0; G0.avg = 16.7; G0.sticky = false; G0.restoredAt = 0; // the guard as on a phone whose menus kept up: the match is where it slows
       g.startMatch({ mode: '1v1', teams: [teamWithRoster(TEAMS[0]), teamWithRoster(TEAMS[1])], humanTeam: 0, humanPlayerIndex: 0, difficulty: 'pro', ruleset: 'arcade', format: { type: 'first', target: 99 }, court: 'arena', seed: 5, controlMode: 'ball' }, { kind: 'quick' });
+      { const t0 = performance.now(); while (g.warming && performance.now() - t0 < 20000) await new Promise(res => setTimeout(res, 50)); } g.frame = () => {}; // V15: the game's bakes come from the bake worker, which needs the page's event loop: wait out the Warming up bar as a player would; then the test drives every frame (the game's own loop stops)
       const m = g.match, F = { all: [], dunk: [], block: [], plain: [] }, log = [], G = g.guard, hold = CONFIG.perf.holdSeconds || 0;
       let now = performance.now(), held = null, slowAt = null; const react = { guard: null, pixel: null, slow: null }; let maxG = 0, maxP = 0; // held: when the guard's opening hold ran out (the match's bakes take a few seconds at 4×); slowAt: when its frame average first ran slow
+      let fc = 0; const yieldSome = () => (++fc % 8 === 0 ? new Promise(res => setTimeout(res, 0)) : null); // V15: every 8th frame the page's event loop runs (the bake worker's results arrive between frames, as in play; the time isn't measured)
       const frame = tag => { for (const p of m.players) p.controlled = false; const a = performance.now(); g.frameBody(now); g.ctx.getImageData(0, 0, 1, 1); const ms = performance.now() - a; now += device ? Math.max(1, Math.ceil(ms / 16.667)) * 16.667 : 16.667; // (device: the next vsync after the frame's work)
         F.all.push(ms); F[tag].push(ms); if (held == null && !(G.holdT > 0)) held = now; const el = held == null ? 0 : (now - held) / 1000; if (G.level > 0 && react.guard == null) { react.guard = el; react.slow = slowAt == null ? 0 : (now - slowAt) / 1000; } /* (first: a shed restarts the guard's average, which would read as the spell ending) */ if (held != null && react.guard == null) { if (slowAt == null && G.avg > CONFIG.perf.slowFrameMs) slowAt = now; else if (slowAt != null && !(G.slowT > 0) && !(G.avg > CONFIG.perf.slowFrameMs)) slowAt = null; } /* a slow spell the guard saw end (it counts slow time from the average going over slowFrameMs until it is back under fastFrameMs) starts over */ if (RT.level > 0 && react.pixel == null) react.pixel = el; maxG = Math.max(maxG, G.level); maxP = Math.max(maxP, RT.level); return ms; };
-      const waitLive = () => { for (let i = 0; i < 900; i++) { if (m.phase === 'live' && m.ball.owner && m.ball.owner.grounded && !m.ball.owner.busy) return true; frame('plain'); } return false; };
-      for (let i = 0; i < 150; i++) frame('plain'); // warm-up: the guards settle; the sprites, the faces and the crowd at speed
+      const waitLive = async () => { for (let i = 0; i < 900; i++) { if (m.phase === 'live' && m.ball.owner && m.ball.owner.grounded && !m.ball.owner.busy) return true; frame('plain'); await yieldSome(); } return false; };
+      for (let i = 0; i < 150; i++) { frame('plain'); await yieldSome(); } // warm-up: the guards settle; the sprites, the faces and the crowd at speed
       const settled = { guard: G.level, pixel: RT.level }; F.all.length = 0; F.plain.length = 0;
       let dunks = 0, blocks = 0;
       for (let k = 0; k < 5; k++) { // a dunk: the ball handler right at the rim, running at it (a setup the play didn't take, e.g. a handler caught mid-move, is tried again: at most 3 times)
-        let seen = false, why = ''; for (let tries = 0; tries < 3 && !seen; tries++) { if (!waitLive()) { why = 'never live'; continue; } const p = m.ball.owner, d = m.opponentsOf(p)[0], hoop = p.hoop, dir = sgn(hoop.x - p.x) || 1;
+        let seen = false, why = ''; for (let tries = 0; tries < 3 && !seen; tries++) { if (!(await waitLive())) { why = 'never live'; continue; } const p = m.ball.owner, d = m.opponentsOf(p)[0], hoop = p.hoop, dir = sgn(hoop.x - p.x) || 1;
           p.attrs.jmp = Math.max(p.attrs.jmp, 9); p.setState('move'); p.x = hoop.x - dir * SH.dunkRange * 0.75; p.vx = dir * SH.dunkMinSpeed * 2; p.grounded = true; p.y = 0; d.x = hoop.x - dir * 6; d.vx = 0; // (the layout scales the dunk range)
-          startShot(p); if (p.state === 'gather' && p.sd && p.sd.type === 'dunk') launchShotJump(p); /* straight off the floor (an AI hand on the button could fake) */ for (let i = 0; i < 200; i++) { frame('dunk'); if (p.state === 'dunk') seen = true; } if (!seen) why = p.state; }
+          startShot(p); if (p.state === 'gather' && p.sd && p.sd.type === 'dunk') launchShotJump(p); /* straight off the floor (an AI hand on the button could fake) */ for (let i = 0; i < 200; i++) { frame('dunk'); if (p.state === 'dunk') seen = true; await yieldSome(); } if (!seen) why = p.state; }
         if (seen) dunks++; else log.push('dunk ' + k + ': ' + why);
       }
       for (let k = 0; k < 3; k++) { // a block: a jumper in flight, swatted
-        if (!waitLive()) { log.push('block ' + k + ': never live'); continue; } const p = m.ball.owner, d = m.opponentsOf(p)[0], hoop = p.hoop, dir = sgn(hoop.x - p.x) || 1;
+        if (!(await waitLive())) { log.push('block ' + k + ': never live'); continue; } const p = m.ball.owner, d = m.opponentsOf(p)[0], hoop = p.hoop, dir = sgn(hoop.x - p.x) || 1;
         p.x = hoop.x - dir * 4.5; p.vx = 0; p.grounded = true; p.y = 0; p.setState('move'); d.x = hoop.x - dir * 6.5; startShot(p); if (p.state === 'gather') launchShotJump(p);
-        let done = false; for (let i = 0; i < 150 && !done; i++) { frame('block'); if (p.state === 'jumpshot' && p.hasBall && p.stateT > 0.25) releaseShot(p, 0, true); const s = m.ball.shot; if (s && !s.resolved && !m.ball.owner && m.ball.y > 2.4) { d.x = m.ball.x - dir * 0.3; d.z = m.ball.z; d.y = 1; d.grounded = false; d.setState('jump'); doBlock(m, d, p); done = true; } }
-        if (done) blocks++; else log.push('block ' + k + ': no flight'); for (let i = 0; i < 150; i++) frame('block');
+        let done = false; for (let i = 0; i < 150 && !done; i++) { frame('block'); await yieldSome(); if (p.state === 'jumpshot' && p.hasBall && p.stateT > 0.25) releaseShot(p, 0, true); const s = m.ball.shot; if (s && !s.resolved && !m.ball.owner && m.ball.y > 2.4) { d.x = m.ball.x - dir * 0.3; d.z = m.ball.z; d.y = 1; d.grounded = false; d.setState('jump'); doBlock(m, d, p); done = true; } }
+        if (done) blocks++; else log.push('block ' + k + ': no flight'); for (let i = 0; i < 150; i++) { frame('block'); await yieldSome(); }
       }
-      for (let i = 0; i < 240; i++) frame('plain'); // plain play after
+      for (let i = 0; i < 240; i++) { frame('plain'); await yieldSome(); } // plain play after
       const st = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? { n: s.length, med: s[Math.floor(s.length / 2)], p95: s[Math.min(s.length - 1, Math.floor(s.length * 0.95))], max: s[s.length - 1], over50: s.filter(x => x > 50).length } : null; };
       return { all: st(F.all), dunk: st(F.dunk), block: st(F.block), plain: st(F.plain), dunks, blocks, log, react, hold, settled, guard: G.level, pixel: RT.level, maxG, maxP, W: g.canvas.width, H: g.canvas.height, rows: RT.H };
     }, clock === 'device').catch(e => ({ err: String(e.message || e).split('\n')[0] }));

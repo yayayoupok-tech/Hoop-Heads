@@ -20,7 +20,7 @@ const FIX = path.join(__dirname, 'fixtures');
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
     const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
     switch (s.name) {
-      case 'title': case 'splash': g.ui.clearTo(mainMenu(g)); break; // R10: the boot splash after a reload
+      case 'title': g.ui.clearTo(mainMenu(g)); break; // the title after a reload
       case 'tip': pr(by(/^GOT IT$/)); break; // R10: a first-time tip
       case 'traitpick': pr(W.find(w => /^Take /.test(w.label || ''))); break; // V3: the third trait (1,000 career points): take the first offer
       case 'menu': pr(by(/CONTINUE CAREER/)); break;

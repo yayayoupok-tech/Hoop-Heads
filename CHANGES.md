@@ -3,6 +3,246 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## V15 — The loading lag: bakes ahead of time, off the main thread, kept for the session
+
+A follow-up to 2.0: the freezes on loading. Measured with Chrome's CPU throttled 4× (phone speed) and a long-task
+observer, the request listed 5.9 s of blocked main thread at startup (the longest task 0.5 s), a 1.07 s freeze from
+the menu into career creation, 2.1 s loading the tryout shootout and 2.0 s loading a Quick 1v1, 0.4 s on the Quick 1v1
+setup, and 50–150 ms on the events, tips, league, franchise and staff screens. A game load's profile: drawImage
+0.8–1.3 s, pixelizeOut about 0.4 s, getImageData about 0.35 s, rtSnapLayer 0.1–0.3 s, rtCrop 0.13–0.2 s, rtVenueBakes
+0.13 s, getContext 0.11 s and up to 0.18 s of garbage collection.
+
+**The test.** `tests/loadlag.js` walks the game at 4× (and 1×) CPU in one browser: startup, career creation, the high
+school events and dialogs, tips, the hub's tabs, the Codex, the tryouts (the shootout and the 1v1), a high school
+game, the league, awards night, the press, the combine, the offers, signing day, the pro hub's tabs, the league, a
+franchise, staff, a pro game and its result, the main menu's screens and a Quick 1v1. A step is the press of a button
+through the screen it opens; a game load is the press of PLAY through the game's first frame (a "Warming up..." frame
+doesn't count) and 2.5 s of play. It prints a table (the first frame, the longest task, the blocked time and the tasks
+of each step) and fails on any miss:
+
+- 4×: no task over 100 ms on a screen change; a game's first frame within 300 ms of PLAY and no task over 100 ms after
+  it; the title within 1.5 s of navigation, and under 1.5 s of long tasks before the menu responds.
+- 1×: no task over 50 ms anywhere.
+
+**The results** (`tests/loadlag.js` on this host, desktop 1280×720; V14 is the 2.0 build run by the same walk; "< 50"
+is no task long enough for the long-task observer, which reports tasks over 50 ms):
+
+| Steps (how many) | The longest task at 4×, ms: V14 | V15 | At 1×, ms: V15 |
+| --- | --- | --- | --- |
+| startup (2) | 577 | 133 | < 50 |
+| creation (5) | 1321 | 101 | < 50 |
+| events (7) | 186 | 70 | < 50 |
+| dialogs (14) | 382 | 71 | < 50 |
+| tips (4) | 638 | 58 | < 50 |
+| hub tabs (10) | 288 | 137 | < 50 |
+| screens (22) | 393 | 87 | < 50 |
+| league (4) | 193 | 59 | < 50 |
+| awards (4) | 163 | 69 | < 50 |
+| press (6) | 219 | 58 | < 50 |
+| offers (1) | 653 | 62 | < 50 |
+| signing day (2) | 351 | 76 | < 50 |
+| franchise (2) | 186 | 52 | < 50 |
+| staff (2) | 236 | 69 | < 50 |
+
+| Game load | First frame at 4×, ms: V14 | V15 | The longest task after it at 4×, ms: V14 | V15 | At 1×: the longest task, ms |
+| --- | --- | --- | --- | --- | --- |
+| tryout shootout | 1662 | 122 | 627 | 66 | < 50 |
+| tryout 1v1 | 1413 | 73 | 486 | 55 | < 50 |
+| high school game | 1458 | 75 | 513 | 50 | < 50 |
+| pro game | 2288 | 145 | 748 | 60 | < 50 |
+| Quick 1v1 | 1744 | 79 | 536 | < 50 | < 50 |
+
+Startup at 4×: the title at 0.96 s (V14: its splash at 1.0 s, the title at 2.7 s) and 0.80 s of long tasks before the
+menu responds (V14: 1.8 s); at 1×, the title at 0.20 s and no long task. The table is the walk's run on the final
+build: 2 of its 90 steps missed at 4× (creation's face and accessories page, 101 ms; the pro hub's Train tab, 137 ms)
+and none at 1×. Over the last eight runs of the walk (six whole walks and two of the pro part, on the final build and
+the few before it) a run missed 0–2 steps at 4×, a different step each time (the offers twice, the tryout shootout's
+load twice, creation twice, two hub tabs, a dialog), 1–22 ms over but for the Train tab's 137 ms; one 1× run missed
+once (a 74 ms task as a tip closed); two runs had no miss. The test fails on them, as it should: they're the margin
+still to win on this host (see the limits below). V14 missed 55 of the 90 steps.
+
+**Where the time went.** Chrome draws a canvas's pending drawing the first time it's used as an image, so "drawImage"
+was mostly the rasterizing of pictures painted moments before: a venue's layers, each fan of the crowd, the faces, the
+players' poses, the menus' figures and portraits. Then the pixel passes read the pictures back (getImageData) and
+reduced their colors (pixelizeOut, rtSnapLayer); rtCrop read a whole rim layer to find its box. Every bake made new
+canvases (getContext, and the garbage collector's finalizers later). And nothing was kept: a game rebaked its venue
+and both players from scratch, every screen change painted its panels, buttons, portraits and text again, and the
+title waited behind the splash, the menus' text strips and the crowd's pictures.
+
+**What changed (the request's eight fixes).**
+
+1. **Venue bakes are cached** (rtVenueBakes, rtSnapLayer and rtCrop's output: a venue's layers, its rims and its fans'
+   atlases) under the venue, its colors, the camera's scale and the screen's size, up to `CONFIG.bake.venueMB` of
+   pixels (64 MB; 32 MB on a touch screen), the least recently used venue first out. A venue is baked once a session.
+2. **A game's bakes are made ahead of time, off the main thread.** A bake worker (this page's own code in a Web Worker
+   on OffscreenCanvas: every painter and constant is the same code) plays the next game's first second from its final
+   options when the hub, the scouting card, the tryout card or the Quick 1v1 setup opens, and sends back the venue,
+   both players' faces and opening poses, the ball's frames and the portraits of the score bug and the jumbotron. They
+   go into the main thread's caches under the same keys, so the game's first frame finds them all. The main thread's
+   part (posting the jobs, installing what comes back) runs in slices of at most `CONFIG.bake.sliceMs` (6 ms) a frame;
+   idle work goes through requestIdleCallback (without it, one queued step every third frame). PLAY starts at once
+   when the bakes are in; when they aren't, a short "Warming up..." bar shows instead of a freeze. If the worker is
+   still not done after `warmMaxS` (4 s), or has gone, the rest is baked on the main thread behind the same bar, a
+   slice a frame (it used to be all at once: a 2.6 s frame at 4×). Two workers share the jobs: one for games (venues,
+   poses, the offers' title odds), one for the menus (text, panels, buttons, portraits, figures), so a menu's pictures
+   never wait behind a venue.
+3. **Players' pixel sprite sheets are kept across games** under who they are and what they wear (the look with its
+   gear, the size, the age, the kit, the pixel size). Yours stays for the session; an opponent's for the career week
+   it was played in (`sheetN`, 6, outside a career). A new look or new gear is a new sheet.
+4. **Less getImageData.** A rim's crop finds its box on a copy `rtCropK` (8) times smaller first. Pixelize already
+   shrinks first (a box filter into a small canvas) and reads back only the small copy. The color reduction (pixelize,
+   the bake snap) runs in the worker with the rest of the bake. Without Worker or OffscreenCanvas (`?nobake` forces
+   it) the same bakes run on the main thread as steps behind the Warming up bar, `warmSliceMs` (24 ms) of them a
+   frame: each layer's paint, every 16 rows of a snap, the crowd's sheet a fan at a time, each fan atlas a pose at a
+   time, a face at a time, a ball frame at a time.
+5. **Canvases are reused**: a bake's scratch canvases come from a pool of `cvPoolN` (6), and the worker paints every
+   picture it sends into one OffscreenCanvas (sending it as an ImageBitmap empties it).
+6. **Career creation.** Portraits are cached by their face settings (`rtPortraitN`, 240, least recently used first; it
+   used to empty itself at 160) and baked by the worker; a screen draws a placeholder silhouette until a picture
+   arrives, and it fades in (`fadeMs`, 160 ms).
+7. **Startup.** The title shows at once (the R10 boot splash is gone: the title's own logo drop is the intro). The
+   workers start once the title is up; the menus' usual text styles are prepared while the title waits; a crowd's
+   sheet is painted only when a game needs it (a game whose venue came from the worker never does). The Art Lab
+   already built nothing until it's opened (the dev menu, or `?artlab`), and still doesn't. The page's code is cut
+   into 13 `<script>` elements in the one `index.html`, so the browser compiles and runs it as 13 tasks (as one 2.4 MB
+   script it was a 130–170 ms task at 1×).
+8. **Screen changes.** Panels and buttons are drawn from pictures made once (`uiPanelCacheMP` 8 and `uiBtnCacheMP` 3
+   million pixels kept), by the worker for a new size; still parts of a screen (the press room's wall and table, the
+   stage of a ceremony, the rival card's glows) are one picture each (`uiLayerN`, 6); text is drawn from per-string
+   atlases the worker makes in batches (`rbAtlasN` 1,500 strings, `rbAtlasBatch` 80 a batch) or, the first time,
+   straight from its style's glyph strip; paragraphs keep their line breaks; the backdrop is kept at the screen's size
+   (`uiBackScaled`) and pre-dimmed under an overlay; a screen that paints all of itself gets no backdrop under it; an
+   overlay on a paused or finished game draws the game's last frame as one picture; the offers' and the hub's title
+   odds are simulated in the worker.
+
+**A screen's first frame is drawn before it shows.** A pushed screen's first frames only show the old one fading out,
+and an overlay now shows a frame later: in that frame the new screen is drawn once into a clip of no size, at its
+settled scale (uiPrepPass). Its new strings, panels, buttons and portraits are asked of the worker then, its
+paragraphs measured and any new text style's glyph strip made. A still layer it needs (a stage, the rival card's
+glows) is only noted, and painted in the next frame, one a frame. Then the transition waits at its start, the old
+screen still up, until those pictures are back, at most `uiPrepWaitMs` (180 ms), so the first visible frame draws them
+from their pictures instead of a letter at a time. A screen gone back to gets the same pass (its pictures may have
+left the caches), and so does a screen first shown under an overlay (the press room under its tip), once the overlay
+has settled. In the menus, closing an overlay now pops the screen under it in like any other screen change (it wasn't
+drawn under the overlay, so it used to appear at once, all of it in one frame). The Codex measures its other topics in
+slices of `sliceMs` a frame (one whole topic a frame was up to 88 ms at 4×). During a transition the old screen's
+picture is only drawn while it shows (not under 4%), and the backdrop not under it while it's opaque: each is a
+full-screen layer, 10–30 ms of raster at 4×. A number's first `toLocaleString` (the Codex's money page, school, the
+records) loads the browser's number formats, 10 ms at 1×; that's done while the title waits. Together, in single
+traces at 4×: the hub's Me tab (it shows money, so it met the number formats first) went from a 145 ms task to 70 ms,
+and signing day to the pro hub (the rival card) from 104 ms to 58 ms.
+
+**The end of a game over several frames.** The frame that ended a game also ran the career's week and the save, built
+the result screen and drew it for the first time: 120–130 ms of JS at 4× after a pro game. Now the last frame is drawn
+and kept as a picture; the next frames show that picture while any poster cards are built (one a frame) and the
+result's bookkeeping runs; then the result screen opens over it and, like any overlay, is drawn once unseen and shows
+when its pictures are back. In the walk at 4×, a pro game's end to its result screen went from a 102 ms task (944 ms
+of long tasks) in V14 to at most 60 ms in the last three runs.
+
+**Other changes.** A game's first frames spread their work: the scene, then the score bug, then the rest of the HUD
+(`rtOpenWait`, 2); the worker also plays each game's first 5 s twice (you waiting, then you on the AI: `rtDryPoses`,
+`rtDryAiPoses`, 300 frames each) so the opening's poses are painted there. The frame guard's hold starts after the
+Warming up bar (a slow warm-up isn't the game's speed). The frame guard's last level now turns on the pixel renderer's
+every-other-frame sprite reuse too, as it already set the pose rate and the split paints: that reuse waited for the
+pixel guard alone, which measures the main thread's pose painting, and with the poses coming from the worker it often
+never got there (perf4x on the phone: the pixel guard stepped down late or not at all). Found by the suite: the
+3-point contest's Try again crashed (it reused the last contest's state, with its shots and players in it, and the
+game's new copy of its options for the bakes can't copy a loop): a new contest starts from a fresh state, as START
+gives it, and the copy leaves a loop out instead of throwing. The Art Lab's Retro check read a sprite's pixels as a
+canvas's, and a sprite from the worker is an ImageBitmap: it reads either now.
+
+**The in-game frame rate** (`tests/perf4x.js`, the device clock at 4×: a live pro-arena 1v1, 5 forced dunks and 3
+forced blocks; V15 and V14 run back to back on the same quiet machine, twice):
+
+| | V15, phone | V14, phone | V15, desktop | V14, desktop |
+| --- | --- | --- | --- | --- |
+| Median frame (target ≤ 25 ms) | 20.8, 21.4 ms | 19.8, 19.5 ms | 18.6, 20.3 ms | 18.3, 18.1 ms |
+| Frames over 50 ms in dunks, celebrations and blocks (target 0) | 2, 3 | 3, 2 | 3, 3 | 2, 2 |
+| The worst of them | 54, 56 ms | 69, 72 ms | 116, 60 ms | 53, 52 ms |
+| The frame guard's first shed (target ≤ 0.5 s) | 0.15, 0.17 s | 0.20, 0.17 s | 0.18, 0.17 s | 0.15, 0.17 s |
+
+V15's median frame is about 1 ms higher (5–8%). Part of it is text: a string drawn from the worker's atlas costs a
+little more than one from its own small canvas (the HUD's text, about 0.3 ms a frame at 4×); the rest is within the
+runs' spread. The worst frames and the guard are the same. Neither build meets perf4x's targets on this host: V14's
+report already found that this host runs V2's own build about twice as slow as when V2 was committed.
+
+**New numbers** (no spec value; every one in `CONFIG.bake` or `ART` with a comment):
+
+| Number | Value | What it is |
+| --- | --- | --- |
+| `CONFIG.bake.sliceMs` | 6 ms | main-thread bake work a frame at most (installing what the worker sent, idle steps, the fallback's slices in a game) |
+| `CONFIG.bake.inFlight` | 2 | jobs at a worker at once (the queue stays on the main thread, so a picture on screen jumps the pre-bakes) |
+| `CONFIG.bake.fadeMs` | 160 ms | a picture that arrives after its placeholder showed fades in over this long |
+| `CONFIG.bake.figN` | 64 | menu figures kept (least recently used first out) |
+| `CONFIG.bake.bootMaxS` | 8 s | a worker that hasn't said it's ready by then is given up (the main thread bakes) |
+| `CONFIG.bake.warmMaxS` | 4 s | the Warming up bar waits at most this long for a game's bakes; then the game bakes the rest itself |
+| `CONFIG.bake.warmSliceMs` | 24 ms | without a worker, a game's bakes run this long a frame behind the Warming up bar |
+| `CONFIG.bake.venueMB` / `venueMBPhone` | 64 / 32 MB | the venue cache's pixels (desktop / touch screen) |
+| `CONFIG.bake.sheetN` | 6 | sprite sheets kept for players outside a career week |
+| `ART.rbStripCols` | 16 | a text style's glyph strip: letters a row |
+| `ART.rbStripMaxK` | 120 (thousand px) | a size whose strip would be bigger has none: its strings are painted from their letters' runs |
+| `ART.rbAtlasN` | 1,500 | strings kept in the workers' atlases |
+| `ART.rbRunsMax` | 4 | a string this short in a style with no strip yet (a jersey letter or number) is painted from its runs |
+| `ART.rbAtlasBatch` | 80 | new strings sent to the worker in one batch (one atlas) |
+| `ART.rtPortraitN` | 240 | pixel portraits kept (it used to empty itself at 160) |
+| `ART.figCelFps` | 12 | a celebration in a menu (the shop's preview) is pictured at this many frames a second |
+| `ART.rtOpenWait` | 2 | a game's first frames under its opening wipe paint no player |
+| `ART.rtOpenPoses` | 60 | frames of a game's opening the worker plays to paint both players' first poses |
+| `ART.cvPoolN` | 6 | scratch canvases kept for the next bake |
+| `ART.rtCropK` | 8 | a rim's crop finds its box on a copy this many times smaller first |
+| `ART.rtDryPoses` / `rtDryAiPoses` | 300 / 300 | frames of the opening the worker plays again (you waiting, then you on the AI) for the first seconds' poses |
+| `ART.uiPanelCacheMP` / `uiBtnCacheMP` | 8 / 3 million px | pictures of panels and buttons kept |
+| `ART.uiLayerN` | 6 | still layers of screens kept |
+| `ART.uiBackScaled` | on | the pixel backdrop kept at the screen's size (one 1:1 blit a frame) |
+| `ART.uiPrepWaitMs` | 180 ms | a screen change waits at most this long for the new screen's text, panels and buttons |
+
+Removed: `CONFIG.polish.splashS` (1.8 s) and `splashReduceS` (0.8 s), with the boot splash.
+
+**Deviations and known limits.**
+
+- This host's headless Chromium has no GPU, so a canvas's drawing is rasterized on the main thread at the end of each
+  frame (Chrome's ProduceCanvasResource): 25–60 ms of every menu frame at 4×, counted in the test's tasks. In desktop
+  Chrome and on phones that work runs on the GPU, off the main thread, so the margins here are tighter than on a
+  device.
+- The walk's step times vary by about ±30 ms between runs; steps that run 85–100 ms at 4× (a game's first frame aside)
+  can tip over in an unlucky run. The last runs before the commit are in the results above. A hub tab switch is among
+  the tightest: it has no transition, so no dry pass, and in a trace of the pro hub's Train tab its first frame was 45
+  ms of canvas raster and 28 ms of JS at 4×.
+- A screen change now waits up to `uiPrepWaitMs` (180 ms) for its pictures before the new screen pops in (usually
+  50–100 ms at 4×, a frame or two at 1×); an overlay shows two frames later; closing an overlay pops the screen under
+  it in.
+- Without a worker (old browsers; `?nobake`), a game's first frame at 4× takes 148 ms (it was about 1 s) and the
+  Warming up steps stay under about 55 ms each, but menus draw new text a letter at a time until their pictures are
+  made on the main thread: the test's targets are for the worker path.
+
+**Tests.** `tests/loadlag.js` is new (above). `tests/perf4x.js` plays its game in one long script with no break, so
+the page's event loop never ran and the bake worker's pictures could never arrive: V15's game sat behind its Warming
+up bar for 4 s and then baked on the main thread mid-measurement (a 2.6 s frame). The test now waits out the Warming
+up bar as a player would, stops the game's own frame loop, and lets the event loop run every 8th frame (unmeasured),
+so the worker's later pictures (the frame guard's lower resolution) arrive as they do in play; V14 runs the same test
+the same way. The smoke test's boot splash step and the phone audit's splash screen are gone with the splash.
+`tests/check-syntax.js` checks all of the page's `<script>` elements as one program. In `tests/lib.js` a screenshot
+waits for the pictures the bake worker is still painting (up to 8 s), a test can set its page up before it loads
+(`before`: the CPU throttle, observers), and `CHROMIUM_ARGS` passes extra browser flags. The smoke test's posterizer
+step drives frames by hand: it waits out the Warming up bar first, as perf4x does; its legends view step reads a
+sprite's pixels with the Art Lab's reader (a canvas or a bitmap); and the phone's frame guard step gives the switch to
+the smaller world up to 5 s (it waits for that world's bakes from the worker; it was read after 0.4 s). The polish
+test's stacked screens step allows the screen under a menu overlay one unseen dry pass (its pictures, asked for once)
+and still fails on any visible draw of it, or a second pass. Because a screenshot waits for the worker's pictures, the
+Art Lab's in-game shots are taken a few seconds later than V14's on a game the test has paused (its callouts still
+age): V14's arena shots caught an ANKLES callout and V15's don't. In play the callout draws as before (checked live:
+on screen 250 ms after the ankle breaker).
+
+**The suite** on the final build, all passing: smoke (136 steps), every mode (13), old saves (34), the dev tools, the
+phone audit (250 cases), the Art Lab (58 shots, no errors; `shots/v15/round-final/`), the §2 gate, the balance
+harness, the career simulator (40 careers, its targets met) and trait balance (every rarity in its band, rising with
+rarity); the V15 extras: the 2.0 fixes (15), polish (14), the HUD audit (35 scenes, none flagged), steals, the full UI
+career and Jump to pro on a desktop and a phone, flow (12), gameplay (12), traits (9), the shop (10), pro teams (14),
+the story (13), school (8), staff (11), the climb (9), and the overflow audit at 1280×720, 1.25× text on a phone and a
+desktop, 1920×1080 and 800×1000 (every string at least the menus' pixel on 248–249 screens). Screenshots in
+`shots/v15/`: the title at once, the Warming up bar (no worker, 4×), a result fading in over the game's last frame,
+and the result.
+
 ## Hoop Heads 2.0 (V1–V14): the report
 
 Two specs, built together: "Hoop Heads 2.0" and "Hoop Heads 2.0, Part 2: harder climb, real story, school, shop,

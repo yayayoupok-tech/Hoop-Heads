@@ -265,23 +265,28 @@ and 80, shot feedback, defense feel, phone controls, next-basket overtime.
 **V5 — Career flow and the hub** *(done)* — the pace rules (12–20 points a side in a minute), fatigue and press only
 when it matters, playing time (spot starts, the starter challenge), the Road to the League, Sim to next big moment,
 Quick results, a five-tab hub with a calendar, and the PBL.
-**V6 — A hard climb** — Part 2 §1: XP that costs more near the top and past your potential, game grades and simmed games
-paying less, a weekly practice cap, setbacks (injuries that cost rating points, slumps), stronger leagues, and pro
-teams with scarce spots. The career simulator plays 600 careers × 3 seeds with a typical and a great policy and prints
-the §1.1 table.
-**V7 — Story engine** — Part 2 §2: flags, conditions, the cast with relationship meters, cutscene backgrounds, and the
-first five arcs.
-**V8 — Arcs, epilogues, records** — the remaining arcs (6–8 a career, none in over 70% of careers), at least four
-epilogues, the Story so far screen, ceremonies and records.
-**V9 — GPA and school** — Part 2 §3: exams, eligibility, offers that need a GPA, scholarships and tuition, majors.
-**V10 — Staff** — Part 2 §4: agent, skills coach, strength trainer, physio, nutritionist, mental coach; hired, paid and
-poached.
-**V11 — The Pro Shop and money** — Part 2 §5: slots, levels and the +4 cap, a storefront with weekly stock and try-on,
-gear drawn on your player, money useful at every stage.
-**V12 — Pro teams and championships** — Part 2 §6: franchise identity and owners, title odds, best-of-3 playoffs, the
-ring ceremony, banners, dynasties, franchise moves, retired jerseys.
-**V13 — Codex, tooltips, badges, What's new** — the rest of the 2.0 UI and content.
-**V14 — Release** — balance, the full suite, version 2.0, the artifact republished.
+**V6 — A hard climb** *(done)* — Part 2 §1: XP that costs more near the top and past your potential, game grades and
+simmed games paying less, a weekly practice cap, setbacks (injuries that cost rating points, slumps), stronger
+leagues, and pro teams with scarce spots. The career simulator plays 600 careers × 3 seeds with a typical and a great
+policy and prints the §1.1 table.
+**V7 — Story engine** *(done)* — Part 2 §2: flags, conditions, the cast with relationship meters, cutscene
+backgrounds, and the first five arcs.
+**V8 — Arcs, epilogues, records** *(done)* — the remaining arcs (6–8 a career, none in over 70% of careers), at least
+four epilogues, the Story so far screen, ceremonies and records.
+**V9 — GPA and school** *(done)* — Part 2 §3: exams, eligibility, offers that need a GPA, scholarships and tuition,
+majors.
+**V10 — Staff** *(done)* — Part 2 §4: agent, skills coach, strength trainer, physio, nutritionist, mental coach;
+hired, paid and poached.
+**V11 — The Pro Shop and money** *(done)* — Part 2 §5: slots, levels and the +4 cap, a storefront with weekly stock
+and try-on, gear drawn on your player, money useful at every stage.
+**V12 — Pro teams and championships** *(done)* — Part 2 §6: franchise identity and owners, title odds, best-of-3
+playoffs, the ring ceremony, banners, dynasties, franchise moves, retired jerseys.
+**V13 — Codex, tooltips, badges, What's new** *(done)* — the rest of the 2.0 UI and content.
+**V14 — Release** *(done)* — balance, the full suite, version 2.0, the artifact republished.
+**V15 — The loading lag** *(done)* — a follow-up request: no freezes on loading at 4× CPU. A bake worker makes the
+next game's venue, players and ball and the menus' pictures off the main thread, ahead of time, and they're kept for
+the session; a screen's first frame is drawn before it shows; the title at once. `tests/loadlag.js` walks every screen
+change and game load at 4× and 1× and fails on any miss.
 
 ## Testing every milestone
 
@@ -295,6 +300,7 @@ node tests/devtools.js             # runSims (1v1 Pro mirror, Legend vs Pro, 3v3
 node tests/balance.js [n]          # scripted human: PPP by strategy vs Pro and Legend
 node tests/careersim.js 40         # 40 simulated careers vs the §6.5 targets
 node tests/perf.js                 # frame cost at 844×390 in the pro arena (CPU raster in headless Chromium)
+node tests/loadlag.js              # loading lag at 4× and 1× CPU: every screen change and game load, fails on any miss (V15)
 node tests/modes.js                # every mode to its end (M9)
 node tests/oldsaves.js             # every fixture save reloaded and played on (M9)
 node tests/phoneaudit.js [dir]     # phone tap targets, overlaps and text size on 65 screens (M9)

@@ -25,7 +25,6 @@ const { launch, openPage, runner } = require('./lib');
     const pr = w => { if (!w) throw new Error('dead end on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
     const d = g.save.data, a = d.c1 && !d.c1.handedOff ? d.c1 : null, c = d.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
     switch (s.name) {
-      case 'splash': g.ui.clearTo(titleScreen(g)); break;
       case 'title': g.ui.clearTo(mainMenu(g)); break;
       case 'menu': if (c && c.phase === 'retired' && c.epilogue) return { name: 'menu', done: true }; pr(by(/^(CONTINUE CAREER|START YOUR CAREER|YOUR RETIREMENT)$/)); break;
       case 'create': { const sb = by(/START HIGH SCHOOL/); if (!sb) throw new Error('no START HIGH SCHOOL'); if (g.newCareer) g.newCareer.seed = seed; pr(sb); break; }

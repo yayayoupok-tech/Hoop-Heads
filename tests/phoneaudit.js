@@ -75,7 +75,6 @@ const { launch, openPage } = require('./lib');
   if (desk) await audit('remap', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(remapScreen(g)); }); // R10: key remapping (keyboards only: a phone doesn't show it)
   await audit('slots', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.save.save(); g.ui.push(slotsScreen(g)); }); // R10: three save slots
   await audit('credits', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(creditsScreen(g)); });
-  await audit('splash', () => { const g = HH.game; g.ui.clearTo(splashScreen(g)); }); await P.ev(() => HH.game.ui.clearTo(mainMenu(HH.game)));
   await audit('tip', () => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(tipScreen(g, 'ladder')); }); // R10: a first-time tip
   await audit('howto', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(howToScreen(HH.game)); });
   await audit('practice-hub', () => { HH.game.ui.clearTo(mainMenu(HH.game)); HH.game.ui.push(practiceHubScreen(HH.game)); }); // F1: Practice replaces Extras

@@ -14,7 +14,7 @@ const { launch, openPage, runner } = require('./lib');
   const PAGE = `(() => { const g = HH.game, s = g.ui.screen; if (!s || s.name !== 'guide') return s ? s.name : '(none)'; g.ui.trans = null; g.drawUI(g.ctx, g.W, g.H); const p = s.widgets[0]; return 'guide:' + p.options[p.get()]; })()`;
   const LABEL = `(t => t === 'traits' ? 'Traits' : (GUIDE_TOPICS.find(x => x[0] === t) || ['', '?'])[1])`;
 
-  await step('the ? key opens the Codex from every screen at the page about it (the hub: its tab\'s), and Back returns to that screen; none on the title, the splash or the Codex itself', () => ev(([AM, PRO, PAGE, LABEL]) => {
+  await step('the ? key opens the Codex from every screen at the page about it (the hub: its tab\'s), and Back returns to that screen; none on the title or the Codex itself', () => ev(([AM, PRO, PAGE, LABEL]) => {
     const g = HH.game, bad = [], seen = []; const press = () => { g.input.ui.help = (g.input.ui.help || 0) + 1; g.ui.update(0.016, g.input); };
     const check = (tag, open) => { open(); const s = g.ui.screen, name = s.name; const want = eval(LABEL)(codexTopicFor(g, s)); press(); const got = eval(PAGE); if (!got.startsWith('guide:' + want)) bad.push(tag + ': ' + got + ' (wanted ' + want + ')'); else seen.push(tag); g.ui.pop(); if (!g.ui.screen || g.ui.screen.name !== name) bad.push(tag + ': back to ' + (g.ui.screen && g.ui.screen.name)); };
     const a = eval(AM);
@@ -26,7 +26,7 @@ const { launch, openPage, runner } = require('./lib');
     for (const tab of HUB_TAB_IDS) check('pro hub ' + tab, () => { g.hubTab = tab; g.ui.clearTo(careerHub(g)); });
     for (const [tag, f] of [['player', () => playerScreen(g)], ['league', () => leagueScreen(g)], ['office', () => managementScreen(g)], ['staff', () => staffScreen(g)], ['franchise', () => franchiseScreen(g, meOf(c).club)], ['road', () => roadScreen(g)]])
       check(tag, () => { g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); g.ui.push(f()); });
-    for (const [tag, f] of [['title', () => titleScreen(g)], ['splash', () => splashScreen(g)]]) { g.ui.clearTo(f()); const n = g.ui.screen.name; press(); if (g.ui.screen.name !== n) bad.push(tag + ' opened ' + g.ui.screen.name); }
+    for (const [tag, f] of [['title', () => titleScreen(g)]]) { g.ui.clearTo(f()); const n = g.ui.screen.name; press(); if (g.ui.screen.name !== n) bad.push(tag + ' opened ' + g.ui.screen.name); }
     g.ui.clearTo(mainMenu(g)); g.ui.push(statsGuideScreen(g, 'you')); press(); if (g.ui.stack.filter(s => s.name === 'guide').length !== 1) bad.push('the Codex opened over itself');
     g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return seen.length + ' screens';
   }, [AM, PRO, PAGE, LABEL]));
@@ -93,9 +93,9 @@ const { launch, openPage, runner } = require('./lib');
     g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.join(' | ')); return WHATS_NEW.length + ' items';
   }));
 
-  await step('stacked screens: an overlay in the menus (a stat card, a confirm, a trait card) draws over the backdrop alone: the screen under it never draws', () => ev(AM_ => {
+  await step('stacked screens: an overlay in the menus (a stat card, a confirm, a trait card) draws over the backdrop alone: the screen under it never draws (V15: past one unseen dry pass that asks for its pictures)', () => ev(AM_ => {
     const g = HH.game, a = eval(AM_), bad = []; const over = [['a stat card', () => statTipScreen(g, 'trust')], ['a confirm', () => confirmScreen(g, 'Sure?', () => {})], ['a trait card', () => traitCardScreen(g, 'clutch', null, 1)]];
-    for (const [tag, f] of over) { g.hubTab = 'me'; g.ui.clearTo(amHub(g)); const hub = g.ui.screen, d0 = hub.draw; let drew = 0; hub.draw = function () { drew++; return d0.apply(this, arguments); }; g.ui.push(f()); g.ui.trans = null; g.drawUI(g.ctx, g.W, g.H); hub.draw = d0; if (drew) bad.push(tag + ': the hub drew under it'); if (!g.ui.screen.overlay) bad.push(tag + ': not an overlay'); }
+    for (const [tag, f] of over) { g.hubTab = 'me'; g.ui.clearTo(amHub(g)); const hub = g.ui.screen, d0 = hub.draw; let drew = 0, dry = 0; hub.draw = function () { if (RBL.dry) dry++; else drew++; return d0.apply(this, arguments); }; g.ui.push(f()); g.ui.trans = null; for (let i = 0; i < 3; i++) g.drawUI(g.ctx, g.W, g.H); hub.draw = d0; if (drew) bad.push(tag + ': the hub drew under it'); if (dry > 1) bad.push(tag + ': ' + dry + ' dry passes of the hub (one at most)'); if (!g.ui.screen.overlay) bad.push(tag + ': not an overlay'); }
     g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.join(' | ')); return over.length + ' overlays';
   }, AM));
 
