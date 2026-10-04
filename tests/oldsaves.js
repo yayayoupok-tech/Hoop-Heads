@@ -58,6 +58,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'franchise': case 'bracket': pr(by(/^Back$/)); break; // V12
       case 'tradecompare': pr(by(/^Stay$/)); break; // V12
       case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8
+      case 'recap': pr(by(/^CONTINUE$/)); break; // 2.1 (§4.3): "Previously on Hoop Heads"
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

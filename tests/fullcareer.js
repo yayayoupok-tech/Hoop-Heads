@@ -73,6 +73,7 @@ const { launch, openPage, runner } = require('./lib');
       case 'franchise': case 'bracket': pr(by(/^Back$/)); break; // V12
       case 'tradecompare': pr(by(/^Stay$/)); break; // V12
       case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8 (only if a press lands on them)
+      case 'recap': pr(by(/^CONTINUE$/)); break; // 2.1 (§4.3): "Previously on Hoop Heads"
       case 'legacy': case 'halloffame': return { name: s.name, done: !!(c && c.phase === 'retired') };
       default: throw new Error('the driver does not know screen ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']');
     }

@@ -3,6 +3,96 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W7 (2.1) — the story engine: chapters, the cast, cutscenes, the recap, the Story screen
+
+The seventh of the ten 2.1 milestones (§4.1 and §4.3, with §1.6's 3–5 scenes a season in every phase). The chapter
+engine is `179_saga_ch.js` and chapter 1 `179_saga_ch1.js`; the dialogue box is `179_ui_dialog.js`, the backgrounds
+`179_ui_saga.js`, the Story screen and the recap `179_ui_storysofar.js`. New test: `tests/story21.js` (11 steps).
+Chapters 2–6 are W8's; chapters 7–12 and the endings are W9's.
+
+**The chapters (§4.2's frame).** Twelve chapters in order, one scene a hook at most. Each opens with a title card on its
+first scene, has one big decision whose key is a flag for good (`ch<n>`: "This will be remembered") and ends on a
+closing scene; its version (the career's path) is picked when it opens. A chapter's scenes are told like the beats that
+always get told, and the season's other beats leave them room (`chReserve`: the scenes still to come this season).
+- A chapter whose moment is gone when the career gets to it (an old save, a path without that step) is passed by and
+  shows as missed; one that runs out of time tells its big decision (if it's still to come) and its closing scene at the
+  next regular moment; one whose level is gone (a jump to the pros) closes without them.
+- Two new hooks, the chapters' alone: `season` (a season starts) and `tryout` (the list goes up). A scene says where it
+  can come: the start of a week, after a big game (the rival, the playoffs, a final, an upset, a big night, a record, a
+  key week), the season's end or the offseason.
+- Sim ahead stops at every chapter scene, in both modes. (A season run used to answer every story card for you: most of
+  what "about 10 scenes in 8 seasons" was.)
+
+**Chapter 1: The Kid from (your school).** Freshman year, five scenes: *The night before* (the kitchen table, your parent
+and your younger sibling: promise them the crossover, or promise to make the team), *the list* (Coach Adeyinka with the
+tryout's result, varsity or JV, the chapter's two versions, and the old card's lines on which team is which; your best
+friend, a classmate on your squad), *After
+practice*, the big decision (stay and run with the seniors: coach +10, trust +5, practice XP +10% for 2 weeks, family
+−10; or go home and help: family +15, your sibling +10, trust −3), what it led to (told when the season has room: the
+seniors' move, or your sibling's rec league game) and *One of ours* at the season's end. An old save in its freshman
+season starts it where the career is (the opening's version for after tryouts).
+
+**The cast (§4.1).** Your **younger sibling** joins the cast (nine now): your surname, `CONFIG.chapters.sibGap` years
+younger, a kid's portrait, a meter that starts at `sibStart` (they look up to you). **Coach Adeyinka** is a new career's
+high school coach (the varsity's) and stays the cast's coach for life, in college and the pros (an old save keeps the
+coach it had). Your **best friend** is met at tryouts, a classmate on your squad (the Best Friend arc keeps them). Every
+portrait gets its person's age (a kid looks like a kid). The friend's four paths, the rival's own beats, the honest or
+shady agent, the journalist, the veteran mentor and the owner come with the chapters (W8–W9).
+
+**Presentation (§4.3).** A line can belong to another speaker: its page brings up their portrait (a portrait for each
+speaker; three lines a box at most; the typewriter as before). A chapter's first scene opens on its **title card**
+(CHAPTER n, the title, the version's line; `cardSecs`, or a tap), every chapter scene carries CHAPTER n in its title
+line, and a big decision shows a gold **★ THIS WILL BE REMEMBERED** band over its answers (its outcome says it too).
+Five new pixel cutscene backgrounds, twelve in all: the team bus at night, a dorm room, a college arena, the owner's box
+(the court far below through the glass) and the retirement stage (a framed jersey, the spotlights breathing).
+
+**Every scene has a choice (§4.3).** A card with nothing to decide gets two answers: a warm one, the default (the
+speaker's meter + `react` if they're in the cast, else a breath: fatigue −2) and a focused one (practice XP + `reactXp`
+for the week, fatigue +2). A side-arc beat without a choice still does what it did, once.
+
+**Pacing (§4.3).** Never more than two story screens in a row: a third waits on the holder for the next moment, in
+order (and goes along to the pros, or comes before the ending). 3–5 scenes a season: a beat that can wait leaves
+`spare` places for what can't (an injury, a title); the scenes after a season's end count in the season they lead into
+(the pros' offseason scenes used to fall between seasons, the decision and the combine's too); a rival's matchup card
+(no words, no choice) isn't one of the season's scenes any more. The career simulator (120 careers): 3–5 scenes in
+95.7% of high school seasons, 100% of college ones and 99.6% of pro ones (90.6% overall before; the high school seasons
+still over 5 are two crits on a full season, W8's chapters 2–4 take over those years).
+
+**"Previously on Hoop Heads" (§4.3).** CONTINUE CAREER opens on a recap over the last scene's background: the chapter,
+what happened, your last choice (and that it will be remembered, for a big decision). An old save without a chapter yet
+recaps its last saga choice; a career with nothing to tell goes straight to the hub.
+
+**The Story screen (§4.3).** THE STORY SO FAR is the twelve chapters now: ✓ done, ● now, · ahead, — missed ("Before
+this save"), each with the choice you made in it; your people and their meters beside them; the side stories (2.0's
+timeline of the arcs) one press away. A phone shows one view at a time: Chapters, People, Side stories.
+
+**The Codex.** The story page: *The main story* (the chapter you're in, your last big decision), *Side stories*, *Your
+people* (with your sibling and Coach Adeyinka), *How it ends*.
+
+**Config.** `CONFIG.chapters`: `inRow` 2, `reserveMax` 4, `gap` 2, `spare` 1, `cardSecs` 2.8, `sibGap` 4, `sibStart`
+20, `coachName` 'Coach Adeyinka', `react` 3, `reactXp` 0.03.
+
+**Calls made.**
+- "3–6 scenes" is the whole chapter, the opening and the closing scene included (a season holds 3–5 scenes, and a
+  high school year is a chapter); the big decision is one of them.
+- Chapter 1's title is your own school's ("The Kid from Central Tech" when that's yours).
+- Rival matchup cards no longer count as scenes (they have no dialogue and no choice); the R9 line in the career
+  simulator still counts what it did, the new scenes line counts dialogue scenes.
+- Coach Adeyinka's name replaces the random high school coach in a new career only; the draw that used to name the coach
+  still happens, so a career's dice are unchanged.
+
+**Tests.** `tests/story21.js` (11 steps): the twelve chapters and chapter 1's shape; chapter 1 over six simulated
+freshman years (3–5 scenes, every one a choice, both versions, the big decision remembered, the closing at the season's
+end, nothing told twice); the cast; the pacing (two in a row, the reserve, the offseason counting forward); every scene
+a choice; flags through a save, a reload and the handoff to the pros; old saves (passed by, a mid-season start, a quiet
+close); the Story screen; the recap; the cutscenes, the title card and the band; Sim ahead. `tests/story.js` runs its
+side-arc steps with the chapters passed by (the cast is nine, the Story so far opens on the chapters). The career
+simulator prints scenes a season by phase and the chapters reached; the old-save, full-career and smoke drivers know
+the recap; the phone and desktop audits cover the title card, a scene with two speakers, the big decision, the side
+stories view, the recap and the five new backgrounds.
+Quick checks: story21, story, oldsaves (42 fixtures), smoke (136), flow, school, fullcareer, life21, recruit21, the phone
+and desktop audits (287 and 283 cases, no problems) and the career simulator.
+
 ## W6 (2.1) — the offseason, contracts and league life
 
 The sixth of the ten 2.1 milestones (§3.3–3.7). League life is `162_life.js` (careers, retirements, rookies, the AI's

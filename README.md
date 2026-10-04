@@ -169,6 +169,7 @@ node tests/flow.js                 # the career flow: pace, the week, playing ti
 node tests/climb.js                # the climb's rules: the XP curve, hidden potential, grades, setbacks, 5★ scarcity
 node tests/difficulty.js           # Part 2's §1.1 table: 600 careers on 3 seeds, a typical and a great policy (2.1 §3.7's bands for the great one: a 5★ team 35–55%, 1–2 titles; the Hall of Fame at other lines too)
 node tests/story.js                # the saga: arcs, flags, meters, every ending reachable, the Story so far, ceremonies
+node tests/story21.js              # 2.1's chapters: the engine, chapter 1, the cast (your sibling, Coach Adeyinka), two story screens in a row at most, every scene a choice, flags through a reload, old saves, the Story screen, "Previously on Hoop Heads", the cutscenes
 node tests/school.js               # GPA and school: offers, exams, eligibility, scholarships, tuition, majors
 node tests/staff.js                # your staff: hiring, contracts, effects, poaching and scandals
 node tests/staffbalance.js [n] [seed] [par] [--policy=typical]   # staff spending against none, each role alone

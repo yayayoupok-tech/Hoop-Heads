@@ -328,8 +328,13 @@ incentives; the other fifteen sign, trade, cut, extend, age and retire, and rook
 your old teammates; title windows and hunger (the longest droughts go all in); the GOAT ladder and the records; PBL
 Tonight, the power rankings and the national TV game's intro; a meddler's story beats; the hub's value meter; the
 §3.7 targets (`tests/life21.js`, `tests/league30.js`, the career simulator).
-**W7 — The story engine** — §4.1 and §4.3 (and §1.6: 3–5 scenes a season in every phase): chapters, the cast,
-backgrounds, recaps, the Story screen and pacing.
+**W7 — The story engine** *(done)* — §4.1 and §4.3 (and §1.6): twelve chapters in order (a title card, one big
+decision remembered as a flag, a closing scene, a version for every path; passed by when their moment is gone), chapter
+1 (freshman year: tryouts, stay late or go home), the cast (a younger sibling, Coach Adeyinka, the best friend met at
+tryouts, an age on every portrait), a speaker per page, "This will be remembered", five new cutscene backgrounds (the
+bus, the dorm, a college arena, the owner's box, the retirement stage), every scene with a choice, two story screens in
+a row at most, 3–5 scenes a season (the beats that can wait keep a place for what can't), "Previously on Hoop Heads"
+and the Story screen as chapters (`tests/story21.js`, the career simulator's scenes by phase and chapters reached).
 **W8 — Chapters 1–6** — §4.2.
 **W9 — Chapters 7–12 and the endings** — §4.2–4.4: six or more endings and the story tests.
 **W10 — Release** — the full suite once, every target table, version 2.1, the artifact republished.

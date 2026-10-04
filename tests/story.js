@@ -7,9 +7,10 @@
 const { launch, openPage, runner } = require('./lib');
 (async () => {
   const browser = await launch(); const R = runner('story'); const D = await openPage(browser); const { ev } = D; const step = (n, f) => R.step(n, f, D);
-  const mk = `(seed => { const a = amCreate(defaultSave(), { name: 'Story Test', look: PRESET_LOOKS[seed % 16], number: 3, style: 'slasher', seed, seasonLength: 11, gameLength: 120 }); hsTryoutDrill(a, 30); hsTryoutGame(a, true, 7, 0); a.events.length = 0; return a; })`;
+  // (2.1: these steps test the side arcs, so the career's chapters are passed by: tests/story21.js tests the chapters)
+  const mk = `(seed => { const a = amCreate(defaultSave(), { name: 'Story Test', look: PRESET_LOOKS[seed % 16], number: 3, style: 'slasher', seed, seasonLength: 11, gameLength: 120 }); hsTryoutDrill(a, 30); hsTryoutGame(a, true, 7, 0); a.events.length = 0; const Q = chOf(a); for (let n = 1; n < CH_TITLES.length; n++) Q.list[n] = { st: 'past' }; Q.n = CH_TITLES.length; return a; })`;
 
-  await step('the cast: eight people with meters from −100 to 100; the family starts warm; meters clamp; flags set and read', () => ev(mk => {
+  await step('the cast: nine people (2.1: your sibling) with meters from −100 to 100; the family starts warm; meters clamp; flags set and read', () => ev(mk => {
     const a = eval(mk)(101), S = sagaOf(a); if (SAGA_CAST.some(r => !S.cast[r])) throw new Error('cast ' + Object.keys(S.cast)); if (S.cast.family.m !== SG.familyStart || S.cast.coach.m !== 0) throw new Error('start meters');
     sagaMeterAdd(a, 'coach', 250); if (sagaMeter(a, 'coach') !== 100) throw new Error('clamp up'); sagaMeterAdd(a, 'coach', -500); if (sagaMeter(a, 'coach') !== -100) throw new Error('clamp down');
     sagaSet(a, 'x', 'y'); if (sagaFlag(a, 'x') !== 'y') throw new Error('flags'); if (!(S.quota >= SG.perCareer[0] && S.quota <= SG.perCareer[1])) throw new Error('quota ' + S.quota);
@@ -110,7 +111,8 @@ const { launch, openPage, runner } = require('./lib');
     const g = HH.game, a = eval(mk)(321); g.save.data.c1 = a; const S = sagaOf(a); S.arcs.bills = { st: 'on', b: 0, s0: a.season, stage: 'hs', picks: [] }; S.order.push('bills'); a.seasonStats = { g: 3 }; stFill(a).beats = 0; const e = sagaTell(a, 'bills', 0, {}); stChoose(a, e, 0);
     const rows = sagaTimelineRows(a); if (!rows.some(r => r.t === 'act' && /ACT I/.test(r.text)) || !rows.some(r => r.t === 'arc' && r.text === 'FAMILY BILLS') || !rows.some(r => r.t === 'beat' && /You chose: Take a weekend job/.test(r.b))) throw new Error('rows ' + JSON.stringify(rows));
     const P = sagaPeople(a); if (!P.some(p => p.cast === 'family')) throw new Error('family');
-    g.ui.clearTo(amHub(g)); g.ui.push(storySoFarScreen(g, a)); const t1 = eval(drawTexts)(g.ui.screen); if (!t1.includes('FAMILY BILLS') || !t1.some(t => /^Age \d+ · /.test(t))) throw new Error('drawn ' + t1.slice(0, 12));
+    g.ui.clearTo(amHub(g)); g.ui.push(storySoFarScreen(g, a)); const t0 = eval(drawTexts)(g.ui.screen); if (!t0.includes('—') || !t0.includes('Before this save')) throw new Error('2.1: the chapters first ' + t0.slice(0, 12)); /* (this career's chapters were passed by) */
+    g.ui.screen.widgets.find(w => w.label === 'Side stories').onPress(); const t1 = eval(drawTexts)(g.ui.screen); if (!t1.includes('FAMILY BILLS') || !t1.some(t => /^Age \d+ · /.test(t))) throw new Error('drawn ' + t1.slice(0, 12));
     return rows.length + ' rows · ' + P.length + ' people';
   }, [mk, drawTexts]));
 
