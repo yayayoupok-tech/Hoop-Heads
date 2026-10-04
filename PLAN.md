@@ -311,7 +311,11 @@ roster and history; per career from the seed (coaches, rosters, the recruits cha
 is saved but your program's coach and its titles. The Recruit tab (high school), the College Browser and a program's
 page with your chances; offers, your team, your conference and the field come from the registry; old saves keep
 their program (`tests/colleges.js`).
-**W4 — The recruiting game** — §2.2–2.7, with its targets.
+**W4 — The recruiting game** *(done)* — §2.2–2.7: interest that moves (fit, coach, home, character, contact,
+competition; the GPA line and the class caps), offers week by week from the junior year (elite academic ones on
+condition), named recruits and your rival taking the spots, warnings before every pull, three actions a month and
+five official visits as scenes, a verbal commitment, flips and the coaching carousel, Signing Day's hats, walk-ons,
+the prep year and the College test; the career simulator's typical recruit and the §2.7 table (`tests/recruit21.js`).
 **W5 — The PBL's structure** — §3.1–3.2: 16 franchises (the 12 and 4 new) in two conferences of 8 with owners, GMs
 and systems, the cap, rosters and chemistry, a 15-week calendar, playoffs for each conference's top 4 (best of 3,
 best of 3, a best-of-5 Finals), the MVP ladder and the awards.

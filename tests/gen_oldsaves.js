@@ -20,7 +20,7 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
       localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data;
       s.settings.difficulty = 'allstar'; s.settings.shake = 0.5; s.settings.meter = 'minimal';
       const a = amCreate(s, { name: 'Old Save Kid', look: PRESET_LOOKS[5], number: 23, style: 'shooter', seed: 77 });
-      let guard = 0; while ((a.season || 1) < 2 && guard++ < 400) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, false); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
+      let guard = 0; while ((a.season || 1) < 2 && guard++ < 400) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, false); else if (a.decision.signing) recSimSign(a); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
       for (let i = 0; i < 3; i++) { a.events.length = 0; amSimGame(a); }
       const player = { name: 'Old Team Guy', nick: 'Old', arch: 'slasher', height: 1.93, attrs: { sho: 4, fin: 6, han: 5, spd: 5, jmp: 5, def: 4, str: 3 }, look: Object.assign({}, PRESET_LOOKS[3], { number: 9, sleeves: false, shoes: null }), moves: { crossover: true, spin: false, stepback: false, hesitation: false, euro: false, dunk360: false, windmill: false } };
       const tc = tcCreateCareer(s, player, TEAMS[2].id, '3v3');
@@ -34,7 +34,7 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
     const pro = await ev(() => {
       localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data;
       const a = amCreate(s, { name: 'Old Save Pro', look: PRESET_LOOKS[8], number: 4, style: 'slasher', seed: 91 });
-      let guard = 0; while (a.stage !== 'combine' && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, true); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
+      let guard = 0; while (a.stage !== 'combine' && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, true); else if (a.decision.signing) recSimSign(a); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
       if (a.stage !== 'combine') return { err: 'no combine: ' + a.stage };
       createCareerFromAmateur(s, a); const c = s.career; if (c.me.staff && c.me.staff.shooting != null) { c.me.staff.shooting = 2; c.me.staff.physio = 1; c.me.money = Math.max(c.me.money, 2e6); } /* the old four staff roles (R7 migrates them) */ for (let i = 0; i < 6; i++) { if (c.events) c.events.length = 0; if (!simUserGame(s)) break; }
       g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), season: c.season, week: c.week, phase: c.phase };
@@ -44,12 +44,12 @@ const BUILDS = [['d3c2eae', 'premerge'], ['f9d991e', 'm0'], ['38b2c05', 'm5'], [
     if (pro.err) console.log(tag, 'pro FAILED', pro.err); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_pro_midseason.json'), pro.raw); console.log(tag, 'pro', JSON.stringify({ season: pro.season, week: pro.week, phase: pro.phase, bytes: pro.raw.length })); }
     // 2b) R5 only: a college career three games into its first season (the old college league)
     if (tag === 'r5') { const col = await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data; const a = amCreate(s, { name: 'Old Save College', look: PRESET_LOOKS[2], number: 12, style: 'slasher', seed: 133 });
-        let guard = 0; while (!(a.stage === 'college' && a.league && a.league.week >= 3) && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, false); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
+        let guard = 0; while (!(a.stage === 'college' && a.league && a.league.week >= 3) && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, false); else if (a.decision.signing) recSimSign(a); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
         g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), stage: a.stage, week: a.league && a.league.week, season: a.season, v: a.v }; });
       if (col.stage !== 'college') console.log(tag, 'college NOT REACHED: ' + col.stage); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_college_midseason.json'), col.raw); console.log(tag, 'college', JSON.stringify({ season: col.season, week: col.week, v: col.v, bytes: col.raw.length })); } }
     // 2c) R10 only: an amateur career that has declared and waits at the pro combine (R10 drafted next; F7 has three franchises make offers)
     if (tag === 'r10') { const cmb = await ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data; const a = amCreate(s, { name: 'Old Save Prospect', look: PRESET_LOOKS[6], number: 30, style: 'slasher', seed: 91 }); /* a seed that declares after one college season (205 loops in R10's transfer portal) */
-        let guard = 0; while (a.stage !== 'combine' && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, true); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
+        let guard = 0; while (a.stage !== 'combine' && guard++ < 600) { a.events.length = 0; if (a.decision) { if (a.decision.kind === 'declare') amDeclare(a, true); else if (a.decision.signing) recSimSign(a); else amChooseCollege(a, a.decision.offers[0]); continue; } if (!amSimGame(a)) break; }
         g.save.save(); return { raw: localStorage.getItem(CONFIG.save.key), stage: a.stage, season: a.season, age: a.age }; });
       if (cmb.stage !== 'combine') console.log(tag, 'combine NOT REACHED: ' + cmb.stage); else { fs.writeFileSync(path.join(OUT, 'save_' + tag + '_amateur_combine.json'), cmb.raw); console.log(tag, 'combine', JSON.stringify({ season: cmb.season, age: cmb.age, bytes: cmb.raw.length })); } }
     // 3) M7 only: the same pro career in the playoffs, then in the offseason

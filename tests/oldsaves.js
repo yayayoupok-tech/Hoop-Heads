@@ -25,10 +25,12 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'traitpick': pr(W.find(w => /^Take /.test(w.label || ''))); break; // V3: the third trait (1,000 career points): take the first offer
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
       case 'whatsnew': if ((g.save.__wn = (g.save.__wn || 0) + 1) > 1) throw new Error('What\'s new came back'); pr(by(/^Got it$/)); break; // V13 (2.0 §5): a save from before 2.0 sees What's new once
-      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|DRAFT DECISION|TURN PRO\?|TRANSFER PORTAL|DRAFT COMBINE|PRO COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
+      case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|SIGNING DAY|DRAFT DECISION|TURN PRO\?|TRANSFER PORTAL|DRAFT COMBINE|PRO COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
       case 'career': if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; } pr(by(/^SIM( THE GAME)?$/)); break;
       case 'recruit': pr(i % 3 === 0 ? by(/^VISIT$/) || by(/^COMMIT$/) : by(/^COMMIT$/)); break;
       case 'visit': pr(by(/^COMMIT HERE$/)); break;
+      case 'signing': pr(by(/^Sign: /) || W.find(w => w.primary) || by(/^Walk on/) || by(/^Skip college/)); break; // 2.1 (§2.5): Signing Day: the first offer (the commitment), else the prep year or a walk-on
+      case 'recwalkon': pr(by(/^Walk on: /)); break; // 2.1 (§2.6): the first program whose GPA line you meet
       case 'confirm': pr(by(/^Yes$/)); break;
       case 'amdecision': pr(W.find(w => w.primary) || W[0]); break;
       case 'combine': case 'draft': pr(by(/^(PRO OFFERS|DRAFT NIGHT|START YOUR PRO CAREER)$/)); break;

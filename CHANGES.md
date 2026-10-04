@@ -3,6 +3,151 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W4 (2.1) — the recruiting game
+
+The fourth of the ten 2.1 milestones (§2.2–2.7). W3's interest was a static score and offers still came one a tier;
+now recruiting is a game you play from your sophomore year to Signing Day. The model is `165_recgame.js`, the screens
+`175_ui_recgame.js`. New test: `tests/recruit21.js` (15 steps).
+
+**Interest that moves (§2.2).** Every program's interest in you (0–100) is built from parts you can see on its page:
+
+- how you **fit** its usual recruit: your projected national rank against the program's level (a blue blood's usual
+  recruit is about #9 in the nation, a 3★ power program's #132, a 1★ small school's #3,500). Programs above you want
+  anyone better; a small school doesn't reach far up;
+- your **coach's word** (±6), **home** (within 300 mi +6, past 1,500 mi −4), your **character** in the press room
+  (Team first raises it, Trash talk lowers it, at most ±5), the **contact you earn** (actions and visits, up to +40;
+  it fades a point a week after 2 quiet weeks) and the **competition** for its spots (±6: the recruits chasing them
+  rated over or under you);
+- under its GPA line, at most 20; a freshman is watched at most (49), a sophomore contacted (69); after your verbal
+  commitment the other programs stop rising (a flip-friendly quarter keep at it).
+
+**Offers, spots and pulls.** From your junior year, a program with interest 70+, a scholarship spot open and your GPA
+over its line offers some week: blue bloods quickly, the others choosing among many, all of them sooner for a recruit
+better than their usual one (`recruiting.hazard`, `recruiting.above`). An elite academic program offers from GPA 3.0,
+on condition of its 3.3 by your senior finals (the senior midterm warns you; the finals make it final or pull it).
+Each program has 1–3 spots and 1–3 more named recruits than spots; they commit through your junior and senior years,
+your story rival among them (from your junior year they chase a program you want, now and then your favourite), and
+the news follows the programs you care about ("Spots left: 1"). An offer no longer holds a spot: whoever commits
+first gets it. An offer is pulled for grades (a report card under its line warns, the next pulls), a long injury
+(4+ games: a warning, then 3 more weeks out), interest under 50 (a warning under 55) or a filled spot (a warning at
+the last spot, or with the offer when only one is left). Always a warning first.
+
+**Actions (§2.3).** Three a month from your sophomore year (a month is 4 game weeks; a summer is one): send film (+5
+at up to three programs), an email (+3), ask your coach to call (+10, trust 60+), a camp ($250: +10 there, +3 across
+its conference, and a showcase game against its best player), an unofficial visit (+8; it takes the week, free in the
+summer), an official visit (+15, at most five, from interest 50).
+
+**Official visits (§2.4)** are a weekend in three scenes: the team (the captain, a pickup game), Saturday night (the
+players' party or the academic advisor at eight) and the coach's pitch, by style: an Iso coach promises the ball, a
+Development coach shows the practice plan, Pace and Defense coaches sell theirs. The choices move interest more; a
+manager's whisper hints that a coach is talking to other programs ("Ask about the rumors"). A visit shows the
+program's facilities and how its coach develops players (hidden on its page until then); with an offer in hand,
+"Commit on the spot".
+
+**Commitment, flips and the carousel (§2.5).** A verbal commitment isn't binding: one of the program's spots is
+yours, and the others stop rising. A flip costs hype (−8), brings a press storm (its own questions), costs your next
+coach's trust (−10 when you arrive), and most programs cool on you (−10 earned interest; a flip-friendly few +5). The
+coaching carousel: 15% of the coaches you commit to take another job before Signing Day (a program at least as good,
+with a spot): follow them (no flip), stay, or reopen your recruitment at no cost.
+
+**Signing Day (§2.5) and no offers (§2.6).** After your senior season: sign any live offer (your commitment first),
+binding, with a hat on the table for every program that ever offered (pulled ones too; rows of them past eight). With
+no offer: walk on at any program whose GPA line you meet (no scholarship: you pay the tuition and start at the bottom
+of its depth chart), a prep year once (a prep school near home, one more season, a new class: win 70% of its games and
+the scouts add a star, the offers come back), or the pros (offered whenever no other road is left: three franchises
+always make offers after the combine).
+
+**The College test.** In your junior year, after week 6, with a heads-up card at the start of the season: three or
+more Study weeks before it, GPA +0.15; one or two, +0.05; none, −0.10.
+
+**On screen.**
+
+- **A program's page:** Recruit… (gold) opens its actions; your contact with it and your commitment; the facilities
+  and the coach's extra work show after an official visit. Rows everywhere say Committed.
+- **The action sheet:** the program's header, its interest and the parts of it, your status (offer, spots, a
+  condition, a warning, the actions left this month, your visits, the recruits after its spots) and seven buttons,
+  each with what it does or, greyed, why it can't happen now (Send film, Email, your coach's call, a camp, the two
+  visits, Commit or Decommit). Scenes (a camp's card, a visit's weekend) play right after.
+- **Send film:** pick up to three programs (yours first, then by interest). **The Recruit tab:** the actions left,
+  Send film, Offers & rank, the Recruiting log, and Signing Day at decision time.
+- **Offers & rank:** every offer with its status (committed, conditional, met, a warning, pulled and why), paged.
+  **The Recruiting log:** offers, warnings, pulls, visits, commitments and flips, by class year.
+- **Signing Day:** the offers (crest, level, where you'd begin, a condition, SIGN), and the other roads; a walk-on
+  picker. The hub's button says SIGNING DAY; the commit card's stamp says SIGNED or WALK-ON.
+- Codex: Colleges & recruiting rewritten (interest, offers, spots, actions, commitment and Signing Day, the College
+  test); first-time tips for the action sheet and Signing Day; the Recruiting tip rewritten.
+
+**The career simulator's typical recruit.** `tests/careersim.js` now recruits the way a typical player would: each
+month's actions go to the best programs in reach (film to the top three; an official visit to the top one from the
+junior year, else your coach's call or an email; a camp in the summer when there's money), a commitment to the #1
+school (the dream: the most prestigious program in offer range when the junior year starts) the week it offers,
+otherwise the best offer at the start of the senior year, sooner when a warning says its last spot is going (half
+the careers heed it); a better #1 that offers later is worth a flip, and a coach who leaves is followed. `--rec=none`
+waits for Signing Day; `--hsOnly --spread=12` stops at Signing Day with each career's ratings shifted −12..+12, so
+every star level gets sampled.
+
+**§2.7 — the printed targets** (`careersim.js 300 <seed> --hsOnly --spread=12`, seeds 1–3, 900 careers; offers
+received by Signing Day, pulled ones included, by the stars at signing; "no offer" = no live offer on Signing Day):
+
+| Stars | Offers (target) | No offer (target) |
+| --- | --- | --- |
+| 5★ | 16.7 (10–20) | 0% (0%) |
+| 4★ | 5.9 (5–9) | one career, 0.5% (0%) |
+| 3★ | 2.8 (2–4) | 7% (about 8%) |
+| 2★ | 1.1 (1–2) | 35% (about 30%) |
+| 1★ | 0.6 (0–1) | 58% (about 60%) |
+
+By seed: 5★ 16.9 / 17.5 / 15.8 offers; 4★ 6.1 / 6.2 / 5.4; 3★ 2.7 / 3.0 / 2.7; 2★ 1.2 / 1.1 / 1.0; 1★ 0.7 / 0.6 /
+0.4 (174, 196, 256, 238 and 36 careers by stars).
+
+A 5★ loses the #1 school (no live offer from it on Signing Day) in 22% of careers (38 of 174; 18 / 23 / 24% by seed) (target 15–25%). An elite academic
+offer is never final below 3.3 (`--school=student`: 268 elite academic offers in 300 careers, none final below 3.3). Typical careers without the spread (300, seed 1)
+are mostly late bloomers in the top rows: their 4★s committed as 3★ juniors to the dream school and average 3.6
+offers (3★ 3.1, 2★ 1.4). Full careers (100, seed 1): nobody stuck; 95% committed by Signing Day; the carousel in
+14 (13 followed); 82 signed, 10 signed after a prep year, 8 walked on after one.
+
+**Balance after W4.** `tests/difficulty.js` (600 careers a policy):
+
+| Row | Typical: W3 → W4 (band) | Great: W3 → W4 (band) |
+| --- | --- | --- |
+| A 5★ team | 23.7% → 24.5% (15–25) | 79.5% → 79.2% (52–68) |
+| Titles a career | 0.41 → 0.49 (0.2–0.4) | 2.48 → 2.34 (1–3) |
+| Hall of Fame | 4.5% → 5.5% (3–8%) | 54.8% → 54.3% (30–40%) |
+| A 3★ team | by 28 84% → 81% (50%) | by 24 94% → 94% |
+
+The rows outside their bands are the four W2 and W3 left outside; W6 retunes both policies against §3.7, as planned.
+Typical careers now start college at programs of their level (career simulator, college seasons a career: small 1.39,
+mid-major 1.01, power 0.14, blue blood 0.01; W3 0.49 / 1.26 / 0.71 / 0.02): offers come week by week from the
+programs that want you, and a typical recruit commits to one instead of taking the best of one-a-tier.
+
+**New and changed constants.** New: `recruiting` (`fit`, `hazard`, `above`, `projYear`, `committedMul`, `earnedMax`,
+`decay`, `graceWeeks`, `charW`, `charMax`, `comp`, `compMax`, `warnInterest`, `pullInterest`, `injuryGames`,
+`injuryWeeks`, `injuryKeep`, `academicFrom`, `test`, `watch`, `actions`, `monthWeeks`, `film`, `email`, `camp`,
+`unofficial`, `official`, `coachCall`, `carousel`, `flip`, `prep`). Removed (the old ladder): `colleges.interest`'s
+`base`, `perPt`, `prestige` and `smallCut`, `hs.offerCuts`, `hs.visits`, `amateur.offerCuts`, `amateur.recruit.offers`
+(and `amCollegeOffers`, `colPickProgram`, `hsOfferTier`). A college decision from before 2.1 keeps its offer board,
+visits and commitment day.
+
+**Tests.** New: `tests/recruit21.js` (15 steps: interest, offers, spots, warnings and pulls, the actions, an official
+visit, commitment and flips, the carousel, Signing Day, no offers, the College test, the desktop screens, the Codex,
+old saves, the phone screens). Updated: `smoke` (Signing Day; warnings before pulls), `school` (conditional academic
+offers; a warning first; no offer means Signing Day's roads), `colleges` (an offer holds no spot, the commitment
+does; small schools don't reach up), `flow` (the Recruit tab's buttons), `phoneaudit` (eight new cases: the action
+sheet twice, film, the log, Signing Day with and without offers, the walk-on picker, fifteen hats), `fullcareer`,
+`oldsaves`, `gen_oldsaves` and `shots` (Signing Day in the scripted careers), `careersim` (above). Quick checks this
+milestone: smoke (136), flow (12), polish (14), school (8), story (13), old saves (34), playtest3 (11), improve21 (13),
+colleges (14), recruit21 (15), the phone and desktop audits (272 and 268 screens, no flags), the career simulator and
+the difficulty table. The full suite runs once, at W10.
+
+**Found on the way.**
+
+- The college Signing Day screen first shared its function name with the pro signing ceremony: the later part
+  silently replaced the earlier one (the pro signing showed the wrong screen). Renamed, and the build now flags any
+  top-level function declared twice.
+- The comment lint read "; else" in a sentence as swallowed code: those comments are reworded.
+- A player who never commits loses every offer by Signing Day (every program fills its class): by design, with a
+  warning before each pull that stops the sims, and the roads of §2.6 after it.
+
 ## W3 (2.1) — 64 colleges and the College Browser
 
 The third of the ten 2.1 milestones (§2.1). The college world is a registry of 64 programs (`160_colleges.js`), the

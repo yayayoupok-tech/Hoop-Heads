@@ -11,27 +11,27 @@ const { launch, openPage, runner } = require('./lib');
   const mkCol = `((seed, gpa, stars, tier) => { const c = amCreate(defaultSave(), { name: 'College Test', look: PRESET_LOOKS[seed % 16], number: 23, style: 'slasher', seed }); c.events.length = 0; hsSimTryout(c); for (const k of RATING_KEYS) c.r[k] = Math.max(c.r[k], 66); c.age = 18; c.stageYear = 4; c.decision = null; c.gpa = gpa; c.recruit = { score: 60, nat: 100, stars }; c.events.length = 0; amChooseCollege(c, { name: 'Test State', tier, colors: ['#224', '#EEE'], coach: 'Coach Test', focus: 'shooting', fac: 2 }); return c; })`;
   const B = [mkHs, mkCol];
 
-  await step('offers have GPA lines (blue blood 2.5, elite academic 3.3, the rest 2.0) and none comes under its line; elite academic programs offer from 3.3; nobody is left with no offer', () => ev(([mkHs]) => {
+  await step('offers have GPA lines (blue blood 2.5, elite academic 3.3, the rest 2.0) and none comes under its floor; elite academic programs offer from 3.0, on condition of their 3.3 by the senior finals (2.1 §2.2); with no offer, Signing Day has a walk-on or a prep year', () => ev(([mkHs]) => {
     const n = { offers: 0, blue: 0, academic: 0, byG: {} }, bad = [];
-    for (let seed = 1; seed <= 40; seed++) for (const g of [1.7, 2.1, 2.4, 2.6, 3.1, 3.29, 3.3, 3.8]) {
+    for (let seed = 1; seed <= 40; seed++) for (const g of [1.7, 2.1, 2.4, 2.6, 2.9, 3.1, 3.3, 3.8]) {
       const c = eval(mkHs)(1000 + seed); const lvl = 52 + (seed % 6) * 7; for (const k of RATING_KEYS) c.r[k] = lvl; c.stageYear = 4; c.offers = []; c.gpa = g; hsOfferCheck(c, amRng(c), 'final');
-      for (const o of c.offers) { n.offers++; const line = o.academic ? SCH.gpaReq.academic : o.tier >= 3 ? SCH.gpaReq.blue : SCH.gpaReq.other; if (o.gpaReq !== line) bad.push(o.name + ': line ' + o.gpaReq); if (g < o.gpaReq) bad.push(o.name + ' offered at ' + g); if (o.tier >= 3) n.blue++; if (o.academic) { n.academic++; const q = colProg(o.pid); if (!q || !q.academic || q.name !== o.name || o.tier !== q.tier) bad.push('elite academic ' + o.name + ' tier ' + o.tier); } /* 2.1: a Laurel League program (64 colleges) */ }
+      for (const o of c.offers) { n.offers++; const line = o.academic ? SCH.gpaReq.academic : o.tier >= 3 ? SCH.gpaReq.blue : SCH.gpaReq.other; if (o.gpaReq !== line) bad.push(o.name + ': line ' + o.gpaReq); if (g < schoolOfferReq(o)) bad.push(o.name + ' offered at ' + g); if (o.tier >= 3) n.blue++; if (o.academic) { n.academic++; const q = colProg(o.pid); if (!q || !q.academic || q.name !== o.name || o.tier !== q.tier) bad.push('elite academic ' + o.name + ' tier ' + o.tier); if (!o.cond || o.cond.gpa !== SCH.gpaReq.academic || g < RCG.academicFrom) bad.push('elite academic ' + o.name + ' at ' + g + ': ' + JSON.stringify(o.cond)); } /* 2.1: a Laurel League program (64 colleges), on condition */ }
       n.byG[g] = (n.byG[g] || 0) + c.offers.length;
     }
     if (bad.length) throw new Error(bad.slice(0, 4).join(' | ')); if (!n.blue || !n.academic) throw new Error('no blue blood or no elite academic offer: ' + JSON.stringify(n)); if (n.byG[1.7]) throw new Error('offers under 2.0');
-    const z = eval(mkHs)(999); z.stageYear = 4; z.offers = []; z.gpa = 1.6; amStartRecruiting(z, amRng(z)); const live = z.decision.offers.filter(o => !o.draft); if (live.length !== 1 || !live[0].conditional || live[0].tier !== 0 || schoolOfferReq(live[0]) !== 0) throw new Error('a small school\'s conditional offer: ' + JSON.stringify(live.map(o => [o.name, o.tier, o.gpaReq])));
+    const z = eval(mkHs)(999); z.stageYear = 4; z.offers = []; z.gpa = 1.6; z.events.length = 0; amStartRecruiting(z, amRng(z)); const live = z.decision.offers.filter(o => !o.draft); if (live.length || !z.decision.none || !z.decision.prepOk || !z.events.some(e => e.title === 'NO OFFERS')) throw new Error('no offer: ' + JSON.stringify({ live: live.length, none: z.decision.none, prepOk: z.decision.prepOk }));
     const t = hsOfferLineText([{ name: 'A', tier: 3, gpaReq: 2.5 }, { name: 'B', tier: 1, gpaReq: 2 }]); if (!/A: 2\.5/.test(t) || !/the rest 2\.0/.test(t)) throw new Error('the offer card names the lines: ' + t);
-    return n.offers + ' offers · ' + n.blue + ' blue blood · ' + n.academic + ' elite academic · offers by GPA ' + JSON.stringify(n.byG);
+    return n.offers + ' offers · ' + n.blue + ' blue blood · ' + n.academic + ' elite academic (conditional) · offers by GPA ' + JSON.stringify(n.byG);
   }, B));
 
-  await step('a report card under a program\'s line pulls its offer and only its (the elite academic one at 3.2, the blue blood at 2.4, everyone under 2.0); the card says why', () => ev(([mkHs]) => {
+  await step('a report card under a program\'s line warns, and the next one pulls its offer and only its (the blue blood at 2.4, everyone under 2.0); an elite academic offer\'s 3.3 is checked at the senior midterm (a warning) and the finals; the card says why', () => ev(([mkHs]) => {
     const c = eval(mkHs)(2001); for (const k of RATING_KEYS) c.r[k] = 82; c.stageYear = 4; c.offers = []; c.gpa = 3.6; hsOfferCheck(c, amRng(c), 'final');
     const ac = c.offers.find(o => o.academic), bb = c.offers.find(o => o.tier === 3); if (!ac || !bb) throw new Error('a 3.6 star gets an elite academic and a blue-blood offer: ' + c.offers.map(o => o.name + ' ' + o.tier));
-    c.events.length = 0; c.gpa = 3.2; amReportCard(c, 'mid'); if (!ac.pulled || c.offers.some(o => o !== ac && o.pulled)) throw new Error('3.2 pulls the elite academic offer only');
-    const card = c.events.find(e => e.title === 'REPORT CARD'); if (!card || !card.lines.some(l => l.includes(ac.name) && /line/.test(l))) throw new Error('the card names it: ' + (card && card.lines.join(' / ')));
-    c.gpa = 2.4; amReportCard(c, 'mid'); if (!bb.pulled || c.offers.some(o => o.tier < 3 && !o.academic && o.pulled)) throw new Error('2.4 pulls the blue blood only'); if (c.ineligible) throw new Error('2.4 is eligible');
-    c.gpa = 1.9; amReportCard(c, 'end'); if (c.offers.some(o => !o.pulled) || c.ineligible !== HS.ineligibleGames) throw new Error('1.9: every offer pulled, and ineligible');
-    return c.offers.map(o => o.name + ' (' + o.gpaReq.toFixed(1) + ')').join(', ');
+    c.events.length = 0; c.gpa = 3.2; amReportCard(c, 'mid'); if (c.offers.some(o => o.pulled)) throw new Error('3.2 at the midterm pulled ' + c.offers.filter(o => o.pulled).map(o => o.name));
+    const card = c.events.find(e => e.title === 'REPORT CARD'); if (!card || !card.lines.some(l => l.includes(ac.name) && /conditional/.test(l))) throw new Error('the card names the condition: ' + (card && card.lines.join(' / ')));
+    c.gpa = 2.4; amReportCard(c, 'mid'); if (c.offers.some(o => o.pulled)) throw new Error('2.4: a warning first'); amReportCard(c, 'end'); if (!bb.pulled || bb.why !== 'gpa' || !ac.pulled || c.offers.some(o => o.tier < 3 && !o.academic && o.pulled)) throw new Error('2.4 twice pulls the blue blood and the academic offer only'); if (c.ineligible) throw new Error('2.4 is eligible');
+    c.gpa = 1.9; amReportCard(c, 'mid'); amReportCard(c, 'end'); if (c.offers.some(o => !o.pulled) || c.ineligible !== HS.ineligibleGames) throw new Error('1.9: every offer pulled (after a warning), and ineligible');
+    return c.offers.map(o => o.name + ' (' + schoolOfferReq(o).toFixed(1) + (o.cond ? ', 3.3 by the finals' : '') + ')').join(', ');
   }, B));
 
   await step('exam weeks (high school): MIDTERMS after the fifth game, FINALS WEEK before the last, twice a season and never in the playoffs; Cram, Balanced (the default) and Skip do what they say; the report card follows the pick', () => ev(([mkHs]) => {
