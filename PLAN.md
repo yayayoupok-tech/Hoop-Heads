@@ -354,7 +354,10 @@ end it: a speech, silence or a call home) or the One That Got Away, Legacy (your
 comes next: your sibling, a kid from the academy, coaching or a team of your own) and the six endings, each a cutscene
 with your sibling's last line. No scene twice in a career (R9's recurring beats have versions); the last day is two
 story screens (`tests/story21.js`, the career simulator's endings, paths and repeats).
-**W10 — Release** — the full suite once, every target table, version 2.1, the artifact republished.
+**W10 — Release** *(done)* — the full suite once, on one snapshot of the build (and everything two text fixes after it
+can touch, again on the final build); every target table printed in `CHANGES.md`'s 2.1 report (§1.1–1.5, §1.8, §2.7,
+§3.7, §4.4, Part 2's §1.1 and 2.0's §7 tests); version 2.1 with What's new in 2.1 and the README; the artifact
+republished.
 
 ## Testing every milestone
 

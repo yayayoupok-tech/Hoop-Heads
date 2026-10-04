@@ -3,6 +3,338 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## Hoop Heads 2.1 (W1–W10): the report
+
+The request "Hoop Heads 2.1: playtest fixes, real recruiting, a deeper PBL, and an actual story", in ten milestones,
+W1–W10, a commit each. Its rules held throughout: one `index.html`, renderers never throw, old saves migrate (every
+fixture from the first 1v1 career on still loads and plays on; none is wiped), the career is 1v1 only, the league is
+the invented PBL with invented franchises and no draft (teams make offers), and the story stays PG. Each milestone ran
+quick checks; the full suite ran once, at W10, on one snapshot of the 2.1 build, and everything the text fixes after it
+can touch ran again on the final build (marked "final"). The version is 2.1 (the title screen and the credits), and
+What's new in 2.1 shows once after the update.
+
+| The request | Milestone | What changed |
+| --- | --- | --- |
+| §1.8–12: the playtest's fixes and the game length | W1 | A running clock (stops only in the last 10 s and overtime; the per-game scale ×0.57 with it), sim buttons that say what's waiting (or open it), one All-Star 3-point attempt, a record once (a toast on the hub, never over another screen), the Road banner, matchup names that fit (two lines, then shorter), facilities that pay XP at every star, skills capped at 95 for everyone. |
+| §1.1–1.5, §1.7: the playtest's improvements | W2 | Teams come to you (free agency's three offers include the best franchise your value reaches, and it's the default; in the season, 3+ over your bar brings a better franchise's trade offer), effort matters, simmed points within 10% of played ones at every level, six big buys priced for a pro, Study in the weekly plan with a hub warning under 2.3 and a C+ floor, leaving college with the agent's advice and the projected offers. |
+| §2.1: every college, browsable | W3 | 64 programs in eight conferences of eight (the national tournament's 64), each with a place, colors, a pixel crest, an arena, a tier and prestige, a coach card (style, tenure, hot seat), a GPA line and majors, facilities, an NIL market, distance, depth at your position and a history; the College Browser (filters, sorting, search) and a program's page with Your chances. |
+| §2.2–2.7: the recruiting game | W4 | Interest 0–100 from eight parts (it drifts without contact), stages, spots that run out to named recruits (your rival among them), warnings and pulls, conditional elite academic offers and the College test, three actions a month, five official visits as scenes, a verbal commitment, the coaching carousel (15%), flips, Signing Day's hats, walk-ons and the prep year. |
+| §3.1–3.2: the PBL's structure | W5 | Sixteen franchises in two conferences of eight, with owners, GMs, coach systems (and your fit), a payroll under a soft cap and a tax line, rosters of five, chemistry and team strength; a fifteen-week calendar (rivalry week, the All-Star break, the deadline, the national TV game); conference playoffs and a best-of-5 Finals; the award races all season. |
+| §3.3–3.7: the offseason and league life | W6 | The offseason in seven screens (Awards Night, aging, retirements, a free agency week by day, the trade window, training camp, the power rankings); contracts with options, a no-trade clause and incentives; a league that moves without you (signings, trades, cuts, retirements, rookies with your old teammates among them), title windows, the GOAT ladder and the records, PBL Tonight, the value meter, owners' beats; retuned to §3.7. |
+| §4.1, §4.3 (and §1.6): the story engine | W7 | Twelve chapters (a title card, an opening, 3–6 scenes, one big decision shown as "This will be remembered" and kept as a flag, a closing scene, a version for every path), the cast with portraits and meters (a younger sibling, Coach Adeyinka, the best friend), five new cutscene backgrounds (twelve in all), 3–5 scenes a season and two story screens in a row at most, "Previously on Hoop Heads", the Story screen as chapters. |
+| §4.2: chapters 1–6 | W8 | Freshman tryouts, Varsity, the Spotlight, Signing Day, the Freshman Wall and March, each with its versions (JV or varsity, letters or none yet, kept, changed, a prep year, a walk-on, the pros); the old arcs they tell (Family Bills, the Best Friend's choice, the rival's first handshake) step aside. |
+| §4.2–4.4: chapters 7–12 and the endings | W9 | The Decision (who speaks for you: the honest agent, the big agency or your best friend), Rookie, Prime (the sibling's night or the sponsor's; the big agency's scandal), the Ring Chase, Finals (the rematch) or the One That Got Away, Legacy; six endings, each a cutscene with the sibling's last line; no scene twice in a career. |
+| §5.10: the release | W10 | The full suite once with every target table (below), version 2.1, What's new in 2.1, the README for 2.1, the republish. |
+
+### The tables (§5.10: every target table printed)
+
+**§1.1, §1.2, §1.4: teams come to you, effort matters, money** (`tests/effort.js`, the career simulator, 200 careers a
+policy, seed 1). The playtest's two careers had a legacy of 31 (try hard) and 29 (lazy).
+
+| Policy | Legacy (median) | A 5★ team | A 3★ team | Titles | Hall of Fame | OVR at 22 | Peak | Unspent at retirement |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Plays well + good choices | 83.5 (73) | 47% | 100% | 1.00 | 34% | 70 | 75 | 9% |
+| Sims everything (trash talk, rest, summer jobs) | 38.8 (36) | 10% | 97% | 0.21 | 1% | 65 | 70 | 99% |
+| Plays well, never opens a menu | 71.5 (65) | 36% | 100% | 0.95 | 21% | 69 | 75 | 100% |
+| Typical, a smart spender | 45.6 (42) | 13% | 100% | 0.31 | 1% | 65 | 71 | 12% |
+
+| Target | Measured |
+| --- | --- |
+| §1.2: legacy +40% or more for playing well | ✓ +115% |
+| §1.2: a clearly higher 5★ rate and more titles | ✓ 47% against 10%; 1.00 titles against 0.21 |
+| §1.1: plays well and never opens a menu: a 3★ team in 60%+ of careers | ✓ 100% (a 5★ team 36%) |
+| §1.4: a smart spender's unspent cash at retirement under 30% of earnings | ✓ 12% (the playtest: $98M–$305M unused); 400 typical careers 12%, 400 great 8% |
+| No stuck careers, no errors | ✓ 0 of 800 |
+
+**§1.3: sim/play parity** (`tests/parity.js`: 12 careers, seed 7; your points a game, played by the engine with the AI
+at your controls, against the same matchups simmed; the playtest had 16 simmed against 12.7 played):
+
+| Level | Games | Played | Simmed | Simmed / played (0.90–1.10) |
+| --- | --- | --- | --- | --- |
+| High school | 240 | 6.21 | 6.64 | ✓ 1.070 |
+| College | 227 | 6.85 | 7.14 | ✓ 1.041 |
+| The pros | 480 | 7.49 | 7.55 | ✓ 1.007 |
+
+**§1.5: GPA** (`tests/improve21.js`, 13 of 13): Study is the fourth plan in high school and college (+0.3) and not in
+the pros ✓; the hub warns under 2.3 (orange STUDY; red under 2.0) ✓; a career that never studies ends at a median GPA
+of 2.20 at the draft (24 careers, all in 2.0–2.5; the lowest in high school 2.17; the playtest: 0.8) ✓; the probation
+story's study sprint takes 1.40 to 1.90 (+0.50; at least +0.4) and it holds through the next report card ✓.
+
+**§1.6 and §4.3: story scenes a season** (the career simulator, 160 careers, seed 7; the default answers and random
+ones): 3–5 in 98.5% and 99.1% of high school seasons, 99.0% and 99.7% of college ones, 99.5% and 99.6% of pro ones;
+never under 3. A season over 5 (6 scenes, once 7; 24 and 15 of about 3,200 seasons) is one where scenes that are
+always told (an injury, an official visit's three, a chapter's decision) came on top of a full season. The playtest
+had about 10 scenes over eight amateur seasons.
+
+**§1.8–12: the game length and the fixes** (`tests/playtest3.js`, 11 of 11, final): a one-minute career game takes a
+median 72.5 s of real time (eight bot games, 69–91 s; target 70–80 s; the playtest: about 2 minutes) ✓; the clock runs
+through a made basket and an inbound and stops on dead balls only in the last 10 s and in overtime ✓. The fixes (§1.9–12)
+pass one step each: the sims grey out with a choice waiting (never "0 weeks simmed"), one All-Star 3-point attempt, a
+record once as a hub toast, the Road banner's rows apart on a desktop and a phone, matchup names that shrink, wrap or
+shorten instead of a cut, facilities at every star (+3% to +15%), skills stopping at 95 for the league too.
+
+**§2.7: recruiting** (`careersim.js 300 <seed> --hsOnly --spread=12`, seeds 1–3, 900 careers; offers received by
+Signing Day, pulled ones included, by the stars at signing; "no offer" is no live offer on Signing Day):
+
+| Stars | Offers (target) | No scholarship offer (target) | Careers |
+| --- | --- | --- | --- |
+| 5★ | ✓ 16.5 (10–20) | ✓ 0% (0%) | 176 |
+| 4★ | ✓ 5.6 (5–9) | two careers, 1.0% (0%) | 197 |
+| 3★ | ✓ 2.8 (2–4) | ✓ 7.5% (about 8%) | 253 |
+| 2★ | ✓ 1.06 (1–2) | 37% (about 30%) | 239 |
+| 1★ | ✓ 0.61 (0–1) | ✓ 60% (about 60%) | 35 |
+
+By seed: 5★ 16.7 / 17.3 / 15.6 offers; 4★ 5.7 / 6.0 / 5.1; 3★ 2.7 / 2.9 / 2.8; 2★ 1.2 / 1.0 / 1.0; 1★ 0.6 / 0.7 /
+0.4. A 5★ loses the #1 school in 18.8% of careers (33 of 176; 21 / 15 / 19% by seed; target 15–25%) ✓. An elite
+academic offer is never final below 3.3 ✓ (`tests/recruit21.js`: the condition at 3.1 pulls the offer at the senior
+finals, 3.4 meets it; the simulator's careers: none final below 3.3).
+
+**§3.7: the PBL** (`tests/difficulty.js`, the plays-well policy, 600 careers over seeds 1–3; `tests/league30.js`, five
+leagues of thirty seasons):
+
+| Target | Measured |
+| --- | --- |
+| Plays well: a 3★ team in 60%+ of careers | ✓ 100% (by 24: 91%) |
+| Plays well: a 5★ team in 35–55% | ✓ 49.2% (47.5 / 50.5 / 49.5% by seed) |
+| Plays well: 1–2 titles a career | ✓ 1.08 (0.99 / 1.00 / 1.26 by seed) |
+| AI teams make 8–15 trades a season | ✓ 10.9 a season; 9–13 in every one of the 150 seasons |
+| A new champion in 60%+ of seasons | ✓ 89% (86 / 93 / 79 / 97 / 90% by league; the most titles by one franchise 3–7) |
+| Every franchise a title within 30 seasons | ✓ in all five leagues (16 of 16 each) |
+
+**§4.4: the story** (the career simulator, 160 careers, seed 7, with the default answers and with random ones, picked
+through the game's own RNG; `tests/story21.js`, 25 of 25):
+
+| Test | Target | Measured |
+| --- | --- | --- |
+| Chapters reached per career | all 12, with path variants | ✓ every chapter reached and closed in 100% of careers, both policies; the variants (random answers) below |
+| Scenes per season | 3–5 in every phase | ✓ high school 99.1%, college 99.7%, the pros 99.6% (default answers 98.5, 99.0, 99.5%) |
+| Each ending in 5%+ of careers | six endings | ✓ the Coach 29%, the Hometown Hero 18%, Family First 14%, the Fallen Star 14%, the Owner 14%, the Mercenary Champion 10% (random answers; the default answers stay home: Family First 64%, the Hometown Hero 36%) |
+| No scene repeats within a career | none | ✓ 0 of 320 careers repeat a scene word for word |
+| Flags survive a save and a reload | yes | ✓ the chapter flags, their picks, the recap and the cast survive a save, a reload and the handoff to the pros (story21, two steps) |
+| The best friend's 4 paths, 20%+ each | teammate, agent, rival's agent, away | ✓ 28%, 27%, 23%, 23% |
+| The sibling's arc, 20%+ | a prospect, or they need you | ✓ they need you 53%, a prospect 47% |
+
+The chapters with random answers (the scenes a chapter, its versions · its big decision):
+
+| Chapter | Scenes | Versions | The big decision |
+| --- | --- | --- | --- |
+| 1 The Kid from (your school) | 4.0 | JV 76%, varsity 24% | stay late 52%, go home 48% |
+| 2 Varsity | 3.5 | the first varsity season 56%, a second 24%, JV again 20% | shake hands 53%, talk trash 47% |
+| 3 The Spotlight | 4.0 | quiet 56%, the letters 44% | the weekend job 51%, your friend's family 49% |
+| 4 Signing Day | 4.0 | kept 64%, changed 27%, a prep year 9% | the dream 38%, your friend 34%, home 28% |
+| 5 Freshman Wall | 3.1 | college 96%, a walk-on 4% | grind 50%, home 50% |
+| 6 March | 3.9 | college 91%, the pros 9% | sit 55%, play through it 45% |
+| 7 The Decision | 3.5 | declare 91%, the pros 9% | the big agency 40%, the honest agent 33%, your friend 27% |
+| 8 Rookie | 3.0 | the bench 69%, a starter 21%, later 9% | learn 58%, demand minutes 43% |
+| 9 Prime | 3.4 | a star 88%, the grind 12% | the sponsor 53%, your sibling 47% |
+| 10 The Ring Chase | 3.8 | a contender calls 96%, the top team 4% | leave 53%, stay 47% |
+| 11 Finals | 3.9 | the One That Got Away 63%, the Finals 36%, the rematch 1% | silence 36%, a call home 33%, a speech 31% |
+| 12 Legacy | 4.0 | the last day 100% | a kid from the academy 33%, your sibling 24%, the owner 22%, the coach 22% |
+
+**Part 2 §1.1: the difficulty table** (`tests/difficulty.js`: 600 careers a policy over seeds 1–3, 0 stuck; the great
+policy's 5★, titles and Hall of Fame bands are 2.1 §3.7's):
+
+| Milestone | Typical: target | Typical: measured | Great: target | Great: measured |
+| --- | --- | --- | --- | --- |
+| Makes varsity | sophomore or junior (freshman 20–25%) | ✓ freshman 22%, median year 2 | freshman | ✓ freshman 56% |
+| Recruit stars at graduation | 2–3★ | ✓ 2–3★ 73%, median 3★ | 4–5★ | ✓ 4–5★ 73%, median 4★ |
+| Starts in college | year 2–3 | ✓ year 2–3 69%, median year 2 | year 1 | ✓ year 1 89% |
+| First pro offer | 1–2★ or undrafted | ✓ 1–2★ 73%, median 2★ | 3★ | ✓ median 3★ |
+| Reaches a 3★ team | by 26–28 in 50% | ✗ by 28 91%, median age 25 | by 24 | ✓ by 24 91% |
+| Reaches a 5★ team | 15–25% | ✓ 16.7% | 35–55% | ✓ 49.2% |
+| Championships per career | 0.2–0.4 | ✓ 0.38 | 1–2 | ✓ 1.08 |
+| Hall of Fame | 3–8% | ✗ 2.2% | about 35% (30–40%) | ✓ 35.2% |
+
+By seed (1 | 2 | 3): a 5★ team, typical 15.5 | 19.5 | 15.0%, great 47.5 | 50.5 | 49.5%; titles, typical 0.42 | 0.32 |
+0.40, great 0.99 | 1.00 | 1.26; the Hall of Fame, typical 3.0 | 1.0 | 2.5%, great 34.5 | 31.5 | 39.5%. The Hall of Fame
+at other lines (the line is 92): 80 typical 4.2%, great 48.3%; 84 3.2%, 42.7%; 88 2.7%, 37.3%; 96 1.7%, 31.3%. The two
+typical rows outside their bands are the two W6 left there (see the limits below).
+
+**2.0 §7's tests, on the 2.1 build:**
+
+| Test | Result |
+| --- | --- |
+| Steal consistency (`tests/steals.js`) | ✓ 2 × 500 scripted steals, 0 mismatches. Defense 6: clean 64.6% (63%), STEAL 428, POKED 72; Defense 9: clean 71.6% (72%) |
+| Trait rarity (`tests/rarity.js`) | ✓ 1,000 generated players: Legendary 3.4% (3–5%); 20,000: 54.8 / 27.9 / 13.3 / 4.02% against 55 / 28 / 13 / 4 |
+| Trait power by rarity (`tests/traitbalance.js`, 400 careers a trait on 3 seeds, the great policy) | ✗ rarer is still stronger, but under V3's bands: Common +1% (0…8% ✓), Uncommon +6% (6…15%, just under), Rare +10% (15…30%), Legendary +30% (35…60%); 2.0 (V15): +5, +12, +24 and +51%. Each trait's worth in a simulated game is unchanged (`tests/traits.js` prints the same OVR points as V15); see the limits below |
+| Box-score invariants (`tests/boxscore.js`) | ✓ 1,000 simmed amateur games and 1,000 simmed pro games add up, 0 failures |
+| Staff balance (`tests/staffbalance.js`, 400 careers × 3 seeds, both policies) | the tables below: every salaried role alone above none ✓; the agent earns you more ✓; smart spending +9.4% (+10–20%) ✗, just under |
+| XP stays hard | the curve is unchanged (20 × 1.11^(rating − 40); 80 → 90 costs 8.1× the 60 → 70 stretch); 400 typical careers: OVR 56 / 64 / 68 at 17 / 21 / 25, a peak of 71; 400 great: 58 / 68 / 73, a peak of 76 |
+
+**Staff** (`tests/staffbalance.js`, 400 careers × 3 seeds a row, the same careers in every row). The great policy
+(judged):
+
+| Staff | Legacy | vs none | Titles | Hall of Fame | Peak | A 5★ team | Injuries | Earned | On staff | Net worth |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| None (and no spending) | 77.0 | | 1.02 | 27% | 75.3 | 44% | 3.08 | $312.1M | $0 | $306.5M |
+| Smart (the best agent, then the salaried roles within half the salary) | 84.3 | +9.4% | 1.10 | 35% | 75.8 | 51% | 2.48 | $357.0M | $185.3M | $94.6M |
+| The agent alone | 80.4 | +4.3% | 0.98 | 28% | 75.4 | 46% | 3.09 | $353.7M | $0 | $282.5M |
+| The skills coach alone | 80.7 | +4.7% | 1.03 | 31% | 75.6 | 47% | 3.11 | $342.1M | $91.9M | $159.3M |
+| The strength trainer alone | 80.2 | +4.1% | 1.01 | 30% | 75.5 | 47% | 2.49 | $337.9M | $91.1M | $157.0M |
+| The physio alone | 79.9 | +3.7% | 1.00 | 29% | 75.4 | 46% | 2.21 | $339.5M | $95.3M | $156.3M |
+| The nutritionist alone | 88.4 | +14.7% | 1.17 | 39% | 75.6 | 51% | 2.91 | $359.6M | $97.8M | $166.5M |
+| The mental coach alone | 81.7 | +6.1% | 1.10 | 32% | 75.4 | 47% | 3.12 | $339.3M | $91.2M | $158.1M |
+
+Targets: smart spending +10–20% legacy over none → +9.4% ✗ (2.0: +12.4%; the same squeeze as the traits', below);
+every salaried role alone above none ✓ (+3.7% to +14.7%); the agent (a cut, no salary) earns you more ✓ (+$41.7M). As
+run, the test also asked the agent's careers for a higher net worth than careers that buy nothing, and failed it
+($282.5M against $306.5M): the role-alone rows spend smartly on everything else, and since 2.1 §1.4 a smart spender
+buys the big buys on purpose. W10 changed the check to earnings, its label's claim (the net worth stays in the table).
+Each role pays where its card says: the physio cuts injuries 3.08 → 2.21, the strength trainer to 2.49, the agent's
+deals add $41.7M, and the nutritionist moves legacy most.
+
+The typical policy (reported; the band is judged on the great one, as in V10): no staff 44.2 legacy, 0.30 titles, 1%
+in the Hall of Fame; smart spending 46.2 (+4.5%, above none ✓), 0.36 titles, 16% reaching a 5★ team (12% without); each
+role alone +1.6% (the physio) to +5.4% (the nutritionist), all above none ✓; the agent earns +$27.3M ✓ (as run, its
+net-worth half failed the same way: $141.7M against $166.6M); injuries 2.44 → 1.90 with the physio.
+
+**Perf** (`tests/perf4x.js`, the device clock at 4×: a live pro-arena 1v1, 5 forced dunks and 3 forced blocks;
+`tests/loadlag.js`, every screen change and game load at 4× and 1×). The final 2.1 build and V15's build (2.0 with the
+loading-lag fixes), back to back on the same quiet machine (2.1 twice):
+
+| | 2.1, phone | V15, phone | 2.1, desktop | V15, desktop |
+| --- | --- | --- | --- | --- |
+| Median frame (target ≤ 25 ms) | 25.6, 28.4 ms | 25.9 ms | 24.3, 24.9 ms | 26.5 ms |
+| Frames over 50 ms in dunks, celebrations and blocks (target 0) | 13, 27 | 14 | 11, 19 | 29 |
+| The frame guard's first shed (target ≤ 0.5 s) | 0.15, 0.17 s | 0.15 s | 0.17, 0.17 s | 0.18 s |
+
+| The loading lag (desktop 1280×720) | 2.1 | V15 |
+| --- | --- | --- |
+| Steps over their bar at 4×, of about 110 (a task over 100 ms; a game's first frame over 300 ms) | 11, 7 | 7 |
+| Steps over their bar at 1× (a task over 50 ms) | 0, 1 (a 59 ms task leaving the league) | 0 |
+| Startup at 4×: the title (target 1.5 s) | 1.33, 1.20 s | 1.03 s |
+| Startup at 4×: long tasks before the menu responds (target 1.5 s) | 1.12, 1.13 s | 0.79 s |
+
+When V15 was committed, this test measured its build at 20.8–21.4 ms (phone) and 18.6–20.3 ms (desktop) with 2–3 slow
+frames, and its loading-lag walk missed 0–2 steps; today the same build runs a quarter to a third slower and misses 7, so
+the host is slower, and 2.1's frames are within V15's spread. 2.1's misses are 2–60 ms over the 100 ms bar, on
+different steps from run to run. Startup is about 0.2 s slower at 4× than V15's: the file is 3.09 MB against 2.56 MB
+(64 colleges, 16 franchises, the chapters). `tests/perf.js` (the frame's cost at each guard level): 3–7 ms at 1×, 29–45 ms
+at 4×, where the guard engages.
+
+### Tests on the 2.1 build (W10)
+
+The whole suite ran once, on one snapshot of the W10 build. Its audits found text cut in What's new and in the
+Codex's ending paragraph, and a W10 walk of every Codex page found one more (the Codex's Career games); each was
+fixed, and everything the fixes can touch ran again (marked "final"): the overflow audit at all six sizes (after the
+first two fixes; at 1280×720 and 844×390 again after the third), every Codex page at all six sizes, smoke, polish and
+story 2.1. The balance tests and the career simulator don't read those texts. Four tests the snapshot's run left out
+ran on the final build: playtest3 (W1's), R8's press and hype balance and the height test.
+
+| Test | Result |
+| --- | --- |
+| Syntax (`tests/check-syntax.js`) | ok (final) |
+| Smoke: the game through the UI at 1280×720 and 844×390 | 136 of 136 (final) |
+| Modes: every mode played to its end | 13 of 13 |
+| Old saves: every fixture from the first 1v1 career on, reloaded and played on | 42 of 42, never wiped |
+| Dev tools | all OK (the tunnel test: 1,000 balls, none through the rim) |
+| The overflow audit: 844×390 and 1280×720, both also at 1.25× text, 1920×1080, 800×1000 | about 300 screens at each size (308 on a phone): nothing flagged; the smallest glyph 1.00× the menus' pixel at every size (final; the paragraph above says which build each size ran on) |
+| The HUD's text (`tests/hudaudit.js`) | 35 scenes, 0 flagged |
+| Art Lab | 58 screenshots, no errors (`shots/w10/round-final`) |
+| §2 gate (300 mirror games, 200 Legend-vs-Pro games) | Pro mirror 1.17 PPP (0.95–1.25 ✓), side A 50% (45–55% ✓), Legend beats Pro 81% (75–95% ✓), brute force vs Pro 0.89 (≤ 1.30 ✓), timing and reads 1.50 ✓ |
+| Balance harness (Classic) | brute force vs Pro 1.06 (≤ 1.30 ✓), timing and reads 2.02, Legend beats Pro 83% (75–95% ✓) |
+| The style mix | Post 51% post-ups (45%), Shooter 60% jumpers (55%) with 52% threes (half), Slasher 64% drives (60%) ✓ |
+| Gameplay · 2.0's page fixes · polish | 12 of 12 · 15 of 15 · 14 of 14 (final) |
+| Traits (`tests/traits.js`) | 9 of 9 (its first run 8 of 9: the banner check's window, fixed above) |
+| Steals · rarity · box scores | 2 of 2 each (the tables above) |
+| The climb · the flow | 9 of 9 · 12 of 12 |
+| Story · story 2.1 · school · staff · shop · pro teams | 13 · 25 (final) · 8 · 11 · 10 · 14, every step passed |
+| 2.1: playtest3 · improve21 · colleges · recruit21 · pbl21 · life21 | 11 (final) · 13 · 14 · 15 · 11 · 17, every step passed |
+| A whole career through the screens | 930 actions: a real game in high school, college and the pros; retired after 13 pro seasons at 35 |
+| The same through Jump to pro | desktop 554 actions (13 pro seasons, retired at 36), phone 556 (12, at 35): passed |
+| Career simulator, 40 careers | 0 stuck; a 5★ team 15%, 0.45 titles, Hall of Fame 3%, OVR 56 / 64 / 68 at 17 / 21 / 25 (a rough read) |
+| Career simulator, 400 careers a policy | typical: a 5★ team 15%, 0.38 titles, Hall of Fame 2%; great: 51%, 0.97, 34%; 0 stuck |
+| Recruiting (900 careers) · the story (320) · effort · parity · league30 | the tables above: every row in its band but the §2.7 "about" rows noted |
+| Difficulty (`tests/difficulty.js`) | ✗ two typical rows (above), as since W5 |
+| Trait balance · staff balance | ✗ under their 2.0 bands (above and below) |
+| Press balance · hype balance (R8; 200 careers a policy) | legacy and earnings within range for every answer and both hype policies; titles out (press: Confident −9.0%, No comment +11.6% against ±8%; hype: chasing it −23% against ±10%): about 0.3 titles a career over 200 careers swing ±13% by chance alone, and R10's run missed the same way |
+| The height test (2.12 m against 1.82 m, 60 bot games) | the big one wins 12 of 60 (career shifts), 11 (flat), 4 (lockdown); see the limits |
+| Every Codex page (`codexpages.js`, a W10 script) | about 820 pages at the six sizes, four careers: nothing cut (final) |
+| Perf at 1× and 4× (`tests/perf.js`, `tests/perf4x.js`) | ✗ at 4× on this host, as V15's build is today (the perf table above); the frame guard sheds within 0.2 s ✓ |
+| The loading lag (`tests/loadlag.js`) | ✗ at 4×: 11 and 7 steps of about 110 over the 100 ms bar, by 2–60 ms (V15's build beside it: 7); at 1×: 0 and 1 |
+
+### Deviations and known limits
+
+1. **A typical career reaches a 3★ team too soon** (median age 25; Part 2 §1.1 asks for half by 26–28) **and rarely
+   makes the Hall of Fame** (2.2% against 3–8%). Both rows have been outside their bands since W5 and were left there
+   in W6: 2.1's own targets come first (teams come to you, §1.1; a 3★ team for 60%+ of the plays-well careers, §3.7),
+   and they lift typical careers too; with sixteen franchises titles are scarcer, and no Hall of Fame line fits both
+   policies (at 84 typical 3.2% but great 42.7%; the line stays at 92).
+2. **Traits and staff move legacy less than in 2.0** (`tests/traitbalance.js`, 1,200 great careers a trait):
+
+   | Rarity | 2.0 (V15) | 2.1 | V3's band |
+   | --- | --- | --- | --- |
+   | Common | +5% | +1% | 0…8% |
+   | Uncommon | +12% | +6% | 6…15% |
+   | Rare | +24% | +10% | 15…30% |
+   | Legendary | +51% | +30% | 35…60% |
+
+   By trait: Generational +81% → +37%, Unbreakable +58% → +43%, Late Bloomer +41% → +18%, Film Junkie +36% → +18%,
+   Iron Man +32% → +22%, Ice Veins +27% → +10%, Clutch Gene +12% → +4%; the no-trait median legacy 59 → 67. The
+   traits do what 2.0 §2.1 says (their numbers, levels and in-game worth are unchanged); what changed is what a better
+   player gets for it. 2.1's league is built for parity (§3.7: a new champion in 60%+ of seasons, every franchise a
+   title within 30), so the same edge wins fewer titles: these careers won 0.81–1.32 titles a career, against 1.26–2.71
+   in 2.0, and a title is 12 legacy points. Smart staff spending is squeezed the same way: +9.4% legacy over none (V10's
+   band 10–20%; 2.0: +12.4%). Raising the traits past 2.0 §2.1's numbers, or weighting legacy away from titles, would
+   move every balance table in this report; neither was done in the release milestone. Rarer is still stronger, in
+   order, and every staff role still pays.
+3. **The plays-well titles sit at the band's bottom**: 1.08 a career over 600 careers (in 1–2), but 0.99 and 1.00 on
+   seeds 1 and 2, 0.97 in 400 careers on seed 1 and 1.00 in the effort table's 200.
+4. **§2.7's "about" rows**: a 2★ recruit has no offer in 37% of careers (about 30%), and two 4★ careers of 197 had
+   none (0%). W4 measured 35% and one career.
+5. **The endings at 5%+ are measured with random answers.** The simulator's default answers (the first choice in every
+   scene) stay home, so they end in Family First or the Hometown Hero; with random answers every ending is 10%+. The
+   random run also leaves for a contender in chapter 10 half the time, so its 5★ rate (51%) is not the typical one.
+6. **The rematch is rare** (1–2% of careers): it needs your rival's franchise across from yours in the Finals; Finals
+   without your rival are 36%, and the rest is the One That Got Away.
+7. **Height in bot play**: a 2.12 m bot wins 12 of 60 against a 1.82 m one built from the same ratings (the guard
+   steals 5.7 times a game), and 2.0's build gave 10 of 60, so this is older than 2.1; the README had quoted M7's
+   29–31 split. 2.1 doesn't touch height; the README now gives these numbers.
+8. **Press and hype balance by titles**: every press answer and both hype policies stay within range on legacy and
+   earnings, but titles (about 0.3 a career) swing more than the tests' ±8–10% over 200 careers; R10's run missed the
+   same way.
+9. **One league player per franchise**, as in 2.0: the career is 1v1, so a franchise's games are its starter's, and
+   rosters, trades and signings move the five on a roster around that starter.
+10. **Perf on this host**: neither the 2.1 build nor V15's meets perf4x's 4× targets or the loading-lag walk's 4× bar
+    today (measured back to back; V15 met the walk's bar but for 0–2 steps when it was committed). 2.1's frames are
+    within V15's spread; its startup is about 0.2 s slower at 4× (inside its 1.5 s targets).
+11. **From 2.0, unchanged**: XP near the top follows Part 2's formula (8.1×, not "about 3×"); a steal's loose ball goes
+   toward the stealer 63–66% of the time (2.0 §1.1's 70% is reported, not judged); perf is measured in headless
+   Chromium (CPU raster) on this host, never on a real phone.
+
+## W10 (2.1) — the release: the full suite, every target table, version 2.1
+
+The tenth of the ten 2.1 milestones (§5.10). The report above has the tables; this is what W10 itself changed.
+
+- **Version 2.1.** `CONFIG.version` 2.0 → 2.1 (the title screen and the credits) and `CONFIG.ui.whatsNew` 2.0 → 2.1:
+  What's new in 2.1 (`179_ui_whatsnew.js`) shows once on the first main menu after the update, for a save from before
+  it, and from the main menu's button: eleven items (the recruiting game, the College Browser, teams come to you,
+  effort matters, the PBL, the offseason, league life, 12 chapters, your people, six endings, Previously on...); a
+  desktop shows them in three columns, a phone four a page. 2.0's list is in this file (V13).
+- **The README for 2.1**: what 2.1 adds, the sixteen franchises, the story in twelve chapters and its six endings.
+- **Fixed after the suite's audits:** What's new's PBL line was cut at 1280×720 (both text sizes) and 1920×1080
+  (shortened), and its subtitle still said "Hoop Heads 2.1 and its Part 2" (now "Recruiting, the PBL, the story"); the
+  Codex's "How it ends" paragraph ran past a paragraph's six lines at 800×1000 (now two paragraphs: chapter 12 and the
+  sibling's last line, then the six endings). The audits ran again after these fixes, at all six sizes.
+- **Every Codex page, checked:** the audit opens the first page of most Codex topics, so a W10 script
+  (`codexpages.js`, not a repo test) drew all of them, about 820 pages: every page at the six sizes with no career and
+  with a high school, a college and a pro career. It found one more cut, on the no-career Codex at the desktop sizes:
+  "Career games" on The season, which also still described 2.0's clocks. It now says what W1's running clock does
+  (the game clock runs through dead balls until the last 10 s of a period; there and in overtime the holds stop it; the
+  shot clock waits while the ball is brought up) in shorter paragraphs. The walk ran again on the final build: nothing
+  cut.
+- **The README's height numbers** were M7's (a 29–31 split); `tests/heighttest.js` gives the 2.12 m bot 12 of 60 games
+  against the 1.82 m one (2.0's build: 10 of 60). The README now says so (see the limits).
+- **Tests fixed:** `tests/traits.js`'s banner check waited 120 s for a trait banner, and W1's running clock makes
+  career games longer than that; it waits up to 240 s and checks the first banner. `tests/staffbalance.js`'s agent
+  check judges earnings, its label's claim (above). `tests/polish.js` names 2.1's What's new.
+- **No new constants**; changed: `version` and `ui.whatsNew` (above).
+- **The suite** (above): the tests that failed are the balance tests the limits explain: `tests/difficulty.js` (the
+  two typical rows, as since W6), `tests/traitbalance.js` and `tests/staffbalance.js` (legacy squeezed by 2.1's parity;
+  the agent check's net-worth half), `tests/pressbalance.js` and `tests/hypebalance.js` (titles' noise); and the first
+  `tests/traits.js` run (the test's own timing; it passed fixed). Every other test passed. The artifact is republished
+  at the same URL.
+
 ## W9 (2.1) — chapters 7–12 and the endings
 
 The ninth of the ten 2.1 milestones (§4.2–4.4): the rest of the main story, the six endings and the story's tests.

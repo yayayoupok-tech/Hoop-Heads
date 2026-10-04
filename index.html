@@ -34,7 +34,7 @@
 // SECTION: CONFIG — every tuning number in the game lives here (one-line comment each)
 // ============================================================================
 const CONFIG = {
-  version: '2.0',               // V14: the game's version (the title screen, the credits)
+  version: '2.1',               // V14: the game's version (the title screen, the credits); W10: 2.1
   sim: {
     step: 1 / 120,             // fixed simulation step in seconds (120 Hz)
     ballSubsteps: 4,           // ball integration substeps per sim step (480 Hz total)
@@ -791,7 +791,7 @@ const CONFIG = {
     repeatDelayS: 0.35,        // held navigation repeat delay
     repeatRateS: 0.09,         // held navigation repeat rate
     titleTapsForDev: 5,        // taps on the title logo to open the dev menu
-    whatsNew: '2.0',           // V13 (2.0 §5): the update the What's new page describes; a save that hasn't seen it gets it once on the main menu
+    whatsNew: '2.1',           // V13 (2.0 §5): the update the What's new page describes (W10: 2.1's); a save that hasn't seen it gets it once on the main menu
   },
   save: {
     key: 'hoopheads.save.v1',  // localStorage key (the schema version lives inside); save slot 1 (R10), slots 2 and 3 add .slot2 / .slot3
@@ -19633,7 +19633,7 @@ function guideEntries(game, topic) {
   }
   if (topic === 'season') { // V5 (2.0 §4.1, §4.2, §4.6, §4.7): the career's rhythm
     const P_ = CONFIG.pace, R = c ? roadBanner(c) : null;
-    add('Career games', fmtClock(careerSecs()) + ' · ' + P_.shotClock + ' s shot clock', ['One period of ' + fmtClock(careerSecs()) + ' (Settings → Gameplay), and a tie goes to sudden-death overtime: the next basket wins.', 'The shot clock is ' + P_.shotClock + ' seconds. Both clocks wait while the ball is brought up after an inbound, a rebound or a steal (until it crosses half court, at most ' + P_.holdMaxS + ' s), and the game clock waits while a shot is up and its rebound loose, except in the last ' + P_.flightStopUntil + ' s (buzzer beaters stay). The clock dims while it waits.', 'So a career game runs about 12 points a side, about twice the old pace. Quick Play keeps the normal clocks.']);
+    add('Career games', fmtClock(careerSecs()) + ' · ' + P_.shotClock + ' s shot clock', ['One period of ' + fmtClock(careerSecs()) + ' (Settings → Gameplay), and a tie goes to sudden-death overtime: the next basket wins.', 'The game clock runs through dead balls and inbounds until the last ' + CONFIG.rules.runningStopS + ' s of a period, so a one-minute game takes about 70–80 s and runs about 6–10 points a side.', 'In those last seconds and in overtime it stops on dead balls, and waits while the ball is brought up (at most ' + P_.holdMaxS + ' s) and while a shot is up until the last ' + P_.flightStopUntil + ' s (buzzer beaters stay); it dims while it waits.', 'The shot clock is ' + P_.shotClock + ' seconds, and waits while the ball is brought up after an inbound, a rebound or a steal (Quick Play keeps the normal shot clock).']); /* W10: 2.1's running clock (§1.8) */
     add('Road to the League', R ? R.n + ' of ' + R.total : '', (R && R.next ? [['Next: ' + R.next.label.toLowerCase() + '. ' + R.line, UI_CYAN]] : []).concat(['Eleven milestones from varsity to the Hall of Fame; THE goal is a 5★ team. Each one pays: cash, a level for your signature trait, or a free piece of gear that shows on your player. Tap the banner on the hub to see them all.']));
     add('Sim to next big moment', '', ['Sims your weeks (your auto plan, then the game) and stops before a big game (your rival, the Boss, the playoffs, a spot start) or after a big moment: an injury, an offer or a decision, a level-up, a story beat, a milestone, the season\'s end.', 'Sim the rest of the season stops only for injuries, offers and decisions, and the playoffs. Quick results (Settings → Gameplay) turns a routine SIM into one line on the hub.']);
     add('Playing time', c && c.team ? '#' + ladderRank(c) + ' on the depth chart' : '', ['Only the top rung plays. Benched, you can challenge the starter once a week (your practice): win a game to ' + TM.challengeTarget + ' and you start.', TM.spotAfter + ' bench weeks in a row and the next game is a spot start; an A or B in it moves you up a rung. A pro may ask for a trade after ' + TM.tradeBenchWeeks + ' bench weeks in a season.', 'Teammates challenge you less: never in a season\'s first ' + TM.chalFirstWeeks + ' weeks, at most once every ' + TM.chalGap + ', and only from within ' + TM.chalWithin + ' OVR of you.']);
@@ -19645,7 +19645,7 @@ function guideEntries(game, topic) {
     add('Side stories', c ? arcs.length + ' of ' + Sg.quota + ' arcs' : '', ['Between the chapters, side stories of 3–6 beats: a career sees ' + SG.perCareer[0] + '–' + SG.perCareer[1] + ' of them, never the same one twice.', 'Every choice trades something for something else, and says both. What you choose sets flags that later beats remember.'].concat(arcs.length ? [['This career: ' + arcs.map(a => a.title.charAt(0) + a.title.slice(1).toLowerCase() + (a.st === 'done' ? '' : ' (going on)')).join(' · ') + '.', UI_CYAN]] : []));
     const met = Sg ? SAGA_CAST.filter(r => Sg.cast[r] && (Sg.cast[r].name || Sg.cast[r].m) && r !== 'rival') : [];
     add('Your people', '', ['Family, a younger sibling, Coach Adeyinka (your high school coach), a best friend, your rival, a mentor, your agent, a journalist and, in the pros, an owner. Each has a meter from −100 to 100; choices move it ' + SG.m.small + ', ' + SG.m.mid + ' or ' + SG.m.big + '.', 'A family at +' + SG.warmAt + ' or more gets the warm version of an ending. Your best friend picks a college of their own: follow them on Signing Day and you\'re teammates again. When you go pro they can be your agent; pass them over and they work for your rival, or drift away.'].concat(met.length ? [[met.map(r => { const w = sagaWho(c, r); return SAGA_ROLE[r] + ' ' + stFirst(String(w.name).replace(/^Coach /, '')) + ' ' + (w.meter > 0 ? '+' : '') + w.meter; }).join(' · '), UI_CYAN]] : []));
-    add('How it ends', Sg && Sg.epilogue ? (SAGA_EPILOGUES.find(e => e.id === Sg.epilogue) || {}).title || '' : '', ['On your last day, chapter 12 asks what comes next, and the story ends one of six ways, the first that fits: the Mercenary Champion (you left for a contender and won a ring there), the Fallen Star (the big agency\'s scandal, ridden out), the Owner (you bought a team), the Hometown Hero (you stayed when a contender called), Family First (you stayed home for your sibling) or the Coach (a whistle, or a kid from your academy). Your sibling has the last line.', 'A career from before the chapters ends as it did: Passing the Torch, The Legend, Two Old Rivals, Home, The Long Road or The Work.', 'THE STORY SO FAR (on the ME tab) shows the chapters with what you chose in each, the side stories, and everyone\'s meter.']); // V8; 2.1
+    add('How it ends', Sg && Sg.epilogue ? (SAGA_EPILOGUES.find(e => e.id === Sg.epilogue) || {}).title || '' : '', ['On your last day, chapter 12 asks what comes next, and the story ends the first of six ways that fits. Your sibling has the last line.', 'The Mercenary Champion (a ring after leaving for a contender), the Fallen Star (a scandal ridden out), the Owner (a team of your own), the Hometown Hero (you stayed), Family First (home for your sibling) or the Coach.', 'A career from before the chapters ends as it did: Passing the Torch, The Legend, Two Old Rivals, Home, The Long Road or The Work.', 'THE STORY SO FAR (on the ME tab) shows the chapters with what you chose in each, the side stories, and everyone\'s meter.']); // V8; 2.1
     add('Ceremonies and records', '', ['Awards night closes a season you won something in. The All-Star reveal comes before the weekend, and a Hall of Fame career ends with its induction.', 'THE RECORD BOOK (on the ME tab) keeps your best game at each level and the state, college and PBL records. Break one and a gold toast says so, and the book keeps your name on it.']); // V8 (2.0 §4.9)
   }
   if (topic === 'buzz') {
@@ -21659,22 +21659,22 @@ function bannerNightScreen(game, c, ev, done) {
 function titleEventScreen(game, c, ev, done) { return ev.kind === 'parade' ? paradeScreen(game, c, ev, done) : ev.kind === 'ring' ? ringCeremonyScreen(game, c, ev, done) : bannerNightScreen(game, c, ev, done); }
 
 // ============================================================================
-// SECTION: UI — V13 (2.0 §5): "What's new in 2.0", a page of what the update changed. It shows once, on the first main
+// SECTION: UI — V13 (2.0 §5): "What's new in 2.0" (W10: in 2.1), a page of what the update changed. It shows once, on the first main
 // menu after the update, for a save from before it (settings.whatsNewSeen; a new player starts with it seen), and
 // again from the main menu's What's new button. Phones page it four at a time; a desktop shows it all in three columns.
 // ============================================================================
-const WHATS_NEW = [
-  ['Traits', 'Seventeen traits in four rarities, each with Bronze, Silver and Gold levels. Tap one for its card.'],
-  ['Gameplay', 'Signature moves, steals and blocks that read right, bigger phone buttons, a shot chart in practice.'],
-  ['Road to the League', 'Fourteen milestones from varsity to the Hall of Fame; the goal is a 5★ team. A new five-tab hub.'],
-  ['A harder climb', 'Hidden potential, XP that costs more near the top, slumps, and injuries that can cost points.'],
-  ['A real story', 'Arcs through high school, college and the pros, people who remember your choices, six endings.'],
-  ['School', 'One GPA from high school through college: exams, scholarships, majors and a degree.'],
-  ['The shop', 'Gear with rarities and levels, a weekly stock, extras, signature collabs and a lifestyle.'],
-  ['Your staff', 'An agent, a skills coach, a trainer, a physio, a nutritionist and a mental coach, 1★ to 5★.'],
-  ['Pro teams', 'Twelve franchises with cities and owners, title odds, top-8 playoffs, parades, rings and banners.'],
-  ['New looks', 'Six new celebrations, a new arena at every level, and more names and faces in every league.'],
-  ['The Codex', 'Press ? or tap the ? on any screen. Hover or tap a stat for what it does.'],
+const WHATS_NEW = [ // W10: 2.1's (2.0's list is in CHANGES.md)
+  ['The recruiting game', '64 college programs. Interest that rises and falls, official visits, offers, commitments and Signing Day.'],
+  ['The College Browser', 'Every program: its coach and system, facilities, NIL market, GPA line, roster and distance from home.'],
+  ['Teams come to you', 'No draft: franchises make offers when your value crosses their bar. Play well and better ones call.'],
+  ['Effort matters', 'Playing your games well beats simming them, simmed games score like played ones, and money has uses.'],
+  ['The PBL', 'Sixteen franchises in two conferences, a 15-week season, conference playoffs, award races.'],
+  ['The offseason', 'Seven steps: retirements, free agency week day by day, the trade window, training camp, power rankings.'],
+  ['League life', 'Rosters that move, rookies from your past, title windows, a GOAT ladder and PBL Tonight.'],
+  ['12 chapters', 'Your story from freshman tryouts to your last day: a version for every path, one big decision in each.'],
+  ['Your people', 'A younger sibling, Coach Adeyinka, a best friend, your rival, an agent, a mentor and an owner who remember.'],
+  ['Six endings', 'The Hometown Hero, the Mercenary Champion, the Fallen Star, Family First, the Coach or the Owner.'],
+  ['Previously on...', 'Continue a career and a recap says where you left off. The Story screen shows every choice you made.'],
 ];
 function whatsNewDue(game) { const st = game.save && game.save.data && game.save.data.settings; return !!st && st.whatsNewSeen !== CONFIG.ui.whatsNew; }
 function whatsNewScreen(game) {
@@ -21684,7 +21684,7 @@ function whatsNewScreen(game) {
   const items = P ? [prev, next, ok] : [ok]; phoneBar(ui, items, [1, 1, 3]);
   return { widgets: items, name: 'whatsnew', focus: P ? 2 : 0, onBack: done,
     draw(ctx, ui) {
-      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'WHAT\'S NEW IN ' + CONFIG.ui.whatsNew, 44, 56, P ? 40 : 38); if (P) kitChip(ctx, 'PAGE ' + (page + 1) + ' / ' + pages, 1236, 56, { size: 20, fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(94,224,255,0.6)', color: UI_CYAN, align: 'right' }); else ui.label(ctx, 'Hoop Heads ' + CONFIG.ui.whatsNew + ' and its Part 2', 1236, 56, 15, UI_DIM, 'right', 520);
+      ui.panel(ctx, 20, 14, 1240, 692); ui.title(ctx, 'WHAT\'S NEW IN ' + CONFIG.ui.whatsNew, 44, 56, P ? 40 : 38); if (P) kitChip(ctx, 'PAGE ' + (page + 1) + ' / ' + pages, 1236, 56, { size: 20, fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(94,224,255,0.6)', color: UI_CYAN, align: 'right' }); else ui.label(ctx, 'Recruiting, the PBL, the story', 1236, 56, 15, UI_DIM, 'right', 520);
       const list = WHATS_NEW.slice(page * per, page * per + per), cols = P ? 2 : 3, cw = P ? 560 : 360, gap = P ? 40 : 30, rows = Math.ceil(list.length / cols), top = P ? 110 : 108, bottom = P ? UI_H - tapH(ui, 44) - 30 : 630, rh = (bottom - top) / Math.max(1, rows), hs = P ? 24 : 17, ls = P ? 19 : 14;
       list.forEach(([title, line], i) => { const x = 60 + (i % cols) * (cw + gap), y = top + Math.floor(i / cols) * rh + hs * 0.6; ui.heading(ctx, title.toUpperCase(), x, y, hs, UI_GOLD, 'left', cw); ui.para(ctx, line, x, y + hs * 0.9 + 8, cw, ls, UI_TEXT, 'left', 4); });
     } };

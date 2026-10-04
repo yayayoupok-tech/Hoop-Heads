@@ -1,7 +1,7 @@
 // V13 (2.0 §5 and §6): the Codex from every screen (the ? key, a "?" chip in a phone's margin, the desktop hint's
 // "? Codex", the hub rail's button), opening the page about the screen you're on; every term the spec names on a
 // Codex page with its numbers; stat tooltips (hover: a line and the Codex; tap: a card); the hub's red dots and the
-// dots on the buttons behind them; What's new in 2.0 once after the update; stacked screens drawn alone; no text under
+// dots on the buttons behind them; What's new once after the update (2.0's, then 2.1's); stacked screens drawn alone; no text under
 // the menus' pixel (cards included); six more celebrations (the Road, the shop, yours alone in games); one more arena a
 // level; the wider pools of names and looks. Usage: node tests/polish.js
 const { launch, openPage, runner } = require('./lib');
@@ -83,7 +83,7 @@ const { launch, openPage, runner } = require('./lib');
     g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.join(' | ')); return ok.join(', ');
   }, AM));
 
-  await step('What\'s new in 2.0: a save from before the update sees it once on the main menu (Got it saves that); a new player never does; the main menu\'s button reopens it', () => ev(() => {
+  await step('What\'s new (2.1\'s; 2.0\'s in V13): a save from before the update sees it once on the main menu (Got it saves that); a new player never does; the main menu\'s button reopens it', () => ev(() => {
     const g = HH.game, bad = []; localStorage.clear(); const d = defaultSave(); delete d.settings.whatsNewSeen; d.version = 5; localStorage.setItem(slotKey(1), JSON.stringify(d)); g.save = new SaveSystem(1);
     if (!whatsNewDue(g)) bad.push('an old save: not due'); g.ui.clearTo(mainMenu(g)); g.ui.update(0.016, g.input); if (g.ui.screen.name !== 'whatsnew') bad.push('not shown: ' + g.ui.screen.name);
     g.drawUI(g.ctx, g.W, g.H); g.ui.screen.widgets.find(w => w.label === 'Got it').onPress(); if (g.ui.screen.name !== 'menu') bad.push('Got it → ' + g.ui.screen.name); const saved = JSON.parse(localStorage.getItem(slotKey(1))).settings.whatsNewSeen; if (saved !== CONFIG.ui.whatsNew) bad.push('saved ' + saved);
