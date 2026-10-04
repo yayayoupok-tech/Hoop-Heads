@@ -1646,12 +1646,24 @@ const CONFIG = {
     gap: 2,                    // weeks between two scenes of a chapter at least (a scene that waits for a big game, the season's end or the offseason is told then)
     spare: 1,                  // a chapter's optional scene, and any beat that can wait, is told only if the season keeps this many places free after it (for what can't wait: an injury, a title)
     cardSecs: 2.8,             // a chapter's title card stays this long before its opening scene (a tap skips it)
-    sibGap: 4,                 // your younger sibling is this many years younger than you...
+    sibGap: 6,                 // your younger sibling is this many years younger than you (W9: 6, so they're a pro prospect late in your career)...
     sibStart: 20,              // ...and looks up to you: their meter starts here (the family's starts at saga.familyStart; everyone else at 0)
     coachName: 'Coach Adeyinka', // your high school coach in a new career (§4.1: the mentor; an old save keeps the coach it had)
     react: 3,                  // a scene with nothing to decide still has two answers (§4.3): a warm one (that person's meter + this)...
     reactXp: 0.03,             // ...or a focused one (practice XP + this for the week)
     homeMiles: 250,            // W8: Signing Day's "close to home" is an offer within this many miles of home (a drive for Sunday dinner)
+    agentTier: { honest: 2, shady: 3, friend: 1 }, // W9 (chapter 7): the agent you sign, its staff tier (the shady one adds staff.shadyRaise; your friend is learning)
+    friendAgentAt: 10,         // ...your best friend pitches unless you're on the outs (their meter under this: about a fifth of careers; the four paths come out even)...
+    primeAge: 25, primePastAge: 34, // W9: chapter 9 (Prime) opens at a season's start from this age (passed by if it hasn't by the second)
+    primeFame: 40,             // ...its star version: fame at least this (else the grind's)
+    sponsorShare: 0.08,        // ...the sponsor's deal: this share of your salary
+    scandalFine: 0.05,         // ...the shady agent's scandal: coming clean costs a fine of this share of your salary
+    ringAge: 27, ringPastAge: 36, // chapter 10 (The Ring Chase) from this age (passed by from the second)
+    coachBackAt: 65,           // ...Coach Adeyinka coaches again (on your team's staff) with a coach meter at least this; lower, they retire
+    finalsAge: 29,             // chapter 11 (Finals, or The One That Got Away) from this age...
+    finalsSeasons: 4,          // ...a window of this many seasons: the first Finals in it is the chapter's; none, and it's the one that got away
+    legacyAge: 33,             // chapter 12 (Legacy) from this age, or at your retirement
+    ownerMoney: 3e7,           // ...buying into a team on your own takes this much (less: with partners)
   },
   school: {                    // V9 (Part 2 §3): GPA and school (172_school.js). One GPA (0.0–4.0) from high school through college; the grades' weekly drift, Study weeks and the report cards stay in CONFIG.hs
     exam: {                    // before each report card (a midterm and a final every season: a season is a semester), an EXAM WEEK card:
@@ -13166,7 +13178,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
   const c = { v: 5, seed, rs: 0, season: 1, week: 0, phase: 'regular', seasonLength: PBL.weeks /* 2.1 (§3.2): fifteen weeks (the old 11/22 choice is gone) */, gameLength: a.gameLength || 120, players: {}, active: [], standings: {}, stats: {}, schedule: [], results: [], playoffs: null, allStar: null, history: [], news: [], meId: 'me', me: defaultMeShape(), offseason: null, retiredList: [], nextId: 1, created: Date.now(),
     amateur: { school: a.school, college: a.college, tier: a.collegeTier || 0, titles: a.titles || 0, mvps: a.mvps || 0, awards: (a.awards || []).slice(), log: (a.log || []).slice(), totals: Object.assign({}, a.totals || {}), growthLog: (a.growthLog || []).slice(), projection: a.projection || null, heightFinal: a.heightFinal } };
   if (a.cash > 0) c.me.money += Math.round(a.cash); // R5: what you saved in high school comes with you (R6: and your NIL money)
-  c.me.agent = a.agent || null; // R6: the agent you signed on the way to the draft (+10% on every contract, 4% of your salary)
+  c.me.agent = a.agent || null; c.me.agentPers = a.agentPers || null; c.me.agentTier = a.agentTier || null; // R6: the agent you signed on the way to the draft (+10% on every contract, 4% of your salary); 2.1: chapter 7's (honest, shady or your best friend)
   c.me.gear = JSON.parse(JSON.stringify(a.gear || {})); // F8: your gear comes with you (V11: a copy: the shop's state is nested)
   const rng = careerRng(c); const used = new Set([a.name]);
   const pool = []; for (const k in ROSTER) if (k !== 'freeAgents') for (const d of ROSTER[k]) if (d && d.name && d.name !== a.name && (!a.rival || d.name !== a.rival.name)) pool.push(d);
@@ -13199,8 +13211,9 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
   if (c.rivalId) { const rv = c.players[c.rivalId], rs = frStars(c, rv.club); pushNews(c, rv.name + ' signs with the ' + clubOf(rv.club).name + ' (' + rs + '★). The rivalry turns pro.', 'rival');
     chQueue(c, rivalCard('draft', 'SIGNING DAY', [rv.name + ' signed with the ' + clubOf(rv.club).name + ', a ' + rs + '★ franchise. You signed with the ' + fn + ', ' + fs + '★.', rs > fs ? 'They landed the better team. Every one of those stars is a reason to catch them.' : rs < fs ? 'You landed the better team. ' + rv.nick + ' says a logo doesn\'t win games.' : 'Same level, different colors. This gets settled on the court.', h2hText(c.story.h2h.w, c.story.h2h.l) + ' Next stop: the pros.'])); }
   tlAdd(c, 'draft', 'Signed with the ' + fn + ' (' + fs + '★, ' + fmtMoney(offer.salary) + ' a season)');
-  try { stFill(a); c.me.family = a.family; c.me.arc = { season: c.season, beats: a.arc && a.arc.season === a.season && a.arc.shut !== a.season ? a.arc.beats || 0 : 0, /* 2.1: the scenes since your last college season (the decision, the combine) count in your first pro season */ fired: {}, done: Object.assign({}, (a.arc && a.arc.done) || {}), w: -99, streak: 0 }; if (Array.isArray(a.later) && a.later.length) { c.me.later = a.later.slice(); a.later = []; } /* 2.1: story screens still waiting */ c.me.social = (a.social || []).slice(0, SY.socialMax); stSigning(c, a, fs); stFirstContract(c); socialPost(c, 'draft', stFirst(a.name) + ' to the ' + fn + '! ' + (fs >= 4 ? 'A ' + fs + '★ team for a rookie. Huge.' : 'Every great career starts somewhere.'), 2); } catch (e) { /* the story is decoration */ } // R9: signing day, the first contract, your family
+  try { stFill(a); c.me.family = a.family; c.me.versions = Object.assign({}, a.versions || {}); /* 2.1: the story's versions told so far (no scene twice in a career) */ c.me.arc = { season: c.season, beats: a.arc && a.arc.season === a.season && a.arc.shut !== a.season ? a.arc.beats || 0 : 0, /* 2.1: the scenes since your last college season (the decision, the combine) count in your first pro season */ fired: {}, done: Object.assign({}, (a.arc && a.arc.done) || {}), w: -99, streak: 0 }; if (Array.isArray(a.later) && a.later.length) { c.me.later = a.later.slice(); a.later = []; } /* 2.1: story screens still waiting */ c.me.social = (a.social || []).slice(0, SY.socialMax); if (!chSigningTold(c)) stSigning(c, a, fs); if (!chRookieNext(c)) stFirstContract(c); /* (W9: the chapters tell the signing when they lead into it; chapter 8's rookie version, the first contract too) */ socialPost(c, 'draft', stFirst(a.name) + ' to the ' + fn + '! ' + (fs >= 4 ? 'A ' + fs + '★ team for a rookie. Huge.' : 'Every great career starts somewhere.'), 2); } catch (e) { /* the story is decoration */ } // R9: signing day, the first contract, your family
   c.me.road = a.road && a.road.done ? JSON.parse(JSON.stringify(a.road)) : null; /* V5: the road comes with you */ if (a.celebs) c.me.celebs = JSON.parse(JSON.stringify(a.celebs)); /* V13: and your celebrations */ frCheckGoals(c, 'sign'); roadCheck(c); c.me.ovrSeasonStart = recOvr(meOf(c)); // V1: the first season's practice gains start here
+  try { sagaTick(c, 'season'); } catch (e) { /* 2.1: the first pro season starts (chapter 7's last scene, chapter 8's first) */ }
   a.handedOff = true; a.stage = 'pro'; a.league = null; save.career = c; save._legacyCareer = undefined; return c; // R7: the last amateur league (a 64-team bracket in college) is dead weight in the save
 }
 function startSeason(c, rng) {
@@ -13862,9 +13875,9 @@ function amAfterSeason(c, rng, lines) {
     else { amStartRecruiting(c, rng); lines.push('You graduated! College offers are waiting: take your official visits, then commit.'); }
   } else if (c.stage === 'college') {
     schoolYearDone(c); // V9: a year toward the degree
-    if (c.stageYear < AMC.stages.college.years && colPortalDue(c)) { c.decision = { kind: 'portal', offers: colPortalOffers(c, rng), bench: c.league.benchWeeks || 0, games: c.league.all.w + c.league.all.l }; lines.push('You sat most of the season: the transfer portal is open.'); } // R6
-    else if (c.stageYear < AMC.stages.college.years) { c.decision = { kind: 'declare' }; lines.push('Decision time: scouts project you as ' + amProjLabel(c) + '.'); }
-    else { lines.push('Four years done. You turn pro.'); amGoToDraft(c); }
+    if (c.stageYear < AMC.stages.college.years && colPortalDue(c)) { c.decision = { kind: 'portal', offers: colPortalOffers(c, rng), bench: c.league.benchWeeks || 0, games: c.league.all.w + c.league.all.l }; lines.push('You sat most of the season: the transfer portal is open.'); try { sagaTick(c, 'declare', { proj: amProjLabel(c) }); } catch (e) { /* 2.1 (W9): the portal is a decision to declare too: chapter 7's scouts call */ } } // R6
+    else if (c.stageYear < AMC.stages.college.years) { c.decision = { kind: 'declare' }; lines.push('Decision time: scouts project you as ' + amProjLabel(c) + '.'); try { sagaTick(c, 'declare', { proj: amProjLabel(c) }); } catch (e) { /* 2.1: chapter 7 (the story is decoration) */ } }
+    else { lines.push('Four years done. You turn pro.'); try { sagaTick(c, 'senior', {}); sagaTick(c, 'declared', { go: true, senior: true }); } catch (e) { /* 2.1: chapter 7 */ } amGoToDraft(c); }
   }
 }
 // A new season at the same school: the seniors graduate, new freshmen arrive (R3).
@@ -13874,8 +13887,8 @@ function amDraftScore(c) { const D = AMC.draft; const last = c.log[c.log.length 
 function amPickFrom(score) { const D = AMC.draft; return Math.round(clamp(D.pickBase - (score - D.pickRef) * D.pickPer, 1, D.pickBase)); }
 function amProStars(c) { return frCap(amDraftScore(c), FRN.rookieBar); } // F7: the stars of the best franchise that would sign you today
 function amProjLabel(c) { return 'a ' + amProStars(c) + '★ signing'; } // F7 (was a mock draft slot)
-function amDeclare(c, go) { const rng = amRng(c); c.decision = null; if (go) amGoToDraft(c); else { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, null); } }
-function amGoToDraft(c) { c.stage = 'combine'; c.decision = null; if (c.league) c.league.done = true; c.events.push({ kind: 'declare', title: 'YOU\'RE DECLARING', lines: ['Next stop: the pro combine. Scouts will measure your height, wingspan, reach, vertical and lane agility.', 'Then the offers: three franchises, their stars set by what the scouts saw. You pick your first team.'] }); colAgentPitch(c); } // R6: an agent calls
+function amDeclare(c, go) { const rng = amRng(c); c.decision = null; try { if (go && c.stage === 'college' && !chOf(c).list[7]) sagaTick(c, 'declare', { proj: amProjLabel(c) }); /* (W9: leaving from the transfer portal: the scouts call first) */ sagaTick(c, 'declared', { go: !!go }); } catch (e) { /* 2.1: chapter 7 (the story is decoration) */ } if (go) amGoToDraft(c); else { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, null); } }
+function amGoToDraft(c) { c.stage = 'combine'; c.decision = null; if (c.league) c.league.done = true; c.events.push({ kind: 'declare', title: 'YOU\'RE DECLARING', lines: ['Next stop: the pro combine. Scouts will measure your height, wingspan, reach, vertical and lane agility.', 'Then the offers: three franchises, their stars set by what the scouts saw. You pick your first team.'] }); if (!chOf(c).list[7] || chOf(c).list[7].st === 'past') colAgentPitch(c); } // R6: an agent calls (2.1: chapter 7 tells it when it came)
 
 // ---------------- the combine: measured, never chosen ----------------
 function amCombine(c) {
@@ -15673,16 +15686,17 @@ function recRevealed(c, id) { return !!(c && ((c.rec && c.rec.off && c.rec.off.i
 // §2.5: whether this program's coach would leave after you commit (rolled once a program and career).
 function recCarouselWill(c, id) { return colRngFor(c, id + ':carousel').next() < RCG.carousel; }
 function recVisitScene(c, P) {
+  const VV = holderOf(c).versions || (holderOf(c).versions = {}), nv = VV['visit:' + P.id] = (VV['visit:' + P.id] || 0) + 1; /* (2.1, §4.4: a second visit to a program, in a later recruitment, reads as one) */
   const co = colCoach(c, P.id), ros = colRoster(c, P.id).mates || [], cap = ros[0], st = co.sys, F = CR.trainFocus[co.focus], fac = '★'.repeat(P.fac) + '☆'.repeat(5 - P.fac);
   const captain = cap ? { role: 'Captain', name: cap.name, look: cap.look, colors: P.colors } : 'coach', coach = { role: 'Head coach', name: co.name, look: co.look, colors: P.colors }, id = P.id; /* (a role fits under the portrait: the program is in the lines) */
   const pickup = { iso: '"Coach clears out for whoever\'s hot. Could be you."', pace: '"We run every possession. Bring your legs."', defense: '"Nobody scores in our practices. You\'ll guard me first."', development: '"Coach has a plan for every one of us. Mine is taped to my locker."' }[st] || '';
-  chPush(c, { kind: 'dialog', title: 'OFFICIAL VISIT', who: captain, bg: 'gym', mood: 'warm', rec: { pid: id, beat: 1 }, lines: [(cap ? cap.name : 'Their captain') + ' meets you at ' + P.arena + ', ' + P.name + '.', '"Welcome to ' + P.city + '. Want to run with us?" ' + pickup],
+  chPush(c, { kind: 'dialog', title: 'OFFICIAL VISIT', who: captain, bg: 'gym', mood: 'warm', rec: { pid: id, beat: 1 }, lines: [(cap ? cap.name : 'Their captain') + ' meets you at ' + P.arena + ', ' + P.name + (nv > 1 ? ', again: your visit number ' + nv + ' here.' : '.'), '"Welcome to ' + P.city + '. Want to run with us?" ' + pickup],
     choice: [{ label: 'Play hard', note: 'They like what they see: interest +5 · fatigue +8', fx: { fatigue: 8 }, rec: { earned: 5 } }, { label: 'Ask what they need', note: 'You learn their plan for you: interest +3', rec: { earned: 3, flag: 'needs' }, def: true }, { label: 'Watch from the side', note: 'Nothing risked, nothing shown', rec: {} }] }); /* (three labels side by side: short) */
-  chPush(c, { kind: 'dialog', title: 'SATURDAY NIGHT', who: captain, bg: 'quad', rec: { pid: id, beat: 2 }, lines: ['Saturday night. The players are heading to a get-together off campus.', 'The academic advisor has offered you breakfast and a tour of the library at eight.'],
+  chPush(c, { kind: 'dialog', title: 'SATURDAY NIGHT', who: captain, bg: 'quad', rec: { pid: id, beat: 2 }, lines: [nv > 1 ? 'Back in ' + P.city + ' for another Saturday night, and the ' + P.name + ' players want you out with them again.' : ['Saturday night in ' + P.city + '. The ' + P.name + ' players are heading to a get-together off campus.', 'Saturday night, and half the ' + P.name + ' roster is going to a party across ' + P.city + '.', 'Your host from ' + P.name + ' says the team is getting together tonight, somewhere off campus in ' + P.city + '.'][(hashString(String(P.id)) >>> 0) % 3], 'The academic advisor has offered you breakfast and a tour of the library at eight.'], /* (2.1: every visit's night reads its own way) */
     choice: [{ label: 'Go with the players', note: 'Interest +4 · a late night: fatigue +10, trust −2', fx: { fatigue: 10, trust: -2 }, rec: { earned: 4 } }, { label: 'Meet the advisor', note: P.academic ? 'Their kind of student: interest +6' : 'The majors and the plan: interest +2', rec: { earned: P.academic ? 6 : 2, flag: 'advisor' }, def: true }, { label: 'Call home, sleep', note: 'Confidence +2', fx: { conf: 2 }, rec: {} }] });
   const pitch = { iso: '"We put the ball in our best player\'s hands. Come here and that\'s you."', pace: '"We run. Forty minutes of pace: if you can fly, you start."', defense: '"We win with defense. Guard, and you\'ll never come off the floor."', development: '"' + (F ? F.label : 'Skill') + ' work every week, film every Monday, a coach just for you. Players leave here better than they came."' }[st] || '"We want you here."';
   const hint = co.hot || recCarouselWill(c, id), offered = !!recLiveOffer(c, id);
-  chPush(c, { kind: 'dialog', title: 'THE PITCH', who: coach, bg: 'locker', mood: 'warm', rec: { pid: id, beat: 3 }, lines: [co.name + ': ' + pitch, 'The practice gym: ' + fac + ' (XP +' + Math.round(colFacPct(P) * 100) + '% here)' + (F ? ', and extra ' + F.label + ' work after every game.' : '.'), hint ? 'On the way out, a team manager whispers that ' + colCoachTitle(co) + ' has been talking to other programs.' : 'Before you leave, the coach walks you to the car.'].filter(Boolean),
+  chPush(c, { kind: 'dialog', title: 'THE PITCH', who: coach, bg: 'locker', mood: 'warm', rec: { pid: id, beat: 3 }, lines: [nv > 1 ? 'Your visit number ' + nv + ' to ' + P.name + ', and ' + co.name + ' remembers your name before you say it.' : '', co.name + ': ' + pitch, 'The practice gym at ' + P.name + ': ' + fac + ' (XP +' + Math.round(colFacPct(P) * 100) + '% here)' + (F ? ', and extra ' + F.label + ' work after every game.' : '.'), hint ? 'On the way out, a team manager whispers that ' + colCoachTitle(co) + ' has been talking to other programs.' : 'Before you leave, the coach walks you to the car.'].filter(Boolean),
     choice: [offered ? { label: 'Commit on the spot', note: 'Verbal, not binding: the others stop rising', rec: { commit: true } } : { label: 'Ask for an offer', note: 'They know where you stand: interest +4', rec: { earned: 4 } },
       hint ? { label: 'Ask about rumors', note: 'Find out if the coach is staying', rec: { flag: 'rumor', earned: 1, ask: recCarouselWill(c, id) ? colCoachTitle(co) + ' pauses: "Nothing\'s decided." It sounds like a maybe.' : colCoachTitle(co) + ' laughs: "I\'m not going anywhere."' } } : { label: 'Ask about my role', note: 'How they\'d use you: interest +3', rec: { earned: 3 } },
       { label: 'Think it over', note: 'Thank them; no promises yet', rec: {}, def: true }] });
@@ -17440,11 +17454,14 @@ function schoolAfterWeek(c) {
   const mid = c.stage === 'college' ? SCH.collegeMidWeek : HS.reportWeek, fin = L.schedule.length - 1;
   if (L.week === mid && !L.exMid) { L.exMid = true; schoolExamCard(c, 'mid'); } else if (L.week === fin && fin > mid && !L.exFin) { L.exFin = true; schoolExamCard(c, 'end'); }
 }
-// The exam week's card: the pick lands (stChoose's fx.gpa), then the report card (schoolExamDone).
+// The exam week's card: the pick lands (stChoose's fx.gpa), then the report card (schoolExamDone). 2.1 (§4.4): it
+// names the year and the class, so no two read the same.
+const SCH_CLASSES = { hs: ['Algebra', 'Biology', 'World History', 'English', 'Chemistry', 'Geometry', 'U.S. History', 'Spanish', 'Physics', 'Statistics'], college: ['Intro to Psychology', 'Statistics', 'Composition', 'Biology', 'Economics', 'Public Speaking', 'Sociology', 'Calculus', 'Ethics', 'Accounting'] };
+function schoolExamWhat(c, mid) { const y = Math.max(1, Math.min(4, c.stageYear || 1)), lv = c.stage === 'college' ? 'college' : 'hs', L = SCH_CLASSES[lv], V = holderOf(c).versions || (holderOf(c).versions = {}), k = 'exam:' + lv, cls = L[((V[k] = (V[k] || 0) + 1) - 1) % L.length]; /* (the next class each time) */ return ['Freshman', 'Sophomore', 'Junior', 'Senior'][y - 1] + ' year, ' + (mid ? 'midterms this week' : 'finals this week, before the last game of the regular season') + ': ' + cls + ' first.'; }
 function schoolExamCard(c, when) {
   schoolFill(c); const E = SCH.exam, mid = when === 'mid', pct = x => Math.round(Math.abs(x) * 100) + '%', col = c.stage === 'college';
   const ev = { kind: 'dialog', id: 'exam-' + when, exam: when, title: mid ? 'MIDTERMS' : 'FINALS WEEK', who: 'coach',
-    lines: [(mid ? 'Midterms are this week.' : 'Finals are this week, before the last game of the regular season.') + ' Your GPA is ' + c.gpa.toFixed(2) + ' (' + hsGpaLetter(c.gpa) + ').', 'Under ' + HS.gpaMin.toFixed(1) + ' you sit ' + HS.ineligibleGames + ' games' + (col ? '; under ' + SCH.probationAt.toFixed(1) + ' it\'s academic probation.' : '.') + ' Study hall and practice are at the same time. Pick one.'],
+    lines: [schoolExamWhat(c, mid) + ' Your GPA is ' + c.gpa.toFixed(2) + ' (' + hsGpaLetter(c.gpa) + ').', 'Under ' + HS.gpaMin.toFixed(1) + ' you sit ' + HS.ineligibleGames + ' games' + (col ? '; under ' + SCH.probationAt.toFixed(1) + ' it\'s academic probation.' : '.') + ' Study hall and practice are at the same time. Pick one.'],
     choice: [
       { label: 'Cram', note: 'GPA +' + E.cram[0] + ' · fatigue +' + E.cram[1] + ' · practice XP −' + pct(E.cram[2]) + ' this week', fx: { gpa: E.cram[0], fatigue: E.cram[1], xp: E.cram[2] } },
       { label: 'Balanced', note: 'GPA +' + E.balanced[0] + ' · practice as usual', fx: { gpa: E.balanced[0] }, def: true },
@@ -18378,6 +18395,7 @@ function proEpilogue(save, pick) {
   const L = c.legacy || legacyOf(c); E.legacy = L.score + E.foundation; c.epilogue = E;
   const me = meOf(c), H = save.hallOfFame && save.hallOfFame.find(h => h.name === me.name && h.score === L.score); if (H) { H.netWorth = worth; H.legacyTotal = E.legacy; H.foundation = E.foundation; H.ending = E.ending; H.owner = E.stake; }
   if (E.academy) save.legacyStart = { caps: PR.legacyCaps, from: me.name };
+  if (!save.legacyStart && sagaFlag(c, 'torch') === 'kid') save.legacyStart = { caps: SG.torchCaps, from: me.name, torch: true }; /* 2.1: chapter 12's kid from the academy */
   if (E.stake) { save.badges = save.badges || {}; save.badges.owner = me.name; }
   tlAdd(c, 'epilogue', proEndingText(E)[0] + (E.foundation ? ' · foundation +' + E.foundation + ' legacy' : '') + (E.academy ? ' · youth academy' : '')); return E;
 }
@@ -18474,7 +18492,7 @@ function staffMigrate(c, old) {
   const S = { v: 2, pool: {}, poolSeason: 0, picks: null }; for (const r of STAFF_ROLES) S[r] = null; const o = old || {}, rng = new RNG((hashString(c.seed + ':staffmig') >>> 0) || 5); c.me.staff = S;
   const tr = clamp(Math.max(o.trainer | 0, o.shooting | 0, o.skills | 0), 0, 3), sk = tr ? Math.min(4, tr + 1 + (o.coach ? 1 : 0)) : o.coach ? 2 : 0; /* a 1–3 trainer: 2–4★ (the private coach: one more) */
   if (sk) S.skills = staffMake(c, 'skills', sk, 'oldschool', rng); if (o.nutrition || o.physio) { S.physio = staffMake(c, 'physio', 3, 'players', rng); S.nutrition = staffMake(c, 'nutrition', 3, 'analytics', rng); }
-  if (c.me.agent) { const a = staffMake(c, 'agent', 2, 'straight', rng); a.name = String(c.me.agent); a.look = stLookFor('staff:agent:' + a.name); S.agent = a; }
+  if (c.me.agent) { const a = staffMake(c, 'agent', c.me.agentTier || 2, c.me.agentPers || 'straight', rng); a.name = String(c.me.agent); /* 2.1: chapter 7's agent keeps its kind */ a.look = stLookFor('staff:agent:' + a.name); S.agent = a; }
   return S;
 }
 
@@ -18484,7 +18502,7 @@ function staffMigrate(c, old) {
 function staffWeek(c) {
   if (!staffIsPro(c) || c.phase !== 'regular') return; const S = staffOf(c), half = Math.floor(c.seasonLength / 2), rng = new RNG((hashString(c.seed + ':staffwk:' + c.season + ':' + c.week) >>> 0) || 3);
   if (c.week === half && S.poach !== c.season) { S.poach = c.season; const cands = STAFF_ROLES.filter(r => r !== 'agent' && S[r] && S[r].tier >= 3 && S[r].pers !== 'loyal'); for (const r of cands) { const s = S[r]; if (rng.next() < SF.poachOdds * (s.pers === 'ambitious' ? 2 : 1)) { staffPoachCard(c, r, rng); break; } } }
-  const sw = 2 + (hashString(c.seed + ':scandal:' + c.season) % Math.max(1, c.seasonLength - 4)); if (c.week === sw && S.scandal !== c.season && S.agent && S.agent.pers === 'shady') { S.scandal = c.season; if (rng.next() < SF.scandalOdds) staffScandalCard(c); }
+  const sw = 2 + (hashString(c.seed + ':scandal:' + c.season) % Math.max(1, c.seasonLength - 4)); if (c.week === sw && S.scandal !== c.season && S.agent && S.agent.pers === 'shady' && !(S.agent.name === ((sagaOf(c).agents || {}).shady) && chOwns(c, 9))) { /* (2.1: chapter 9 tells chapter 7's shady agent's story) */ S.scandal = c.season; if (rng.next() < SF.scandalOdds) staffScandalCard(c); }
 }
 function staffWho(s) { return { role: STAFF_INFO[s.role][0], name: s.name, look: s.look, colors: ['#2B3A5C', '#C9D3E8'] }; }
 function staffPoachCard(c, role, rng) {
@@ -19116,11 +19134,102 @@ function stWho(c, role) {
   const n = { trainer: 'Trainer ' + GEN_LAST[hashString('trainer' + c.seed) % GEN_LAST.length], reporter: GEN_FIRST[hashString('rep' + c.seed) % GEN_FIRST.length] + ' ' + GEN_LAST[hashString('rep2' + c.seed) % GEN_LAST.length], scout: 'Scout ' + GEN_LAST[hashString('scout' + c.seed) % GEN_LAST.length] }[role] || role;
   return { role: role[0].toUpperCase() + role.slice(1), name: n, look: stLookFor(role + ':' + n), colors: ['#34405E', '#C9D3E8'] };
 }
+// 2.1 (§4.4): no scene twice in a career, word for word. The beats that come back (a check-in, a streak, the spotlight,
+// a title) have versions, told in order: the career's registry (B.versions: a beat's id → how many were told), carried
+// to the pros. A version: its lines ({fam} your parent, {sib} your sibling, {m} the speaker, {n} a number), or
+// { l: lines, label: its first answer }.
+const ST_POOLS = {
+  'family-checkin': [['{fam}: "We watched the stream. Are you eating? You look tired."', '"Whatever happens this season, you know where home is."'],
+    ['{fam}: "{sib} made a sign for your next game. It is mostly glitter."', '"It\'s on the fridge until you come home and see it."'],
+    ['{fam}: "The neighbors asked for your autograph. I told them to get in line behind me."', '"Call your grandmother. She keeps every box score in a binder."'],
+    ['{fam}: "I drove past the old court today. Some kid was practicing your crossover."', '"Don\'t forget where it started. They haven\'t."'],
+    ['{fam}: "Are you sleeping? Don\'t fib. I can hear it in your voice."', '"Eight hours. I mean it. The game will still be there in the morning."'],
+    ['{fam}: "Your coach told me you\'re working hard. I said, I know, I raised them."', '"That\'s all. I\'m proud of you. Go to bed."'],
+    ['{fam}: "We moved the couch so everybody can see the TV on game nights."', '"{sib} still sits on the floor right in front, like you used to."'],
+    ['{fam}: "Somebody at work asked if I\'m your parent. I said yes before they finished the question."', '"Come home when you can. We\'ll make your favorite."']],
+  'coach-talk': [{ l: ['{m}: "Close the door. I want more from you on defense, and I think you want it too."', '"Extra drills this week, or save your legs for the stretch. Your call."'], label: 'Extra defensive drills' },
+    { l: ['{m}: "Sit down. We need to talk about your left hand."', '"Twenty minutes on it after practice every day this week, or rest it. Your call."'], label: 'Left-hand work' },
+    { l: ['{m}: "You get your shots. Now I want you to get them earlier in the clock."', '"Stay late and we\'ll work on it, or keep your legs fresh. Up to you."'], label: 'Stay late on it' },
+    { l: ['{m}: "The film says you\'re a step slow getting back. The film doesn\'t lie, even when I wish it would."', '"Extra conditioning this week, or a lighter one. Pick."'], label: 'Extra conditioning' },
+    { l: ['{m}: "You\'ve been quiet in practice. Quiet is fine. Coasting isn\'t. Which one is it?"', '"Show me this week, or rest up and show me on game night."'], label: 'Show them this week' },
+    { l: ['{m}: "The scouting report on you says \'goes right.\' Let\'s make them rewrite it."', '"Extra reps going left, or save it for the game. Your call."'], label: 'Reps going left' }],
+  'mentor-tip': [['{m} pauses the tape: "See that? You tell them where you\'re going with your shoulders."', '"Everybody in this league watches film. The good ones watch themselves."'],
+    ['{m} rewinds the same play four times: "Your feet. Look at your feet when you catch it."', '"Get set before the ball gets there, and you\'re a different shooter."'],
+    ['{m} freezes the frame: "Right there. You had the lane, and you didn\'t believe it."', '"Believe it faster."'],
+    ['{m} points at your defender, not the ball: "Watch them. They tell you everything before they do it."', '"Half this game is reading people. The other half is running."'],
+    ['{m} counts out loud on the replay: "One dribble too many. Every single time."', '"One less dribble, one more shot. That\'s the whole lesson."'],
+    ['{m} slows down the tape of you jogging back after a miss: "Head down, shoulders down. They saw that."', '"Miss with your chin up. The next one goes in more often."']],
+  'run': [['{fam} calls after the game: "{n} straight! The neighbors watched with us tonight."', '"Come home for a day? We\'ll make your favorite."'],
+    ['{fam} calls before you reach the bus: "{n} in a row! {sib} wore your jersey to school three days running."', '"Come home Sunday? There\'s pie."'],
+    ['{fam}: "{n} straight. The man at the gas station asked about you. The gas station!"', '"Come home for a day. The couch misses you."'],
+    ['{fam}: "{n} wins in a row, and I haven\'t sat down for one of them."', '"My knees can\'t take this. Come home and rest yours."'],
+    ['{fam}: "{n}! Your grandmother says it\'s her lucky socks."', '"She won\'t wash them until you lose. Please lose eventually."'],
+    ['{fam}: "{n} straight. Don\'t let it go to your head. Okay, let it go a little."', '"Dinner on Sunday, if you can get away."']],
+  'slump': [['{m} catches you on the way out: "{n} in a row. It happens to everybody. What you do this week is what matters."', '"Extra work, or clear your head. Pick one and mean it."'],
+    ['{m} sits next to you on the bus: "{n} straight. I once lost eleven in a row. I lived."', '"The shot comes back. It always does, if you keep taking it."'],
+    ['{m} tosses you a ball after practice: "{n} losses. Stop reading about it."', '"Shoot a hundred tonight, or go see a movie. Either one beats your phone."'],
+    ['{m}: "{n} in a row, and you\'re pressing. I can see it from the bench."', '"Slow down. The game gets faster when you don\'t."'],
+    ['{m} stops at your locker: "{n} straight. Nobody remembers this part of the season."', '"They remember the end of it. So what do you want the end to look like?"'],
+    ['{m}: "{n} losses. Bad weeks make good players, if you let them."', '"Work, or rest. Just don\'t sulk."']],
+  'spotlight': [['{m}: "Everybody wants ten minutes with you this week: the paper, the podcast, the local news."', '"Say yes to all of it and your name gets bigger. Your week gets smaller."'],
+    ['{m}: "A magazine wants a photo shoot. A podcast wants an hour. A school wants a visit."', '"Do all of it and the name grows. So does the schedule."'],
+    ['{m}: "Your highlight from last night has two million views, and everybody is calling."', '"Ride the wave, or let it pass. Both cost something."'],
+    ['{m}: "The morning show wants you live at seven. Practice is at eight."', '"Fame is a schedule. Do you want this one?"'],
+    ['{m}: "Three radio stations are talking about you right now. Three."', '"Call in to all of them, or turn the radio off."'],
+    ['{m}: "A camera crew wants to follow you for a week: the gym, the bus, dinner."', '"Say yes and everybody knows your face. Say no and you keep your week."']],
+  'title': [['{fam} finds you on the floor in the confetti. Neither of you says anything for a while.', '"All those early mornings. Every single one of them was for this."'],
+    ['{fam} is crying before the buzzer: "Again! You did it again!"', '"I\'m keeping this confetti. Don\'t you dare tell me not to."'],
+    ['The confetti is the same color as last time. {fam}: "It doesn\'t get old. I thought it might. It doesn\'t."', '"Go. Celebrate. Call me from the bus."'],
+    ['{fam} has a new sign this year: a trophy, drawn badly, with your number on it.', '"I made it this morning. I just knew."'],
+    ['{fam} waits by the tunnel with {sib}, both of them out of breath from running down the stairs.', '"Another one! Somebody get a picture!"'],
+    ['Champions. {fam} is already on the phone with half the family, holding it up to the noise.', '"Can you hear that? That\'s for you."'],
+    ['{fam} sits in the empty seats after the celebration, waiting for you, like after every game since you were little.', '"Same as the driveway. Just a bigger trophy."'],
+    ['{fam} hugs you so hard your medal leaves a mark.', '"I\'ll never get used to this. Don\'t make me."']],
+  'chase': [['{m}: "Two games left, and we control our own fate."', '"Nobody in this building is thinking about next year. Neither are you."'],
+    ['{m}: "Two games. Win both and nobody can catch us."', '"I don\'t want to hear about the standings. I want to hear the ball."'],
+    ['{m}: "Two left. I\'ve been here before. The team that stays boring wins."', '"Be boring. Be great at boring."'],
+    ['{m}: "People are scared of us right now. Let\'s keep it that way for two more games."', '"Then we find out what we are."'],
+    ['{m}: "The table says we\'re in it. Tables don\'t play."', '"Two games. Play like we\'re behind."'],
+    ['{m}: "Two games left, and I\'ve stopped sleeping. That\'s my job, not yours."', '"You sleep. You shoot. We win."']],
+  'mentor': [['{m} has been here longer than anyone: "You\'ve got it. Now let me show you what they don\'t teach."', '"Stay after practice this week. Or don\'t. I\'m not your parent."'],
+    ['{m}, the oldest player on the team, tosses you a ball: "New here? Good. Everybody new works harder for a month."', '"Make it two months and they\'ll remember you."'],
+    ['{m} watched your tape before you got here: "You lean when you shoot off the dribble."', '"Stay after and I\'ll show you. Or don\'t. It\'s your career."'],
+    ['{m}: "I\'ve seen a lot of players come through that door. The ones who last ask questions."', '"So ask me something this week."'],
+    ['{m} takes the locker next to yours: "I\'ve got one more year in these legs, maybe two."', '"Might as well spend them making you better."']],
+  'review': [['{m}: "Sit down. Here\'s what I saw this year, the good and the rest of it."', '"Take a week off. Then come back hungrier than you left."'],
+    ['{m} slides one sheet of paper across the desk: three things to fix, one thing to keep.', '"Guess which list is longer. Now go enjoy the break."'],
+    ['{m}: "You got better. Not enough, but better. That\'s the job."', '"Rest. Then we start again."'],
+    ['{m} pulls up one clip from the whole season and plays it twice.', '"That. More of that. See you at camp."'],
+    ['{m}: "I wrote down everything you did well this year. It took a page."', '"The page for next year is blank. Fill it."'],
+    ['{m} shakes your hand at the door: "Good season. Not your best one. That one is still ahead of you."', '"Take some time. You earned it."']],
+  'final-loss': [['{m} sits next to you in the quiet locker room.', '"Remember how this feels. Next year it\'s what gets you up in the morning."'],
+    ['{m} doesn\'t say anything for a long time, then hands you a towel.', '"One game. It was one game. We\'ll get the next one."'],
+    ['The other team is still celebrating on the floor. {m} turns off the TV in the locker room.', '"We don\'t watch that. We remember it."'],
+    ['{m}: "I lost a final once too. It stays with you."', '"Let it. Then use it."']],
+  'injury': [['A {inj}: {g} games, if you let it heal.', '{m}: "I can get you back a week early. Your call. Push it and it can flare up."'],
+    ['A {inj}, the scan says: {g} games.', '{m}: "Or one fewer, if you push. I\'ve seen that go both ways."'],
+    ['{m} wraps the ice bag twice: a {inj}, {g} games.', '"You want back early? I can do it. I don\'t love it."'],
+    ['A {inj}. {g} games on the trainer\'s whiteboard, in red.', '{m}: "The board says {g}. Your body might say fewer. Might."'],
+    ['The training room again: a {inj}, {g} games.', '{m}: "You know the drill by now. Rush it, or let it heal."']],
+  'tour-ask': [['{m}: "The league wants to know. Is this the last one? If it is, they\'ll make it a tour."', '"Say it now and every arena says goodbye. Keep it quiet and you keep your options."'],
+    ['{m}, again, at the start of camp: "Same question as last year. Is this the one?"', '"A tour is a gift, if you want it. Quiet is fine too."'],
+    ['{m}: "One more year in the legs? The league is asking about a farewell tour again."', '"Say the word and every road arena gets a video ready."'],
+    ['{m} slides a calendar across the table, every road game circled: "If this is it, they all want to say goodbye."', '"Or keep it quiet one more year. Up to you."']],
+};
+function stLinesV(T, vars) { return (Array.isArray(T) ? T : T.l).map(t => String(t).replace(/\{(\w+)\}/g, (m0, k) => vars[k] != null ? String(vars[k]) : m0)).filter(t => t.trim()); }
+// A beat with versions: the next of its pool this career. Once all are told, a beat that can wait isn't told again; a
+// crit one tells its last version with its number (opts.more(n): the words). opts.choice can be a function of the version
+// (its label).
+function stBeatV(c, id, role, title, vars, opts) {
+  const P = ST_POOLS[id] || [], B = holderOf(c), V = B.versions || (B.versions = {}), i = V[id] || 0; opts = opts || {}; if (!P.length || (i >= P.length && !opts.crit)) return null;
+  const T = P[Math.min(i, P.length - 1)], lines = stLinesV(T, Object.assign({ sib: stFirst(sagaWho(c, 'sibling').name) }, vars)); if (i >= P.length && lines.length) lines[0] += ' ' + (typeof opts.more === 'function' ? opts.more(i + 1) : '(Number ' + (i + 1) + '.)');
+  const ev = stBeat(c, id, role, title, lines, Object.assign({}, opts, { choice: typeof opts.choice === 'function' ? opts.choice(T) : opts.choice })); if (ev) V[id] = i + 1; return ev;
+}
 // One beat: a dialogue card in the event queue. opts: { arc, crit (always told), chapter (2.1: a chapter's scene, always
 // told), choice: [{ label, note, fx, def }] }. 2.1 (§4.3): the season's beats leave the chapter in progress its room
 // (chReserve); a card with nothing to decide gets two answers (chReact); a third story screen in a row waits (chQueue).
 function stBeat(c, id, role, title, lines, opts) {
-  opts = opts || {}; const A = stFill(c), off = A.shut === c.season, n = off ? A.off || 0 : A.beats; if (!opts.crit && !opts.chapter && (n + chReserve(c) + CH.spare >= SY.beatsMax || A.fired[id] || (!opts.fill && stWeek(c) - A.w < SY.beatGap))) return null; /* (2.1: a place kept for what can't wait) */
+  opts = opts || {}; title = String(title || 'THE STORY'); /* (2.1: a beat without its title still tells once) */ const A = stFill(c), off = A.shut === c.season, n = off ? A.off || 0 : A.beats; if (!opts.crit && !opts.chapter && (n + chReserve(c) + CH.spare >= SY.beatsMax || A.fired[id] || (!opts.fill && stWeek(c) - A.w < SY.beatGap))) return null; /* (2.1: a place kept for what can't wait) */
   A.beats++; if (off) A.off = n + 1; A.fired[id] = true; A.w = stWeek(c); A.last = id;
   const ev = { kind: 'dialog', id, arc: opts.arc || null, title, who: role, lines, choice: opts.choice || null }; if (!ev.choice) chReact(c, ev); chQueue(c, ev); tlAdd(c, 'story', title.charAt(0) + title.slice(1).toLowerCase()); return ev;
 }
@@ -19173,13 +19282,13 @@ const TRAIT_BEATS = {
 };
 function stTraitBeat(c) {
   const B = holderOf(c), A = stFill(c), T = traitsOf(B), lvl = isPro(c) ? 'pro' : c.stage; if (!T || A.done['trait-' + lvl]) return null;
-  const ids = [T.sig].concat(T.found ? [T.hidden] : []) /* the hidden one once it has shown itself */.filter(id => TRAIT_BEATS[id]); if (!ids.length) return null; const id = ids[stRng(c, 'trait').int(ids.length)], L = TRAIT_BEATS[id], who = stWho(c, L[0]);
-  const ev = stBeat(c, 'trait', L[0], TR.list[id].name.toUpperCase(), [(L[0] === 'family' ? stFirst(who.name) : who.name) + ': ' + L[1], L[2]], { arc: 'trait' }); if (ev) A.done['trait-' + lvl] = true; return ev;
+  const V = B.versions || (B.versions = {}), ids = [T.sig].concat(T.found ? [T.hidden] : []) /* the hidden one once it has shown itself */.filter(id => TRAIT_BEATS[id] && !V['trait:' + id]); /* (2.1, §4.4: each trait's scene once a career) */ if (!ids.length) return null; const id = ids[stRng(c, 'trait').int(ids.length)], L = TRAIT_BEATS[id], who = stWho(c, L[0]);
+  const ev = stBeat(c, 'trait', L[0], TR.list[id].name.toUpperCase(), [(L[0] === 'family' ? stFirst(who.name) : who.name) + ': ' + L[1], L[2]], { arc: 'trait' }); if (ev) { A.done['trait-' + lvl] = true; V['trait:' + id] = 1; } return ev;
 }
 // The spotlight: your hype reaches the level where defenses key on you. Both answers cost something.
 function stSpotlight(c) {
   const B = holderOf(c), who = isPro(c) ? 'agent' : 'reporter', w = stWho(c, who);
-  return stBeat(c, 'spotlight', who, 'THE SPOTLIGHT', [w.name + ': "Everybody wants ten minutes with you this week: the paper, the podcast, the local news."', '"Say yes to all of it and your name gets bigger. Your week gets smaller."'], { arc: 'hype', choice: [{ label: 'Say yes to all of it', note: 'Hype +' + SY.spotHype + ' · practice XP −' + Math.round(SY.spotXp * 100) + '% this week', fx: { hype: SY.spotHype, xp: -SY.spotXp } }, { label: 'Stay in the gym', note: 'Hype −' + SY.spotHype + ' · practice XP +' + Math.round(SY.grindXp * 100) + '% this week', fx: { hype: -SY.spotHype, xp: SY.grindXp }, def: true }] });
+  return stBeatV(c, 'spotlight', who, 'THE SPOTLIGHT', { m: w.name }, { arc: 'hype', choice: [{ label: 'Say yes to all of it', note: 'Hype +' + SY.spotHype + ' · practice XP −' + Math.round(SY.spotXp * 100) + '% this week', fx: { hype: SY.spotHype, xp: -SY.spotXp } }, { label: 'Stay in the gym', note: 'Hype −' + SY.spotHype + ' · practice XP +' + Math.round(SY.grindXp * 100) + '% this week', fx: { hype: -SY.spotHype, xp: SY.grindXp }, def: true }] });
 }
 // After every game you played. x: the press context (won, us, them, opp, rival, playoff, final, champ, eliminated, big,
 // upsetWin, first) plus injury (a new injury), healed (you came back this game), home.
@@ -19187,33 +19296,31 @@ function stAfterGame(c, x) {
   const A = stFill(c), B = holderOf(c), me = stFirst(stMeName(c)), wk = stWeek(c), n = stWeeks(c), fam = stFirst(B.family.name); A.streak = x.won ? Math.max(1, A.streak + 1) : Math.min(-1, A.streak - 1);
   if (B.storyXp) B.storyXp = 0; if (B.fragile > 0) B.fragile--; sagaWeekSpent(B); schoolWeekSpent(B); // this week's practice bonus is spent; a rushed return heals
   sagaTick(c, 'game', x); // V7: a saga beat first (R9's next beat waits for the gap; the crit ones are still told)
-  if (x.injury && x.injury.games >= SY.injuryGames && !sagaInjuryNow(c)) { /* V7: the saga's injury arc tells this one */ A.injured = true; const tr = stWho(c, 'trainer'); stBeat(c, 'injury', 'trainer', 'THE TRAINING ROOM', ['A ' + x.injury.name.toLowerCase() + ': ' + x.injury.games + ' games, if you let it heal.', tr.name + ': "I can get you back a week early. Your call. Push it and it can flare up."'], { arc: 'injury', crit: true, choice: [{ label: 'Push to come back early', note: 'One game sooner · injury risk ×' + SY.rushInjury + ' for ' + SY.rushWeeks + ' weeks', fx: { injury: -1, fragile: SY.rushWeeks } }, { label: 'Take all the time', note: 'Every game it takes · fatigue −' + SY.rehabFatigue, fx: { fatigue: -SY.rehabFatigue }, def: true }] }); return; }
+  if (x.injury && x.injury.games >= SY.injuryGames && !sagaInjuryNow(c)) { /* V7: the saga's injury arc tells this one */ A.injured = true; const tr = stWho(c, 'trainer'); stBeatV(c, 'injury', 'trainer', 'THE TRAINING ROOM', { inj: x.injury.name.toLowerCase(), g: x.injury.games, m: tr.name }, { arc: 'injury', crit: true, more: n => '(Injury number ' + n + '.)', choice: [{ label: 'Push to come back early', note: 'One game sooner · injury risk ×' + SY.rushInjury + ' for ' + SY.rushWeeks + ' weeks', fx: { injury: -1, fragile: SY.rushWeeks } }, { label: 'Take all the time', note: 'Every game it takes · fatigue −' + SY.rehabFatigue, fx: { fatigue: -SY.rehabFatigue }, def: true }] }); return; }
   if (x.healed && A.injured) { A.injured = false; stBeat(c, 'comeback', 'family', x.won ? 'THE COMEBACK' : 'BACK ON THE FLOOR', x.won ? [fam + ' is on their feet before the final buzzer: "I knew it. I knew it the whole time."', 'First game back, and a win. The trainer is already telling everyone it was the rehab.'] : [fam + ': "You\'re back on the floor. That\'s the part that matters tonight."', 'The legs will come. They always do.'], { arc: 'injury' }); return; }
-  if (x.champ) { stBeat(c, 'title', 'family', 'CHAMPIONS', [fam + ' finds you on the floor in the confetti. Neither of you says anything for a while.', '"All those early mornings. Every single one of them was for this."'], { arc: 'title', crit: true }); A.done['title' + c.season] = true; return; }
-  if (x.eliminated && x.final) { stBeat(c, 'final-loss', 'mentor', 'SO CLOSE', [(stMentor(c) ? stFirst(stMentor(c).name) : 'Your coach') + ' sits next to you in the quiet locker room.', '"Remember how this feels. Next year it\'s what gets you up in the morning."'], { arc: 'title' }); return; }
-  if (x.first || wk === 1) { if (x.first && !A.done['family-first-' + (isPro(c) ? 'pro' : c.stage)]) { A.done['family-first-' + (isPro(c) ? 'pro' : c.stage)] = true; stBeat(c, 'family-first', 'family', 'IN THE STANDS', [fam + ' is in the stands, three rows up, like always. The sign says ' + me.toUpperCase() + ' in marker.', x.won ? '"Same as the driveway. Just more people watching."' : '"Hold your head up. One game. You\'ll get the next one."'], { arc: 'family' }); return; }
-    const m = stMentor(c), key = 'mentor-' + (c.team ? c.team.name : '') + ':' + (m ? m.id : ''); if (m && !A.done[key]) { A.done[key] = true; stBeat(c, 'mentor', 'mentor', 'A VETERAN', [stFirst(m.name) + ' has been here longer than anyone: "You\'ve got it. Now let me show you what they don\'t teach."', '"Stay after practice this week. Or don\'t. I\'m not your parent."'], { arc: 'mentor', choice: XP_CHOICE('mentor', 'Stay after with ' + stFirst(m.name)) }); return; } }
-  if (A.streak <= -SY.slumpLosses && stMentor(c)) { const m = stMentor(c); if (stBeat(c, 'slump', 'mentor', 'THE SLUMP', [stFirst(m.name) + ' catches you on the way out: "' + (-A.streak) + ' in a row. It happens to everybody. What you do this week is what matters."', '"Extra work, or clear your head. Pick one and mean it."'], { arc: 'mentor', choice: [XP_CHOICE('mentor', 'Extra work with ' + stFirst(m.name))[0], HOME_CHOICE()[0]] })) return; }
-  if (A.streak >= SY.runWins) { if (stBeat(c, 'run', 'family', 'A CALL FROM HOME', [fam + ' calls after the game: "' + A.streak + ' straight! The neighbors watched with us tonight."', '"Come home for a day? We\'ll make your favorite."'], { arc: 'family', choice: HOME_CHOICE() })) return; }
+  if (x.champ) { stBeatV(c, 'title', 'family', 'CHAMPIONS', { fam }, { arc: 'title', crit: true, more: n => '(Title number ' + n + '.)' }); A.done['title' + c.season] = true; return; }
+  if (x.eliminated && x.final) { stBeatV(c, 'final-loss', 'mentor', 'SO CLOSE', { m: stMentor(c) ? stFirst(stMentor(c).name) : 'Your coach' }, { arc: 'title' }); return; }
+  if (x.first || wk === 1) { if (x.first && !A.done['family-first-' + (isPro(c) ? 'pro' : c.stage)]) { A.done['family-first-' + (isPro(c) ? 'pro' : c.stage)] = true; stBeat(c, 'family-first', 'family', 'IN THE STANDS', [isPro(c) ? fam + ' is in the seats the team gave you, holding the same marker sign as always: ' + me.toUpperCase() + '.' : c.stage === 'college' ? fam + ' found seats right behind the bench, in a sweatshirt with your school\'s name across it. The sign still says ' + me.toUpperCase() + '.' : fam + ' is in the stands, three rows up, like always. The sign says ' + me.toUpperCase() + ' in marker.', x.won ? '"Same as the driveway. Just more people watching."' : '"Hold your head up. One game. You\'ll get the next one."'], { arc: 'family' }); return; }
+    const m = stMentor(c), key = 'mentor-' + (c.team ? c.team.name : '') + ':' + (m ? m.id : ''); if (m && !A.done[key]) { A.done[key] = true; stBeatV(c, 'mentor', 'mentor', 'A VETERAN', { m: stFirst(m.name) }, { arc: 'mentor', choice: XP_CHOICE('mentor', 'Stay after with ' + stFirst(m.name)) }); return; } }
+  if (A.streak <= -SY.slumpLosses && stMentor(c)) { const m = stMentor(c); if (stBeatV(c, 'slump', 'mentor', 'THE SLUMP', { m: stFirst(m.name), n: -A.streak }, { arc: 'mentor', choice: [XP_CHOICE('mentor', 'Extra work with ' + stFirst(m.name))[0], HOME_CHOICE()[0]] })) return; }
+  if (A.streak >= SY.runWins) { if (stBeatV(c, 'run', 'family', 'A CALL FROM HOME', { fam, n: A.streak }, { arc: 'family', choice: HOME_CHOICE() })) return; }
   if (B.tour === c.season && !x.home && !x.playoff && wk < n) { B.hype = Math.min(MD.hypeMax, (B.hype || 0) + SY.tourRoadHype); if (!A.fired['tour-road']) { stBeat(c, 'tour-road', 'me', 'THE FAREWELL TOUR', ['Their fans stand when your name is called. A video on the big screen: every season of yours, set to a song you haven\'t heard since you were fourteen.', 'You tip your cap to the other bench. They clap back.'], { arc: 'tour' }); return; } }
   if ((B.hype || 0) >= MD.keyedAt && !A.fired.spotlight && stSpotlight(c)) return; // hype: the spotlight (once a season)
   if (!x.playoff && wk >= Math.ceil(n * SY.traitAt) && stTraitBeat(c)) return; // your traits (once a level)
-  if (!x.playoff && wk === n - 2 && stContender(c)) { if (stBeat(c, 'chase', 'coach', 'THE TITLE CHASE', [(c.team && c.team.coach ? c.team.coach.name : 'Coach') + ': "Two games left and we control our own fate."', '"Nobody in this building is thinking about next year. Neither are you."'], { arc: 'title' })) return; }
+  if (!x.playoff && wk === n - 2 && stContender(c)) { if (stBeatV(c, 'chase', 'coach', 'THE TITLE CHASE', { m: c.team && c.team.coach ? c.team.coach.name : 'Coach' }, { arc: 'title' })) return; }
   if (!x.playoff && ((wk >= Math.ceil(n * SY.fillAt) && A.beats < SY.beatsMin - 1) || (wk >= n - 1 && A.beats < SY.beatsMin))) stFiller(c);
 }
 // A week on the bench: no game of yours, but the season's story keeps its pace.
 function stBenchWeek(c) { sagaWeekSpent(holderOf(c)); schoolWeekSpent(holderOf(c)); if (sagaTick(c, 'game', { bench: true })) return; /* V7 */ const A = stFill(c), wk = stWeek(c) + (A.benchN = (A.benchN || 0) + 1), n = stWeeks(c); if (A.beats < SY.beatsMin && (wk >= n - 1 || (wk >= Math.ceil(n * SY.fillAt) && A.beats < SY.beatsMin - 1))) stFiller(c); }
 // The season is over: a quiet one gets its last check-ins (the coach's season review).
-function stSeasonEnd(c) { const A = stFill(c), B = holderOf(c); if (A.ended === c.season) return; A.ended = c.season; sagaTick(c, 'end'); /* V7; 2.1: a chapter's closing scene */ for (let i = 0; i < 3 && A.beats < SY.beatsMin; i++) if (!stFiller(c)) break; if (A.beats < SY.beatsMin && c.team && c.team.coach && !A.fired['review']) stBeat(c, 'review', 'coach', 'THE SEASON REVIEW', [(c.team.coach.name) + ': "Sit down. Here\'s what I saw this year, the good and the rest of it."', '"Take a week off. Then come back hungrier than you left."'], { arc: 'coach', fill: true }); if (!Array.isArray(B.arcLog)) B.arcLog = []; B.arcLog.push({ s: c.season, st: isPro(c) ? 'pro' : c.stage, n: A.beats }); if (B.arcLog.length > 40) B.arcLog.shift(); A.shut = c.season; /* 2.1: what comes after this counts in the next season */ }
+function stSeasonEnd(c) { const A = stFill(c), B = holderOf(c); if (A.ended === c.season) return; A.ended = c.season; sagaTick(c, 'end'); /* V7; 2.1: a chapter's closing scene */ for (let i = 0; i < 3 && A.beats < SY.beatsMin; i++) if (!stFiller(c)) break; if (A.beats < SY.beatsMin && c.team && c.team.coach && !A.fired['review']) stBeatV(c, 'review', 'coach', 'THE SEASON REVIEW', { m: c.team.coach.name }, { arc: 'coach', fill: true }); if (!Array.isArray(B.arcLog)) B.arcLog = []; B.arcLog.push({ s: c.season, st: isPro(c) ? 'pro' : c.stage, n: A.beats }); if (B.arcLog.length > 40) B.arcLog.shift(); A.shut = c.season; /* 2.1: what comes after this counts in the next season */ }
 // A season behind on beats: a check-in (the coach, your mentor or home).
 function stFiller(c) {
-  const B = holderOf(c), A = stFill(c), fam = stFirst(B.family.name), m = stMentor(c), coach = c.team && c.team.coach ? c.team.coach.name : 'Coach', pick = stRng(c, 'filler' + A.beats).int(3);
-  const F = { fill: true }; if (pick === 0 && c.team && c.team.coach && !A.fired['coach-talk']) return stBeat(c, 'coach-talk', 'coach', 'THE COACH\'S OFFICE', [coach + ': "Close the door. I want more from you on defense, and I think you want it too."', '"Extra drills this week, or save your legs for the stretch. Your call."'], Object.assign({ arc: 'coach', choice: XP_CHOICE('coach', 'Extra defensive drills') }, F));
-  if (pick === 1 && m && !A.fired['mentor-tip']) return stBeat(c, 'mentor-tip', 'mentor', 'FILM SESSION', [stFirst(m.name) + ' pauses the tape: "See that? You tell them where you\'re going with your shoulders."', '"Everybody in this league watches film. The good ones watch themselves."'], Object.assign({ arc: 'mentor' }, F));
-  if (!A.fired['family-checkin']) return stBeat(c, 'family-checkin', 'family', 'A CALL FROM HOME', [fam + ': "We watched the stream. Are you eating? You look tired."', '"Whatever happens this season, you know where home is."'], Object.assign({ arc: 'family', choice: HOME_CHOICE() }, F));
-  if (c.team && c.team.coach && !A.fired['coach-talk']) return stBeat(c, 'coach-talk', 'coach', 'THE COACH\'S OFFICE', [coach + ': "Close the door. I want more from you on defense, and I think you want it too."', '"Extra drills this week, or save your legs for the stretch. Your call."'], Object.assign({ arc: 'coach', choice: XP_CHOICE('coach', 'Extra defensive drills') }, F));
-  if (m && !A.fired['mentor-tip']) return stBeat(c, 'mentor-tip', 'mentor', 'FILM SESSION', [stFirst(m.name) + ' pauses the tape: "See that? You tell them where you\'re going with your shoulders."', '"Everybody in this league watches film. The good ones watch themselves."'], Object.assign({ arc: 'mentor' }, F));
-  return null;
+  const B = holderOf(c), A = stFill(c), fam = stFirst(B.family.name), m = stMentor(c), coach = c.team && c.team.coach ? c.team.coach.name : 'Coach', pick = stRng(c, 'filler' + A.beats).int(3), F = { fill: true };
+  const talk = () => c.team && c.team.coach && !A.fired['coach-talk'] ? stBeatV(c, 'coach-talk', 'coach', 'THE COACH\'S OFFICE', { m: coach }, Object.assign({ arc: 'coach', choice: T => XP_CHOICE('coach', T.label) }, F)) : null;
+  const tip = () => m && !A.fired['mentor-tip'] ? stBeatV(c, 'mentor-tip', 'mentor', 'FILM SESSION', { m: stFirst(m.name) }, Object.assign({ arc: 'mentor' }, F)) : null;
+  const home = () => !A.fired['family-checkin'] ? stBeatV(c, 'family-checkin', 'family', 'A CALL FROM HOME', { fam }, Object.assign({ arc: 'family', choice: HOME_CHOICE() }, F)) : null;
+  return (pick === 0 && talk()) || (pick === 1 && tip()) || home() || talk() || tip() || null; /* (2.1: a check-in whose versions are all told gives way to another) */
 }
 function stContender(c) { if (isPro(c)) { if (pblOn(c)) { const k = frConf(meOf(c).club); return standingsSorted(c).filter(id => c.players[id] && frConf(c.players[id].club) === k).slice(0, 3).includes(c.meId); } /* 2.1: the top three of your conference */ const S = standingsSorted(c).slice(0, Math.min(CR.playoffSeeds, 4) + 1); return S.includes(c.meId); } /* V12: the top five, as with four seeds (eight make the playoffs now) */ const T = c.league && typeof amTable === 'function' ? amTable(c) : null; return !!T && T.findIndex(r => r.id === 'me') < Math.max(2, AMC.playoffSeeds || 4); }
 // Draft night (the amateur career, just drafted): where you went against where they said you'd go.
@@ -19236,14 +19343,14 @@ function stFirstContract(c) {
 // V8 (2.0 §4.9): your club's stars changed over the summer (and you didn't move): the big stage, or the rebuild.
 function stTeamStars(c) {
   const M = c.me, me = meOf(c), now = frMine(c), was = M.starsWas, club = M.starsClub; M.starsWas = now; M.starsClub = me.club; if (was == null || club !== me.club || now === was) return null;
-  const coach = c.team && c.team.coach ? c.team.coach.name : 'Coach', clubN = clubOf(me.club).name;
-  if (now > was) return stBeat(c, 'stars-up', 'coach', 'THE BIG STAGE', [coach + ': "The ' + clubN + ' are a ' + now + '★ team now. Every game this season is on national TV."', '"Some players grow under the lights. Some shrink. Which one are you?"'], { arc: 'team', choice: [{ label: 'Own the spotlight', note: 'Hype +' + SY.starsHype + ' · practice XP −5% this week', fx: { hype: SY.starsHype, xp: -0.05 } }, { label: 'Stay in your lane', note: 'Practice XP +5% this week · hype −3', fx: { xp: 0.05, hype: -3 }, def: true }] });
-  return stBeat(c, 'stars-down', 'agent', 'THE REBUILD', [stWho(c, 'agent').name + ': "The ' + clubN + ' are down to ' + now + '★. They traded away half the roster this summer."', '"You can be the veteran who builds it back, or we start making calls."'], { arc: 'team', choice: [{ label: 'Lead the young guys', note: 'Coach trust +5 · confidence −1', fx: { trust: 5, conf: -1 } }, { label: 'Keep your options open', note: 'Hype +3 · coach trust −3', fx: { hype: 3, trust: -3 }, def: true }] });
+  const coach = c.team && c.team.coach ? c.team.coach.name : 'Coach', clubN = clubOf(me.club).name, V = holderOf(c).versions || (holderOf(c).versions = {}), vk = (now > was ? 'stars-up:' : 'stars-down:') + me.club + ':' + now, again = V[vk] ? ' again' : ''; V[vk] = 1; /* (2.1, §4.4: the same news twice reads as news twice) */
+  if (now > was) return stBeat(c, 'stars-up', 'coach', 'THE BIG STAGE', [coach + ': "The ' + clubN + ' are a ' + now + '★ team' + (again || ' now') + '. Every game this season is on national TV."', '"Some players grow under the lights. Some shrink. Which one are you?"'], { arc: 'team', choice: [{ label: 'Own the spotlight', note: 'Hype +' + SY.starsHype + ' · practice XP −5% this week', fx: { hype: SY.starsHype, xp: -0.05 } }, { label: 'Stay in your lane', note: 'Practice XP +5% this week · hype −3', fx: { xp: 0.05, hype: -3 }, def: true }] });
+  return stBeat(c, 'stars-down', 'agent', 'THE REBUILD', [stWho(c, 'agent').name + ': "The ' + clubN + ' are down to ' + now + '★' + again + '. They traded away half the roster this summer."', '"You can be the veteran who builds it back, or we start making calls."'], { arc: 'team', choice: [{ label: 'Lead the young guys', note: 'Coach trust +5 · confidence −1', fx: { trust: 5, conf: -1 } }, { label: 'Keep your options open', note: 'Hype +3 · coach trust −3', fx: { hype: 3, trust: -3 }, def: true }] });
 }
 // A pro season starts at 34 or older: is this the last one?
 function stSeasonStart(c) {
-  if (!isPro(c)) return; const A = stFill(c), M = c.me, me = meOf(c); try { sagaTick(c, 'season'); } catch (e) { /* 2.1: a chapter that opens with the season */ } stTeamStars(c); if (me.age < SY.tourAge || M.tour || A.done['tour-ask' + c.season]) return; A.done['tour-ask' + c.season] = true;
-  stBeat(c, 'tour-ask', 'agent', 'ONE MORE SEASON?', [stWho(c, 'agent').name + ': "The league wants to know. Is this the last one? If it is, they\'ll make it a tour."', '"Say it now and every arena says goodbye. Keep it quiet and you keep your options."'], { arc: 'tour', crit: true, choice: [{ label: 'Announce a farewell tour', note: 'Hype +' + SY.tourHype + ' · a tribute in every road arena · you retire after this season', fx: { hype: SY.tourHype, tour: true } }, { label: 'Keep it quiet', note: 'No tour · you decide after the season', fx: {}, def: true }] });
+  if (!isPro(c)) return; const A = stFill(c), M = c.me, me = meOf(c); try { const Sg = sagaOf(c); if (Sg.flags.leaveFor) { if (Sg.flags.leaveFor !== me.club) proTrade(c, Sg.flags.leaveFor, true); Sg.flags.leaveFor = null; } } catch (e) { /* W9: the Ring Chase decided after the deadline: the move comes now */ } try { sagaTick(c, 'season'); } catch (e) { /* 2.1: a chapter that opens with the season */ } stTeamStars(c); if (me.age < SY.tourAge || M.tour || A.done['tour-ask' + c.season]) return; A.done['tour-ask' + c.season] = true;
+  stBeatV(c, 'tour-ask', 'agent', 'ONE MORE SEASON?', { m: stWho(c, 'agent').name }, { arc: 'tour', crit: true, more: n => '(Asked for the ' + n + 'th year running.)', choice: [{ label: 'Announce a farewell tour', note: 'Hype +' + SY.tourHype + ' · a tribute in every road arena · you retire after this season', fx: { hype: SY.tourHype, tour: true } }, { label: 'Keep it quiet', note: 'No tour · you decide after the season', fx: {}, def: true }] });
 }
 
 // --- the social feed: fictional posts reacting to your games, highlights, press answers, trades and signings ---
@@ -19537,8 +19644,8 @@ function guideEntries(game, topic) {
     add('The main story', c ? (now ? 'Chapter ' + now.n + ' of 12' : chs.filter(r => r.st === 'done').length + ' of 12 done') : '', ['Your career is told in 12 chapters, from freshman tryouts to your last day, with a version for every path. Each opens with a title card and has one big decision: "This will be remembered", and later chapters do.', 'Scenes come at the start of a week, after big games and in the offseason: 3–5 a season, never more than two in a row, and every one asks you something.'].concat(last ? [['Chapter ' + last.n + ', ' + last.title + ': ' + last.pick + '.', UI_CYAN]] : []));
     add('Side stories', c ? arcs.length + ' of ' + Sg.quota + ' arcs' : '', ['Between the chapters, side stories of 3–6 beats: a career sees ' + SG.perCareer[0] + '–' + SG.perCareer[1] + ' of them, never the same one twice.', 'Every choice trades something for something else, and says both. What you choose sets flags that later beats remember.'].concat(arcs.length ? [['This career: ' + arcs.map(a => a.title.charAt(0) + a.title.slice(1).toLowerCase() + (a.st === 'done' ? '' : ' (going on)')).join(' · ') + '.', UI_CYAN]] : []));
     const met = Sg ? SAGA_CAST.filter(r => Sg.cast[r] && (Sg.cast[r].name || Sg.cast[r].m) && r !== 'rival') : [];
-    add('Your people', '', ['Family, a younger sibling, Coach Adeyinka (your high school coach), a best friend, your rival, a mentor, your agent, a journalist and, in the pros, an owner. Each has a meter from −100 to 100; choices move it ' + SG.m.small + ', ' + SG.m.mid + ' or ' + SG.m.big + '.', 'A family at +' + SG.warmAt + ' or more gets the warm version of an ending. Your best friend picks a college of their own: follow them on Signing Day and you\'re teammates again.'].concat(met.length ? [[met.map(r => { const w = sagaWho(c, r); return SAGA_ROLE[r] + ' ' + stFirst(String(w.name).replace(/^Coach /, '')) + ' ' + (w.meter > 0 ? '+' : '') + w.meter; }).join(' · '), UI_CYAN]] : []));
-    add('How it ends', Sg && Sg.epilogue ? (SAGA_EPILOGUES.find(e => e.id === Sg.epilogue) || {}).title || '' : '', ['When you retire, the story ends one of six ways, the first that fits: Passing the Torch (you took a kid under your wing), The Legend (the Hall of Fame and a ring), Two Old Rivals (your rival at +' + SG.respectAt + ' and peace made), Home (your family at +' + SG.warmAt + '), The Long Road (' + SG.roadClubs + ' clubs or more) or The Work.', 'THE STORY SO FAR (on the ME tab) shows the chapters with what you chose in each, the side stories, and everyone\'s meter.']); // V8; 2.1
+    add('Your people', '', ['Family, a younger sibling, Coach Adeyinka (your high school coach), a best friend, your rival, a mentor, your agent, a journalist and, in the pros, an owner. Each has a meter from −100 to 100; choices move it ' + SG.m.small + ', ' + SG.m.mid + ' or ' + SG.m.big + '.', 'A family at +' + SG.warmAt + ' or more gets the warm version of an ending. Your best friend picks a college of their own: follow them on Signing Day and you\'re teammates again. When you go pro they can be your agent; pass them over and they work for your rival, or drift away.'].concat(met.length ? [[met.map(r => { const w = sagaWho(c, r); return SAGA_ROLE[r] + ' ' + stFirst(String(w.name).replace(/^Coach /, '')) + ' ' + (w.meter > 0 ? '+' : '') + w.meter; }).join(' · '), UI_CYAN]] : []));
+    add('How it ends', Sg && Sg.epilogue ? (SAGA_EPILOGUES.find(e => e.id === Sg.epilogue) || {}).title || '' : '', ['On your last day, chapter 12 asks what comes next, and the story ends one of six ways, the first that fits: the Mercenary Champion (you left for a contender and won a ring there), the Fallen Star (the big agency\'s scandal, ridden out), the Owner (you bought a team), the Hometown Hero (you stayed when a contender called), Family First (you stayed home for your sibling) or the Coach (a whistle, or a kid from your academy). Your sibling has the last line.', 'A career from before the chapters ends as it did: Passing the Torch, The Legend, Two Old Rivals, Home, The Long Road or The Work.', 'THE STORY SO FAR (on the ME tab) shows the chapters with what you chose in each, the side stories, and everyone\'s meter.']); // V8; 2.1
     add('Ceremonies and records', '', ['Awards night closes a season you won something in. The All-Star reveal comes before the weekend, and a Hall of Fame career ends with its induction.', 'THE RECORD BOOK (on the ME tab) keeps your best game at each level and the state, college and PBL records. Break one and a gold toast says so, and the book keeps your name on it.']); // V8 (2.0 §4.9)
   }
   if (topic === 'buzz') {
@@ -19944,7 +20051,7 @@ const SAGA_ARCS = {}; // id → the arc (179_saga_arcs.js fills it)
 function sagaRng(c, salt) { return new RNG((hashString(String(c.seed || 1) + ':saga:' + salt) >>> 0) || 7); }
 function sagaAct(c) { return isPro(c) ? 3 : c.stage === 'college' ? 2 : c.stage === 'hs' ? 1 : 0; }
 function sagaStageKey(c) { return isPro(c) ? 'pro' : c.stage || 'hs'; }
-const CH_HOOKS = ['season', 'tryout', 'signing', 'signed']; // 2.1: the chapters' own hooks (a season starts, the tryout list, Signing Day opens, you signed)
+const CH_HOOKS = ['season', 'tryout', 'signing', 'signed', 'declare', 'declared', 'senior']; // 2.1: the chapters' own hooks (a season starts, the tryout list, Signing Day opens, you signed; W9: the declare decision, your answer, four years done)
 // The saga's state, filled in (an old save gets an empty one: its arcs start from where the career is now).
 function sagaOf(c) {
   const B = holderOf(c); let S = B.saga; if (!S || typeof S !== 'object') S = B.saga = {};
@@ -20009,7 +20116,7 @@ function sagaTell(c, id, bi, x) {
   const A = SAGA_ARCS[id], b = A.beats[bi], S = sagaOf(c), R = S.arcs[id]; const who = typeof b.who === 'function' ? b.who(c, S, R, x) : sagaWho(c, b.who || 'family');
   const lines = (typeof b.lines === 'function' ? b.lines(c, S, R, x) : b.lines || []).filter(Boolean); const choice = typeof b.choice === 'function' ? b.choice(c, S, R, x) : b.choice || null;
   const title = typeof b.title === 'function' ? b.title(c, S, R, x) : b.title || A.title;
-  const ev = stBeat(c, 'saga-' + id + '-' + (b.id || bi), 'me', title, lines, { arc: 'saga:' + id, crit: !!b.crit || !!A.crit, choice: choice && choice.length ? choice.map(ch => Object.assign({ fx: {} }, ch)) : null });
+  const ev = stBeat(c, 'saga-' + id + '-' + (b.id || bi), 'me', title, lines, { arc: 'saga:' + id, crit: !!(typeof b.crit === 'function' ? b.crit(c, S, R, x) : b.crit) || !!A.crit, choice: choice && choice.length ? choice.map(ch => Object.assign({ fx: {} }, ch)) : null });
   if (!ev) return null; ev.who = who; ev.saga = { arc: id, beat: bi }; ev.bg = typeof b.bg === 'function' ? b.bg(c, S, R, x) : b.bg || 'gym'; ev.mood = (typeof b.mood === 'function' ? b.mood(c, S, R, x) : b.mood) || 'story';
   if (ev.react) { chReact(c, ev); /* 2.1: its two answers, for this speaker */ sagaApply(c, b.fx || null, ev); try { if (b.after) b.after(c, S, R, x); } catch (e) { /* decoration */ } }
   S.log.push({ arc: id, beat: b.id || String(bi), title, s: c.season, stage: sagaStageKey(c), age: isPro(c) ? meOf(c).age : c.age, pick: null });
@@ -20126,7 +20233,7 @@ SAGA_ARCS.booster = { act: 2, title: 'THE BOOSTER', chance: SG.chance.booster,
     { id: 'piece', hook: 'game', bg: 'press', who: 'journalist', mood: 'warm', when: (c, S, R) => S.flags.booster !== 'refused' || isPro(c) ? 'skip' : sgSince(c, R) >= SG.gap,
       lines: c => [sagaWho(c, 'journalist').name + ' runs the story on Sunday: a college star who handed an envelope back.', '"People are reading it. Want to sit down for a longer interview?"'],
       choice: () => [{ label: 'Sit down for it', note: 'Hype +' + SG.boosterPieceHype + ' · journalist +' + SG.m.mid + ' · practice XP −10% this week', fx: { xp: -0.1 }, saga: { hype: SG.boosterPieceHype, meter: { journalist: SG.m.mid } } }, { label: 'Let the story speak', note: 'Hype +' + Math.round(SG.boosterPieceHype / 2) + ' · journalist −' + SG.m.small, saga: { hype: Math.round(SG.boosterPieceHype / 2), meter: { journalist: -SG.m.small } }, def: true }] },
-    { id: 'after', hook: ['stage', 'game'], bg: 'kitchen', who: 'family', crit: true, mood: (c, S) => S.flags.booster === 'refused' ? 'warm' : 'sad', when: c => isPro(c), /* waits for the pros */
+    { id: 'after', hook: ['stage', 'game'], bg: 'kitchen', who: 'family', mood: (c, S) => S.flags.booster === 'refused' ? 'warm' : 'sad', when: c => isPro(c), /* waits for the pros */
       title: 'THE ENVELOPE',
       lines: (c, S) => { const f = sagaFirst(c, 'family'); return S.flags.booster === 'refused' ? ['Your old college coach still tells recruits the story of the envelope you handed back.', f + ': "That\'s the part I tell people about. Not the points."'] : S.flags.boosterOut ? ['Every profile of you mentions the suspension, somewhere around the third paragraph.', f + ': "You owned it. That\'s the part they should write about."'] : ['Nobody ever found out about the envelope. You think about it more than you would ever admit.', f + ' never asked where the money came from.']; },
       after: (c, S) => { if (S.flags.booster === 'took' && !S.flags.boosterOut) sagaApply(c, { conf: -1 }); } },
@@ -20162,7 +20269,7 @@ SAGA_ARCS.mentor = { act: 1, title: 'THE MENTOR', chance: SG.chance.mentor, hook
     { id: 'text', hook: 'game', bg: 'quad', who: 'mentor', mood: 'story', when: (c, S, R) => isPro(c) ? 'skip' : sagaMeter(c, 'mentor') < 0 ? 'skip' : (c.stage === 'college' || (c.stage === 'hs' && c.stageYear >= 3)) && stWeek(c) >= 3 && sgSince(c, R) >= SG.gap,
       lines: c => ['A text from ' + sagaFirst(c, 'mentor') + ' after your game: "Watched the stream. You drift on defense when you\'re tired."', '"Call me tonight if you want the rest of it."'],
       choice: () => [{ label: 'Call tonight', note: 'Mentor +' + SG.m.mid + ' · practice XP −5% this week', fx: { xp: -0.05 }, saga: { meter: { mentor: SG.m.mid } } }, { label: 'Reply "thanks"', note: 'Practice XP +5% this week · mentor −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { mentor: -SG.m.small } }, def: true }] },
-    { id: 'last', hook: 'game', bg: 'tunnel', who: 'mentor', mood: 'warm', when: c => !isPro(c) ? false : c.season > SG.mentorBy ? 'skip' : c.season >= 2 && sagaMeter(c, 'mentor') >= SG.mentorLastAt && stWeek(c) >= 1,
+    { id: 'last', hook: 'game', bg: 'tunnel', who: 'mentor', mood: 'warm', when: c => !isPro(c) ? false : c.season > SG.mentorBy || chOwns(c, 8) ? 'skip' : /* (2.1: in a career told in chapters, chapter 8's veteran is your mentor in the pros) */ c.season >= 2 && sagaMeter(c, 'mentor') >= SG.mentorLastAt && stWeek(c) >= 1,
       title: 'ONE LAST SEASON',
       lines: c => [sagaWho(c, 'mentor').name + ' signs with your club for one last season.', '"Win me one playoff game. That\'s all I want before I hang it up."'],
       after: (c, S) => { S.flags.mentorLast = c.season; } },
@@ -20182,7 +20289,7 @@ function sagaClutchOf(B) { return B && B.saga && B.saga.flags && B.saga.flags.me
 // Cameras (act II: hype against focus) and Father Time (act III). With V7's five that is fourteen: a career sees 6–8.
 // ============================================================================
 function sgOwnerKind(c) { const S = sagaOf(c), O = S.cast.owner, club = isPro(c) ? meOf(c).club : null; if (club && O.club !== club) { const F = frOwnerOf(c, club); O.club = club; O.m = 0; O.name = F.name; O.kind = F.kind; O.look = stLookFor('owner:' + club); O.colors = clubOf(club).colors.slice(); sagaWho(c, 'owner'); } return O.kind || 'patient'; } // a new club: its owner (V12: the franchise's own, win-now, patient or cheap)
-const SG_OWNER_WORD = { winnow: 'wants a ring now', patient: 'builds slowly', cheap: 'counts every dollar' };
+const SG_OWNER_WORD = { winnow: 'wants a ring now', patient: 'builds slowly', cheap: 'counts every dollar', meddler: 'calls the coach and makes the news' }; // (2.1: the meddler, W5's fourth kind)
 function sgRank(c) { return isPro(c) ? standingsSorted(c).indexOf(c.meId) + 1 : 0; }
 function sgKid(c) { return { role: 'A kid at your camp', name: genName(sagaRng(c, 'kid'), new Set([stMeName(c)]), new Set()), look: stLookFor('kid:' + (c.seed || 1)), colors: ['#2E6FD8', '#FFD23F'] }; }
 
@@ -20197,7 +20304,7 @@ SAGA_ARCS.journalist = { act: 2, title: 'THE JOURNALIST', chance: SG.chance.jour
       title: c => { const m = sagaMeter(c, 'journalist'); return m >= SG.toneAt ? 'THE FEATURE' : m <= -SG.toneAt ? 'THE HIT PIECE' : 'THE PROFILE'; },
       lines: c => { const j = sagaWho(c, 'journalist').name, m = sagaMeter(c, 'journalist'); return m >= SG.toneAt ? [j + '\'s feature runs on the front page: "The Quiet Worker." Your old coach is quoted twice.', 'It is the first thing people mention at the arena this week.'] : m <= -SG.toneAt ? [j + ' writes that you\'ve "never once answered a question honestly," and lists the answers.', 'Your agent calls before you\'ve finished reading it.'] : [j + '\'s profile is fair: the good games, the bad ones, the work in between.', '"I write what I see. Keep giving me something to see."']; },
       choice: c => { const m = sagaMeter(c, 'journalist'); return m <= -SG.toneAt ? [{ label: 'Answer it in public', note: 'Hype +5 · journalist −' + SG.m.mid + ' · confidence +1', saga: { hype: 5, conf: 1, meter: { journalist: -SG.m.mid } } }, { label: 'Let it go', note: 'Hype −' + SG.pieceHype + ' · journalist +' + SG.m.small, saga: { hype: -SG.pieceHype, meter: { journalist: SG.m.small } }, def: true }] : [{ label: 'Thank them publicly', note: 'Journalist +' + SG.m.mid + ' · hype +3 · practice XP −5% this week', fx: { xp: -0.05 }, saga: { hype: 3, meter: { journalist: SG.m.mid } } }, { label: 'Say nothing', note: 'Practice XP +5% this week · journalist −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { journalist: -SG.m.small } }, def: true }]; } },
-    { id: 'retro', hook: 'retire', bg: 'press', who: 'journalist', crit: true, mood: c => sagaMeter(c, 'journalist') >= 0 ? 'warm' : 'sad', title: 'THE LAST COLUMN',
+    { id: 'retro', hook: 'retire', bg: 'press', who: 'journalist', crit: true, when: c => chAny(c) ? 'skip' : true, /* (2.1: in a career told in chapters, chapter 12's ending closes the story) */ mood: c => sagaMeter(c, 'journalist') >= 0 ? 'warm' : 'sad', title: 'THE LAST COLUMN',
       lines: c => { const j = sagaWho(c, 'journalist').name, m = sagaMeter(c, 'journalist'); return m >= SG.toneAt ? [j + ' writes the retrospective: "I covered every season of it. I would do it again."', 'They send you the first copy off the press, signed.'] : m <= -SG.toneAt ? [j + '\'s retrospective is short and fair, and colder than you expected.', '"We never got along. I never once doubted the work."'] : [j + '\'s retrospective counts the seasons, the games, the nights the building shook.', '"A career is a long time to watch someone. I\'m glad it was this one."']; } },
   ] };
 
@@ -20206,13 +20313,13 @@ SAGA_ARCS.owner = { act: 3, title: 'THE OWNER', chance: SG.chance.owner,
   open: c => isPro(c) && c.season >= 1 && stWeek(c) >= 1, start: c => { sgOwnerKind(c); },
   beats: [
     { id: 'meet', hook: 'game', bg: 'tunnel', who: c => (sgOwnerKind(c), sagaWho(c, 'owner')), mood: 'story',
-      lines: c => { const k = sgOwnerKind(c); return [sagaWho(c, 'owner').name + ', who owns the ' + clubOf(meOf(c).club).name + ', ' + SG_OWNER_WORD[k] + ', and wants to meet you before the game.', k === 'winnow' ? '"I didn\'t buy a team to wait. What can you promise me?"' : k === 'cheap' ? '"Every dollar here has to work. Does yours?"' : '"We\'re building something. Are you in it for the long run?"']; },
+      lines: c => { const k = sgOwnerKind(c); return [sagaWho(c, 'owner').name + ', who owns the ' + clubOf(meOf(c).club).name + ', ' + SG_OWNER_WORD[k] + ', and wants to meet you before the game.', k === 'winnow' ? '"I didn\'t buy a team to wait. What can you promise me?"' : k === 'cheap' ? '"Every dollar here has to work. Does yours?"' : k === 'meddler' ? '"I like to be involved. Very involved. You\'ll get used to me."' : '"We\'re building something. Are you in it for the long run?"']; },
       choice: () => [{ label: 'Promise a playoff run', note: 'Owner +' + SG.m.mid + ' · hype +5 · they will remember', saga: { meter: { owner: SG.m.mid }, hype: 5, flag: { ownerPromise: 'season' } } }, { label: 'Promise the work, not results', note: 'Owner +' + SG.m.small + ' · practice XP +5% for 2 weeks', saga: { meter: { owner: SG.m.small }, xpWeeks: [0.05, 2] }, def: true }],
       after: (c, S, R, x, i) => { if (i === 0) S.flags.ownerPromise = c.season; } },
     { id: 'middle', hook: 'game', bg: c => sgOwnerKind(c) === 'patient' ? 'kitchen' : 'press', who: c => (sgOwnerKind(c), sagaWho(c, 'owner')), mood: c => sgOwnerKind(c) === 'patient' ? 'warm' : 'tense', when: (c, S, R) => isPro(c) && sgSince(c, R) >= SG.gap && stWeek(c) >= Math.ceil(stWeeks(c) / 2),
-      title: c => ({ winnow: 'THE OWNER CALLS', cheap: 'THE BILL', patient: 'DINNER' })[sgOwnerKind(c)],
-      lines: c => { const k = sgOwnerKind(c), o = sagaWho(c, 'owner').name; return k === 'winnow' ? [o + ' calls after a loss: "We\'re ' + sgRank(c) + 'th. I didn\'t pay for ' + sgRank(c) + 'th."', '"Play through whatever hurts. Or tell me it\'s the coach\'s problem."'] : k === 'cheap' ? [o + ' won\'t pay for the recovery staff this season. The trainer tells you quietly.', '"I can keep you fresh if somebody covers it. It doesn\'t have to be the owner."'] : [o + ' takes you to dinner and asks about everything except basketball.', '"I own this team for the next twenty years. Where do you want to be in ten?"']; },
-      choice: c => { const k = sgOwnerKind(c); return k === 'winnow' ? [{ label: 'Play through anything', note: 'Owner +' + SG.m.mid + ' · fatigue +10', fx: { fatigue: 10 }, saga: { meter: { owner: SG.m.mid } } }, { label: 'The coach decides', note: 'Coach trust +3 · owner −' + SG.m.mid, fx: { trust: 3 }, saga: { meter: { owner: -SG.m.mid } }, def: true }] : k === 'cheap' ? [{ label: 'Pay for the staff yourself', note: '−' + fmtMoney(SG.staffCost) + ' · fatigue −15 · owner +' + SG.m.small, fx: { fatigue: -15 }, saga: { cash: -SG.staffCost, meter: { owner: SG.m.small } } }, { label: 'Let it go', note: 'Keep the money · fatigue +5', fx: { fatigue: 5 }, def: true }] : [{ label: 'Talk about the future', note: 'Owner +' + SG.m.mid + ' · practice XP −5% this week', fx: { xp: -0.05 }, saga: { meter: { owner: SG.m.mid } } }, { label: 'Keep it short', note: 'Practice XP +5% this week · owner −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { owner: -SG.m.small } }, def: true }]; } },
+      title: c => ({ winnow: 'THE OWNER CALLS', cheap: 'THE BILL', patient: 'DINNER', meddler: 'THE PHONE CALL' })[sgOwnerKind(c)] || 'THE OWNER', /* (2.1: the meddler's own; before, its title was missing and the beat came back every season) */
+      lines: c => { const k = sgOwnerKind(c), o = sagaWho(c, 'owner').name; return k === 'winnow' ? [o + ' calls after a loss: "We\'re ' + sgRank(c) + 'th. I didn\'t pay for ' + sgRank(c) + 'th."', '"Play through whatever hurts. Or tell me it\'s the coach\'s problem."'] : k === 'cheap' ? [o + ' won\'t pay for the recovery staff this season. The trainer tells you quietly.', '"I can keep you fresh if somebody covers it. It doesn\'t have to be the owner."'] : k === 'meddler' ? [o + ' calls the locker room during practice and asks for you, not the coach.', '"You should be taking the last shot. I\'m going to tell the press that. Unless you\'d rather I didn\'t."'] : [o + ' takes you to dinner and asks about everything except basketball.', '"I own this team for the next twenty years. Where do you want to be in ten?"']; },
+      choice: c => { const k = sgOwnerKind(c); return k === 'winnow' ? [{ label: 'Play through anything', note: 'Owner +' + SG.m.mid + ' · fatigue +10', fx: { fatigue: 10 }, saga: { meter: { owner: SG.m.mid } } }, { label: 'The coach decides', note: 'Coach trust +3 · owner −' + SG.m.mid, fx: { trust: 3 }, saga: { meter: { owner: -SG.m.mid } }, def: true }] : k === 'meddler' ? [{ label: 'Let them tell the press', note: 'Hype +5 · coach trust −3 · owner +' + SG.m.mid, fx: { trust: -3 }, saga: { hype: 5, meter: { owner: SG.m.mid } } }, { label: 'Let the coach coach', note: 'Coach trust +3 · owner −' + SG.m.small, fx: { trust: 3 }, saga: { meter: { owner: -SG.m.small } }, def: true }] : k === 'cheap' ? [{ label: 'Pay for the staff yourself', note: '−' + fmtMoney(SG.staffCost) + ' · fatigue −15 · owner +' + SG.m.small, fx: { fatigue: -15 }, saga: { cash: -SG.staffCost, meter: { owner: SG.m.small } } }, { label: 'Let it go', note: 'Keep the money · fatigue +5', fx: { fatigue: 5 }, def: true }] : [{ label: 'Talk about the future', note: 'Owner +' + SG.m.mid + ' · practice XP −5% this week', fx: { xp: -0.05 }, saga: { meter: { owner: SG.m.mid } } }, { label: 'Keep it short', note: 'Practice XP +5% this week · owner −' + SG.m.small, fx: { xp: 0.05 }, saga: { meter: { owner: -SG.m.small } }, def: true }]; } },
     { id: 'verdict', hook: 'end', bg: 'tunnel', who: c => sagaWho(c, 'owner'), crit: true, when: c => isPro(c),
       title: (c, S) => S.flags.ownerPromise === c.season ? (frPoWins(c, 1) > 0 ? 'A PROMISE KEPT' : 'A PROMISE BROKEN') : 'THE OWNER\'S BOX',
       mood: (c, S) => S.flags.ownerPromise === c.season && !(frPoWins(c, 1) > 0) ? 'sad' : 'warm',
@@ -20223,9 +20330,9 @@ SAGA_ARCS.owner = { act: 3, title: 'THE OWNER', chance: SG.chance.owner,
 // 8. THE TRADE DEMAND (act III): unhappy (the bench, the coach, the losing). It tells the story R7's UNHAPPY card asked:
 // demand a trade publicly (out now, a burned bridge), quietly (out now), or stay and fight.
 SAGA_ARCS.trade = { act: 3, title: 'THE TRADE DEMAND', chance: SG.chance.trade, hook: 'unhappy',
-  open: (c, S, x) => isPro(c) && !!(x && x.why),
+  open: (c, S, x) => isPro(c) && !!(x && x.why) && !(chOf(c).list[8] && chOf(c).list[8].st === 'on'), /* (2.1: not while chapter 8 asks the same question: learn, or demand minutes) */
   beats: [
-    { id: 'demand', hook: 'unhappy', bg: 'locker', who: 'agent', mood: 'tense', crit: true,
+    { id: 'demand', hook: 'unhappy', bg: 'locker', who: 'agent', mood: 'tense', crit: c => !chOwns(c, 8), /* (2.1: in a career told in chapters, it waits for a season with room; R7's card asks otherwise) */
       lines: (c, S, R, x) => [(x.why === 'bench' ? 'Another game from the bench.' : x.why === 'trust' ? 'The coach stopped looking at you in film sessions.' : 'Another loss, another quiet bus ride.') + ' Your agent is on the phone before you reach the parking lot.', '"I can get you out. Loud, so every team knows you want to win. Quiet, so nobody gets hurt. Or you stay and prove them wrong."'],
       choice: () => [{ label: 'Demand it publicly', note: 'Traded now · hype +5 · owner −' + SG.m.big * 1.5, saga: { hype: 5, meter: { owner: -SG.m.big * 1.5 }, flag: { trade: 'loud' } } }, { label: 'Ask for one quietly', note: 'Traded now · owner −' + SG.m.mid, saga: { meter: { owner: -SG.m.mid }, flag: { trade: 'quiet' } } }, { label: 'Stay and fight', note: 'Coach trust +5 · owner +' + SG.m.mid + ' · confidence −1', fx: { trust: 5 }, saga: { conf: -1, meter: { owner: SG.m.mid }, flag: { trade: 'stay' } }, def: true }],
       after: (c, S, R, x, i) => { if (i === 0 || i === 1) { S.flags.tradeFrom = meOf(c).club; proTrade(c); } } },
@@ -20262,7 +20369,7 @@ function sagaRaise(c) { const S = sagaOf(c), R = S.flags.contractRaise; return R
 // 10. FINALS REMATCH (act III): the final is you against your rival. A pregame cutscene, and an ending the story
 // locks: a handshake or the last word.
 SAGA_ARCS.finals = { act: 3, title: 'FINALS REMATCH', chance: SG.chance.finals,
-  open: c => isPro(c) && c.phase === 'playoffs' && !!c.playoffs && c.playoffs.series.length === 1 && !!c.rivalId && [c.playoffs.series[0].a, c.playoffs.series[0].b].includes(c.rivalId) && [c.playoffs.series[0].a, c.playoffs.series[0].b].includes(c.meId),
+  open: c => isPro(c) && !chOwns(c, 11) && c.phase === 'playoffs' && !!c.playoffs && c.playoffs.series.length === 1 && !!c.rivalId && [c.playoffs.series[0].a, c.playoffs.series[0].b].includes(c.rivalId) && [c.playoffs.series[0].a, c.playoffs.series[0].b].includes(c.meId),
   beats: [
     { id: 'pregame', hook: 'game', bg: 'finals', who: 'rival', mood: 'tense', crit: true,
       lines: c => ['The final is you against ' + stWho(c, 'rival').name + '. You have been doing this since you were fourteen.', h2hText((c.story && c.story.h2h || {}).w || 0, (c.story && c.story.h2h || {}).l || 0) + ' The arena lights go down for the introductions.'],
@@ -20280,7 +20387,7 @@ SAGA_ARCS.finals = { act: 3, title: 'FINALS REMATCH', chance: SG.chance.finals,
 // 11. PASSING THE TORCH (act III, from saga.torchAge): a kid at your camp. Take them under your wing and, when you retire,
 // the kid is your Legacy Start (the existing system) and the final scene.
 SAGA_ARCS.torch = { act: 3, title: 'PASSING THE TORCH', chance: SG.chance.torch,
-  open: c => isPro(c) && meOf(c).age >= SG.torchAge && stWeek(c) >= 1,
+  open: c => isPro(c) && meOf(c).age >= SG.torchAge && stWeek(c) >= 1 && !chOwns(c, 12), /* 2.1: chapter 12 tells it */
   beats: [
     { id: 'kid', hook: 'game', bg: 'gym', who: c => sgKid(c), mood: 'warm',
       lines: c => ['At your summer clinic a skinny kid stays after everyone leaves and asks you to watch their jump shot. It is your jump shot, from twenty years ago.', sgKid(c).name + ': "Everybody says I\'m too small. Am I?"'],
@@ -20335,7 +20442,7 @@ SAGA_ARCS.cameras = { act: 2, title: 'THE CAMERAS', chance: SG.chance.cameras,
 // or fight it; a young teammate wants your minutes; the family asks how many more.
 function sgYoungMate(c) { const T = c.team; if (!T || !Array.isArray(T.mates) || !T.mates.length) return null; return T.mates.slice().sort((a, b) => (a.age || 30) - (b.age || 30) || tmMateOvr(b) - tmMateOvr(a))[0]; }
 SAGA_ARCS.aging = { act: 3, title: 'FATHER TIME', chance: SG.chance.aging,
-  open: c => isPro(c) && meOf(c).age >= SG.agingAge && stWeek(c) >= 2,
+  open: c => isPro(c) && meOf(c).age >= SG.agingAge && stWeek(c) >= 2 && !chOwns(c, 12), /* 2.1: chapter 12 tells it */
   beats: [
     { id: 'step', hook: 'game', bg: 'locker', who: c => sgTrainer(c), mood: 'tense', title: 'THE FIRST STEP',
       lines: c => ['The film doesn\'t lie: your first step is half a beat slower than last season.', sgTrainer(c).name + ': "We can fight it: more lifting, more recovery, every day. Or you change how you play."'],
@@ -20396,11 +20503,12 @@ function chHookOk(sc, hook, x, late) { if (late) return true; const H = sc.hook 
 // Returns the scene's card, or null.
 function chTick(c, hook, x) {
   const S = sagaOf(c), Q = chOf(c); x = x || {};
+  if (hook === 'retire') for (let g = 0; g < 14 && Q.n < CH_TITLES.length - 1; g++) { const R0 = Q.list[Q.n]; if (R0 && R0.st === 'on') { R0.cut = true; chClose(c, Q, R0); continue; } if (R0) { Q.n++; continue; } Q.list[Q.n] = { st: 'past', s0: c.season, stage: sagaStageKey(c), age: chAge(c) }; Q.n++; } /* W9: retiring, only the last chapter is left */
   for (let g = 0; g < 14; g++) { const D = CHAPTERS[Q.n]; if (!D) return null; const R0 = Q.list[Q.n]; if (R0 && R0.st === 'on') break; if (R0) { Q.n++; continue; }
     let gone = false; try { gone = !!(D.past && D.past(c, S, hook, x)); } catch (e) { gone = false; } if (!gone) break;
     Q.list[Q.n] = { st: 'past', s0: c.season, stage: sagaStageKey(c), age: chAge(c) }; Q.n++; }
   const D = CHAPTERS[Q.n]; if (!D) return null; let R = Q.list[Q.n];
-  if (!R) { if (stFill(c).ended === c.season) return null; /* (a chapter opens in a season, never after its end: the playoffs go on without you) */ let ok = false; try { ok = !!D.open(c, S, hook, x); } catch (e) { ok = false; } if (!ok) return null;
+  if (!R) { if (stFill(c).ended === c.season && hook !== 'retire') return null; /* (a chapter opens in a season, never after its end: the playoffs go on without you; Legacy opens on the last day) */ let ok = false; try { ok = !!D.open(c, S, hook, x); } catch (e) { ok = false; } if (!ok) return null;
     R = Q.list[Q.n] = { st: 'on', v: '', i: 0, told: 0, s0: c.season, stage: sagaStageKey(c), age: chAge(c), pick: null, k: null };
     try { R.v = (D.variant && D.variant(c, S, hook, x)) || ''; } catch (e) { R.v = ''; } try { if (D.start) D.start(c, S, R, x); } catch (e) { /* decoration */ } }
   if (!R.late) { try { R.late = !!(D.over && D.over(c, S, R, hook, x)); } catch (e) { R.late = false; } }
@@ -20413,7 +20521,9 @@ function chTick(c, hook, x) {
     let w = true; try { w = sc.when ? sc.when(c, S, R, x, hook) : true; } catch (e) { w = false; } if (R.late) w = w === 'skip' ? 'skip' : true;
     if (w === 'skip') { R.i++; continue; } if (!w) break;
     if (sc.opt && !chRoom(c, D, R)) { R.i++; continue; } /* a scene the season has no room for */
-    const ev = chTell(c, D, R, sc, x, hook); if (!ev) break; R.i++; R.told++; R.tw = chWeek(c); R.ts = c.season; if (R.i >= D.scenes.length) chClose(c, Q, R); return ev; }
+    const ev = chTell(c, D, R, sc, x, hook); if (!ev) break; R.i++; R.told++; R.tw = chWeek(c); R.ts = c.season;
+    { const nx = D.scenes[R.i]; if (nx && nx.chain && chHookOk(nx, hook, x, false)) { let w2 = true; try { w2 = nx.when ? nx.when(c, S, R, x, hook) : true; } catch (e) { w2 = false; } if (w2 === true && chTell(c, D, R, nx, x, hook)) { R.i++; R.told++; } } } /* W9: a scene that follows the last one at the same moment (the One That Got Away's closing) */
+    if (R.i >= D.scenes.length) chClose(c, Q, R); return ev; }
   return null;
 }
 // An optional scene fits when the season still has room for it, the chapter's scenes after it (this season's) and
@@ -20440,7 +20550,7 @@ function chTell(c, D, R, sc, x, hook) {
   const ev = stBeat(c, 'ch' + D.n + '-' + sc.id, 'me', title, lines, { arc: 'ch:' + D.n, chapter: true, choice: choice.length ? choice.map(ch => Object.assign({ fx: {} }, ch)) : null });
   if (!ev) return null; const last = R.i === D.scenes.length - 1;
   ev.who = typeof sc.who === 'function' ? F(sc.who, null) || sagaWho(c, 'family') : sagaWho(c, sc.who || 'family'); ev.bg = F(sc.bg, 'gym'); ev.mood = F(sc.mood, 'story');
-  ev.ch = { n: D.n, scene: sc.id, i: R.i }; ev.chapter = { n: D.n, title: chTitle(c, D.n), open: !R.told, big: !!sc.big, /* (the title card on the first scene told: a version may skip the first) */ close: last, sub: R.i === 0 ? String(F(D.sub, '') || '') : '', sum: String(F(sc.sum, '') || '') };
+  ev.ch = { n: D.n, scene: sc.id, i: R.i }; const card = !!F(sc.card, false); ev.chapter = { n: D.n, title: chTitle(c, D.n), open: !R.told || card, big: !!sc.big, /* (the title card on the first scene told: a version may skip the first) */ close: last, sub: R.i === 0 || card ? String(F(D.sub, '') || '') : '', sum: String(F(sc.sum, '') || '') };
   S.log.push({ arc: 'ch' + D.n, ch: D.n, beat: sc.id, title, s: c.season, stage: sagaStageKey(c), age: chAge(c), pick: null, big: !!sc.big });
   return ev;
 }
@@ -20545,6 +20655,102 @@ CHAPTERS[1] = { n: 1, id: 'kid', size: 5,
   ] };
 
 // ============================================================================
+// SECTION: SAVE / PROGRESSION (part 17g) — 2.1 (§4.2): chapters 11–12, the end of the road. FINALS (the rematch with
+// your rival in the Finals, or the Finals against another team; before the game that can end it: a speech, silence or
+// a call home) or, if you never get there that season, THE ONE THAT GOT AWAY (its own title card and scenes); and LEGACY
+// (the last seasons, your sibling's arc, and what comes next: mentor your sibling or a kid from the academy, coach, or
+// own a team; its closing scene is the story's ending, 179_saga_end.js).
+// ============================================================================
+// The Finals now: your series in the last round (null if you're not in it).
+function chFinalsSeries(c) { const P = isPro(c) && c.phase === 'playoffs' && c.playoffs; if (!P || !Array.isArray(P.series) || P.series.length !== 1) return null; const s = P.series[0]; return s && (s.a === c.meId || s.b === c.meId) ? s : null; }
+// The game that can end it is next: either side one win from the title.
+function chCloseout(s) { if (!s || s.done) return false; const need = Math.ceil((s.bestOf || 5) / 2); return Math.max(s.wa, s.wb) >= need - 1; }
+// The chapter's last season: the window (CH.finalsSeasons from its first) closes with it.
+function chFinalsLast(c, R) { return c.season >= R.s0 + CH.finalsSeasons - 1; }
+
+// ---------------- Chapter 11: FINALS (or THE ONE THAT GOT AWAY) ----------------
+CHAPTERS[11] = { n: 11, id: 'finals', title: (c, S) => { const R = chOf(c).list[11]; return R && R.v === 'away' ? 'The One That Got Away' : 'Finals'; },
+  sub: (c, S, R) => R.v === 'away' ? 'The Finals, without you' : R.v === 'rematch' ? 'The rematch: you and your rival' : R.v === 'finals' ? 'The last series' : 'One more run',
+  past: (c, S, hook) => hook === 'retire',
+  open: (c, S, hook) => isPro(c) && meOf(c).age >= CH.finalsAge && (hook === 'season' || (hook === 'game' && chWeek(c) <= 2)),
+  over: (c, S, R) => !isPro(c) || c.season > R.s0 + CH.finalsSeasons - 1, /* (a window of seasons: the Finals, if you get there) */
+  left: (c, S, R, after) => chFinalsLast(c, R) || stContender(c) || c.phase === 'playoffs' ? CHAPTERS[11].scenes.slice(R.i + after).filter(s => !s.opt).length : 0, /* (the Finals can't be planned for: a contender's season, the playoffs and the window's last season keep room for its end) */
+  scenes: [
+    { id: 'stakes', hook: ['season', 'game'], now: true, bg: 'tunnel', mood: 'story', who: 'rival', title: 'ONE MORE RUN',
+      lines: c => { const r = sagaFirst(c, 'rival'), rv = c.rivalId && c.players[c.rivalId]; return [(rv ? 'Last spring ' + r + ' went down with a torn Achilles. The doctors said a year. ' + r + ' was back in nine months.' : 'Your rival has been out of the league for a while, but you still look for them in every crowd.'), { w: 'rival', t: r + ': "Thought I was done? I read every one of those stories. Kept them all."' }]; },
+      choice: c => [{ label: 'Send them a message', note: sagaFirst(c, 'rival') + ' +' + SG.m.mid, saga: { meter: { rival: SG.m.mid } }, def: true }, { label: 'Say nothing', note: 'Confidence +1', saga: { conf: 1 } }],
+      sum: () => 'Your rival came back from a torn Achilles. One more run.' },
+    { id: 'help', hook: 'game', opt: true, bg: 'locker', mood: 'warm', who: c => sagaOf(c).flags.mentorHelp ? sagaWho(c, 'mentor') : stWho(c, 'coach'), title: 'A WORD BEFORE THE STRETCH', when: c => chWeek(c) >= 5,
+      lines: c => sagaOf(c).flags.mentorHelp ? [sagaWho(c, 'mentor').name + ', retired now, calls out of nowhere: "Six a.m., remember? I watched your tape. You\'re leaning on your left foot again."', '"Fix that, and nobody stops you in June."'] : [stWho(c, 'coach').name + ' stops you after practice: "Everyone in this building wants one thing this year."', '"So do you. I can see it. Don\'t let it make you tight."'],
+      choice: c => sagaOf(c).flags.mentorHelp ? [{ label: 'Fix it at six a.m.', note: 'Practice XP +10% for 3 weeks · ' + stFirst(sagaWho(c, 'mentor').name) + ' +' + SG.m.small, saga: { xpWeeks: [0.1, 3], meter: { mentor: SG.m.small } }, def: true }, { label: 'Thank them and hang up', note: 'Confidence +1', saga: { conf: 1 } }] : [{ label: 'Stay loose', note: 'Confidence +1', saga: { conf: 1 }, def: true }, { label: 'Extra film', note: 'Practice XP +5% this week · fatigue +3', fx: { xp: 0.05, fatigue: 3 } }],
+      sum: c => sagaOf(c).flags.mentorHelp ? 'Your old mentor called with one last fix.' : 'A word from the coach before the stretch.' },
+    { id: 'decide', hook: ['game', 'end'], big: true, now: true, mood: 'tense',
+      bg: (c, S, R) => R.v === 'away' ? 'gym' : 'finals',
+      card: (c, S, R) => R.v === 'away', /* (the chapter becomes "The One That Got Away": its own title card) */
+      who: (c, S, R) => R.v === 'rematch' ? sagaWho(c, 'rival') : R.v === 'away' ? sagaWho(c, 'family') : stWho(c, 'coach'),
+      title: (c, S, R) => R.v === 'away' ? 'THE LONG SUMMER' : 'BEFORE GAME ' + (R.game || 5),
+      when: (c, S, R, x, hook) => { const s = chFinalsSeries(c); if (s && chCloseout(s)) { R.v = (c.rivalId && (s.a === c.rivalId || s.b === c.rivalId)) ? 'rematch' : 'finals'; R.game = s.wa + s.wb + 1; return true; }
+        if (s) return false; if (R.late || (((x && x.eliminated) || hook === 'end') && chFinalsLast(c, R))) { R.v = 'away'; return true; } return false; }, /* (the One That Got Away: the window closed without a Finals) */
+      lines: (c, S, R) => { const r = sagaFirst(c, 'rival'), s = chFinalsSeries(c), me = s ? (s.a === c.meId ? s.wa : s.wb) : 0, them = s ? (s.a === c.meId ? s.wb : s.wa) : 0, sc = me + '-' + them;
+        if (R.v === 'away') return ['The Finals go on without you. You watch them on a couch, like everybody else.', 'Your phone buzzes: the team chat, your agent, ' + sagaFirst(c, 'family') + '. The gym is empty and the lights are still on.'];
+        const g = 'Game ' + R.game + ' of the Finals, the series ' + (me === them ? 'tied ' + sc : me > them ? sc + ' your way' : sc + ' their way') + '.';
+        return R.v === 'rematch' ? [g + ' Across the hall, ' + r + ' is taping their ankles. Twenty years, and it comes down to this.', 'The locker room goes quiet. Everyone is looking at you.'] : [g + ' The locker room goes quiet. Everyone is looking at you.', stWho(c, 'coach').name + ': "Floor\'s yours. Say something, or don\'t."']; },
+      choice: (c, S, R) => R.v === 'away' ? [{ k: 'speech', label: 'Call the team together', note: 'Coach trust +5 · hype +3 · next year starts now', fx: { trust: 5 }, saga: { hype: 3 } }, { k: 'silence', label: 'Shoot alone in the gym', note: 'Practice XP +10% for 3 weeks', saga: { xpWeeks: [0.1, 3] } }, { k: 'call', label: 'Call home', note: 'Family +' + (SG.m.mid + SG.m.small) + ' · confidence +1', saga: { meter: { family: SG.m.mid + SG.m.small }, conf: 1 }, def: true }]
+        : [{ k: 'speech', label: 'Give a speech', note: 'Confidence +2 · hype +5', saga: { conf: 2, hype: 5 } }, { k: 'silence', label: 'Say nothing', note: 'Confidence +1 · fatigue −10', fx: { fatigue: -10 }, saga: { conf: 1 } }, { k: 'call', label: 'Call home first', note: 'Family +' + (SG.m.mid + SG.m.small) + ' · confidence +1', saga: { meter: { family: SG.m.mid + SG.m.small }, conf: 1 }, def: true }],
+      sum: (c, S, R) => R.v === 'away' ? 'The Finals went on without you.' : 'Game ' + (R.game || 5) + ' of the Finals: what you did before it.' },
+    { id: 'after', hook: 'end', chain: true, bg: (c, S, R) => R.v === 'away' ? 'kitchen' : c.playoffs && c.playoffs.champion === c.meId ? 'finals' : 'locker', who: (c, S, R) => R.v === 'rematch' || R.v === 'away' ? sagaWho(c, 'rival') : sagaWho(c, 'family'),
+      mood: c => c.playoffs && c.playoffs.champion === c.meId ? 'triumph' : 'sad', title: (c, S, R) => R.v === 'away' ? 'NEXT YEAR' : c.playoffs && c.playoffs.champion === c.meId ? 'CHAMPIONS' : 'SO CLOSE',
+      lines: (c, S, R) => { const r = sagaFirst(c, 'rival'), won = !!(c.playoffs && c.playoffs.champion === c.meId), respect = sagaMeter(c, 'rival') >= SG.respectAt || S.flags.ch2 === 'hand';
+        if (R.v === 'away') return [(c.playoffs && c.playoffs.champion === c.rivalId ? r + ' lifts the trophy on your television.' : 'Somebody else lifts the trophy on your television.') + ' You don\'t change the channel.', { w: 'rival', t: r + (respect ? ' texts you that night: "Missed you out there. Next year, both of us."' : ' doesn\'t text. They don\'t have to.') }];
+        if (R.v === 'rematch') return won ? [r + ' waits through the whole celebration to find you.', respect ? '"Twenty years. You got the last one. I\'m glad it was you."' : '"Enjoy it. I\'ll never say it out loud, but you earned it."'] : [r + ' climbs the podium with the trophy.', respect ? 'On the way off the floor they stop: "Best I ever played against. Twenty years. Thank you."' : 'They look straight at you while the confetti falls. Twenty years, and they got the last word.'];
+        return won ? ['Confetti, champagne, and ' + sagaFirst(c, 'family') + ' somehow on the court before security can stop them.', '"All those early mornings. Every single one of them was for this."'] : ['The other locker room is loud. Yours is quiet.', sagaFirst(c, 'family') + ': "Hold your head up. You got there. Not everybody gets there."']; },
+      choice: c => [{ label: 'Find ' + sagaFirst(c, 'family'), note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } }, def: true }, { label: 'Sit with it for a while', note: 'Confidence +1', saga: { conf: 1 } }],
+      after: (c, S, R) => { if (R.v === 'rematch' && (sagaMeter(c, 'rival') >= SG.respectAt || S.flags.ch2 === 'hand')) S.flags.rivalPeace = 1; S.flags.finalsWon = !!(c.playoffs && c.playoffs.champion === c.meId) && R.v !== 'away'; },
+      sum: (c, S, R) => R.v === 'away' ? 'You watched the Finals from your couch.' : c.playoffs && c.playoffs.champion === c.meId ? 'Champions.' : 'So close, in the Finals.' },
+  ] };
+
+// ---------------- Chapter 12: LEGACY ----------------
+// Your sibling now (§4.1: in the late career they're a prospect, or they need you).
+function chSibNow(c) { return sagaOf(c).flags.sibArc === 'needs' ? 'needs' : 'prospect'; }
+// A career told in chapters: one of them is going on or came to its end. (One from before them, every chapter passed by
+// or cut short by a jump to the pros, ends as V8's did.)
+function chAny(c) { const L = chOf(c).list; return Object.keys(L).some(n => L[n] && (L[n].st === 'on' || (L[n].st === 'done' && !L[n].cut))); }
+CHAPTERS[12] = { n: 12, id: 'legacy', title: () => 'Legacy', sub: (c, S, R) => R.v === 'sudden' ? 'The last day comes fast' : R.v === 'tour' ? 'The farewell tour' : 'The last seasons',
+  past: (c, S, hook) => hook === 'retire' && !chAny(c),
+  open: (c, S, hook) => isPro(c) && (hook === 'retire' || (meOf(c).age >= CH.legacyAge && (hook === 'season' || (hook === 'game' && chWeek(c) <= 2)))),
+  variant: (c, S, hook) => hook === 'retire' ? 'sudden' : 'last', /* (a farewell tour is announced after this chapter opens: its scenes say so) */
+  over: () => false, /* (it waits for the retirement) */
+  scenes: [
+    { id: 'body', hook: ['season', 'game', 'retire'], now: true, bg: 'locker', mood: 'story', who: 'family', title: 'THE BODY TALKS', when: (c, S, R, x, hook) => hook === 'retire' ? 'skip' : true, /* (the last day: what comes next says it, two story screens at most) */
+      lines: (c, S, R) => { const age = meOf(c).age; return [R.v === 'sudden' ? 'It ends faster than you thought it would: one morning the body says no, and means it.' : 'You are ' + age + '. Mornings take longer, and the ice bath has become a hobby.', sagaFirst(c, 'family') + ': "Whenever you\'re ready. Not before. But whenever you\'re ready."']; },
+      choice: c => [{ label: 'One more good year', note: 'Confidence +1', saga: { conf: 1 }, def: true }, { label: 'Start thinking about after', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } } }],
+      sum: () => 'The body talked, and you listened.' },
+    { id: 'sibling', hook: ['game', 'retire'], bg: (c) => chSibNow(c) === 'needs' ? 'kitchen' : 'arena', mood: c => chSibNow(c) === 'needs' ? 'sad' : 'warm', who: 'sibling', title: c => chSibNow(c) === 'needs' ? 'A CALL AT MIDNIGHT' : 'THE PROSPECT',
+      when: (c, S, R, x, hook) => hook === 'retire' ? 'skip' : chWeek(c) >= 4,
+      lines: c => { const sib = sagaWho(c, 'sibling'), s = stFirst(sib.name); return chSibNow(c) === 'needs' ? [s + ' calls at midnight. Their knee is gone, the team let them go, and they haven\'t told anyone else.', { w: 'sibling', t: s + ': "I didn\'t know who else to call. I always thought I\'d be like you."' }] : [s + ' made the PBL\'s development league at ' + sib.age + ', after years in the leagues nobody watches, and the scouts love their jump shot.', { w: 'sibling', t: s + ': "They say I\'m a prospect. Train me this summer? Like you used to in the driveway."' }]; },
+      choice: c => { const s = sagaFirst(c, 'sibling'); return chSibNow(c) === 'needs' ? [{ label: 'Get on the next flight', note: s + ' +' + SG.m.big + ' · fatigue +10', fx: { fatigue: 10 }, saga: { meter: { sibling: SG.m.big } }, def: true }, { label: 'Call them every night', note: s + ' +' + SG.m.mid, saga: { meter: { sibling: SG.m.mid } } }] : [{ label: 'Train them all summer', note: s + ' +' + SG.m.big + ' · fatigue +5', fx: { fatigue: 5 }, saga: { meter: { sibling: SG.m.big } }, def: true }, { label: 'Send them to your skills coach', note: s + ' +' + SG.m.small, saga: { meter: { sibling: SG.m.small } } }]; },
+      sum: c => chSibNow(c) === 'needs' ? 'Your sibling called at midnight, and needed you.' : 'Your sibling, a prospect now, asked you to train them.' },
+    { id: 'next', hook: 'retire', big: true, bg: 'stage', mood: 'story', who: 'sibling', title: 'WHAT COMES NEXT',
+      lines: (c, S, R) => { const sib = sagaFirst(c, 'sibling'); return [(R.v === 'sudden' ? 'It ends faster than you thought it would: one morning the body says no, and means it. ' : '') + 'The last day. Everyone wants to know what you\'ll do with the rest of your life.', { w: 'coach', t: 'Coach Adeyinka: "A team called about a coaching job. I told them you\'d be terrible at golf."' }, { w: 'sibling', t: sib + ': "Or you could just stay home for once. We have a driveway and a hoop."' }]; },
+      choice: c => { const sib = sagaFirst(c, 'sibling'), rich = (c.me.money || 0) >= CH.ownerMoney; return [{ k: 'sibling', label: 'Mentor ' + sib, note: sib + ' +' + SG.m.big + ' · family first', saga: { meter: { sibling: SG.m.big } }, def: true }, { k: 'kid', label: 'Mentor a kid from the academy', note: 'Your next career\'s Legacy Start', saga: { flag: { torch: 'kid' } } }, { k: 'coach', label: 'Take the coaching job', note: 'Coach +' + SG.m.mid + ' · a clipboard', saga: { meter: { coach: SG.m.mid } } }, { k: 'owner', label: rich ? 'Buy into a team' : 'Buy into a team with partners', note: 'The other side of the glass', saga: { flag: { ownerBuy: 1 } } }]; },
+      after: c => { try { chEndNow(c); } catch (e) { /* the story is decoration */ } },
+      sum: () => 'What comes next, on the last day.' },
+    { id: 'stage', hook: 'ending', mood: (c, S, R, x) => (x && x.ending && x.ending.mood) || 'warm', bg: (c, S, R, x) => (x && x.ending && x.ending.bg) || 'stage',
+      who: (c, S, R, x) => { const E = x && x.ending; const w = E && E.who ? (typeof E.who === 'function' ? E.who(c, S) : sagaWho(c, E.who)) : null; return w || sagaWho(c, 'family'); },
+      title: (c, S, R, x) => (x && x.ending && x.ending.title) || 'THE END',
+      lines: (c, S, R, x) => { const E = x && x.ending, L = isPro(c) ? legacyOf(c) : null; return E ? E.lines(c, S, L).filter(Boolean).concat(E.sib ? [{ w: 'sibling', t: sagaFirst(c, 'sibling') + ': ' + E.sib(c, S, L) }] : []) : ['The lights go down, one bank at a time.']; },
+      choice: c => [{ label: 'Hug ' + sagaFirst(c, 'sibling'), note: 'The end', def: true }, { label: 'Look at the jersey one more time', note: 'The end' }],
+      sum: (c, S, R, x) => 'The story ends: ' + String((x && x.ending && x.ending.title) || 'the end').toLowerCase() + '.' },
+  ] };
+// The ending: chapter 12's decision is in, so the story knows how it ends; its last scene is the ending's cutscene.
+function chEndNow(c) {
+  const Q = chOf(c), D = CHAPTERS[12], R = Q.list[12], S = sagaOf(c); if (!R || R.st !== 'on') return null; const L = isPro(c) ? legacyOf(c) : null, E = sagaEpilogue(c, L); S.epilogue = E.id;
+  const i = D.scenes.findIndex(s => s.id === 'stage'); R.i = i; const ev = chTell(c, D, R, D.scenes[i], { ending: E }, 'ending'); if (ev) { R.told++; ev.epilogue = E.id; } R.i = D.scenes.length; chClose(c, Q, R);
+  S.log.push({ arc: 'epilogue', beat: E.id, title: E.title, s: c.season, stage: sagaStageKey(c), age: chAge(c), pick: null }); tlAdd(c, 'story', 'The story ends: ' + E.title.charAt(0) + E.title.slice(1).toLowerCase());
+  return E.id;
+}
+
+// ============================================================================
 // SECTION: SAVE / PROGRESSION (part 17c) — 2.1 (§4.2): chapters 2–4, the rest of high school. VARSITY (sophomore year:
 // the first varsity season, or a second one, or JV again; the big meeting with your rival: shake their hand or talk
 // trash), THE SPOTLIGHT (junior year: the letters, the family's bills; take a weekend job or let your best friend's
@@ -20573,6 +20779,9 @@ function chFriendSchool(c, S) {
   const mid = L.filter(p => (!V.home || p.id !== V.home.id) && (!V.dream || p.id !== V.dream.id)), pool = mid.length ? mid : COLLEGES.filter(p => p.tier <= 1).sort((a, b) => colMiles(c, a) - colMiles(c, b)).slice(0, 6);
   const P = pool[r.int(pool.length)] || null; if (P) F.pid = P.id; return P;
 }
+
+// Following your friend: their school wants you too ("they'd want you too"), so it offers if it hasn't (W9).
+function chFriendOffer(c, S, R) { const pid = R && R.voices && R.voices.friend, P = colProg(pid); if (!P || isPro(c) || c.stage !== 'hs' || hsLiveOffers(c).some(o => o.pid === pid)) return; const o = colOfferFrom(c, P, 'friend'); (c.offers || (c.offers = [])).push(o); if (c.decision && c.decision.kind === 'college' && Array.isArray(c.decision.offers) && !c.decision.offers.some(x => x.pid === pid)) c.decision.offers.push(Object.assign({}, o)); }
 
 // ---------------- Chapter 2: VARSITY (sophomore year) ----------------
 CHAPTERS[2] = { n: 2, id: 'varsity', title: () => 'Varsity', sub: (c, S, R) => R.v === 'jv' ? 'Sophomore year · JV again' : R.v === 'v2' ? 'Sophomore year · a second varsity season' : 'Sophomore year · the first varsity season',
@@ -20659,7 +20868,7 @@ CHAPTERS[4] = { n: 4, id: 'signing', title: () => 'Signing Day', sub: () => 'Sen
       choice: (c, S, R) => { const V = R.voices || {}, H = colProg(V.home), Dm = colProg(V.dream), Fp = colProg(V.friend), f = chFriend(c), sib = sagaFirst(c, 'sibling');
         return [{ k: 'home', label: 'Close to home', pick: 'Close to home' + (H ? ': ' + H.name : ''), note: (H ? H.name + ' · ' : '') + 'Family +' + (SG.m.mid + SG.m.small) + ' · ' + sib + ' +' + SG.m.mid, saga: { meter: { family: SG.m.mid + SG.m.small, sibling: SG.m.mid } }, def: !Dm && !!H },
           { k: 'dream', label: 'The dream school', pick: 'The dream school' + (Dm ? ': ' + Dm.name : ''), note: (Dm ? Dm.name + ' · ' : '') + 'Coach +' + SG.m.mid + ' · family −' + SG.m.small + ' · aim high', saga: { meter: { coach: SG.m.mid, family: -SG.m.small } }, def: !!Dm || !H }]
-          .concat(f ? [{ k: 'friend', label: 'Follow ' + f, pick: 'Follow ' + f + (Fp ? ' to ' + Fp.name : ''), note: (Fp ? Fp.name + ' · ' : '') + f + ' +' + SG.m.big + ' · teammates again', saga: { meter: { friend: SG.m.big } } }] : []); }, /* (the school in the note: three side by side; pick: what the recap and the Story screen say) */
+          .concat(f ? [{ k: 'friend', label: 'Follow ' + f, pick: 'Follow ' + f + (Fp ? ' to ' + Fp.name : ''), note: (Fp ? Fp.name + ' · ' : '') + f + ' +' + SG.m.big + ' · teammates again', saga: { meter: { friend: SG.m.big } }, after: chFriendOffer }] : []); }, /* (the school in the note: three side by side; pick: what the recap and the Story screen say) */
       sum: () => 'Three voices at the kitchen table, the week before Signing Day.' },
     { id: 'signed', hook: 'signed', now: true, mood: (c, S, R, x) => x && (x.kind === 'prep' || x.kind === 'walkon') ? 'story' : 'warm', title: 'SIGNING DAY',
       bg: (c, S, R, x) => x && x.kind === 'pro' ? 'press' : x && x.kind === 'prep' ? 'kitchen' : 'quad',
@@ -20739,15 +20948,223 @@ CHAPTERS[6] = { n: 6, id: 'march', title: () => 'March', sub: (c, S, R) => R.v =
   ] };
 
 // ============================================================================
+// SECTION: SAVE / PROGRESSION (part 17e) — 2.1 (§4.2): chapters 7–8, into the pros. THE DECISION (declare, or one more
+// year; and who speaks for you: the honest agent, the shady one (more money, then a scandal in chapter 9) or your best
+// friend, who passed the agent exam), and ROOKIE (the first pro season: the veteran mentor, the bench; learn from the
+// mentor or demand minutes). A career that left college after one year (or never went) picks its agent at the start of
+// a later pro season, and its rookie chapter comes the season after.
+// ============================================================================
+// The two agents who call (named once a career: the honest one is R6's college agent).
+function chAgents(c) { const S = sagaOf(c), A = S.agents || (S.agents = {}); if (!A.honest) A.honest = !isPro(c) && c.stage === 'college' ? colAgentName(c) : genName(sagaRng(c, 'agent-honest'), new Set([stMeName(c)]), new Set()); if (!A.shady) A.shady = genName(sagaRng(c, 'agent-shady'), new Set([stMeName(c), A.honest]), new Set()); return A; }
+function chAgentWho(c, name, shady) { return { role: shady ? 'A big agency' : 'Agent', name, look: stLookFor('staff:agent:' + name), colors: shady ? ['#1C1C24', '#E9C46A'] : ['#2B2F45', '#9AD1FF'], age: chAge(c) + 22 }; }
+// Your best friend as an agent: still around (not gone their own way) and not on the outs with you.
+function chFriendAgentOk(c) { const S = sagaOf(c); return !!chFriend(c) && S.flags.friendWay !== 'away' && sagaMeter(c, 'friend') >= CH.friendAgentAt; }
+// The big decision: sign the agent (an amateur keeps the name and the kind for the pros; a pro hires them now) and
+// settle your best friend's path (§4.1: your agent, your rival's agent, a teammate, or they fall away).
+function chSignAgent(c, k) {
+  const S = sagaOf(c), A = chAgents(c), F = S.cast.friend, name = k === 'friend' ? F.name : k === 'shady' ? A.shady : A.honest, pers = k === 'shady' ? 'shady' : k === 'friend' ? 'loyal' : 'straight', tier = CH.agentTier[k] || 2;
+  S.flags.agent = k; S.flags.friendM7 = sagaMeter(c, 'friend'); if (k === 'friend') S.flags.friendWay = 'agent'; else if (F.name && S.flags.friendWay !== 'teammate') S.flags.friendWay = k === 'shady' ? 'rival' : 'away'; /* (passed over for the flashy agency, they go to work for your rival; for an honest stranger, they understand, and drift away) */
+  if (isPro(c)) { const St = staffOf(c); if (!(k === 'honest' && St.agent && St.agent.pers !== 'shady')) { const s = staffMake(c, 'agent', tier, pers, sagaRng(c, 'agent-hire')); s.name = name; s.look = k === 'friend' && F.look ? F.look : stLookFor('staff:agent:' + name); St.agent = s; c.me.agent = name; } }
+  else { c.agent = name; c.agentPers = pers; c.agentTier = tier; }
+  tlAdd(c, 'agent', 'Signed with agent ' + name + (k === 'friend' ? ' (your best friend)' : ''));
+}
+function chRaiseNote(k) { const t = CH.agentTier[k] || 2; return 'contracts +' + Math.round(100 * (SF.agentRaise[t] + (k === 'shady' ? SF.shadyRaise : 0))) + '%'; }
+
+// ---------------- Chapter 7: THE DECISION ----------------
+CHAPTERS[7] = { n: 7, id: 'decision', title: () => 'The Decision', sub: (c, S, R) => R.v === 'pro' ? 'Your next deal, and who makes the calls' : R.v === 'senior' ? 'Four years done' : 'Declare, or one more year',
+  past: (c, S, hook) => hook === 'retire' || (isPro(c) && chProSeason(c) > 3), /* (an old pro save: that moment is long gone) */
+  open: (c, S, hook) => isPro(c) ? hook === 'season' || hook === 'game' : c.stage === 'college' && (hook === 'declare' || hook === 'senior'),
+  variant: (c, S, hook) => isPro(c) ? 'pro' : hook === 'senior' ? 'senior' : 'declare',
+  over: (c, S, R) => R.v === 'pro' ? c.season > R.s0 : isPro(c) && chProSeason(c) > 2, /* (college: it waits for the next decision) */
+  left: (c, S, R, after) => R.v === 'pro' ? CHAPTERS[7].scenes.slice(R.i + after).filter(s => s.id !== 'stay').length : 0, /* (the college version's scenes come with the decisions, never in a season's weeks) */
+  scenes: [
+    { id: 'scouts', hook: ['declare', 'senior', 'season', 'game'], now: true, bg: (c, S, R) => R.v === 'pro' ? 'tunnel' : 'arena', mood: 'story', who: 'family', title: 'THE PHONE',
+      when: (c, S, R, x, hook) => R.v === 'pro' ? hook !== 'declare' && hook !== 'senior' : hook === 'declare' || hook === 'senior',
+      lines: (c, S, R, x) => { const A = chAgents(c), f = chFriend(c), fam = sagaFirst(c, 'family');
+        return [R.v === 'pro' ? 'Your rookie deal runs out next year, and the phone has started ringing: two agents want to meet.' : R.v === 'senior' ? 'Four years, and the last door is the pros. The phone won\'t stop: two agents want to meet.' : 'The season is over, and the phone won\'t stop: the scouts project you ' + ((x && x.proj) || 'in the first round') + '.',
+          fam + ': "' + A.honest + ' sounds like a teacher. ' + A.shady + ' drove up in a car worth more than this house."']
+          .concat(chFriendAgentOk(c) ? [{ w: 'friend', t: f + ': "I passed the agent exam last month. Just saying. You\'d be my first client."' }] : []); },
+      choice: c => [{ label: 'Ask Coach Adeyinka', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } } }, { label: 'Talk it over at the kitchen table', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } }, def: true }],
+      sum: (c, S, R) => R.v === 'pro' ? 'Two agents called about your next deal.' : 'The scouts called, and two agents wanted to meet.' },
+    { id: 'stay', hook: 'declared', bg: 'quad', mood: 'warm', who: 'coach', title: 'ONE MORE YEAR', when: (c, S, R, x) => R.v === 'pro' || (x && x.go) ? 'skip' : true,
+      lines: c => ['You stay. One more year of early classes, the same dorm, the same gym.', 'Coach Adeyinka, on the phone: "Smart. The pros will still be there. Make them wait for you."'],
+      choice: () => [{ label: 'Promise a bigger year', note: 'Confidence +1', saga: { conf: 1 }, def: true }, { label: 'Live in the gym all summer', note: 'Practice XP +10% for 3 weeks · fatigue +5', fx: { fatigue: 5 }, saga: { xpWeeks: [0.1, 3] } }],
+      sum: () => 'You stayed one more year.' },
+    { id: 'agents', hook: ['declared', 'senior', 'game'], big: true, bg: (c, S, R) => R.v === 'pro' ? 'tunnel' : 'kitchen', mood: 'tense', who: c => chAgentWho(c, chAgents(c).shady, true), title: 'WHO SPEAKS FOR YOU',
+      when: (c, S, R, x, hook) => R.v === 'pro' ? hook === 'game' && chWeek(c) >= 2 : hook === 'senior' || !!(x && x.go),
+      lines: (c, S, R) => { const A = chAgents(c), f = chFriend(c);
+        return [R.v === 'pro' ? 'Your next deal starts now. Somebody has to make the calls.' : 'You\'re going pro. One more decision before the combine: who speaks for you.',
+          A.shady + ': "Sign with me and you\'ll never fly coach again. I know people. Don\'t ask me how I do it."',
+          { w: chAgentWho(c, A.honest, false), t: A.honest + ': "I\'ll get you what you\'re worth, and not a dollar of it will embarrass you."' }]
+          .concat(chFriendAgentOk(c) ? [{ w: 'friend', t: f + ': "I don\'t have a big office. I have you, and I\'ll outwork all of them."' }] : []); },
+      choice: c => { const A = chAgents(c), f = chFriend(c);
+        return [{ k: 'honest', label: 'Sign with ' + stFirst(A.honest), pick: 'Sign with ' + A.honest + ', the honest one', note: chRaiseNote('honest') + ' · the honest one', def: true },
+          { k: 'shady', label: 'Sign with ' + stFirst(A.shady), pick: 'Sign with ' + A.shady + ', the big agency', note: chRaiseNote('shady') + ' · don\'t ask how' }]
+          .concat(chFriendAgentOk(c) ? [{ k: 'friend', label: 'Sign with ' + f, pick: 'Sign with your best friend, ' + f, note: chRaiseNote('friend') + ' · ' + f + ' +' + SG.m.big, saga: { meter: { friend: SG.m.big } } }] : []); },
+      after: (c, S, R) => chSignAgent(c, R.k),
+      sum: (c, S, R) => R.v === 'pro' ? 'Two agents and one signature: who makes the calls now.' : 'You went pro, and chose who speaks for you.' },
+    { id: 'pen', hook: ['declared', 'senior', 'stage', 'season', 'game', 'end'], chain: true, bg: c => isPro(c) ? 'press' : 'arena', mood: (c, S) => S.flags.agent === 'shady' ? 'story' : 'warm', title: 'THE PEN',
+      who: (c, S) => S.flags.agent === 'friend' ? sagaWho(c, 'friend') : chAgentWho(c, S.flags.agent === 'shady' ? chAgents(c).shady : chAgents(c).honest, S.flags.agent === 'shady'),
+      when: (c, S, R, x, hook) => R.v === 'pro' ? hook === 'end' || (hook === 'game' && chWeek(c) >= 6) : true, /* (college: right after the signature) */
+      lines: (c, S, R) => { const k = S.flags.agent, A = chAgents(c), f = chFriend(c), club = isPro(c) ? clubOf(meOf(c).club).name : '';
+        const a = R.v === 'pro' ? 'Your new agent goes to work. The phone rings less, and the numbers get bigger.' : isPro(c) ? 'Three franchises made offers, and you signed with the ' + club + '. No draft: you chose them.' : 'Next stop, the combine: they measure everything, from your hands to your vertical. Then three franchises make offers, and you choose.';
+        return [a, k === 'friend' ? f + ' reads every page four times before letting you sign anything. "Nobody is going to cheat my first client."' : k === 'shady' ? A.shady + ' hands you a gold pen: "Keep it. And there\'s more where that came from. Don\'t ask."' : A.honest + ': "Fair numbers and no surprises. You\'ll sleep at night, and so will I."']; },
+      choice: c => [{ label: 'Call home with the news', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } }, def: true }, { label: 'Keep the pen', note: 'Confidence +1', saga: { conf: 1 } }],
+      sum: (c, S) => S.flags.agent === 'shady' ? 'The big agency got you paid. Don\'t ask how.' : S.flags.agent === 'friend' ? 'Your best friend read every page of your first contract.' : 'An honest agent, and a fair deal.' },
+  ] };
+
+// ---------------- Chapter 8: ROOKIE ----------------
+// Chapter 8's rookie version comes with the first pro season (chapter 7 told in college): it tells the signing and the
+// first contract (R9's Signing Day and First Contract beats step aside).
+// The move to the pros told by a chapter: chapter 7 in college (its pen: the offers next), chapter 8's rookie version
+// next, or Signing Day's closing straight to the pros. (R9's Signing Day beat tells it otherwise.)
+function chSigningTold(c) { try { const R7 = chOf(c).list[7]; return chRookieNext(c) || !!(R7 && R7.st !== 'past' && R7.v !== 'pro') || !!sagaOf(c).flags.noCollege; } catch (e) { return false; } }
+function chRookieNext(c) { try { const Q = chOf(c), R7 = Q.list[7]; return (Q.n === 8 && !Q.list[8]) || (Q.n === 7 && !!R7 && R7.st === 'on' && R7.v !== 'pro'); } catch (e) { return false; } }
+// The veteran mentor (§4.1): your team's oldest player becomes the cast's mentor.
+function chVeteran(c) { const S = sagaOf(c), C = S.cast.mentor, m = isPro(c) ? stMentor(c) : null; if (m && C.vet !== m.id) { C.vet = m.id; C.name = m.name; C.look = m.look; C.colors = (c.team && c.team.colors) || clubOf(meOf(c).club).colors; C.m = 0; } return sagaWho(c, 'mentor'); }
+CHAPTERS[8] = { n: 8, id: 'rookie', title: () => 'Rookie', sub: (c, S, R) => R.v === 'later' ? 'A young pro, still learning' : R.v === 'starter' ? 'Year one in the PBL · a starter' : 'Year one in the PBL · the bench',
+  past: (c, S, hook) => hook === 'retire' || (isPro(c) && chProSeason(c) > 4),
+  open: (c, S, hook) => isPro(c) && hook === 'season',
+  variant: c => chProSeason(c) > 1 ? 'later' : isStarter(c) ? 'starter' : 'bench',
+  over: (c, S, R) => !isPro(c) || c.season > R.s0,
+  left: (c, S, R, after) => CHAPTERS[8].scenes.slice(R.i + after).filter(s => !s.opt && (s.id !== 'year' || c.season > R.s0)).length, /* (its closing scene comes with the next season) */
+  scenes: [
+    { id: 'first', hook: ['season', 'game'], now: true, bg: (c, S, R) => R.v === 'later' ? 'locker' : 'kitchen', mood: 'story', who: (c, S, R) => R.v === 'later' ? chVeteran(c) : sagaWho(c, 'family'), title: (c, S, R) => R.v === 'later' ? 'THE FIRST DAY' : 'THE FIRST CONTRACT',
+      lines: (c, S, R) => { const v = chVeteran(c), club = clubOf(meOf(c).club).name; if (R.v === 'later') return ['A new season with the ' + club + ', and the locker room has a new leader: the oldest player on the team.', v.name + ': "Kid. I don\'t care what you did before. In here you carry the bags this year. Everybody did, me too."'];
+        const st = frStars(c, meOf(c).club), sal = c.me.contract ? fmtMoney(c.me.contract.salary) : 'a real salary', fam = sagaFirst(c, 'family'), ow = S.flags.owe === 'friend' && chFriend(c) ? chFriend(c) + '\'s family' : S.flags.owe === 'coach' ? 'Coach Adeyinka' : '';
+        return [(st >= 4 ? 'A ' + st + '★ franchise wanted you, and you said yes: the ' + club + '.' : st <= 2 ? 'Not the team on the posters in your room: the ' + club + ', ' + st + '★. You chose them anyway.' : 'The ' + club + ' called first and kept calling, and you said yes.') + ' No draft: you chose them. The ink is dry: ' + sal + ' a season.',
+          { w: v, t: v.name + ', the oldest player on the team, finds you at your new locker: "Rookie. You carry the bags this year. Everybody did, me too."' },
+          { w: 'family', t: fam + ' reads the contract twice: "Don\'t go buying us anything. We\'re fine. Really."' }].concat(ow ? [{ w: 'family', t: fam + ', quietly: "' + ow + ' never asked for a dime back, you know."' }] : []); }, /* (the family's page last: the money is theirs to talk about) */
+      choice: (c, S, R) => { const v = stFirst(chVeteran(c).name); if (R.v === 'later') return [{ label: 'Carry the bags', note: v + ' +' + SG.m.small, saga: { meter: { mentor: SG.m.small } }, def: true }, { label: 'Ask for the playbook instead', note: 'Coach trust +3 · ' + v + ' −' + SG.m.small, fx: { trust: 3 }, saga: { meter: { mentor: -SG.m.small } } }];
+        const ow = S.flags.owe === 'friend' && chFriend(c) ? 'friend' : S.flags.owe === 'coach' ? 'coach' : '';
+        return [ow ? { label: 'Pay everybody back', pick: 'Pay off the family\'s bills, and pay back ' + (ow === 'friend' ? chFriend(c) + '\'s family' : 'Coach Adeyinka'), note: fmtMoney(SY.billsPro) + ' · confidence +' + SY.billsConf + ' · ' + (ow === 'friend' ? chFriend(c) : 'Coach') + ' +' + SG.m.small, fx: { money: -SY.billsPro, conf: SY.billsConf }, saga: { meter: { [ow]: SG.m.small }, flag: { owe: 'paid' } } } : { label: 'Pay off the family\'s bills', note: fmtMoney(SY.billsPro) + ' · confidence +' + SY.billsConf, fx: { money: -SY.billsPro, conf: SY.billsConf } },
+          { label: 'Put it in the bank', note: 'Keep the money · nothing changes at home', fx: {}, def: true }]; },
+      sum: (c, S, R) => R.v === 'later' ? 'A new season, and a veteran named ' + chVeteran(c).name + '.' : 'Your first contract, and a veteran named ' + chVeteran(c).name + '.' },
+    { id: 'bench', hook: 'game', opt: true, bg: 'locker', mood: 'tense', who: c => stWho(c, 'coach'), title: (c, S, R) => R.v === 'starter' ? 'THE TARGET' : 'THE END OF THE BENCH', when: c => chWeek(c) >= 3,
+      lines: (c, S, R) => R.v === 'starter' ? ['You start, and every team\'s best defender has watched your tape twice.', stWho(c, 'coach').name + ': "They know your right hand now. Show them the left."'] : ['The bench is a long way from the court. You count the ceiling lights during timeouts.', stWho(c, 'coach').name + ': "Rookies earn it in practice. Then we talk."'],
+      choice: () => [{ label: 'Stay after practice', note: 'Practice XP +5% this week · fatigue +3', fx: { xp: 0.05, fatigue: 3 }, def: true }, { label: 'Watch the veterans', note: 'Confidence +1', saga: { conf: 1 } }],
+      sum: (c, S, R) => R.v === 'starter' ? 'A rookie starter, and every defense knew your name.' : 'The end of the bench, counting the ceiling lights.' },
+    { id: 'minutes', hook: ['game', 'end'], big: true, bg: 'tunnel', mood: 'tense', who: c => chVeteran(c), title: 'LEARN OR DEMAND', when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 5,
+      pre: c => { sgOwnerKind(c); },
+      lines: (c, S, R) => { const v = chVeteran(c), o = sagaWho(c, 'owner').name; return [R.v === 'starter' ? 'The coach runs the last play for somebody else again.' : 'Another game from the bench, and the team lost it.', o + ', the owner, catches you in the tunnel: "I didn\'t sign you to sit. Go tell the coach you want the ball."', { w: 'mentor', t: v.name + ': "Or come to the gym with me at six tomorrow. Your call, rookie."' }]; },
+      choice: c => { const v = stFirst(chVeteran(c).name); return [{ k: 'learn', label: 'Learn from ' + v, note: 'Practice XP +10% for 4 weeks · ' + v + ' +' + SG.m.big + ' · owner −' + SG.m.small, saga: { xpWeeks: [0.1, 4], meter: { mentor: SG.m.big, owner: -SG.m.small }, flag: { mentorHelp: 1 } }, def: true }, { k: 'demand', label: 'Demand minutes', note: 'Owner +' + (SG.m.mid + SG.m.small) + ' · hype +5 · coach trust −3 · ' + v + ' −' + SG.m.mid, fx: { trust: -3 }, saga: { meter: { owner: SG.m.mid + SG.m.small, mentor: -SG.m.mid }, hype: 5, flag: { ownerBacks: 1 } } }]; },
+      sum: () => 'The owner said demand the ball. The veteran said come to the gym at six.' },
+    { id: 'year', hook: 'season', when: (c, S, R) => c.season > R.s0, bg: 'locker', mood: 'warm', who: c => chVeteran(c), title: (c, S, R) => R.v === 'later' ? 'A PRO NOW' : 'ROOKIE NO MORE', /* (the first day of the next season) */
+      lines: (c, S) => { const v = chVeteran(c), k = S.flags.ch8; return ['Training camp, year ' + chProSeason(c) + '. A rookie you have never met is carrying your bags.', k === 'learn' ? v.name + ' tosses you a towel: "Six a.m. every day last year, and you never once complained. You\'ll be fine in this league."' : v.name + ' passes you in the hallway: "You wanted the minutes. Now you have to earn them every night."']; },
+      choice: c => [{ label: 'Thank ' + stFirst(chVeteran(c).name), note: stFirst(chVeteran(c).name) + ' +' + SG.m.small, saga: { meter: { mentor: SG.m.small } }, def: true }, { label: 'Look up at the owner\'s box', note: 'Hype +2', saga: { hype: 2 } }],
+      sum: (c, S) => S.flags.ch8 === 'learn' ? 'Your rookie year: six a.m. in the gym with a veteran.' : 'Your rookie year: you demanded the minutes.' },
+  ] };
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 17f) — 2.1 (§4.2): chapters 9–10, the prime of a pro career. PRIME (fame, a big
+// endorsement, and your sibling's big game on the night of the sponsor's event: skip it or not; a shady agent's deals
+// come out), and THE RING CHASE (a contender calls: stay, or leave for a ring; the rival and the fans react; Coach
+// Adeyinka coaches again, or retires).
+// ============================================================================
+function chSalary(c) { return Math.max(1e5, (c.me && c.me.contract && c.me.contract.salary) || 1e6); }
+function chClub(c) { return clubOf(meOf(c).club).name; }
+// The contender that calls: the strongest franchise that isn't yours (its stars, then the table's order), and its star.
+function chContender(c) { const me = meOf(c).club, ids = frRank(frTable(c)).filter(id => id !== me); let best = ids[0]; for (const id of ids) if (frStars(c, id) > frStars(c, best)) best = id; const star = c.active.find(id => id !== c.meId && c.players[id] && c.players[id].club === best); return { id: best, name: clubOf(best).name, stars: frStars(c, best), star: star ? c.players[star] : null }; }
+
+// ---------------- Chapter 9: PRIME ----------------
+CHAPTERS[9] = { n: 9, id: 'prime', title: () => 'Prime', sub: (c, S, R) => R.v === 'star' ? 'Your name on a billboard' : 'The grind, and a little fame',
+  past: (c, S, hook) => hook === 'retire' || (isPro(c) && meOf(c).age >= CH.primePastAge),
+  open: (c, S, hook) => isPro(c) && meOf(c).age >= CH.primeAge && (hook === 'season' || (hook === 'game' && chWeek(c) <= 2)),
+  variant: c => (c.me.fame || 0) >= CH.primeFame ? 'star' : 'grind',
+  over: (c, S, R) => !isPro(c) || c.season > R.s0,
+  scenes: [
+    { id: 'billboard', hook: ['season', 'game'], now: true, bg: 'tunnel', mood: 'warm', who: 'sibling', title: (c, S, R) => R.v === 'star' ? 'THE BILLBOARD' : 'THE COMMERCIAL',
+      lines: (c, S, R) => { const sib = sagaFirst(c, 'sibling'); return [R.v === 'star' ? 'Your face is on a billboard over the freeway, forty feet tall, holding a sports drink you have never tasted.' : 'No billboard yet. A car dealership near home wants you for a commercial anyway, and the whole family comes to the shoot.', { w: 'sibling', t: sib + ': "I drove past it four times. Four. Don\'t let it go to your head."' }]; },
+      choice: c => [{ label: 'Take the family to see it', note: 'Family +' + SG.m.small + ' · ' + sagaFirst(c, 'sibling') + ' +' + SG.m.small, saga: { meter: { family: SG.m.small, sibling: SG.m.small } }, def: true }, { label: 'Get back to work', note: 'Practice XP +5% this week', fx: { xp: 0.05 } }],
+      sum: (c, S, R) => R.v === 'star' ? 'Your face on a billboard over the freeway.' : 'A commercial for a car dealership near home.' },
+    { id: 'sponsor', hook: 'game', opt: true, bg: 'press', mood: 'story', who: 'agent', title: 'THE BIG DEAL', when: c => chWeek(c) >= 3,
+      lines: c => [stWho(c, 'agent').name + ': "A shoe company wants you as the face of a campaign. Real money, and a launch party with your name on the wall."', '"All you have to do is show up when they say. Every time they say."'],
+      choice: c => [{ label: 'Sign it', note: '+' + sgCash(c, chSalary(c) * CH.sponsorShare) + ' · hype +3', saga: { cash: Math.round(chSalary(c) * CH.sponsorShare), hype: 3 }, def: true }, { label: 'Pass on it', note: 'Confidence +1 · the money goes to someone else', saga: { conf: 1 } }],
+      sum: () => 'A shoe company wanted you as the face of a campaign.' },
+    { id: 'conflict', hook: ['game', 'end'], big: true, bg: 'kitchen', mood: 'tense', who: 'sibling', title: 'THE SAME NIGHT', when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 6,
+      lines: c => { const S = sagaOf(c), sib = sagaFirst(c, 'sibling'), big = S.flags.sibPlays ? 'their conference final' : 'their graduation'; return ['The sponsor\'s launch night is Saturday. So is ' + sib + '\'s ' + big.replace('their ', '') + ', three states away.', { w: 'sibling', t: sib + ': "You said you\'d be there. You always say that. I\'m just asking if this time is different."' }, { w: 'agent', t: stWho(c, 'agent').name + ': "Miss this launch and the next deal goes to someone who showed up."' }]; },
+      choice: c => { const sib = sagaFirst(c, 'sibling'), cash = Math.round(chSalary(c) * CH.sponsorShare); return [{ k: 'sibling', label: 'Be there for ' + sib, note: sib + ' +' + SG.m.big + ' · family +' + SG.m.mid + ' · the sponsor walks', saga: { meter: { sibling: SG.m.big, family: SG.m.mid }, flag: { sibArc: 'prospect' } }, def: true }, { k: 'sponsor', label: 'Go to the launch', note: '+' + sgCash(c, cash) + ' · hype +5 · ' + sib + ' −' + SG.m.big, saga: { cash, hype: 5, meter: { sibling: -SG.m.big }, flag: { sibArc: 'needs' } } }]; },
+      sum: c => 'The sponsor\'s launch, or ' + sagaFirst(c, 'sibling') + '\'s big night: the same Saturday.' },
+    { id: 'scandal', hook: ['game', 'end'], bg: 'press', mood: 'tense', who: 'journalist', title: 'THE STORY BREAKS', when: (c, S, R, x, hook) => S.flags.agent !== 'shady' ? 'skip' : hook === 'end' || chWeek(c) >= 9,
+      lines: c => { const A = chAgents(c), j = sagaWho(c, 'journalist').name; return [j + '\'s story runs on a Sunday: ' + A.shady + ' paid people to get your name on deals, and kept two sets of books.', 'The league wants a meeting. Your phone has forty missed calls.']; },
+      choice: c => [{ label: 'Fire them and come clean', note: 'Hype −' + SF.scandalHype + ' · a fine of ' + sgCash(c, chSalary(c) * CH.scandalFine) + ' · ' + sagaWho(c, 'journalist').name + ' +' + SG.m.mid, saga: { hype: -SF.scandalHype, cash: -Math.round(chSalary(c) * CH.scandalFine), meter: { journalist: SG.m.mid }, flag: { scandal: 'clean' } }, after: c => { try { const St = staffOf(c); if (St.agent && St.agent.name === chAgents(c).shady) { St.agent = null; c.me.agent = null; } } catch (e) { /* the staff are decoration here */ } }, def: true },
+        { label: 'Ride it out', note: 'Hype −' + Math.round(SF.scandalHype / 2) + ' · keep the money · ' + sagaWho(c, 'journalist').name + ' −' + SG.m.mid + ' · family −' + SG.m.small, saga: { hype: -Math.round(SF.scandalHype / 2), meter: { journalist: -SG.m.mid, family: -SG.m.small }, flag: { scandal: 'ride' } } }],
+      sum: () => 'Your agent\'s deals came out on a Sunday.' },
+    { id: 'year', hook: 'end', bg: 'locker', mood: 'warm', who: 'family', title: 'PRIME TIME',
+      lines: c => { const S = sagaOf(c), sib = sagaFirst(c, 'sibling'), all = !!(c.allStar && c.allStar.invited); return [(all ? 'An All-Star season, and your name in every argument about the best in the league.' : 'A season at the top of your game, and the league knows your name.') + (S.flags.scandal === 'ride' ? ' The whispers follow you everywhere.' : ''), S.flags.ch9 === 'sibling' ? sagaFirst(c, 'family') + ': "' + sib + ' still has the ticket stub from Saturday. Taped it to the mirror."' : sagaFirst(c, 'family') + ': "' + sib + ' won\'t say it, but they looked for you in the crowd."']; },
+      choice: c => [{ label: 'Call ' + sagaFirst(c, 'sibling'), note: sagaFirst(c, 'sibling') + ' +' + SG.m.small, saga: { meter: { sibling: SG.m.small } }, def: true }, { label: 'Plan the summer workouts', note: 'Practice XP +5% for 2 weeks', saga: { xpWeeks: [0.05, 2] } }],
+      sum: (c, S) => S.flags.ch9 === 'sibling' ? 'Your prime, and you were there for your sibling.' : 'Your prime, and the sponsor got Saturday night.' },
+  ] };
+
+// ---------------- Chapter 10: THE RING CHASE ----------------
+CHAPTERS[10] = { n: 10, id: 'ring', title: () => 'The Ring Chase', sub: (c, S, R) => R.v === 'top' ? 'Everyone is chasing you' : 'A contender calls',
+  past: (c, S, hook) => hook === 'retire' || (isPro(c) && meOf(c).age >= CH.ringPastAge),
+  open: (c, S, hook) => isPro(c) && meOf(c).age >= CH.ringAge && (hook === 'season' || (hook === 'game' && chWeek(c) <= 2)),
+  variant: c => frStars(c, meOf(c).club) >= chContender(c).stars ? 'top' : 'call',
+  start: (c, S, R) => { const K = chContender(c); R.to = K.id; },
+  over: (c, S, R) => !isPro(c) || c.season > R.s0,
+  scenes: [
+    { id: 'window', hook: ['season', 'game'], now: true, bg: 'box', mood: 'story', who: c => (sgOwnerKind(c), sagaWho(c, 'owner')), title: 'THE WINDOW',
+      lines: c => { const t = (c.me.careerStats && c.me.careerStats.titles) || 0, age = meOf(c).age; return ['You are ' + age + '. ' + (t ? t + ' ring' + (t > 1 ? 's' : '') + ' so far, and it never feels like enough.' : 'No ring yet, and everybody has started counting your birthdays.'), sagaWho(c, 'owner').name + ', from the owner\'s box: "Windows close. I want to know you\'re with us while this one is open."']; },
+      choice: c => [{ label: 'Tell them you\'re all in', note: 'Owner +' + SG.m.small, saga: { meter: { owner: SG.m.small } }, def: true }, { label: 'Tell them to build a winner', note: 'Hype +2 · owner −' + SG.m.small, saga: { hype: 2, meter: { owner: -SG.m.small } } }],
+      sum: () => 'The title window, from the owner\'s box.' },
+    { id: 'call', hook: ['game', 'end'], big: true, bg: 'tunnel', mood: 'tense', title: 'THE CALL',
+      who: (c, S, R) => { const K = chContender(c), p = K.star; return p ? { role: 'The ' + K.name, name: p.name, look: p.look, colors: clubOf(K.id).colors, age: p.age } : sagaWho(c, 'agent'); },
+      when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 4,
+      lines: (c, S, R) => { const K = clubOf(R.to || chContender(c).id).name, p = chContender(c).star, nm = p ? stFirst(p.name) : 'Their star', f = chFriend(c);
+        return [R.v === 'top' ? 'Your team is the one everybody chases. Then the ' + K + ' call anyway: more money, and their star on your side.' : 'The ' + K + ' are built to win it all, and they have room for one more.', nm + ': "Come win one with us. You know what this team is missing. It\'s you."']
+          .concat(S.flags.friendWay === 'rival' && f ? [{ w: 'friend', t: f + ', your rival\'s agent now, texts: "Whatever you decide, my client will be waiting in June."' }] : [{ w: 'family', t: sagaFirst(c, 'family') + ': "Whatever you do, the people here will remember it."' }]); },
+      choice: c => { const K = clubOf(chOf(c).list[10] && chOf(c).list[10].to || chContender(c).id).name; return [{ k: 'stay', label: 'Stay with the ' + chClub(c), note: 'Owner +' + SG.m.big + ' · hype +5 · the hometown fans', saga: { meter: { owner: SG.m.big }, hype: 5, flag: { loyal: 1 } }, def: true }, { k: 'leave', label: 'Leave for the ' + K, note: 'Traded to the contender · owner −' + SG.m.big + ' · the fans won\'t forget', saga: { meter: { owner: -SG.m.big } } }]; },
+      after: (c, S, R) => { if (R.k !== 'leave') return; S.flags.leftTitles = (c.me.careerStats && c.me.careerStats.titles) || 0; S.flags.leftAt = c.season; S.flags.leftFrom = meOf(c).club; const to = R.to || chContender(c).id;
+        if (c.phase === 'regular' && pblDeadlineOpen(c) && to !== meOf(c).club) proTrade(c, to, true); else S.flags.leaveFor = to; /* (past the deadline: the move comes when the next season starts) */ },
+      sum: (c, S, R) => 'A contender called: stay, or chase a ring somewhere else.' },
+    { id: 'reaction', hook: 'game', opt: true, bg: 'press', mood: (c, S) => S.flags.ch10 === 'leave' ? 'tense' : 'warm', who: 'rival', title: (c, S) => S.flags.ch10 === 'leave' ? 'THE BOOS' : 'THE NIGHT THEY SANG', when: c => chWeek(c) >= 6,
+      lines: (c, S) => { const r = sagaFirst(c, 'rival'), bitter = S.flags.ch2 === 'talk' && sagaMeter(c, 'rival') < SG.respectAt; return [S.flags.ch10 === 'leave' ? 'Your first game back in your old arena. The boos start at the introductions and never stop.' : 'The home crowd sings your name during a timeout, a song they made up themselves.', { w: 'rival', t: r + ': "' + (S.flags.ch10 === 'leave' ? (bitter ? 'Ran to a contender. Figures. You never could do it the hard way."' : 'Smart. I\'d have done the same. See you in June."') : (bitter ? 'Loyal. Cute. Loyalty doesn\'t come with a ring."' : 'Respect. Not many stay. See you in June."')) }]; },
+      choice: c => [{ label: 'Wave to the crowd', note: 'Hype +3', saga: { hype: 3 }, def: true }, { label: 'Answer ' + sagaFirst(c, 'rival') + ' on the court', note: 'Confidence +1 · ' + sagaFirst(c, 'rival') + ' −' + SG.m.small, saga: { conf: 1, meter: { rival: -SG.m.small } } }],
+      sum: (c, S) => S.flags.ch10 === 'leave' ? 'Your old arena booed you all night.' : 'The home crowd made up a song with your name in it.' },
+    { id: 'year', hook: 'end', bg: 'gym', mood: 'warm', who: 'coach', title: 'COACH ADEYINKA',
+      pre: (c, S) => { if (!S.flags.coachWay) { S.flags.coachM10 = sagaMeter(c, 'coach'); S.flags.coachWay = sagaMeter(c, 'coach') >= CH.coachBackAt ? 'back' : 'retired'; } },
+      lines: (c, S) => { const won = !!(c.playoffs && c.playoffs.champion === c.meId); return [(won ? 'A ring. ' : 'The season is over. ') + 'Coach Adeyinka calls, and you can hear the old gym in the background.', S.flags.coachWay === 'back' ? '"The doctors cleared me. I\'m going to help the ' + chClub(c) + '\'s staff with the young players. Coaching you again, sort of."' : '"I\'m hanging it up. Forty years in that gym. They\'re putting my name on the floor, and I want you there."']; },
+      choice: (c, S) => [{ label: S.flags.coachWay === 'back' ? 'Welcome them back' : 'Promise to be there', note: 'Coach +' + SG.m.mid, saga: { meter: { coach: SG.m.mid } }, def: true }, { label: 'Ask for one more lesson', note: 'Practice XP +5% for 3 weeks', saga: { xpWeeks: [0.05, 3] } }],
+      sum: (c, S) => S.flags.coachWay === 'back' ? 'Coach Adeyinka came back, to coach you again.' : 'Coach Adeyinka retired, and the gym floor got their name.' },
+  ] };
+
+// ============================================================================
 // SECTION: SAVE / PROGRESSION (part 18) — V8 (Part 2 §2.3): how the story ends. At retirement the 'retire' beats play
 // (the journalist's last column, passing the torch), then one of six epilogues, picked by what the career did and who
 // is still in it: Passing the Torch, The Legend, Two Old Rivals, Home, The Long Road, The Work. Each is a last cutscene;
-// the legacy screen and the Story so far name it.
+// the legacy screen and the Story so far name it. 2.1 (§4.3): a career told in chapters ends one of six new ways (the
+// Hometown Hero, the Mercenary Champion, the Fallen Star, Family First, the Coach, the Owner), told as chapter 12's
+// closing scene after its last decision.
 // ============================================================================
 function sgClubsOf(c) { if (!isPro(c)) return 0; const seen = new Set(((c.me && c.me.seasonLog) || []).map(l => l.club)); seen.add(meOf(c).club); return seen.size; } // the clubs you played a season for
 function sgH2HLine(c) { const h = (c.story && c.story.h2h) || { w: 0, l: 0 }; return h.w + h.l ? 'Head to head, all those years: ' + h.w + '-' + h.l + '.' : 'You never did settle who was better.'; }
-// The six endings, in the order they are checked (the first that fits is the one).
-const SAGA_EPILOGUES = [
+// 2.1 (§4.3): the six endings of a career told in chapters, checked first (a career from before them, without chapter
+// 12's decision, gets V8's six below). Each is chapter 12's closing cutscene, and ends with a line from your sibling.
+function chTitlesSinceLeft(c, S) { return ((c.me && c.me.careerStats && c.me.careerStats.titles) || 0) - (S.flags.leftTitles || 0); }
+const SAGA_ENDINGS = [
+  { id: 'mercenary', title: 'THE MERCENARY CHAMPION', bg: 'finals', mood: 'triumph', who: 'rival', when: (c, S) => S.flags.ch10 === 'leave' && chTitlesSinceLeft(c, S) >= 1,
+    lines: (c, S) => { const n = chTitlesSinceLeft(c, S); return ['You chased a ring and caught ' + (n > 1 ? n + ' of them' : 'one') + ' in another city\'s colors.', 'The old arena still boos when your name comes up on the big screen. You still watch the replay of the last shot every spring.', sagaFirst(c, 'rival') + ': "You went and got it. I hated it. I\'d have done the same."']; },
+    sib: () => '"You got the ring. I hope it was worth the boos. I think it was."' },
+  { id: 'fallen', title: 'THE FALLEN STAR', bg: 'press', mood: 'sad', who: 'journalist', when: (c, S) => S.flags.agent === 'shady' && S.flags.scandal === 'ride',
+    lines: (c, S, L) => ['The deals, the books, the meetings with the league: the story never went away, and in the end it was the story people remembered.', sagaWho(c, 'journalist').name + ' writes the last column: "' + (L ? L.seasons + ' seasons' : 'A career') + ', and we will be arguing about which parts were real for years."', 'The phone stops ringing. The big agency stopped returning your calls first.'],
+    sib: () => '"You were my hero before any of it. You still are, mostly. I\'m working on the rest."' },
+  { id: 'owner', title: 'THE OWNER', bg: 'box', mood: 'triumph', who: 'owner', when: (c, S) => S.flags.ch12 === 'owner',
+    lines: c => ['The owner\'s box, on the other side of the glass now. The court looks small from up here.', (c.me.money || 0) >= CH.ownerMoney ? 'You bought in with your own money, and you sign the checks.' : 'You bought in with partners, and they let you pick the coach.', 'Every player who walks into your office gets the speech: the early mornings, the empty gyms, the last shot of every night.'],
+    sib: () => '"You own a team. I still beat you at H-O-R-S-E. Some things don\'t change."' },
+  { id: 'hometown', title: 'THE HOMETOWN HERO', bg: 'stage', mood: 'triumph', who: 'owner', when: (c, S) => S.flags.ch10 === 'stay' && (sgClubsOf(c) <= 1 || ((c.me && c.me.careerStats && c.me.careerStats.titles) || 0) >= 1 || S.flags.ch4 === 'home'),
+    lines: (c, S, L) => ['They retire your number on a cold night, and nobody in the building sits down for ten minutes.', 'You stayed when a contender called. ' + ((L && L.titles) ? 'You won ' + (L.titles > 1 ? L.titles + ' rings' : 'a ring') + ' here instead.' : 'You never got the ring here. They love you anyway.'), 'The kids on the court outside the arena all have your number on their backs.'],
+    sib: () => '"Every kid on our street wears your number. Even the ones who never saw you play."' },
+  { id: 'family', title: 'FAMILY FIRST', bg: 'kitchen', mood: 'warm', who: 'family', when: (c, S) => S.flags.ch12 === 'sibling',
+    lines: c => [chSibNow(c) === 'needs' ? 'You moved home and got ' + sagaFirst(c, 'sibling') + ' back on their feet: the knee, the rehab, the long talks in the car.' : 'You spent your first summer of retirement in the driveway, rebounding for ' + sagaFirst(c, 'sibling') + ', and the second one at their games.', sagaFirst(c, 'family') + ' sets three places at the kitchen table, like when you were kids.', '"The trophies are in the closet. This is the good part."'],
+    sib: c => chSibNow(c) === 'needs' ? '"You came when I needed you. That\'s the whole story, really."' : '"You taught me everything. Now sit down and watch me."' },
+  { id: 'coach', title: 'THE COACH', bg: 'gym', mood: 'warm', who: 'coach', when: (c, S) => S.flags.ch12 === 'coach' || S.flags.ch12 === 'kid',
+    lines: (c, S) => [S.flags.ch12 === 'kid' ? 'A kid from your academy hits the shot you taught them, in a gym with your name on the banner.' : 'A whistle, a clipboard and a gym that smells like floor wax: you\'re the one yelling "again" now.', S.flags.coachWay === 'back' ? 'Coach Adeyinka sits next to you on the bench, still correcting your footwork.' : 'Coach Adeyinka comes to every home game and sits behind the bench, saying nothing, which is worse.', '"Defense first. Somebody told me that once. They were right."'],
+    sib: () => '"Coach. It still sounds weird when they call you that. Good weird."' },
+];
+// The six endings, in the order they are checked (the first that fits is the one): the ring you chased, the scandal you
+// rode out, the team you bought, the team you stayed with, then what chapter 12's decision says.
+const SAGA_EPILOGUES = SAGA_ENDINGS.concat([
   { id: 'torch', title: 'PASSING THE TORCH', bg: 'gym', mood: 'triumph', who: c => sgKid(c), when: (c, S) => S.flags.torch === 'kid',
     lines: (c, S) => ['Two years later: your old high school gym on a Tuesday night. A skinny kid in your number hits the shot you taught them.', sagaFirst(c, 'family') + ' is in the third row, like always, and turns around to find you in the doorway.', 'The story goes on without you. That was the whole point.'] },
   { id: 'legend', title: 'THE LEGEND', bg: 'finals', mood: 'triumph', who: 'journalist', when: (c, S, L) => !!(L && L.hof && L.titles >= 1),
@@ -20760,16 +21177,19 @@ const SAGA_EPILOGUES = [
     lines: (c, S, L) => [sgClubsOf(c) + ' clubs, ' + L.seasons + ' seasons, more hotel rooms than anyone could count.', 'In every one of those cities there is a kid who still wears your jersey to the park.', sagaFirst(c, 'family') + ': "I have a closet full of your jerseys. A different one every Sunday."'] },
   { id: 'work', title: 'THE WORK', bg: 'gym', mood: 'story', who: 'coach', when: () => true,
     lines: c => ['Nobody remembers the box scores. You remember the work: the early mornings, the empty gyms, the last shot of every night.', sagaWho(c, 'coach').name + ' still opens the high school gym for you on Saturday mornings.', '"You got everything out of it. Not everybody can say that."'] },
-];
+]); // (V8's six: a career from before the chapters)
 // The ending this career gets (L: its legacy).
-function sagaEpilogue(c, L) { const S = sagaOf(c); L = L || (isPro(c) ? legacyOf(c) : null); for (const E of SAGA_EPILOGUES) { let ok = false; try { ok = !!E.when(c, S, L); } catch (e) { ok = false; } if (ok) return E; } return SAGA_EPILOGUES[SAGA_EPILOGUES.length - 1]; }
+function sagaEpilogue(c, L) { const S = sagaOf(c); L = L || (isPro(c) ? legacyOf(c) : null); const ch = !!S.flags.ch12, list = ch ? SAGA_ENDINGS : SAGA_EPILOGUES.slice(SAGA_ENDINGS.length); /* 2.1: a career told in chapters ends one of the six ways; one from before them, V8's way */
+  for (const E of list) { let ok = false; try { ok = !!E.when(c, S, L); } catch (e) { ok = false; } if (ok) return E; } return ch ? SAGA_ENDINGS.find(e => e.id === 'coach') : SAGA_EPILOGUES[SAGA_EPILOGUES.length - 1]; }
 // Retirement: the 'retire' beats, then the epilogue's cutscene (both go in the event queue, ahead of the epilogue
 // screens). Returns the epilogue's id; the saga keeps it.
 function sagaRetire(c, L) {
   try {
+    if (chAny(c)) { const B = holderOf(c); if (Array.isArray(B.later)) B.later = B.later.filter(e => e && e.chapter); } /* 2.1 (W9): the last season's waiting side beats give way to the last day (two story screens in a row at most) */
     for (let i = 0; i < 4; i++) if (!sagaTick(c, 'retire')) break;
     chRelease(c, true); /* 2.1: every story screen still waiting, before the ending */
-    const S = sagaOf(c), E = sagaEpilogue(c, L); S.epilogue = E.id; const who = typeof E.who === 'function' ? E.who(c, S, L) : sagaWho(c, E.who);
+    const S = sagaOf(c), R12 = chOf(c).list[12]; if (R12 && R12.st === 'on') return 'ch12'; /* 2.1: chapter 12's decision tells the ending (its closing scene) once you've made it */
+    const E = sagaEpilogue(c, L); S.epilogue = E.id; const who = typeof E.who === 'function' ? E.who(c, S, L) : sagaWho(c, E.who);
     (c.events || (c.events = [])).push({ kind: 'dialog', id: 'saga-epilogue-' + E.id, arc: 'saga:epilogue', title: E.title, who, lines: E.lines(c, S, L).filter(Boolean), choice: null, bg: E.bg, mood: E.mood, epilogue: E.id });
     S.log.push({ arc: 'epilogue', beat: E.id, title: E.title, s: c.season, stage: 'pro', age: meOf(c).age, pick: null });
     tlAdd(c, 'story', 'The story ends: ' + E.title.charAt(0) + E.title.slice(1).toLowerCase());
@@ -20901,7 +21321,7 @@ function dialogScreen(game, c, ev, done, opts) {
     if (card) { next.hidden = cont.hidden = true; for (const b of choices) b.hidden = true; } /* the title card first */
     const bh = P ? tapH(ui0, 44) : 60, by = box.y + box.h - bh - 16;
     if (ask && P) { const n = choices.length, cols = n >= 4 ? 2 : 1, rows = Math.ceil(n / cols), w = (box.x + box.w - 24 - tx - 12 * (cols - 1)) / cols; choices.forEach((b, i) => Object.assign(b, { x: tx + (i % cols) * (w + 12), y: box.y + box.h - 16 - (rows - Math.floor(i / cols)) * (bh + 10) + 10, w, h: bh })); } // a phone stacks them full width (the note on one line; V9: four in two columns)
-    else if (ask) { const n = choices.length, cols = n >= 4 ? 2 : n, rows = Math.ceil(n / cols), w = (box.x + box.w - 24 - tx - 12 * (cols - 1)) / cols, ch = rows > 1 ? 74 : n >= 3 ? 124 : 112; choices.forEach((b, i) => Object.assign(b, { x: tx + (i % cols) * (w + 12), y: box.y + box.h - 16 - (rows - Math.floor(i / cols)) * (ch + 6) + 6, w, h: ch })); } /* V7: a saga beat can offer three; V9: four (the major) in two rows */
+    else if (ask) { const n = choices.length, cols = n >= 4 ? 2 : n, rows = Math.ceil(n / cols), w = (box.x + box.w - 24 - tx - 12 * (cols - 1)) / cols, ch = rows > 1 ? 59 : n >= 3 ? 124 : 112; /* (2.1: two rows fit below the portraits' names, as one row of three does) */ choices.forEach((b, i) => Object.assign(b, { x: tx + (i % cols) * (w + 12), y: box.y + box.h - 16 - (rows - Math.floor(i / cols)) * (ch + 6) + 6, w, h: ch })); } /* V7: a saga beat can offer three; V9: four (the major) in two rows */
     Object.assign(cont, { x: box.x + box.w - 24 - (P ? 440 : 300), y: by, w: P ? 440 : 300, h: bh }); Object.assign(next, { x: box.x + box.w - 24 - (P ? 200 : 120), y: by, w: P ? 200 : 120, h: bh });
     scr.focus = ask ? items.indexOf(choices[Math.max(0, choices.findIndex(b => b.primary))]) : items.indexOf(lastP ? cont : next); if (scr.focus < 0) scr.focus = 0;
   }

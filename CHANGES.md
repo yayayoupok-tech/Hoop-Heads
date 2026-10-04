@@ -3,6 +3,135 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W9 (2.1) — chapters 7–12 and the endings
+
+The ninth of the ten 2.1 milestones (§4.2–4.4): the rest of the main story, the six endings and the story's tests.
+Chapters 7–8 are `179_saga_ch7.js`, 9–10 `179_saga_ch9.js`, 11–12 `179_saga_ch11.js`, the endings `179_saga_end.js`.
+`tests/story21.js` has 7 new steps (25 in all).
+
+**Chapter 7: The Decision.** Three versions: declare (college, at the declare decision; a benched season's transfer
+portal is one too), four years done (when that is its first moment), and the pros (one college year or none: a later
+pro season, "your next deal"). *The phone* (the scouts' projection; two agents call: the honest one, R6's college agent,
+and the big agency; your best friend has passed the agent exam); *One more year* if you stay; *Who speaks for you*, the
+big decision: the honest agent (contracts +10%), the big agency (+18%: "don't ask how") or your best friend (+5%, your
+friend +20); *The pen*, right after the signature (college: the combine and the offers are next). The agent you sign is
+your agent in the pros (a staff agent: straight, shady or loyal). Your best friend's path (§4.1) is settled here:
+signed, they are your agent; passed over for the big agency, they go to work for your rival's agent; for the honest
+one, they drift away; if you followed them on Signing Day, you stay teammates. They pitch unless you're on the outs
+(their meter under 10).
+
+**Chapter 8: Rookie.** Three versions: the bench or a starter (the first pro season after college), or later (one
+college year or none: two pro seasons in). *The first contract*: no draft, you chose them; the salary; the team's oldest
+player, the veteran mentor (§4.1): "Rookie. You carry the bags this year."; your family ("Don't go buying us
+anything"). Pay off the family's bills ($250K, confidence +1) or put it in the bank; if chapter 3 left you owing your
+friend's family or Coach Adeyinka, they say so, and you can *pay everybody back*. *The end of the bench* (or *The target*), when the season has
+room; *Learn or demand*, the big decision: learn from the veteran (practice XP +10% for 4 weeks, the veteran +20, the
+owner −5: they help you later) or demand minutes (the owner +15 and backs you, hype +5, coach trust −3, the veteran
+−10); *Rookie no more*, on the next season's first day. (The later version opens with the veteran: carry the bags or
+ask for the playbook.)
+
+**Chapter 9: Prime** (from 25; passed by from 34). Two versions: a star (fame 40+: your face on a billboard) or the
+grind (a commercial for a car dealership near home). *The big deal* (a shoe company: 8% of your salary, hype +3), when
+the season has room; *The same night*, the big decision: your sibling's conference final (or graduation) or the
+sponsor's launch, three states apart: be there (your sibling +20, family +10; they grow into a prospect) or go to the
+launch (the money, hype +5, your sibling −20; later, they need you); *The story breaks*, with the shady agent only: the
+journalist's story on the agency's deals and its two sets of books: fire them and come clean (hype −10, a fine of 5% of
+your salary, the journalist +10) or ride it out (hype −5, the journalist −10, family −5); *Prime time*.
+
+**Chapter 10: The Ring Chase** (from 27; passed by from 36). Two versions: a contender calls, or yours is the team
+everybody chases. *The window* (the owner, from the box); *The call*, the big decision: stay (the owner +20, hype +5,
+the hometown fans) or leave for the contender (traded now if the deadline is open, else when the next season starts;
+the owner −20); *The boos* (or *The night they sang*), when the season has room: your rival's reaction, respectful or
+bitter (their meter, and whether you shook hands in chapter 2); *Coach Adeyinka*: coaching again (on your club's staff)
+with a coach meter of 65 or more, else retiring (the gym floor gets their name).
+
+**Chapter 11: Finals** (from 29, a window of four seasons). The first Finals in the window is the chapter's: the
+rematch (your rival on the other side) or the Finals; none, and it becomes *The One That Got Away*, with its own title
+card. *One more run* (your rival's comeback from a torn Achilles); *A word before the stretch* (your old veteran calls
+if you learned from them in chapter 8), when the season has room; *Before Game N*, the big decision before the game
+that can end it (best of five): a speech, silence, or a call home (*The long summer* when you're not there: call the
+team together, shoot alone, or call home); *Champions*, *So close* or *Next year*.
+
+**Chapter 12: Legacy** (from 33, or on the last day: the sudden version). *The body talks*; your sibling, a prospect in
+the development league asking you to train them, or a call at midnight (their knee is gone, and they need you); *What
+comes next*, the big decision on the last day: mentor your sibling, mentor a kid from the academy (your next career's
+Legacy Start), take the coaching job, or buy into a team (with partners under $30M); the ending's cutscene closes it.
+Retiring early passes the chapters still to come (one in progress is cut) and Legacy opens on the last day.
+
+**The endings (§4.3).** The first that fits: the Mercenary Champion (you left for a contender and won a ring there), the
+Fallen Star (the big agency's scandal, ridden out), the Owner, the Hometown Hero (you stayed when a contender called: one
+club, a ring, or home was the kitchen table's pick), Family First (mentor your sibling) or the Coach (the coaching job,
+or the academy kid). Each is chapter 12's closing cutscene (its background, mood and speaker) and ends with a line from
+your sibling. A career from before the chapters (all passed by) ends one of V8's six ways, as it did.
+
+**No scene twice (§4.4).** R9's beats that come back have versions, told in order (a registry per career, carried to
+the pros): a call from home (8), the coach's office (6), a film session (6), a winning streak (6), a slump (6), the
+spotlight (6), champions (8, then numbered), the title chase (6), a veteran (5), the season review (6), so close (4),
+the training room (5, then numbered), one more season? (4, then counted). An exam week names the year and the class;
+an official visit's Saturday night names the city and the program (a second visit to a program says so); a trait's
+scene comes once a career; a club's star change twice says "again".
+
+**Pacing (§4.3).** Chapter 7 in college tells its scenes at the decision (the offseason before the pros); chapter 8
+closes on the second season's first day; R9's Signing Day and First Contract step aside in a career told in chapters
+(chapter 8's first scene is the first contract; a career with one college year or none keeps R9's first contract);
+the trade demand waits while chapter 8 asks the same question, and for a season with room (R7's card asks otherwise);
+the summer-camp mentor's pro beats give way to chapter 8's veteran; the Finals window keeps room in a contender's
+season and the playoffs; the last day is two story screens: what comes next, then the ending (the last season's
+waiting side beats give way; the journalist's last column is the Fallen Star's).
+
+**Fixed.** A meddler owner (W5's fourth kind) had no title for the owner arc's middle beat: the card failed after
+counting and came back every season (a third of careers saw it more than once). The meddler has its own now (*The phone
+call*: let them tell the press, or let the coach coach), and a beat without a title still tells once.
+
+**The career simulator.** 160 careers with the default story answers: 3–5 scenes in 98.5% of high school seasons,
+99.0% of college ones and 99.5% of pro ones (W8: 98.5 / 99.0 / 99.3); with `--story=random` 99.1%, 99.7% and 99.6%.
+Chapters 1–12 reached and closed in every career; no scene twice, word for word, in any career (W8's runs: every career
+had some, a call from home 1.5 times a career); the last day is two story screens in every career. Random answers: the
+endings, the Coach 29%, the Hometown Hero 18%, Family First 14%, the Fallen Star 14%, the Owner 14%, the Mercenary
+Champion 10% (each 5%+); your best friend's path, a teammate 28%, your agent 27%, your rival's agent 23%, drifted away
+23% (each 20%+); your sibling's arc, they need you 53%, a prospect 47%; the agent, the big agency 40%, the honest one
+33%, your friend 27%; Coach Adeyinka coaches again 58%, retires 43%; the ring chase, 85 careers left (16 won a ring
+after), 75 stayed; the Finals window, the Finals 36% (the rematch 1%), the One That Got Away 63%. Versions: the
+Decision in college 91%, in the pros 9%; Rookie on the bench 69%, a starter 21%, later 9%; Prime a star 88%; a
+contender calls 96%. Every big decision spread (honest 33 / shady 40 / your friend 27; learn 58 / demand 43; your
+sibling 47 / the sponsor 53; stay 47 / leave 53; a speech 31 / silence 36 / a call home 33; your sibling 24 / the kid 33
+/ coaching 22 / a team 22). With the default answers (stay, then mentor your sibling): Family First 64%, the Hometown
+Hero 36%. The random policy now picks through the game's RNG (W8's two-answer decisions read 39/61; now 45–55). No
+errors.
+
+**Config.** `CONFIG.chapters`: `agentTier` {honest 2, shady 3, friend 1}, `friendAgentAt` 10, `primeAge` 25,
+`primePastAge` 34, `primeFame` 40, `sponsorShare` 0.08, `scandalFine` 0.05, `ringAge` 27, `ringPastAge` 36,
+`coachBackAt` 65, `finalsAge` 29, `finalsSeasons` 4, `legacyAge` 33, `ownerMoney` 3e7; `sibGap` 6 (was 4: your
+sibling is a pro prospect late in your career).
+
+**Calls made.**
+- Chapter 7 in college comes with the declare decision (the scouts when it opens, who speaks for you with your answer);
+  the transfer portal's decision counts as one (it offers to declare).
+- The best friend's four paths come from two choices: Signing Day (follow them: teammates) and chapter 7 (sign them:
+  your agent; the big agency: your rival's agent; the honest one: they drift away).
+- Prime, the Ring Chase, Finals and Legacy open by age (25, 27, 29, 33) at a season's start; Legacy also on the last
+  day. Finals is a window of four seasons (a Finals run is rare in any one season).
+- The endings are checked in an order: the career's own story first (the ring chased, the scandal ridden out, the team
+  bought, the team you stayed with), then chapter 12's choice.
+- No draft: the signing is chapter 7's ("then three franchises make offers, and you choose") and chapter 8's ("No draft:
+  you chose them").
+- A shady agent's scandal is chapter 9's (V10's staff scandal skips that agent); the story stays PG (deals and two sets
+  of books; your sibling's knee; Coach Adeyinka's heart scare ends in recovery).
+- The random story policy of the career simulator now picks through the game's RNG: the hash's lowest bit was a poor
+  coin for two answers (W8's two-answer decisions read 39/61).
+
+**Tests.** `tests/story21.js` (25 steps, 7 new): chapters 7–12 written (3–6 scenes, a choice on each, one big decision,
+a closing scene) and the six endings; the Decision then Rookie on a college path (the scenes at the declare, the big
+agency as your agent and your friend with your rival, the first contract with no R9 Signing Day or First Contract, learn
+or demand, the closing the next season, 3–5 scenes in pro season 1); the Decision's versions (one more year, four
+years, one-and-done: the pro version, your friend as your agent); a whole career to its ending (each chapter at its
+age, no scene twice, the ending's cutscene with your sibling's line); the paths (the scandal ridden out, the sponsor,
+leaving for a contender, buying a team: the Mercenary Champion or the Fallen Star; flags through a save and a reload);
+an early retirement (passed, cut, Legacy's sudden version: two screens, the ending); an old pro save (7 and 8 passed,
+Prime at its age). `tests/story.js`: the templates count beats with versions; V8's epilogues are checked as V8's six.
+The career simulator prints the endings, the best friend's paths, the sibling's arc, the agents, Coach Adeyinka, the
+ring chase, the Finals window and the last day. Eleven new phone and desktop audit cases (on a desktop, four answers in two rows now fit below the portraits' names). Quick checks: story21 (25), story (13), oldsaves, smoke (136), flow (12), school (8), recruit21 (15), fullcareer, life21 (17), the phone and desktop audits (308 and 304 cases, no problems) and the career simulator (both policies).
+
 ## W8 (2.1) — chapters 1–6: high school and college in chapters
 
 The eighth of the ten 2.1 milestones (§4.2, chapters 1–6; chapter 1 came with W7's engine). Chapters 2–4 are

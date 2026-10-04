@@ -82,7 +82,7 @@ const { launch, openPage, runner } = require('./lib');
 
   await step('V8: fourteen arcs; the Trade Demand tells the UNHAPPY card (quietly: traded); Contract Year (the bag\'s game XP, the raise); Father Time (Speed for Shooting, for good); the Finals Rematch stands in for R9\'s final card', () => ev(([mkPro]) => {
     const ids = Object.keys(SAGA_ARCS); if (ids.length < 14) throw new Error(ids.length + ' arcs');
-    const { c } = eval(mkPro)(301), S = sagaOf(c); for (const id of ids) if (id !== 'trade') S.arcs[id] = { st: 'skip' }; const ch0 = SAGA_ARCS.trade.chance; SAGA_ARCS.trade.chance = 1; c.me.benchSeason = PR.tradeMinGames + 1; stFill(c).beats = 0;
+    const { c } = eval(mkPro)(301), S = sagaOf(c); for (const id of ids) if (id !== 'trade') S.arcs[id] = { st: 'skip' }; const ch0 = SAGA_ARCS.trade.chance; SAGA_ARCS.trade.chance = 1; c.me.benchSeason = PR.tradeMinGames + 1; stFill(c).beats = 0; stFill(c).w = -99; /* (2.1: a beat that can wait needs the season's room) */
     let why; try { why = proTradeCheck(c); } finally { SAGA_ARCS.trade.chance = ch0; }
     if (why !== 'bench') throw new Error('unhappy: ' + why); if (c.events.some(e => e.kind === 'trade')) throw new Error('R7\'s card was told as well'); const e = c.events.find(x => x.saga && x.saga.arc === 'trade'); if (!e || e.choice.length !== 3) throw new Error('the demand');
     const club0 = meOf(c).club; stChoose(c, e, 1); if (meOf(c).club === club0 || S.flags.trade !== 'quiet' || !c.events.some(x => x.title === 'TRADED')) throw new Error('quietly: not traded');
@@ -100,7 +100,7 @@ const { launch, openPage, runner } = require('./lib');
     const got = {}, ep = (seed, f, L) => { const { c } = eval(mkPro)(seed); sagaMeterAdd(c, 'family', -60); f(c); return sagaEpilogue(c, Object.assign({}, legacyOf(c), L || {})).id; };
     got.torch = ep(311, c => sagaSet(c, 'torch', 'kid')); got.legend = ep(312, () => {}, { hof: true, titles: 2, seasons: 15 }); got.rivals = ep(313, c => { sagaSet(c, 'rivalPeace', 1); sagaMeterAdd(c, 'rival', SG.respectAt + 5); });
     got.home = ep(314, c => sagaMeterAdd(c, 'family', 120)); got.road = ep(315, c => { const ids = frIds().filter(id => id !== meOf(c).club); c.me.seasonLog = ids.slice(0, SG.roadClubs).map(club => ({ club })); }); got.work = ep(316, () => {});
-    const miss = SAGA_EPILOGUES.map(E => E.id).filter(id => got[id] !== id); if (SAGA_EPILOGUES.length < 4 || miss.length) throw new Error('unreached: ' + miss + ' ' + JSON.stringify(got));
+    const V8E = SAGA_EPILOGUES.slice(SAGA_ENDINGS.length), miss = V8E.map(E => E.id).filter(id => got[id] !== id); /* (2.1's six come with chapter 12: tests/story21.js) */ if (V8E.length < 4 || miss.length) throw new Error('unreached: ' + miss + ' ' + JSON.stringify(got));
     const { save, c } = eval(mkPro)(317); sagaMeterAdd(c, 'family', 60); retireCareer(save); const e = c.events.find(x => x.epilogue); if (!e || e.epilogue !== 'home' || e.bg !== 'kitchen' || !(e.lines || []).length) throw new Error('the cutscene ' + JSON.stringify(e && { id: e.epilogue, bg: e.bg }));
     const back = JSON.parse(JSON.stringify(save)); if (back.career.me.saga.epilogue !== 'home') throw new Error('kept');
     const t = eval(mkPro)(318); sagaSet(t.c, 'torch', 'kid'); retireCareer(t.save); if (!t.save.legacyStart || !t.save.legacyStart.torch || t.save.legacyStart.caps !== SG.torchCaps) throw new Error('the torch\'s Legacy Start');
@@ -137,11 +137,11 @@ const { launch, openPage, runner } = require('./lib');
   }, [mk, mkPro, drawTexts]));
 
   await step('V8 (2.0 §4.9): 60+ story templates; events react to your traits, your rival, your team\'s stars and your hype', () => ev(([mkPro]) => {
-    const src = [...document.scripts].map(x => x.text).join('\n'), r9 = new Set((src.match(/stBeat\(c, '([a-z0-9-]+)'/g) || []).map(x => x.slice(11, -1))), traitB = Object.keys(TRAIT_BEATS).length, saga = Object.values(SAGA_ARCS).reduce((n, A) => n + A.beats.length, 0), total = r9.size + traitB + saga + SAGA_EPILOGUES.length;
+    const src = [...document.scripts].map(x => x.text).join('\n'), r9 = new Set([...src.matchAll(/stBeatV?\(c, '([a-z0-9-]+)'/g)].map(m => m[1])) /* (2.1: a beat with versions too) */, traitB = Object.keys(TRAIT_BEATS).length, saga = Object.values(SAGA_ARCS).reduce((n, A) => n + A.beats.length, 0), total = r9.size + traitB + saga + SAGA_EPILOGUES.length;
     if (total < 60) throw new Error(total + ' templates');
     for (const id of ['spotlight', 'trait', 'stars-up', 'stars-down']) if (!r9.has(id)) throw new Error('no ' + id);
     const { c } = eval(mkPro)(351); stTeamStars(c); c.events.length = 0; c.me.starsWas = frMine(c) - 1; stFill(c).beats = 0; stFill(c).w = -99; stTeamStars(c); if (!c.events.some(e => e.id === 'stars-up')) throw new Error('the big stage');
-    c.events.length = 0; c.me.starsWas = frMine(c) + 1; stFill(c).fired = {}; stFill(c).w = -99; stTeamStars(c); if (!c.events.some(e => e.id === 'stars-down')) throw new Error('the rebuild');
+    c.events.length = 0; c.me.later = []; c.me.starsWas = frMine(c) + 1; stFill(c).fired = {}; stFill(c).w = -99; stFill(c).beats = 0; /* (2.1: a chapter in progress keeps its room) */ stTeamStars(c); if (!c.events.some(e => e.id === 'stars-down')) throw new Error('the rebuild');
     return total + ' templates: R9 ' + r9.size + ' · traits ' + traitB + ' · saga ' + saga + ' · epilogues ' + SAGA_EPILOGUES.length;
   }, [mkPro]));
 

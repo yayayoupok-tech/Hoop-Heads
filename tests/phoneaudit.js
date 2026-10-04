@@ -335,6 +335,28 @@ const { launch, openPage } = require('./lib');
   await audit('pro-allstar-reveal-all', () => { const s = HH.game.ui.screen; if (s && s.onTap) s.onTap(); });
   await audit('saga-trade', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; const S = sagaOf(c); delete S.arcs.trade; S.order = S.order.filter(x => x !== 'trade'); S.arcs.trade = { st: 'on', b: 0, s0: c.season, stage: 'pro', picks: [] }; S.order.push('trade'); { const A = stFill(c); A.beats = 0; A.fired = {}; A.w = -99; } const e = sagaTell(c, 'trade', 0, { why: 'bench' }); c.events.length = 0; g.ui.clearTo(careerHub(g)); g.ui.push(storyEventScreen(g, c, e, () => {}) || storyDialog(g, c, e, () => {})); const s = g.ui.screen; if (s.finish) s.finish(); for (let i = 0; i < 6; i++) { const nx = s.widgets.find(w => !w.hidden && w.label === '▼'); if (nx) { nx.onPress(); if (s.finish) s.finish(); } } }); // V8: the Trade Demand (three answers)
   await audit('pro-story-sofar', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; g.ui.clearTo(careerHub(g)); g.ui.push(storySoFarScreen(g, c)); });
+  // 2.1 (§4.2, W9): chapters 7–12 in a pro career: title cards, who speaks for you (three agents, a long name), the
+  // first contract (paying everybody back), learn or demand minutes, your sibling's big night, the scandal, the
+  // contender's call, the Finals before the game that can end it, the One That Got Away's card, what comes next (four
+  // answers) and an ending's cutscene with your sibling's last line
+  const ch9Case = ([n, sid, v, hook, x, card, flags]) => { const g = HH.game, c = g.save.data.career, S = sagaOf(c), Q = chOf(c); c.events.length = 0; holderOf(c).later = [];
+    const keep = JSON.stringify([Q, S.flags]); Object.assign(S.flags, flags || {}); if (!S.cast.friend.name) S.cast.friend.name = 'Maximiliano Okonkwo-Reyes'; S.cast.friend.m = Math.max(S.cast.friend.m || 0, 40); /* (your friend pitches: a meter at 40) */ if (x && x.endingId) x = { ending: SAGA_ENDINGS.find(E => E.id === x.endingId) };
+    const D = CHAPTERS[n], i = D.scenes.findIndex(z => z.id === sid), R = Q.list[n] = { st: 'on', v, i, told: card ? 0 : 1, s0: c.season, stage: 'pro', age: meOf(c).age, k: null, game: 5, to: frIds().find(k => k !== meOf(c).club) }, po = [c.phase, c.playoffs];
+    if (n === 11 && v !== 'away') { c.phase = 'playoffs'; c.playoffs = { series: [{ a: c.meId, b: c.rivalId || c.active.find(id => id !== c.meId), wa: 2, wb: 2, bestOf: 5 }] }; }
+    const e = chTell(c, D, R, D.scenes[i], x || {}, hook || 'game'); c.phase = po[0]; c.playoffs = po[1]; const K = JSON.parse(keep); S.ch = K[0]; S.flags = K[1]; c.events.length = 0; holderOf(c).later = [];
+    g.ui.clearTo(careerHub(g)); g.ui.push(storyEventScreen(g, c, e, () => {})); const s = g.ui.screen; if (card) s.auditCard = true;
+    if (!card) { s.finish(); for (let k = 0; k < 6; k++) { const nx = s.widgets.find(w => !w.hidden && w.label === '▼'); if (nx) { nx.onPress(); s.finish(); } } } };
+  await audit('w9-ch7-card', ch9Case, [7, 'scouts', 'pro', 'season', {}, true]);
+  await audit('w9-ch7-agents', ch9Case, [7, 'agents', 'pro', 'game', {}, false]);
+  await audit('w9-ch8-contract', ch9Case, [8, 'first', 'bench', 'season', {}, false, { owe: 'friend' }]);
+  await audit('w9-ch8-minutes', ch9Case, [8, 'minutes', 'bench', 'game', {}, false]);
+  await audit('w9-ch9-conflict', ch9Case, [9, 'conflict', 'star', 'game', {}, false, { sibPlays: 1 }]);
+  await audit('w9-ch9-scandal', ch9Case, [9, 'scandal', 'star', 'game', {}, false, { agent: 'shady' }]);
+  await audit('w9-ch10-call', ch9Case, [10, 'call', 'call', 'game', {}, false, { friendWay: 'rival' }]);
+  await audit('w9-ch11-decide', ch9Case, [11, 'decide', 'rematch', 'game', {}, false]);
+  await audit('w9-ch11-away', ch9Case, [11, 'decide', 'away', 'end', {}, true]);
+  await audit('w9-ch12-next', ch9Case, [12, 'next', 'last', 'retire', {}, false]);
+  await audit('w9-ch12-ending', ch9Case, [12, 'stage', 'last', 'ending', { endingId: 'fallen' }, false, { agent: 'shady', scandal: 'ride' }]);
   await audit('pro-records', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; recordsAfterGame(c, { pts: 24, reb: 9, stl: 3, blk: 1, tpm: 3 }, true); REC_TOASTS.length = 0; g.ui.clearTo(careerHub(g)); g.ui.push(recordsBookScreen(g, c)); });
   await audit('pro-news-buzz', () => { const g = HH.game, c = g.save.data.career; c.events.length = 0; storyFill(c); c.me.hype = 66; c.me.grudge[c.active.find(id => id !== c.meId)] = 1; c.me.sponsorCut = 2; g.ui.clearTo(careerHub(g)); g.ui.push(headlinesScreen(g)); }); // R8
   await audit('pro-news-buzz-tab', () => { const s = HH.game.ui.screen, b = s.widgets.find(w => /^(SOCIAL|BUZZ|HEADLINES)$/.test(w.label || '')); b.onPress(); if (HH.game.ui.phone) b.onPress(); }); // F7

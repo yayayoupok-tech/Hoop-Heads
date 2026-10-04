@@ -3,8 +3,10 @@
 // Adeyinka, the best friend met at tryouts), the pacing (two story screens in a row at most, a season's 3–5 scenes,
 // every scene with a choice), the title card and "This will be remembered", the cutscene backgrounds, "Previously on
 // Hoop Heads", the Story screen as chapters, save and reload, old saves, Sim ahead. W8: chapters 2–6 over simulated
-// careers (high school, Signing Day's paths, college, their pro versions), the side arcs they absorb, old saves. (Chapters
-// reached and scenes per season over whole careers: tests/careersim.js.) Usage: node tests/story21.js
+// careers (high school, Signing Day's paths, college, their pro versions), the side arcs they absorb, old saves. W9:
+// chapters 7–12 (the Decision's versions, Rookie, a whole career to its ending, the paths to the endings, an early
+// retirement, old pro saves). (Chapters reached, scenes per season, endings and paths over many careers:
+// tests/careersim.js.) Usage: node tests/story21.js
 const { launch, openPage, runner } = require('./lib');
 const fs = require('fs'), path = require('path');
 (async () => {
@@ -54,9 +56,9 @@ const fs = require('fs'), path = require('path');
     return out.join(' · ');
   }, [mk, year]));
 
-  await step('the cast (§4.1): a younger sibling (your surname, four years younger, a kid\'s portrait, their own meter), Coach Adeyinka (a new career\'s high school coach), the best friend met at tryouts; nine people', () => ev(([mk, year]) => {
+  await step('the cast (§4.1): a younger sibling (your surname, six years younger (W9), a kid\'s portrait, their own meter), Coach Adeyinka (a new career\'s high school coach), the best friend met at tryouts; nine people', () => ev(([mk, year]) => {
     const a = eval(mk)(31), S = sagaOf(a), sib = sagaWho(a, 'sibling'), last = a.name.split(' ').slice(1).join(' ');
-    if (SAGA_CAST.length !== 9 || !SAGA_CAST.includes('sibling')) throw new Error('cast ' + SAGA_CAST); if (!sib.name.endsWith(' ' + last) || sib.age !== a.age - CONFIG.chapters.sibGap || ageStageOf(sib.age) !== 0) throw new Error('sibling ' + sib.name + ' ' + sib.age);
+    if (SAGA_CAST.length !== 9 || !SAGA_CAST.includes('sibling')) throw new Error('cast ' + SAGA_CAST); if (!sib.name.endsWith(' ' + last) || sib.age !== Math.max(9, a.age - CONFIG.chapters.sibGap) || ageStageOf(sib.age) !== 0) throw new Error('sibling ' + sib.name + ' ' + sib.age);
     if (S.cast.sibling.m !== CONFIG.chapters.sibStart) throw new Error('sibling meter ' + S.cast.sibling.m); if (sagaWho(a, 'sibling').name !== sib.name) throw new Error('a new sibling each time'); if (stFirst(sib.name) === stFirst(a.name) || stFirst(sib.name) === stFirst(a.family.name)) throw new Error('the same first name');
     if (a.coach !== 'Coach Adeyinka') throw new Error('coach ' + a.coach); const seen = []; eval(year)(a, seen); const co = sagaWho(a, 'coach'); if (co.name !== 'Coach Adeyinka' || !co.look || !co.age) throw new Error('the coach in the cast ' + co.name);
     if (!S.cast.friend.name || !S.cast.friend.mate) throw new Error('no best friend at tryouts'); const P = sagaPeople(a).map(p => p.cast); if (!P.includes('sibling') || !P.includes('friend') || !P.includes('coach')) throw new Error('people ' + P);
@@ -231,6 +233,94 @@ const fs = require('fs'), path = require('path');
     const ch = { kind: 'dialog', ch: { n: 1, scene: 'x' }, title: 'X' }, side = { kind: 'dialog', title: 'Y' };
     if (simEventClass(ch, 'season') !== 'stop' || simEventClass(ch, 'big') !== 'stop') throw new Error('a chapter scene'); if (simEventClass(side, 'season') !== 'auto' || simEventClass(side, 'big') !== 'stop') throw new Error('a side card');
     return 'chapter: stop/stop · side: auto/stop';
+  }));
+
+  // ---------------- W9: chapters 7–12 and the endings ----------------
+  // the pro helpers, in the page: into the pros (the handoff); a pro career season by season (the queue answered) until
+  // o.until(c) after a season, or a retirement (o.retireAt, or when it must: the retirement's queue is answered too,
+  // chapter 12's decision and then the ending's cutscene); picks([[chapter, scene, key or index]]) answers those scenes
+  await ev(([proYear, proNext, proDrain, life, mk]) => { window.W9 = { year: eval(proYear), next: eval(proNext), drain: eval(proDrain), life: eval(life), mk: eval(mk),
+    toPro: a => { const save = HH.game.save.data; save.c1 = a; save.career = null; createCareerFromAmateur(save, a); const c = save.career; save.c1 = null; return c; },
+    run: (c, seen, pick, o) => { o = o || {}; const g = HH.game, W = window.W9; let k = 0; while (c.phase !== 'retired' && k++ < 30) { W.year(g, c, seen, pick); if (o.until && o.until(c)) break; if (mustRetire(c) || (canRetire(c) && meOf(c).age >= (o.retireAt || 35))) { retireCareer(g.save.data); for (let j = 0; j < 4; j++) { chRelease(c, true); W.drain(c, seen, pick); } break; } W.next(c); } return c; },
+    picks: rules => e => { for (const [n, scene, k] of rules) if (e.ch && e.ch.n === n && e.ch.scene === scene) { const i = typeof k === 'number' ? k : (e.choice || []).findIndex(ch => ch.k === k); if (i >= 0 && e.choice && e.choice[i]) return i; } return -1; },
+    told: (c, n) => sagaOf(c).log.filter(l => l.ch === n).map(l => l.beat) }; return 'ok'; }, [proYear, proNext, proDrain, life, mk]);
+
+  await step('chapters 7–12 (§4.2): 3–6 scenes each with a choice on every one, one big decision and a closing scene, a version for every path; the six endings (§4.3), each a cutscene with your sibling\'s last line', () => ev(() => {
+    const out = [];
+    for (let n = 7; n <= 12; n++) { const D = CHAPTERS[n]; if (!D || D.n !== n || D.scenes.length < 3 || D.scenes.length > 6) throw new Error(n + ': ' + (D && D.scenes.length) + ' scenes');
+      if (D.scenes.filter(s => s.big).length !== 1) throw new Error(n + ': one big decision'); for (const s of D.scenes) if (!s.choice) throw new Error(n + ': no choice in ' + s.id);
+      out.push(n + ' ' + CH_TITLES[n] + ' (' + D.scenes.map(s => s.id + (s.big ? '*' : '')).join(' ') + ')'); }
+    const ids = SAGA_ENDINGS.map(E => E.id); if (ids.slice().sort().join() !== 'coach,fallen,family,hometown,mercenary,owner') throw new Error('endings ' + ids);
+    for (const E of SAGA_ENDINGS) if (typeof E.lines !== 'function' || typeof E.sib !== 'function' || !E.title || !E.bg) throw new Error('ending ' + E.id);
+    return out.join(' · ') + ' · endings: ' + ids.join(', ');
+  }));
+
+  await step('The Decision, then Rookie: declaring after college year two tells chapter 7 at the declare (the scouts; who speaks for you, the honest agent, the big agency or your best friend; the pen); the big agency is your agent in the pros and your friend goes to work for your rival; Rookie opens the first pro season with the first contract (no draft, and R9\'s Signing Day and First Contract step aside), learn or demand minutes, its closing scene on the next season\'s first day; 3–5 scenes in the first pro season', () => ev(() => {
+    const W = window.W9, seen = [], pick = W.picks([[7, 'agents', 'shady'], [8, 'minutes', 'demand']]), a = W.life(W.mk(301), seen, pick, { declare: a => a.stageYear >= 2 }), S = sagaOf(a), R7 = chOf(a).list[7];
+    if (a.stage !== 'combine') throw new Error('not at the combine: ' + a.stage + ' y' + a.stageYear);
+    if (!R7 || R7.st !== 'done' || R7.v !== 'declare' || R7.k !== 'shady' || S.flags.agent !== 'shady') throw new Error('chapter 7 ' + JSON.stringify(R7));
+    const L7 = W.told(a, 7); if (L7.join() !== 'scouts,agents,pen') throw new Error('scenes ' + L7); if (!['rival', 'teammate'].includes(S.flags.friendWay)) throw new Error('friend ' + S.flags.friendWay);
+    const c = W.toPro(a), ids = c.events.concat(c.me.later || []).filter(e => e.kind === 'dialog').map(e => e.id); if (ids.includes('draft') || ids.includes('first-contract')) throw new Error('R9 beats ' + ids);
+    const e8 = c.events.concat(c.me.later || []).find(e => e.ch && e.ch.n === 8); /* (it can wait for the next moment: two story screens in a row at most) */ if (!e8 || e8.title !== 'THE FIRST CONTRACT' || !e8.chapter.open) throw new Error('chapter 8 opens ' + (e8 && e8.title));
+    const St = staffOf(c); if (!St.agent || St.agent.pers !== 'shady' || St.agent.name !== chAgents(c).shady) throw new Error('agent ' + JSON.stringify(St.agent && [St.agent.name, St.agent.pers]));
+    const s1 = c.season; W.run(c, seen, pick, { until: () => true }); const R8 = chOf(c).list[8]; if (!R8 || R8.k !== 'demand' || R8.st !== 'on' || R8.v === 'later') throw new Error('chapter 8 after a season ' + JSON.stringify(R8));
+    const lg = (c.me.arcLog || []).find(l => l.s === s1 && l.st === 'pro'); if (!lg || lg.n < 3 || lg.n > 5) throw new Error('pro season 1 scenes ' + JSON.stringify(c.me.arcLog));
+    W.next(c); const yr = c.events.find(e => e.ch && e.ch.n === 8 && e.ch.scene === 'year'); if (!yr || chOf(c).list[8].st !== 'done') throw new Error('the closing on the next season\'s first day: ' + (yr && yr.title));
+    if (!sagaOf(c).flags.ownerBacks) throw new Error('the owner\'s flag');
+    return '7 declare=shady (' + L7.join(', ') + '), your friend: ' + S.flags.friendWay + ' · agent ' + St.agent.name + ' (' + St.agent.pers + ') · 8 ' + R8.v + '=demand, ' + lg.n + ' scenes in pro season 1 · ' + yr.title;
+  }));
+
+  await step('The Decision\'s versions: one more year (the stay scene, the agents at the next year\'s declare), four years (who speaks for you comes with the last), one-and-done (the pro version in the second pro season, your next deal); your best friend as your agent', () => ev(() => {
+    const W = window.W9, out = [];
+    { const a = W.life(W.mk(311), [], null, { declare: a => a.stageYear >= 3 }), R7 = chOf(a).list[7], L = W.told(a, 7), ss = sagaOf(a).log.filter(l => l.ch === 7).map(l => l.s);
+      if (a.stage !== 'combine' || !R7 || R7.st !== 'done' || R7.v !== 'declare' || L.join() !== 'scouts,stay,agents,pen') throw new Error('one more year ' + JSON.stringify(R7) + ' ' + L);
+      if (ss[1] !== ss[0] || ss[2] !== ss[0] + 1) throw new Error('seasons ' + ss); out.push('one more year: ' + L.join(', ')); }
+    { const a = W.life(W.mk(312), [], null, { declare: () => false }), R7 = chOf(a).list[7], L = W.told(a, 7), lg = sagaOf(a).log.filter(l => l.ch === 7); if (a.stage !== 'combine' || a.stageYear !== AMC.stages.college.years || !R7 || R7.st !== 'done' || L.slice(-2).join() !== 'agents,pen' || lg[lg.length - 1].s !== lg[lg.length - 2].s) throw new Error('four years ' + JSON.stringify(R7) + ' ' + L); out.push('four years (' + R7.v + '): ' + L.join(', ')); } /* (a version is set when the chapter opens: the senior one when four years done is its first moment) */
+    { const a = W.life(W.mk(313), [], null, { declare: a => a.stageYear >= 1 }); if (a.stage !== 'combine' || chOf(a).list[7]) throw new Error('one-and-done: chapter 7 in college ' + a.stage);
+      const c = W.toPro(a), s1 = c.season, pick = W.picks([[7, 'agents', 'friend']]); W.run(c, [], pick, { until: c => !!(chOf(c).list[7] && chOf(c).list[7].st === 'done') }); const R7 = chOf(c).list[7], S = sagaOf(c);
+      if (!R7 || R7.st !== 'done' || R7.v !== 'pro' || R7.s0 !== s1 + 1 || R7.k !== (chFriend(c) ? 'friend' : 'honest')) throw new Error('one-and-done ' + JSON.stringify(R7) + ' first pro season ' + s1);
+      if (R7.k === 'friend' && (S.flags.friendWay !== 'agent' || staffOf(c).agent.name !== chFriend(c) && staffOf(c).agent.name.indexOf(chFriend(c)) !== 0)) throw new Error('your friend, your agent: ' + S.flags.friendWay + ' ' + staffOf(c).agent.name);
+      out.push('one-and-done: the pro version in pro season 2 (' + W.told(c, 7).join(', ') + '), agent ' + R7.k + (R7.k === 'friend' ? ', your friend: ' + S.flags.friendWay : '')); }
+    return out.join(' · ');
+  }));
+
+  await step('a whole career in chapters: 7–12 each reached and closed in order and at its age (Prime from 25, the Ring Chase from 27, Finals from 29 for a window of seasons, Legacy from 33 to the last day); no scene twice word for word; chapter 12\'s decision tells the ending, its closing cutscene, with your sibling\'s last line', () => ev(() => {
+    const W = window.W9, seen = [], a = W.life(W.mk(321), seen, null, { declare: a => a.stageYear >= 2 }), c = W.toPro(a); W.run(c, seen, null, {}); const Q = chOf(c), S = sagaOf(c);
+    if (c.phase !== 'retired') throw new Error('not retired: ' + c.phase);
+    for (let n = 1; n <= 12; n++) { const R = Q.list[n]; if (!R || R.st !== 'done' || R.cut) throw new Error('chapter ' + n + ' ' + JSON.stringify(R)); }
+    const age = n => Q.list[n].age; if (age(9) < CH.primeAge || age(10) < CH.ringAge || age(11) < CH.finalsAge || (age(12) < CH.legacyAge && Q.list[12].v !== 'sudden')) throw new Error('ages ' + [9, 10, 11, 12].map(age));
+    for (let n = 8; n <= 12; n++) if (Q.list[n].age < Q.list[n - 1].age || (n > 8 && Q.list[n].s0 < Q.list[n - 1].s0)) throw new Error('order at ' + n); /* (7's season is college's count; the pros count from 1) */
+    const keys = seen.filter(e => e.kind === 'dialog').map(e => (e.id || e.title) + '#' + (e.lines || []).map(l => typeof l === 'string' ? l : (l && l.t) || '').join('|')), dup = keys.filter((k, i) => keys.indexOf(k) !== i); if (dup.length) throw new Error('told twice: ' + dup.slice(0, 2).map(k => k.slice(0, 90)));
+    const end = seen.find(e => e.epilogue && e.ch && e.ch.n === 12); if (!end || end.ch.scene !== 'stage' || !SAGA_ENDINGS.some(E => E.id === end.epilogue && E.title === end.title) || S.epilogue !== end.epilogue) throw new Error('the ending ' + (end && [end.title, end.epilogue]) + ' ' + S.epilogue);
+    const last = end.lines[end.lines.length - 1]; if (!last || last.w !== 'sibling') throw new Error('the sibling\'s last line ' + JSON.stringify(last));
+    return [9, 10, 11, 12].map(n => n + ' at ' + age(n) + (Q.list[n].v ? ' (' + Q.list[n].v + ')' : '')).join(' · ') + ' · ending: ' + end.title + ' · ' + keys.length + ' scenes, none twice';
+  }));
+
+  await step('the paths: a shady agent\'s scandal in Prime (ride it out), your sibling\'s big night skipped for the sponsor (later they need you), leaving for a contender (traded, or at the next season), buying a team at the end: the Mercenary Champion with a ring since leaving, else the Fallen Star; the flags survive a save and a reload', () => ev(() => {
+    const W = window.W9, seen = [], pick = W.picks([[7, 'agents', 'shady'], [9, 'conflict', 'sponsor'], [9, 'scandal', 1], [10, 'call', 'leave'], [12, 'next', 'owner']]);
+    const a = W.life(W.mk(331), seen, pick, { declare: a => a.stageYear >= 2 }), c = W.toPro(a); W.run(c, seen, pick, { until: c => !!chOf(c).list[11] }); const S = sagaOf(c), R10 = chOf(c).list[10];
+    if (S.flags.agent !== 'shady' || S.flags.scandal !== 'ride' || S.flags.ch9 !== 'sponsor' || S.flags.sibArc !== 'needs') throw new Error('prime ' + JSON.stringify([S.flags.agent, S.flags.scandal, S.flags.ch9, S.flags.sibArc]));
+    if (!R10 || R10.k !== 'leave' || S.flags.leftFrom == null || meOf(c).club === S.flags.leftFrom) throw new Error('the ring chase ' + JSON.stringify(R10) + ' club ' + meOf(c).club + ' from ' + S.flags.leftFrom);
+    const g = HH.game; g.save.data.career = c; g.save.save(); const b = new SaveSystem().data.career; for (const k of ['ch7', 'ch8', 'ch9', 'ch10', 'agent', 'scandal', 'sibArc', 'friendWay', 'leftFrom', 'leftTitles', 'coachWay']) if (JSON.stringify(sagaFlag(b, k)) !== JSON.stringify(S.flags[k])) throw new Error('after a reload: ' + k);
+    W.run(c, seen, pick, {}); const E = sagaOf(c).epilogue, want = chTitlesSinceLeft(c, sagaOf(c)) >= 1 ? 'mercenary' : 'fallen'; if (E !== want || sagaOf(c).flags.ch12 !== 'owner') throw new Error('ending ' + E + ' (want ' + want + ') ' + sagaOf(c).flags.ch12);
+    return 'shady, the sponsor, rode it out, left the ' + clubOf(S.flags.leftFrom).name + ' (rings since: ' + chTitlesSinceLeft(c, sagaOf(c)) + '), bought a team · ending: ' + E + ' · flags through a reload';
+  }));
+
+  await step('retiring early: the chapters still to come are passed by (one in progress is cut) and Legacy opens on the last day, its sudden version: what comes next (the body says no), then the ending: two story screens', () => ev(() => {
+    const W = window.W9, seen = [], a = W.life(W.mk(341), seen, null, { declare: a => a.stageYear >= 2 }), c = W.toPro(a); W.run(c, seen, W.picks([[12, 'next', 'coach']]), { retireAt: 30 }); const Q = chOf(c), R12 = Q.list[12], S = sagaOf(c);
+    if (c.phase !== 'retired' || meOf(c).age > 31 || !R12 || R12.st !== 'done' || R12.v !== 'sudden' || R12.k !== 'coach') throw new Error('legacy ' + JSON.stringify(R12) + ' age ' + meOf(c).age);
+    for (let n = 1; n < 12; n++) { const R = Q.list[n]; if (!R || (R.st !== 'done' && R.st !== 'past')) throw new Error(n + ' ' + JSON.stringify(R)); }
+    const L12 = W.told(c, 12); if (L12.join() !== 'next,stage') throw new Error('scenes ' + L12); /* (the last day: two story screens; what comes next says what the body said) */
+    const first = SAGA_ENDINGS.find(E => { try { return E.when(c, S, legacyOf(c)); } catch (e) { return false; } }); if (S.epilogue !== (first ? first.id : 'coach')) throw new Error('ending ' + S.epilogue + ' (first that fits: ' + (first && first.id) + ')');
+    return 'retired at ' + meOf(c).age + ' · ' + [9, 10, 11].map(n => n + ' ' + Q.list[n].st + (Q.list[n].cut ? '/cut' : '')).join(', ') + ' · 12 sudden: ' + L12.join(', ') + ' · ending: ' + S.epilogue;
+  }));
+
+  await step('old saves: a pro career from before chapters 7–12 (its chapters stop at 6) passes 7 and 8 by when their moment is gone and opens Prime at its age', () => ev(() => {
+    const W = window.W9, a = W.life(W.mk(351), [], null, { declare: a => a.stageYear >= 2 }), c = W.toPro(a); W.run(c, [], null, { until: c => meOf(c).age >= CH.primeAge && chProSeason(c) >= 6 });
+    const Q = chOf(c); for (let n = 7; n <= 12; n++) delete Q.list[n]; Q.n = 7; c.events.length = 0; W.next(c);
+    if (!Q.list[7] || Q.list[7].st !== 'past' || !Q.list[8] || Q.list[8].st !== 'past') throw new Error('7/8 ' + JSON.stringify([Q.list[7], Q.list[8]]));
+    if (meOf(c).age < CH.primePastAge && (!Q.list[9] || Q.list[9].st !== 'on' || !c.events.some(e => e.ch && e.ch.n === 9 && e.chapter.open))) throw new Error('Prime ' + JSON.stringify(Q.list[9]));
+    return 'pro season ' + chProSeason(c) + ' at ' + meOf(c).age + ': 7 and 8 passed by, 9 ' + (Q.list[9] && Q.list[9].st);
   }));
 
   console.log(D.errors.length ? 'page errors: ' + D.errors.slice(0, 5).join(' | ') : 'no page errors');

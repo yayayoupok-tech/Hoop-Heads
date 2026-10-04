@@ -345,7 +345,15 @@ your sibling's big day) and March (the tournament, Coach Adeyinka's health scare
 pros' playoff race after one college year or none). The chapters tell what the old arcs told (Family Bills, the Best
 Friend's choice, the rival's first handshake); the chapters run on the calendar's weeks (a bench season too); story
 beats step back for a decision's card (two in a row at most) (`tests/story21.js`, the career simulator).
-**W9 — Chapters 7–12 and the endings** — §4.2–4.4: six or more endings and the story tests.
+**W9 — Chapters 7–12 and the endings** *(done)* — §4.2–4.4: the Decision (declare, one more year or four years done;
+who speaks for you: the honest agent, the big agency or your best friend, whose path it settles), Rookie (the first
+contract with no draft, the veteran mentor, learn or demand minutes), Prime (a billboard or a commercial, the sponsor's
+night against your sibling's, the big agency's scandal), the Ring Chase (a contender calls: stay or leave; your rival
+reacts; Coach Adeyinka coaches again or retires), Finals over a window of seasons (the rematch, before the game that can
+end it: a speech, silence or a call home) or the One That Got Away, Legacy (your sibling a prospect or in need; what
+comes next: your sibling, a kid from the academy, coaching or a team of your own) and the six endings, each a cutscene
+with your sibling's last line. No scene twice in a career (R9's recurring beats have versions); the last day is two
+story screens (`tests/story21.js`, the career simulator's endings, paths and repeats).
 **W10 — Release** — the full suite once, every target table, version 2.1, the artifact republished.
 
 ## Testing every milestone
