@@ -57,10 +57,10 @@ const ROWS = [
     great: { want: 'by 24', val: D => { const b24 = pct(D.filter(r => r.a3 != null && r.a3 <= 24).length, D.length); return { txt: 'by 24 ' + b24.toFixed(0) + '%', ok: b24 >= 50 }; } } },
   { k: 'team5', label: 'Reaches a 5★ team',
     typical: { want: '15–25%', val: D => { const s = pct(D.filter(r => r.b5 >= 5).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 15 && s <= 25 }; } },
-    great: { want: 'about 60% (52–68)', val: D => { const s = pct(D.filter(r => r.b5 >= 5).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 52 && s <= 68 }; } } },
+    great: { want: '35–55% (2.1 §3.7)', val: D => { const s = pct(D.filter(r => r.b5 >= 5).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 35 && s <= 55 }; } } }, /* 2.1 §3.7 (the plays-well policy) replaces Part 2's 52–68% */
   { k: 'titles', label: 'Championships per career',
     typical: { want: 'about 0.3 (0.2–0.4)', val: D => { const m = D.reduce((x, r) => x + (r.t || 0), 0) / Math.max(1, D.length); return { txt: m.toFixed(2), ok: m >= 0.2 && m <= 0.4 }; } },
-    great: { want: '1–3', val: D => { const m = D.reduce((x, r) => x + (r.t || 0), 0) / Math.max(1, D.length); return { txt: m.toFixed(2), ok: m >= 1 && m <= 3 }; } } },
+    great: { want: '1–2 (2.1 §3.7)', val: D => { const m = D.reduce((x, r) => x + (r.t || 0), 0) / Math.max(1, D.length); return { txt: m.toFixed(2), ok: m >= 1 && m <= 2 }; } } }, /* 2.1 §3.7 replaces Part 2's 1–3 */
   { k: 'hof', label: 'Hall of Fame',
     typical: { want: '3–8%', val: D => { const s = pct(D.filter(r => r.h).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 3 && s <= 8 }; } },
     great: { want: 'about 35% (30–40)', val: D => { const s = pct(D.filter(r => r.h).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 30 && s <= 40 }; } } },
@@ -93,6 +93,8 @@ const ROWS = [
   for (const l of perSeed) console.log('  ' + l);
   const xp = (r => { let s6 = 0, s8 = 0; for (let p = 60; p < 70; p++) s6 += 20 * Math.pow(1.11, p - 40); for (let p = 80; p < 90; p++) s8 += 20 * Math.pow(1.11, p - 40); return s8 / s6; })();
   console.log('the XP curve (§1.2): 20 × 1.11^(rating − 40) a point; 80→90 costs ' + xp.toFixed(1) + '× the 60→70 stretch');
+  { const L = policy => res.filter(r => r.policy === policy && r.d && Array.isArray(r.d.legacy)).reduce((a, r) => a.concat(r.d.legacy), []), at = (xs, t) => xs.length ? (100 * xs.filter(x => x >= t).length / xs.length).toFixed(1) + '%' : '—'; /* 2.1 (W6): where the Hall of Fame line could go (career.hofScore; a legacy at or over it) */
+    console.log('the Hall of Fame at other lines (a legacy at the line or over it): ' + [80, 84, 88, 92, 96].map(t => t + ' typical ' + at(L('typical'), t) + ' great ' + at(L('great'), t)).join(' · ')); }
   console.log('careers ' + by.typical.length + ' typical, ' + by.great.length + ' great · stuck ' + (stuck.typical + stuck.great) + ' · ' + Math.round((Date.now() - t0) / 1000) + ' s');
   if (errs.length) console.log('page errors: ' + errs.join(' ; '));
   const ok = !failed.length && !misses && !(stuck.typical + stuck.great) && !errs.length;

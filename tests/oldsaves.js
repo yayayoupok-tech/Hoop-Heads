@@ -40,7 +40,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'amevent': case 'rivalmoment': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres':
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
-      case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^START SEASON/) || by(/^RETIRE/)); break;
+      case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^Opt in · /) || by(/^Skip to the end$/) || by(/^(Last day: take the best|Wait a day|Next day)$/) || by(/^Stay$/) || W.find(w => w.camp && !w.primary) || by(/^START SEASON/) || by(/^RETIRE/)); break; // 2.1 (W6): the seven steps: an option, the week's days, a rebuild's call (stay), the camp's goals
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
       case 'roadcard': case 'simsummary': pr(by(/^(Continue|CONTINUE)$/) || W.find(w => w.primary)); break; // V5: a Road to the League milestone, a sim-ahead summary
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result

@@ -321,8 +321,13 @@ the prep year and the College test; the career simulator's typical recruit and t
 chemistry and team strength in the sims and the odds, a 15-week calendar (rivalry week, the All-Star break, the trade
 deadline, the national TV game), playoffs for each conference's top 4 (best of 3, best of 3, a best-of-5 Finals), the
 MVP ladder and the award races with the Sixth Man; a 2.0 save expands at its next season (`tests/pbl21.js`).
-**W6 — The offseason and league life** — §3.3–3.7: the offseason screens, contracts, the league's life, the GOAT
-ladder and the PBL targets.
+**W6 — The offseason and league life** *(done)* — §3.3–3.7: the offseason in seven screens (Awards Night, aging,
+retirements and their tributes, a five-day free agency week with offers by day and the agent's counter, the trade
+window, training camp's two goals, the preseason power rankings); contracts with options, a no-trade clause and
+incentives; the other fifteen sign, trade, cut, extend, age and retire, and rookies come from the college system with
+your old teammates; title windows and hunger (the longest droughts go all in); the GOAT ladder and the records; PBL
+Tonight, the power rankings and the national TV game's intro; a meddler's story beats; the hub's value meter; the
+§3.7 targets (`tests/life21.js`, `tests/league30.js`, the career simulator).
 **W7 — The story engine** — §4.1 and §4.3 (and §1.6: 3–5 scenes a season in every phase): chapters, the cast,
 backgrounds, recaps, the Story screen and pacing.
 **W8 — Chapters 1–6** — §4.2.

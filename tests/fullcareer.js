@@ -58,7 +58,7 @@ const { launch, openPage, runner } = require('./lib');
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
       case 'simsummary': pr(by(/^CONTINUE$/)); break; // V5
       case 'roadcard': pr(by(/^Continue$/)); break; // V5: a Road to the League milestone
-      case 'offseason': pr(by(/^Sim to next big moment$/) || by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^START SEASON/) || by(/^RETIRE/)); break;
+      case 'offseason': pr(by(/^Sim to next big moment$/) || by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^Opt in · /) || by(/^Skip to the end$/) || by(/^(Last day: take the best|Wait a day|Next day)$/) || by(/^Stay$/) || W.find(w => w.camp && !w.primary) || by(/^START SEASON/) || by(/^RETIRE/)); break; // 2.1 (W6): the seven steps (the sim stops for your decisions: an offer, an option, a no-trade call)
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break;
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break;
       case 'ladder': pr(by(/^SIM THE CHALLENGE$/) || by(/^Back$/)); break;

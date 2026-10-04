@@ -167,7 +167,7 @@ node tests/traits.js               # the traits: numbers by rarity, levels, the 
 node tests/gameplay.js             # scouting, bots playing to their card, signature moves, overtime, the phone buttons
 node tests/flow.js                 # the career flow: pace, the week, playing time, the Road, sim ahead, the five-tab hub
 node tests/climb.js                # the climb's rules: the XP curve, hidden potential, grades, setbacks, 5★ scarcity
-node tests/difficulty.js           # Part 2's §1.1 table: 600 careers on 3 seeds, a typical and a great policy
+node tests/difficulty.js           # Part 2's §1.1 table: 600 careers on 3 seeds, a typical and a great policy (2.1 §3.7's bands for the great one: a 5★ team 35–55%, 1–2 titles; the Hall of Fame at other lines too)
 node tests/story.js                # the saga: arcs, flags, meters, every ending reachable, the Story so far, ceremonies
 node tests/school.js               # GPA and school: offers, exams, eligibility, scholarships, tuition, majors
 node tests/staff.js                # your staff: hiring, contracts, effects, poaching and scandals
@@ -175,6 +175,8 @@ node tests/staffbalance.js [n] [seed] [par] [--policy=typical]   # staff spendin
 node tests/shop.js                 # the shop: slots, rarities, levels, the +4 cap (property test), the storefront, try-on
 node tests/proteams.js             # pro teams: identity, title odds, playoffs and the Finals, rings, banners, dynasties
 node tests/pbl21.js                # 2.1's PBL: sixteen franchises in two conferences, owners, GMs, coach systems and fit, rosters, payroll, chemistry, team strength, the fifteen weeks and their key weeks, the conference playoffs, the award races, the benches' offseason, a 2.0 save's expansion, the screens
+node tests/life21.js               # 2.1's offseason and league life: the seven steps, the free agency week (offers by day, the agent's counter, over-cap and cheap owners), options, the no-trade clause and incentives, the trade window and rebuilds, training camp, AI trades, retirements and rookies (your old teammates), title windows and hunger, the GOAT ladder and records, PBL Tonight, power rankings and the TV game, a meddler's beats, the value meter, W5 saves, the screens
+node tests/league30.js [3] [30] [seed]   # §3.7 for the league: 30 seasons a league with a league-average you: AI trades a season, a new champion, every franchise's title
 node tests/polish.js               # the Codex everywhere, tooltips, dots, What's new, legibility, celebrations, arenas
 node tests/hudaudit.js             # the match HUD's text at several window sizes: nothing overlaps
 node tests/playtest3.js            # 2.1's playtest fixes and the running clock, one step each

@@ -3,6 +3,175 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W6 (2.1) — the offseason, contracts and league life
+
+The sixth of the ten 2.1 milestones (§3.3–3.7). League life is `162_life.js` (careers, retirements, rookies, the AI's
+free agency and trades, hunger, title windows, power rankings, the GOAT ladder, the records, PBL Tonight, the meddlers),
+your side of it `162_life_fa.js` (contracts, the free agency week, the agent's counter, options, the no-trade clause,
+incentives, training camp); the screens `177_ui_off2.js` (the seven offseason steps and the negotiation) and
+`177_ui_life.js` (the value meter, the power rankings, the GOAT ladder, the records). New tests: `tests/life21.js` (17
+steps) and `tests/league30.js`.
+
+**The offseason in seven screens (§3.3).** After the Finals a 2.1 season's offseason is seven steps with a strip on top
+(1 Awards … 7): **Awards Night** (as before, with your season goals and incentives paid), **aging** (everyone a year
+older: the young grow, the old fade), **retirements** (the league's retirees; the greats, a GOAT score of 40+, an MVP or
+two titles, get a tribute card with their clubs, titles and a line; a score of 12+ goes to the Hall), the **free agency
+week**, the **trade window**, **training camp** and the **preseason power rankings**. Continue goes on; a step that
+needs you waits (an offer to answer, your option, a no-trade call, two camp goals); "Sim to next big moment" runs to the
+next decision of yours (and is hidden while one waits).
+
+- **The free agency week:** five days. Your team offers on day 1 (good for three days), the others from day 2 (two days
+  each: the best franchise your value reaches, one that starts you, a rebuild your agent finds) and a contender over the
+  cap may pitch a **title shot** on day 4 (a role on a winner: at most two stars above the franchises your value
+  reaches; a 5★ one only through its open spot). Each day: **Accept**, **Counter** or **wait**; offers expire, the
+  ticker shows the league's signings day by day (stars sign elsewhere; the hungriest franchises shop first), and on the
+  last day the best offer left is yours (or one more season where you are, at the minimum).
+- **Over the cap** a team offers ×0.65 of your market (at least the $6M exception) and pitches its title odds; **win-now
+  owners chase** you (day 1, ×1.1); a **cheap owner** lets you walk once your market value passes $14M.
+- **Signing:** your contract (years, salary, an option, a no-trade clause, the incentives) and the move. When you'd
+  start over the new club's league player (within 2 OVR), the club lets them go to make room (they sign elsewhere that
+  week; no superteam of two stars); a better one stays, and you join behind them.
+- **The trade window:** the AI's offseason trades (about 40% of the season's), each with what it gave and got; a
+  rebuilding owner may trade you, to a contender up to two stars above your value's reach (a role on a winner: it keeps
+  its starter and sends a young player back): with a no-trade clause it's your call, without one it happens (a TRADED
+  card).
+- **Training camp:** pick two season goals from the ones that fit you (win N games, make the playoffs, average N points,
+  an All-League team, the All-Star team, the MVP race's top five, a starting spot); each one done pays 1,500 bonus XP
+  and 5% of your salary (at least $250K) at Awards Night.
+- **The preseason power rankings:** the sixteen, 1–16, each with a line.
+
+**Contracts and the negotiation (§3.4).** A deal is years, a salary, maybe an option on the last year (a **player
+option** on starter and rebuild offers: opt in for a season or test the market; a **team option** from 31, kept when
+you're worth 85% of it) and a **no-trade clause** once you have two All-League selections (from win-now owners, your
+team and the best offer). Every deal has **incentives**: an All-League team +10% of the salary, the MVP +20%. **The
+agent's negotiation:** their cap room and their most, your asks (+5%, +10%, +20%, and a no-trade clause, a player option
+or a starting spot) with the risk of each, and your agent's call (the biggest raise at 25% risk or less). The risk: 8%,
++16% for every 10% asked, less the more they want you; win-now −8%, cheap +12%, a meddler +4%; −2.5% an agent tier; +3%
+a day into the week; a clause +10%, an option +6%, a start +8%. A yes signs your terms; a no and they walk.
+
+**League life (§3.5).** The other fifteen re-sign (65% of the expiring they still want), extend the young, cut expensive
+veterans in a rebuild, sign free agents day by day (contenders the best player now, rebuilds the young, the rest value
+for money; win-now owners pay ×1.1, cheap ones ×0.92) and trade (a target of 9–13 a season: about 40% in the offseason
+window, the rest week by week to the deadline; buyers give youth for a veteran, the hungriest first). Every player has a
+career (seasons, points, titles, MVPs, Finals MVPs, All-League teams, clubs); everyone ages; they retire from 32 (10%,
+then 25% at 34, 50% at 36, all at 39). Rookie classes (6–12 a year, OVR about 62) come from the college system, and
+**your old teammates come up** when they're good enough (up to three a class: "Your high school teammate Nadia Sato is
+in the rookie class", then "… signs with the Bodega Ballers"); your old rival signs when you go pro.
+
+- **The GOAT ladder:** the all-time top 50 (the PBL's past greats, the retired, the active in green, you), scored titles
+  12, MVPs 12, Finals MVPs 4, All-League 3 (2nd team 1), a point a season and one per 250 points; your rank.
+- **The records:** points in a season, points a game, wins, a winning streak, career points, titles and MVPs, who holds
+  each and when; a new one makes the news (and your timeline). The League's new **Power**, **GOAT** and **Records**
+  tabs.
+- **Hunger:** the four longest title droughts (six seasons or more, the PBL's history counting) go all in: +1.5 a
+  simulated game (the longest drought +3 from sixteen seasons), the first pick in free agency and trades, pay ×1.15 (+2%
+  a year, to ×1.35), contending. A star (84+) on a team going nowhere re-signs 60% less often; a champion re-signs 25%
+  less often. Every franchise gets its turn (`tests/league30.js`).
+
+**Media (§3.5).** **PBL Tonight**, the week's headline on your hub and in the news (the national TV game, an upset, a
+new MVP leader, a trade, a streak, rivalry week); **power rankings** every week (team strength and the record, with
+arrows and a line each); the **national TV game's** pregame intro ("● LIVE · PBL TONIGHT · NATIONAL TV").
+
+**Owners and the hub (§3.6).** The hub's team line has a **value meter**: your value against every bar (2★–5★; a bar
+turns gold when you pass it, green up to your franchise's). **Teams act when you cross a bar:** better franchises call
+(as before), and from the 3★ bar **your own club builds around you** that offseason (it contends: veterans in the trade
+window, the best free agents, the first pick after the hungriest; a title doesn't cost it its players; +0.5 a simulated
+game the season after) unless its owner is cheap. **Owners react:** win-now owners chase, cheap ones let stars walk, and
+a **meddler** makes story beats (two a season at most): the press after a slide (defend the team, "we must be better",
+no comment), "play them more" (thank the owner or back the coach), shopping you before the deadline (ask to stay, or let
+it play out: a trade call comes easier) and firing the coach (a new system; the trust starts over). Every franchise
+shows its **title window** (Contender, Rising, Rebuilding: the top five by strength contend, the bottom five and every
+rebuild rebuild) on its page, the franchises list, the offers and the rankings.
+
+**Codex:** a new page, The PBL (the league, rosters, owners and how they react, the offseason, free agency week,
+contracts, negotiating, training camp, league life, title windows, power rankings and PBL Tonight, the GOAT ladder, the
+records); Team stars and Your value updated. The League screen, the offseason and the negotiation open it.
+
+**New and changed constants.** New: `life` (`retire`, `legendScore`, `hallScore`, `goat`, `goatN`, `goatPast`, `keep`,
+`extendAge`, `extendOdds`, `cutOdds`, `faDays`, `faSignDay`, `capException`, `minDeal`, `winnowPay`, `cheapPay`,
+`acceptAt`, `rookies`, `rookieOvr`, `pastFloor`, `pastGrow`, `pastMax`, `trades`, `tradesOff`, `hungerAt`, `hungerN`,
+`hungerEdge`, `hungerLong`, `hungerPay`, `hungerPayYear`, `hungerPayMax`, `hungerGap`, `starContend`, `starLeave`,
+`champKeep`, `benchGrow`, `window`, `powerWin`, `meddleOdds`, `campGoals`, `campXp`, `campPay`, `campPayMin`, `ntcAt`,
+`incentives`, `offerLife`, `overCapMul`, `cheapWalk`, `ringReach`, `roomGap`, `counter`, `starEdge`),
+`franchise.eliteHold` (8), `franchise.rebuildYears` (1; V12 had 2 built in) and `franchise.rebuildReach` (2). Changed
+(the §3.7 retune below): `franchise.keep` 0.6 → 0.9, `franchise.titleBoost` 0.3 → 0.1, `franchise.rookieBar` 5★ 119 →
+130, `franchise.spot5Odds` 0.5 → 0.4, `franchise.rivalVal` 84 → 86, `franchise.trade5Odds` 0.35 → 0.25, `league.poNoise`
+0.75 → 0.8, `career.newsMax` 40 → 80 (the league's news fills a season).
+
+**The §3.7 targets.** The plays-well policy is the career simulator's great one (every game played well, the sensible
+choices: `--policy=great`). `tests/difficulty.js` (600 careers a policy, seeds 1–3):
+
+| Row | Typical: W5 → W6 (band) | Great: W5 → W6 (band) |
+| --- | --- | --- |
+| A 3★ team | by 28 83% → 90% (half by 26–28) | by 24 92% → 93%; ever 100% (§3.7: 60%+) |
+| A 5★ team | 27.5% → 18.2% (15–25) | 82.3% → 51.2% (§3.7: 35–55) |
+| Titles a career | 0.21 → 0.35 (0.2–0.4) | 1.41 → 1.15 (§3.7: 1–2) |
+| Hall of Fame | 1.5% → 1.7% (3–8%) | 41.0% → 37.7% (30–40%) |
+
+Two rows are outside their bands (W5: five), both typical and both already out at W5: a typical career reaches a 3★ team
+too soon, and it rarely makes the Hall of Fame. No Hall of Fame line fits both policies with sixteen franchises (titles
+are scarcer: at 84 typical 2.8% and great 44.7%, at 92 1.7% and 37.7%), so the line stays at 92. The league
+(`tests/league30.js`, five leagues of thirty seasons with a league-average you): the AI teams make 10.9 trades a season
+(8–15 in every season), a new champion comes in 91% of seasons (§3.7: 60%+; one franchise won at most 3 to 7 titles a
+league) and every franchise wins a title within the thirty seasons in all five leagues. The effort table
+(`tests/effort.js`, 200 careers each) passes its six checks: plays well + good choices against sims everything, legacy
++111%, a 5★ team 51% against 14%, 1.03 titles against 0.21; plays well and never opens a menu, a 3★ team in 100% of
+careers (a 5★ team 34%, 0.76 titles).
+
+How it got there: the first W6 runs, with the league's players moving, signing and retiring, churned the star ranks and
+lifted nearly every team you joined to 5★ (great 84%, typical 42%). Now prestige is a decade's history (keeping 90% a
+season) and a 5★ franchise keeps its fifth star while its prestige ranks in the top eight; a 5★ team is a climb (an open
+spot in 40% of seasons, chased by better free agents; a 5★ trade 25% of the time; the 5★ rookie bar 130); your club
+builds around you from the 3★ bar (+0.5 a game the season after); a rebuild may trade a veteran to a contender up to two
+stars above their reach (a role on a winner); the league's longest drought, from sixteen seasons, plays at +3 a game
+instead of +1.5; the playoffs are a little less predictable (noise ×0.8).
+
+**Old saves.** A save from the W5 build mid-offseason finishes it the old way (moves, then a contract); its next
+offseason is the new one. Every league player's career so far is seeded on first look; the GOAT ladder and the records
+fill in from the PBL's history. New fixtures from the W5 build (a high school career; a pro one mid-season, in the
+playoffs and in the offseason).
+
+**Tests.** New: `tests/life21.js` (17 steps: the seven steps, the free agency week, the negotiation, over-cap and cheap
+owners and win-now chases, options, the clause and incentives, the trade window and rebuilds, training camp, league life
+over six seasons, your past in the rookie classes, windows and hunger, the GOAT ladder and the records, media, the
+meddler, the value meter, the W5 saves, the screens on a desktop and a phone) and `tests/league30.js`. Updated:
+`careersim` (the new offseason; the §3.7 line), `oldsaves` and `fullcareer` (the new offseason's buttons),
+`gen_oldsaves` (the W5 build), `difficulty` (the §3.7 bands for the great policy; the Hall of Fame at other lines),
+`smoke` (2.1's DPOY comes from the playoff teams; the pro match's result screen gets a few seconds). Quick checks this
+milestone: life21 (17), smoke (136), flow (12), polish (14), story (13), staff (11), old saves (42), proteams (14),
+climb (9), improve21 (13), pbl21 (11), recruit21 (15), colleges (14), playtest3 (11), the full career (1), the phone and
+desktop audits (276 and 272 screens, no flags), the W6 screen audit (86 screens), the difficulty table, the effort table
+and five 30-season leagues. The full suite runs once, at W10.
+
+**Found on the way.**
+
+- W6's first signing put the new club's league player on its own bench, so every club you joined became a two-star
+  superteam (your bench stood 5–9 OVR over the league's): now the make-room rule above. The 2.0 signing swapped the two
+  league players between the clubs.
+- The day-4 title shot came from any 4★ contender whatever your value (it bypassed the bars: 65 of 100 typical careers
+  took one): now at most two stars above the franchises your value reaches.
+- With the league's new parity the star ranks churned (about six franchises change stars a season), and a team you
+  joined at 4★ became 5★ in most careers: a 5★ franchise now keeps its fifth star while its prestige ranks in the top
+  `FRN.eliteHold` (a down year doesn't cost a storied club its status).
+- "Sim to next big moment" did nothing when the step waited on you (it stopped where it was): it's hidden then.
+- A three-answer card on a phone covered its own text when it came with its own options (the meddler's press question):
+  those answers get their own page, as the saga's do.
+- An offseason that had lost its free agency state (an old test's half-built one) broke the step: the week opens again.
+- The Codex said free agency brings three offers: it's the week now (The PBL page has the days).
+- A rebuild's trade still swapped the two clubs' league players (2.0's one-player clubs): the contender sent its starter
+  to your old club. Now the contender keeps its starter (the depth chart decides who starts) and sends its youngest
+  bench player back; both keep five.
+- The hub's value meter gave way to the "#15 of 16 franchises" note beside a long club name (§3.6: always visible): the
+  note gives way now, and the bars' labels show when they fit apart (the ticks always).
+- The news kept 40 items, and the league's weekly trades and PBL Tonight pushed the season's rivalry week out by the
+  deadline: it keeps 80.
+- Awards Night could throw for a winner no longer in the league (a test drew it after the new season began): it draws a
+  blank line instead.
+- On a phone the free agency week's Accept and Counter were 61 px tall (64 now), and a cheap owner's payroll line on a
+  franchise page was cut (two lines now).
+- The news feed cut the league's trade items at its two lines: they're shorter now (the trade window keeps the clubs and
+  ages).
+
 ## W5 (2.1) — the PBL's structure, calendar and playoffs
 
 The fifth of the ten 2.1 milestones (§3.1–3.2). The league model is `162_pbl.js`, its pages `177_ui_pbl.js` (the
