@@ -3,6 +3,141 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W2 (2.1) — The playtest's improvements: teams come to you, effort matters, sim/play parity, money, GPA, leaving college
+
+The second of the ten 2.1 milestones (§1.1–1.5 and §1.7; §1.6, the story's rate, goes with the story engine in W7).
+New tests: `tests/improve21.js` (13 steps), `tests/parity.js` (§1.3) and `tests/effort.js` (§1.1, §1.2, §1.4: the
+policy table). The career simulator gained `--menus=never`, `--week=rest|nostudy`, `--parity=n` and two JSON fields.
+
+**Teams come to you (§1.1).**
+
+- Free agency already brought three offers (yours, the best franchise your value reaches, one a star lower that starts
+  you, and a fourth with a 3★+ agent). Its default (first in the focus order, gold) is now the offer with the most
+  stars when it beats your franchise; otherwise yours.
+- In the regular season, before the trade deadline, once your value is `franchise.offerBy` (3) over your franchise's
+  bar and reaches the bar of a franchise a star up, that franchise calls: A TRADE OFFER, with ACCEPT THE TRADE (the
+  default, gold) or STAY. Once a season. Accepting moves you with your contract and costs no hype (a trade you ask for
+  still does); the news says the new club made the call. A 5★ franchise also wants the 5★ condition (a playoff series
+  or an All-League team) and calls only into an open spot you'd win.
+- §3.6 ("teams act when you cross a bar") decided the reading of §1.1's "3+ over your team's bar": with the bars 6
+  apart, a call at +3 would have come from a franchise whose own bar you hadn't reached. The first version did that
+  (a typical career's 5★ share rose from 21% to 31%); the bar rule brings it to 25–29%.
+- A dialog card's default option is now drawn gold with dark ink (the option's flag never reached its button).
+- **Test** (`tests/effort.js`, 200 careers): "plays well, never opens a menu" (every card takes its default button, free
+  agency included; no trade requests, shop, staff or purchases) reaches a 3★ team in **100%** of careers (target 60%+).
+
+**Effort matters (§1.2).** `tests/effort.js` prints the table (200 careers a policy, seed 1):
+
+| Policy | Legacy (median) | A 5★ team | A 3★ team | Titles | Hall of Fame | OVR at 22 | Unspent |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Plays well + good choices | 105.6 (90) | 75% | 100% | 2.15 | 50% | 70 | 7% |
+| Sims everything (trash talk, rest, summer jobs) | 36.9 (32) | 11% | 87% | 0.14 | 2% | 66 | 99% |
+| Plays well, never opens a menu | 76.7 (67) | 59% | 100% | 1.33 | 30% | 70 | 100% |
+| Typical, a smart spender | 45.6 (37) | 25% | 93% | 0.39 | 5% | 66 | 10% |
+
+Legacy +186% (target +40% or more), 5★ 75% against 11%, titles 2.15 against 0.14. "Sims everything" is the
+typical policy with trash talk, every week a Rest week, summer jobs, no spending, no gear, no trades and its own
+franchise's offers.
+
+**Sim/play parity (§1.3).** Your simmed points now come from models fitted to the engine with the AI at your
+controls (the career's own match options, finalized like a played game: Legends View, the running clock):
+
+- `league.ptsMe` (the pros: 3,840 sides of 1,920 career games) and `league.ptsMeAm` (high school and college: 1,800
+  games, with a high school term), linear in both players' ratings and heights, × `league.styleMe` by play style (a
+  post scorer × 0.93) × the game's minutes.
+- The pro sim moves both scores by the same amount, so the margin and the winner stay the league model's. The amateur
+  sim draws your points around the fit (`amateur.simNoise` 2.9 a game) and the opponent's from the same win odds as
+  before (`amWinP`).
+- `career.paceMul` 1.13 → 0.91: the pro sim's box scores ran 1.24× the engine's (9.5 a side against 7.7). Everything on
+  `gameScale` follows (the league's box scores, grades, highlights, the press's big nights, college stock, the MVP race).
+- Sim (SIM button) games of yours now play on Legends View like a played game (they played on the Classic court).
+
+`tests/parity.js` (12 careers, seed 7; before each of the first 20 high school, 20 college and 40 pro games, the same
+game played in the engine; 40 sim draws a matchup):
+
+| Level | Games | Played | Simmed | Simmed/played (0.90–1.10) | W1's build |
+| --- | --- | --- | --- | --- | --- |
+| High school | 240 | 6.15 | 6.67 | 1.084 | 1.01 (your points were your team's: a win's 8.9, a loss's 5.1) |
+| College | 213 | 7.28 | 7.17 | 0.984 | |
+| Amateur, both | 453 | 6.68 | 6.90 | 1.033 | |
+| Pro | 480 | 7.53 | 7.52 | 0.999 | 1.236 |
+
+By play style 0.96–1.09. Games won (played / simmed): amateur 52% / 51%, pro 38% / 34% (the sims keep their tuned
+odds). For information, the box scores (played / simmed, a game): rebounds 3.8/2.1 (high school), 3.4/1.7 (college),
+3.2/2.1 (pros); threes 0.1–0.2 against about 0.5. §1.3 asks for points; the rest is noted for later (the traits'
+deeds and the highlights are tuned on the sim's lines).
+
+**The records book at the new scale** (`records.levels`; the holders keep their names). Each record is the higher of
+two lines: the best game that 1–5% of 400 simulated careers (typical and great) beat, and the best single game in
+the parity runs' engine games with the AI at your controls (about 6,500 for points, 930 for the rest). A simmed career now rarely breaks one (points in high school: 1–2.5%
+of careers); a big night you play can.
+
+| Level | Points | Rebounds | Steals | Blocks | Threes |
+| --- | --- | --- | --- | --- | --- |
+| High school | 21 → 18 | 9 → 10 | 3 | 3 → 2 | 3 → 2 |
+| College | 21 → 20 | 6 → 9 | 2 | 2 → 5 | 3 → 2 |
+| PBL | 31 → 20 | 12 → 9 | 4 → 3 | 2 → 3 | 4 → 3 |
+
+**Money in the pros (§1.4).** Six big buys in the Front office's new Big buys tab (`pro.big`, 176_invest.js):
+
+| Buy | Price | What it does |
+| --- | --- | --- |
+| A stake in your team | $12M a star of your franchise (from pro season 4) | 2% of it: a dividend of 4% of the price a season, worth +5% a season (+10% more in its title season); in your net worth |
+| A private training facility | $25M | practice XP +8% for the rest of the career; $500K a season upkeep |
+| Sneaker company shares | $10M a share, up to 3 | they move −30% to +45% of their value every offseason; sell them all when you like (the row opens Buy / Sell) |
+| A home for your parents | $8M | a story card, confidence +3 and +0.15 every game week; in your net worth |
+| A charity event | $1.5M, once a season | fame +4, hype +3 |
+| Your name on the hometown arena | $40M | fame +8, legacy +3 (so toward the Hall of Fame) |
+
+Each buy is a story card, a news line and a timeline entry. The career simulator's smart spender buys them (a home,
+then a facility, a stake, a charity event a season, shares, the arena) and leaves **10%** of what it earned unspent at
+retirement (W1's build: 26%; target under 30%). Per career: charity 9.1, a home 1.0, a facility 0.39, shares 0.75, a
+stake 0.12, an arena 0.01.
+
+**GPA (§1.5).**
+
+- **Study** is the week's fourth plan in high school and college (Practice / Rest / Film / Study, GPA +0.3); the
+  Rest-or-study screen is gone. The pros keep three.
+- The hub warns under 2.3: an orange GPA pill ("GPA 2.25 · STUDY"), red under 2.0, first among the hub's pills on a
+  desktop and a phone.
+- The weekly drift stops at `hs.gpaFloor` (2.2): going to class keeps a C+. Careers that never study (`--week=nostudy`,
+  24 careers) end at a median 2.20 (2.20–2.22; target about 2.0–2.5; it was 0.8 in the playtest). Exams still move it.
+- A study sprint in the probation story raises GPA by 0.5 and it holds through the next report card (the drift waits
+  under the floor).
+- College AUTO now makes the week a Study week under 2.3, as it said (it practiced).
+
+**Leaving college (§1.7).** Before the declare-or-return choice the screen shows your agent's advice and the projected
+offers (the franchises, their kind, the money and the years). At OVR `college.readyOvr` (70) or more, or with 5★
+interest, the headline says you're ready, the agent says "Teams would sign you now" and **Turn pro** is the default
+(first, gold); otherwise the agent says what another year would buy and **Return** is the default. On a phone the two
+choices sit side by side with their stakes (N★ offers, your college).
+
+**Found by the quick checks.**
+
+- careersim: a `//` comment added in this milestone swallowed the `--set` parser on the same line, so `--set` did
+  nothing. Fixed; the build's check for code hidden behind a line comment now covers the tests too.
+- story.js: a record's gold toast now draws only on a hub (W1, §1.11); the test drew it over the records book.
+- The desktop audit: "✓ PRACTICE" was cut in the four-plan row (a done plan now drops the check mark before it is
+  cut; the gold says done), and W1's facility lines were cut ("Training facilities ★☆☆☆☆ · practice XP +3%" on signing
+  day is now "Gym ★☆☆☆☆ · …"; the Contract tab's line takes two lines). The phone audit: free agency's "Looking for …:
+  you fit" was cut on narrow cards (it says "Needs …" or "You fit: …" there); the Codex's Big buys paragraph was split
+  (a paragraph shows at most 6 lines). New audit cases: the Big buys tab, the shares chooser, the trade offer.
+
+**Difficulty (V6, Part 2 §1.1) after W2.** `tests/difficulty.js` (600 careers a policy): typical 5★ 19.5% → 25.3%
+(band 15–25), titles 0.37 → 0.45 (0.2–0.4), Hall of Fame 4.7% → 6.2%, a 3★ team by 28 72% → 82%; great 5★ 67.7% →
+75.8% (52–68), titles 2.04 → 2.21, Hall of Fame 42% → 53% (30–40; over at W1 already). The trade offers move good
+careers up sooner. 2.1 §3.7 sets new targets for the plays-well career (a 3★ team 60%+, a 5★ team 35–55%, 1–2
+titles) on the 16-franchise league: W5 builds the league, W6 retunes both policies and updates the test.
+
+**New and changed constants.** New: `league.ptsMe`, `league.ptsMeAm`, `league.styleMe`, `amateur.simNoise`,
+`hs.gpaFloor`, `college.readyOvr`, `franchise.offerBy`, `pro.big` (`stake`, `facility`, `sneaker`, `family`,
+`charity`, `arena`). Changed: `career.paceMul` (1.13 → 0.91), `records.levels` (the table above). Removed: the
+Rest-or-study screen.
+
+**Tests.** New: `tests/improve21.js` (13 steps, all pass), `tests/parity.js` (pass), `tests/effort.js` (6 checks, all
+pass). Quick checks this milestone: smoke (136), flow (12), playtest3 (11), school (8), staff (11), story (13), old
+saves (34), the phone and desktop audits (no flags). The full suite runs once, at W10.
+
 ## W1 (2.1) — Playtest round 3: the fixes (§1.9–12) and the game length (§1.8)
 
 The first of the ten 2.1 milestones: the playtest's four fixes and the running clock. The test is

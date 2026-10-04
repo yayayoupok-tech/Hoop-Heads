@@ -45,7 +45,6 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'ladder': pr(by(/^Back$/)); break;
       case 'tryout': pr(by(/^SIM IT$/)); break; // R5: tryouts (both parts simmed)
       case 'summer': { const opts = W.filter(w => /AAU|CAMP|REST|JOB/.test(w.label || '')); if (opts.length) opts[i % opts.length].onPress(); pr(by(/^CHOOSE$/)); break; } // R5: a summer
-      case 'reststudy': pr(by(/^STUDY/)); break;
       case 'recruiting': case 'statebracket': case 'amstandings': pr(by(/^Back$/)); break;
       case 'tryoutpost': pr(by(/^CONTINUE$/)); break;
       case 'colchoice': pr(W[i % 2] || W[0]); break; // R6: an NIL offer or the agent's call (yes or no, alternating)

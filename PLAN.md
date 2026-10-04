@@ -299,10 +299,11 @@ offers), and the story PG.
 per-game scale ×0.57 with it), sim buttons that say what's waiting, one All-Star 3-point attempt, records once on the
 hub, the Road banner, card names that fit (two lines, then shorter), facilities that pay XP at every star, skills
 capped at 95 for everyone.
-**W2 — Playtest improvements** — §1.1–7: teams come to you (three offers when a deal ends, trade offers in season),
-effort matters (the career simulator's "plays well" vs "sims everything", legacy +40%), sim/play points within 10%
-over 200 games (and the records book re-derived at the new scale), money worth spending in the pros, GPA in the weekly
-plan, stories at the right rate, leaving college with an agent's advice.
+**W2 — Playtest improvements** *(done)* — §1.1–5 and §1.7: teams come to you (free agency's default is the move up;
+a trade offer in season once you cross a better franchise's bar), effort matters (`tests/effort.js`: "plays well +
+good choices" vs "sims everything"), sim/play points within 10% at every level (`tests/parity.js`, fitted models of
+your points; the records book re-derived), six big buys for a pro's money, Study in the weekly plan with a hub warning
+and a C+ floor, leaving college with the agent's advice and the projected offers. (§1.6, the story's rate, is W7's.)
 **W3 — 64 colleges and the College Browser** — §2.1.
 **W4 — The recruiting game** — §2.2–2.7, with its targets.
 **W5 — The PBL's structure** — §3.1–3.2: 16 franchises (the 12 and 4 new) in two conferences of 8 with owners, GMs
@@ -310,7 +311,8 @@ and systems, the cap, rosters and chemistry, a 15-week calendar, playoffs for ea
 best of 3, a best-of-5 Finals), the MVP ladder and the awards.
 **W6 — The offseason and league life** — §3.3–3.7: the offseason screens, contracts, the league's life, the GOAT
 ladder and the PBL targets.
-**W7 — The story engine** — §4.1 and §4.3: chapters, the cast, backgrounds, recaps, the Story screen and pacing.
+**W7 — The story engine** — §4.1 and §4.3 (and §1.6: 3–5 scenes a season in every phase): chapters, the cast,
+backgrounds, recaps, the Story screen and pacing.
 **W8 — Chapters 1–6** — §4.2.
 **W9 — Chapters 7–12 and the endings** — §4.2–4.4: six or more endings and the story tests.
 **W10 — Release** — the full suite once, every target table, version 2.1, the artifact republished.

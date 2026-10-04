@@ -64,7 +64,6 @@ const { launch, openPage, runner } = require('./lib');
       case 'tryout': pr(by(/^SIM IT$/)); break;
       case 'tryoutpost': pr(by(/^CONTINUE$/)); break;
       case 'summer': { const opts = W.filter(w => /AAU|CAMP|REST|JOB/.test(w.label || '')); if (opts.length) opts[i % opts.length].onPress(); pr(by(/^CHOOSE$/)); break; }
-      case 'reststudy': pr(by(/^STUDY/)); break;
       case 'colchoice': pr(W[i % 2] || W[0]); break;
       case 'negotiate': pr(by(/^SIGN$/)); break;
       case 'epilogue': { const opt = W.find(w => /^(Foundation|Academy|A stake|Coach|Broadcast|Walk away)/i.test(w.label || '')); if (opt && !g._epi) { g._epi = true; opt.onPress(); return { name: s.name }; } pr(by(/^FINISH$/)); break; }
