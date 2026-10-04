@@ -225,6 +225,9 @@ const { launch, openPage } = require('./lib');
   await audit('career-menu', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(careerMenuScreen(g)); }); // F7
   await audit('league-franchises', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.leagueTab = { tab: 1, player: 0 }; g.ui.push(leagueScreen(g)); }); // F7
   await audit('league-standings', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.leagueTab = { tab: 0, player: 0 }; g.ui.push(leagueScreen(g)); });
+  await audit('league-races', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.leagueTab = { tab: 8, player: 0 }; g.ui.push(leagueScreen(g)); }); // 2.1 (§3.2): the award races
+  await audit('league-schedule', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.leagueTab = { tab: 3, player: 0 }; g.ui.push(leagueScreen(g)); }); // 2.1: fifteen weeks and the key weeks
+  await audit('league-history', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.leagueTab = { tab: 6, player: 0 }; g.ui.push(leagueScreen(g)); });
   await audit('pregame', () => { const g = HH.game, c = g.save.data.career; g.ui.push(pregameScreen(g, userGame(c))); });
   await audit('pro-practice', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(practiceScreen(HH.game)); });
   await audit('pro-film', () => { HH.game.ui.clearTo(careerHub(HH.game)); HH.game.ui.push(filmRoomScreen(HH.game)); }); // R10: every screen
@@ -279,6 +282,8 @@ const { launch, openPage } = require('./lib');
   await audit('v12-rebuild', () => { const g = HH.game, c = g.save.data.career, me = meOf(c); c.events = [{ kind: 'rebuild', who: { role: 'Owner', name: 'June Albright', look: stLookFor('owner:' + me.club), colors: clubOf(me.club).colors.slice() }, title: 'THE REBUILD', dest: frIds().find(k => k !== me.club), lines: ['We are starting over.', 'The contender wants you.', 'Go, or stay.'] }]; g.ui.clearTo(careerHub(g)); g.ui.update(0.1, g.input); });
   await ev(() => { const g = HH.game, c = g.save.data.career; c.events.length = 0; for (const id of c.active) c.standings[id] = { w: 3, l: 3, pf: 0, pa: 0, strk: 0 }; c.standings[c.meId].w = 9; c.week = c.schedule.length; startPlayoffs(c); c.events.length = 0; });
   await audit('v12-bracket', () => { const g = HH.game; g.ui.clearTo(careerHub(g)); g.ui.push(bracketScreen(g)); });
+  await audit('w5-franchise-history', () => { const g = HH.game, c = g.save.data.career; g.frTab = { tab: 1 }; g.ui.clearTo(careerHub(g)); g.ui.push(franchiseScreen(g, meOf(c).club)); g.frTab = { tab: 0 }; }); // 2.1 (§3.1): titles, jerseys, legends
+  await audit('w5-franchise-new', () => { const g = HH.game; g.frTab = { tab: 0 }; g.ui.clearTo(careerHub(g)); g.ui.push(franchiseScreen(g, 'foxes')); }); // a new franchise (a meddler owner)
   await audit('v12-hub-team-playoffs', () => { const g = HH.game; g.hubTab = 'team'; g.ui.clearTo(careerHub(g)); });
   await audit('v12-hub-play-playoffs', () => { const g = HH.game; g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); });
   await ev(() => { const g = HH.game, c = testProLeague(37, g.save.data); g.save.data.career = c; g.save.data.c1.handedOff = true; c.events.length = 0; c.me.contract.years = 1; for (const id of c.active) c.stats[id].g = 10; endSeason(c); c.offseason.step = 1; offseasonProgression(c); c.offseason.step = 2; offseasonMoves(c); c.events.length = 0; });

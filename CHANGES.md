@@ -3,6 +3,132 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W5 (2.1) — the PBL's structure, calendar and playoffs
+
+The fifth of the ten 2.1 milestones (§3.1–3.2). The league model is `162_pbl.js`, its pages `177_ui_pbl.js` (the
+franchise page is rebuilt in `177_ui_franchise.js`). New test: `tests/pbl21.js` (11 steps).
+
+**Sixteen franchises in two conferences (§3.1).** The twelve stay and four join: the Fire Escape Foxes (Ashgate),
+the Food Truck Falcons (Brickport), the Turnstile Tigers (Southmoor) and the Rec Center Rockets (Lakeview), each with a
+city, colors, a pixel crest, an arena, a fan base, an owner, a legend, a rival and a founding year (2016 and 2024: no
+titles before your career, so the PBL's history since 1979 is unchanged). East: Prophets, Pilots, Ballers, Comets,
+Legends, Nephews, Foxes, Tigers; West: Raccoons, Owls, Vandals, Kings, Sharks, Monarchs, Falcons, Rockets (every rival
+pair in one conference). The league is sixteen starters, one a franchise; stars are three 1★, three 2★, four 3★,
+three 4★ and three 5★.
+
+- **Owners:** win-now, patient, cheap, and now meddlers ("calls the coach and makes the news": the Raccoons, Foxes
+  and Tigers in a new career; a save keeps the owners it had). **The GM's style** each season: Contend, Rebuild or
+  Balanced (a meddler picks any).
+- **The coach's system:** Pace (Speed, Hops, Finishing), Iso (Handles, Shooting), Defense (Defense, Strength) or
+  Development (young players); **your fit** (0–100) from your ratings in its keys against your own average
+  (Development: your age). A great fit starts with the coach's trust +6 and practice in its ratings pays +6% (a good
+  fit +3%); a poor fit starts −6.
+- **Rosters:** each franchise is its starter (the league player; yours is decided by the depth chart) and four on the
+  bench, each with ratings, an age and a contract. Your team's bench is the franchise's: when you leave, your
+  teammates stay, and the new team's bench becomes yours.
+- **Payroll:** the five's contracts (the same scale as your market value) and the rest of the roster (by stars and
+  owner), against a **$120M soft cap**; a cheap owner never goes over the **$140M luxury tax line**. A new league's
+  payrolls average $46M at 1★, $62M, $83M, $104M and $127M at 5★: the contenders sit at the cap.
+- **Chemistry:** +1 a season the same five stay together (up to +3); one change −1, more back to 0.
+- **Team strength** = (the starter's OVR + the bench's average) ÷ 2 + chemistry, on the franchise page. The simulated
+  games and the title odds use it: the starter's ratings (strengthOf), `LG.benchEdge` 0.3 a point of bench OVR,
+  `LG.chemEdge` 0.5 a point of chemistry, and the owner's moves (`LG.starEdge` × the boost). The stars' own edge
+  (1.3 a star) is gone in a 2.1 season: a 5★ team is strong because of who plays for it. (A bench 10 OVR better with
+  +3 chemistry: 118 → 205 wins in 400 simulated games against the same opponent.)
+- **The offseason's benches:** a year older (the young improve, the old slow down), contracts run down; an expiring one
+  re-signs about half the time (a rebuild keeps fewer veterans), the old retire, and new players fill the four at the
+  franchise's level (younger in a rebuild, a little better for a contender); a cheap owner lets the priciest go before
+  paying the tax. Your team's moves make the news and the depth chart. (12 offseasons: 191 expiring, 78 left, 14
+  retired, 92 joined.)
+
+**The calendar (§3.2).** Fifteen weeks (the 11/22-game choice is gone from career creation): everyone plays everyone
+once (7 or 8 home games each). Week 4 is **rivalry week** (every franchise plays its rival; a win: fame +1), the
+**All-Star break** comes before week 8's game, the **trade deadline** closes trade requests and calls after week 10,
+and week 13 is your **national TV game** (the hype on the line ×2). The hub's calendar tags each one (RIVALRY,
+ALL-STAR, DEADLINE, NATIONAL TV), the next-game label names it, the news calls it, and the result card says what the
+TV game or the rivalry did. A fifteen-week season pays the XP eleven did (`PBL.xpWeeks`), so a pro year grows you as
+before.
+
+**The playoffs.** The top four of each conference: semifinals 1–4 and 2–3 (best of 3), the conference finals (best of
+3, the better seed hosting), then the **PBL Finals** (best of 5; the better record hosts games 1, 3 and 5 before a
+louder crowd: +1 point in a simulated Finals game, +3% to your makes at home in one you play). The bracket shows East
+and West with the Finals between them (before the playoffs: if the season ended today); the hub's tiles are CS, CF and
+FIN; your season reads "Lost in the conference semifinals" and so on.
+
+**The award races.** A weekly **MVP ladder** (everyone ranked by MVP score after every week: the top five with arrows
+against last week), **Rookie of the Year**, **Defensive Player** (from the teams in a playoff spot), **Most Improved**,
+the new **Sixth Man** (every franchise's best bench player by OVR and their team's winning; you, when you sat at least
+half your weeks), **All-League 1st and 2nd teams** and the **Finals MVP**. The League's new Races tab shows them all;
+the hub's record line adds your conference place and your ladder rank ("8-4 · 2nd in the East · MVP ladder #3 ▲");
+Awards Night adds the Sixth Man and the second team (ten rows fit a phone).
+
+**On screen.**
+
+- **The League:** Standings by conference (East and West side by side; the playoff line under each fourth), the
+  sixteen franchises (two columns on a phone), the schedule with the key weeks, a fuller History (the Finals MVP, the
+  Sixth Man, both All-League teams) and Races.
+- **A franchise's page,** two tabs: the club (title odds, the owner, the GM's style, the coach, the system and your
+  fit, the market, the payroll against the cap, the rival, what it needs; the roster of five with OVR, age and
+  contract; team strength and chemistry) and its history (title banners, retired jerseys, legends, when it joined).
+- **The bracket:** East, the Finals, West.
+- Codex: The PBL, Rosters and payroll, Owners/GMs/coaches (new), Team stars and Title odds (rewritten); the Pros tip.
+
+**Old saves.** A 2.0 save (twelve franchises) gets the four new rows (low prestige, 1★ until its season ends) and a
+bench, contracts and chemistry for every franchise; a season in progress finishes as it began (twelve starters, the
+top-8 bracket). The four sign their starters (veterans at their level) in the next offseason's moves, or when the
+next season starts, which is a 2.1 season (sixteen starters, fifteen weeks, the conferences). New fixtures from the W4
+build: a pro career mid-season, in the playoffs and in the offseason (`tests/gen_oldsaves.js` runs builds after F1
+too: no classic team league, and the dev jump to the pros).
+
+**New and changed constants.** New: `pbl` (`conferences`, `weeks`, `rivalryWeek`, `allStarWeek`, `deadlineWeek`,
+`tvWeek`, `tvHype`, `rivalryFame`, `confSeeds`, `confBestOf`, `finalsBestOf`, `finalsHomeEdge`, `finalsCrowd`,
+`softCap`, `taxLine`, `depth`, `depthOwner`, `chemMax`, `xpWeeks`, `sysXp`, `sysTrust`, `benchRetire`, `benchKeep`,
+`sixthWin`, `sixthMe`, `expansionPrestige`), `league.benchEdge`, `league.chemEdge`, `career.leagueVets` (11).
+Changed: `career.leagueSize` 12 → 16, `franchise.starsDist` 2/2/3/3/2 → 3/3/4/3/3. Kept for an old save's season in
+progress: `career.seasonLengths`, `playoffSeeds`, `semisBestOf`, `finalsBestOf`, `PR.tradeDeadline`.
+
+**Balance after W5.** `tests/difficulty.js` (600 careers a policy):
+
+| Row | Typical: W4 → W5 (band) | Great: W4 → W5 (band) |
+| --- | --- | --- |
+| A 5★ team | 24.5% → 27.5% (15–25) | 79.2% → 82.3% (52–68) |
+| Titles a career | 0.49 → 0.21 (0.2–0.4) | 2.34 → 1.41 (1–3) |
+| Hall of Fame | 5.5% → 1.5% (3–8%) | 54.3% → 41.0% (30–40%) |
+| A 3★ team | by 28 81% → 83% (50%) | by 24 94% → 92% |
+
+Sixteen teams and three playoff rounds (the last a best of five) make a title rarer: 0.21 and 1.41 a career, and the
+Hall of Fame falls with them (a title is 12 legacy points). Five rows are outside their bands (W4: four): the typical
+titles came into theirs, the typical 5★ row left its band and the typical Hall of Fame fell under it. W6 retunes both
+policies against §3.7 (the plays-well policy: a 3★ team in 60%+ of careers, a 5★ team in 35–55%, 1–2 titles), as
+planned. The career simulator (100 careers, seed 1): nobody stuck, no errors; a ring in 19% of careers, 0.27 titles a
+career (all as the starter), a median of 13 pro seasons.
+
+**Tests.** New: `tests/pbl21.js` (11 steps: the franchises and conferences, a new league, team strength and
+chemistry, the coach's system and fit, the calendar, the playoffs, the award races, the benches' offseason, a 2.0
+save's expansion, the screens on a desktop and a phone). Updated: `proteams` (sixteen franchises, the conference
+playoffs, a meddler's plan, the team edge), `smoke` (the F7 step: sixteen), `improve21` (a facility's XP with the
+coach's system), `phoneaudit` (five new cases: Races, the schedule, History, a franchise's history, a new franchise),
+`gen_oldsaves` (the W4 build, from the dev jump), `oldsaves` (a career that retires on the way) and `polish` (half the franchises in the Foundry: eight of sixteen). Quick checks this milestone: smoke (136), flow (12), polish (14), story (13), staff (11), old saves
+(38), proteams (14), improve21 (13), pbl21 (11), recruit21 (15), the phone and desktop audits (276 and 272 screens, no
+flags), the W5 screen audit (25 screens on each), the career simulator and the difficulty table. The full suite runs
+once, at W10.
+
+**Found on the way.**
+
+- The old migration rebuilt an old save's whole franchise table when the number of franchises changed (`frTable`):
+  it now adds the missing rows and keeps everything else.
+- Text the new league's names and opponents brought out (each drew whole in W4's audits): a long teammate's name on
+  the team page (the first name goes to its initial: every generated name fits then), five moves in the film room's
+  list on a phone (three and "+2 more"), and the pregame's scouting report on a desktop, where a Showman's line needs
+  three lines (two were drawn) and four of the eight weakness lines ran past their column (the pixel font keeps one
+  width from 8 to 16 px there, so shrinking can't help): a long weakness wraps like a tendency, and a desktop's report
+  has its own wider panel under the tape, clear of both players (the worst case, 359 px tall in the old column's 320, is
+  239 in the new panel's 314).
+- `tests/gen_oldsaves.js`: its plain amateur loop answered the transfer portal as a college choice, so a portal
+  player started college over every year (the first W4 fixture's pro was 61 and retired in the old-saves run); builds
+  that have the dev jump use it now. `tests/oldsaves.js` then opened the hub's pages on that retired career: it reads
+  the career's phase now.
+
 ## W4 (2.1) — the recruiting game
 
 The fourth of the ten 2.1 milestones (§2.2–2.7). W3's interest was a static score and offers still came one a tier;

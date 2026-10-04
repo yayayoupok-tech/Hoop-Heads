@@ -119,11 +119,11 @@ const { launch, openPage, runner } = require('./lib');
     if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'mix did ' + mixed.size + ' · price ' + gearMoney(p);
   }, [AM, PRO]));
 
-  await step('arenas: one more a level, each its own palette and banners; high school and college play at home in their gym and away (and in the playoffs) in the other; six PBL franchises play in the Foundry', () => ev(([AM, PRO]) => {
+  await step('arenas: one more a level, each its own palette and banners; high school and college play at home in their gym and away (and in the playoffs) in the other; half the PBL franchises play in the Foundry (2.1: eight of sixteen)', () => ev(([AM, PRO]) => {
     const g = HH.game, bad = []; const pairs = [['gym', 'fieldhouse', 'hs'], ['college', 'pavilion', 'college'], ['arena', 'foundry', 'pro']];
     for (const [a0, b0, k] of pairs) { if (!COURTS[b0] || venueKind(b0) !== k || venueKind(a0) !== k) bad.push(b0 + ': kind'); if (!COURT_ORDER.includes(b0)) bad.push(b0 + ': not in the court list'); const S = VENUE_STYLE[b0]; if (!S || !S.floor) bad.push(b0 + ': no style'); if (k !== 'hs' && !(S.banners && S.banners.length === 4)) bad.push(b0 + ': banners'); if (k === 'hs' && !(S.pennants && S.wall)) bad.push(b0 + ': pennants'); }
     const a = eval(AM), L = a.league; if (!L || !Array.isArray(L.home)) bad.push('no home/away schedule'); else { const w = L.week; const was = L.home[w]; L.home[w] = true; if (amCourtFor(a, false) !== 'gym') bad.push('home: ' + amCourtFor(a, false)); L.home[w] = false; if (amCourtFor(a, false) !== 'fieldhouse') bad.push('away: ' + amCourtFor(a, false)); if (amCourtFor(a, true) !== 'fieldhouse') bad.push('playoffs: ' + amCourtFor(a, true)); L.home[w] = was; }
-    const n = frIds().filter(id => frArena(id) === 'foundry').length; if (n !== 6) bad.push(n + ' in the Foundry');
+    const n = frIds().filter(id => frArena(id) === 'foundry').length; if (n !== frIds().length / 2) bad.push(n + ' of ' + frIds().length + ' in the Foundry');
     const c = eval(PRO), ug = userGame(c); if (ug) { const o = careerMatchOpts(c, g.save.data, ug, true), hc = c.players[ug.h].club; if (o.court !== frArena(hc)) bad.push('pro court ' + o.court + ' for ' + hc); }
     for (const id of ['fieldhouse', 'pavilion', 'foundry']) { const img = labVenueShot(id, 640, 360); if (!img || !img.width) bad.push(id + ': no shot'); }
     if (bad.length) throw new Error(bad.join(' | ')); return 'the Foundry: ' + frIds().filter(id => frArena(id) === 'foundry').join(', ');

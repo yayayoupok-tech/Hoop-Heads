@@ -316,9 +316,11 @@ competition; the GPA line and the class caps), offers week by week from the juni
 condition), named recruits and your rival taking the spots, warnings before every pull, three actions a month and
 five official visits as scenes, a verbal commitment, flips and the coaching carousel, Signing Day's hats, walk-ons,
 the prep year and the College test; the career simulator's typical recruit and the §2.7 table (`tests/recruit21.js`).
-**W5 — The PBL's structure** — §3.1–3.2: 16 franchises (the 12 and 4 new) in two conferences of 8 with owners, GMs
-and systems, the cap, rosters and chemistry, a 15-week calendar, playoffs for each conference's top 4 (best of 3,
-best of 3, a best-of-5 Finals), the MVP ladder and the awards.
+**W5 — The PBL's structure** *(done)* — §3.1–3.2: 16 franchises (the 12 and 4 new) in two conferences of 8 with owners
+(a meddler among them), GMs and coach systems (and your fit), the cap and the tax line, rosters of five with contracts,
+chemistry and team strength in the sims and the odds, a 15-week calendar (rivalry week, the All-Star break, the trade
+deadline, the national TV game), playoffs for each conference's top 4 (best of 3, best of 3, a best-of-5 Finals), the
+MVP ladder and the award races with the Sixth Man; a 2.0 save expands at its next season (`tests/pbl21.js`).
 **W6 — The offseason and league life** — §3.3–3.7: the offseason screens, contracts, the league's life, the GOAT
 ladder and the PBL targets.
 **W7 — The story engine** — §4.1 and §4.3 (and §1.6: 3–5 scenes a season in every phase): chapters, the cast,
