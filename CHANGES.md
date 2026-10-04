@@ -3,6 +3,132 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W3 (2.1) — 64 colleges and the College Browser
+
+The third of the ten 2.1 milestones (§2.1). The college world is a registry of 64 programs (`160_colleges.js`), the
+same 64 that play the national tournament; the screens that show it are `175_ui_colbrowser.js`. New test:
+`tests/colleges.js` (14 steps). The recruiting game itself (interest that moves, actions, visits as scenes, commit
+and flip, walk-ons, §2.2–2.7) is W4's: W3's interest is a first, static model and offers still come one a tier.
+
+**The 64 programs.** Eight conferences of eight: the Premier Eight, the Crown and the Lakes & Pines (power), the
+Coastal Valley and the Big Prairie (mid-major), the Heartland and the Old Mill (small schools) and the Laurel League
+(elite academic). Each program has:
+
+- a city and one of 14 invented states (a 100 × 60 map, 30 miles a unit: distances from your home state), colors (32
+  pairs; a conference's eight never share), an arena, and a 16 × 18 pixel crest in its colors (the five blue bloods a
+  crown, the Laurel League a book, the coast an anchor or a wave, the rest one of seven marks);
+- a tier (blue blood, power, mid-major, small school, elite academic) and prestige 1–5★;
+- academics: a GPA line (blue bloods 2.5, the Laurel League 3.3, everyone else 2.0) and the majors it offers (all
+  three at power and academic programs, one or two elsewhere; Undecided everywhere);
+- facilities (1–5★: the prestige, +1 at an academic program; your XP there +0/2/4/6/9%) and an NIL market (big for
+  blue bloods and 4★+ power programs, small for small schools; your NIL deals ×1.3 / ×1 / ×0.8);
+- history: national titles (blue bloods 3–8), pros produced and a rival school (the conference's pairs).
+
+The 24 program names from before 2.1 are all in the table, so a save finds its program by name. A program name
+that isn't (none of the fixtures; a hand-edited save) takes the place of the weakest program of a conference of its
+tier, so its conference still has eight.
+
+**Per career, from the seed (nothing saved but your program's coach and the titles won).**
+
+- **The coach:** a name, a portrait, an age, a style (Pace, Defense, Development or Iso; it picks the extra work the
+  coach adds after every game, as before: speed, hops or finishing; defense or strength; handles or shooting; any for
+  a Development coach, who also adds XP +3%), a tenure (the first one has been there 1–12
+  seasons). From a third season a coach can land on the hot seat (`colleges.hotSeat`, 15% a season; measured 16.7%),
+  and half of those are let go after it (`colleges.fired`): a new coach starts at year one. Your program's coach stays
+  while you play there (`c.cw.keep`; W4's coaching carousel can move them).
+- **The roster you'd join:** seven teammates, seated the way committing seats you (who would be ahead of you, by
+  how much). Committing now builds your team from this list, so the page's depth chart tells the truth.
+- **The scholarship spots:** 1–3 for your class, and 1–3 more named recruits than spots. They commit through your
+  junior and senior years, in order; the first to commit take the spots, the rest go elsewhere. An offer holds you a
+  spot from the day it comes (a program that offers with none left makes one); a pulled offer frees it.
+- **Interest in you (high school):** 0–100. `colleges.interest.base` (70) at the program's bar (the tier's offer cut,
+  `hs.offerCuts` 71/64/57, or 48 for a small school; +1.5 a prestige star over the tier's usual), ±5 a point of your
+  recruit score over or under it (projected for the years left, like the offers), your coach's word (±6 at trust 0 or
+  100), +6 within 300 mi of home, −4 past 1,500 mi, at most 20 under its GPA line. A freshman is watched at most
+  (49) and a sophomore contacted (69): the ten points under the cap take everything over it, so the order holds. The
+  stages: Not interested, Watching (25+), Contacted (50+), Offer range (70+), Spots full, Offered.
+
+**Offers.** As before, one a tier when your recruit score reaches its cut; now from the program of that tier most
+interested in you (a little luck), and every offer carries its program: the id, the real colors, the coach's name and
+the facilities. The academic offer comes from a Laurel League program at your level.
+
+**On screen.**
+
+- **The RECRUIT tab** (high school; between Team and Shop, keys 1–6): your recruitment (stars, national rank, class,
+  GPA, offers, how many programs watch, contact and have you in offer range, home) and the six programs most
+  interested in you; College Browser (gold), Offers & rank (Team → Recruiting before; the offer dot moved with it) and,
+  at decision time, Choose your college. The phone shows two programs.
+- **The College Browser:** filters (Conference, Tier, Stars, GPA: lines I meet, Miles: under 300 / 800 / 1,500,
+  Interested in me in high school), six sorts (Interest, Name, Stars, Distance, GPA line, Conference), a name search
+  (the on-screen keyboard; the city and state match too) and Clear filters; 8 programs a page on a desktop (crest, name
+  and place, conference and tier, prestige and miles, interest and its stage), 3 on a phone with the filters on a sheet
+  of their own. In college it's Team → Colleges (your program in gold; no interest).
+- **A program's page:** the header in its colors (crest, name, place, conference, tier, prestige, arena), Coach,
+  Academics, Campus, Depth chart (where you'd begin and the players ahead of you with their OVR), History and Your
+  chances (the interest and its stage, a meter with the stage marks, the spots left and the one held for you, the
+  recruits chasing them and who has committed). Previous / Next walk the browser's list; Rival opens the rival school.
+  A phone shows one of three views (Your chances, Coach & school, Team & history).
+- **The Codex:** a Colleges & recruiting page (the programs, interest, spots, coaches, facilities and NIL, with your
+  values); ? on the Recruit tab, the browser and a program's page opens it.
+
+**In the career.**
+
+- Your college team is the program: the page's roster, the coach's portrait and name, its facilities in your XP
+  (replacing R6's +3% a facilities star over one; a program from before 2.1 that isn't in the table keeps that), its NIL
+  market on your deals.
+- Your conference is the program's real one: its seven others are the conference schedule and the conference
+  tournament (each the same player all season). Your story rival goes to your program's rival school (in your
+  conference), or to the program you were both chasing (out of conference, you meet in a marquee game).
+- **The national tournament takes all 64 programs.** Your résumé's national rank (among 350, scaled to the 64) sets
+  your seed (rank ÷ 4, rounded up, in your region); the other 63 fill the seed lines by their season (tier, stars and
+  luck); a program you already play brings the same player. Nobody is left out ("LEFT OUT" is gone; an old save that was
+  keeps its screen). A national champion goes into the program's history.
+- The transfer portal offers registry programs.
+- The schedule's short names also drop "Institute" ("5. vs LARKSPUR INSTITUTE" was cut).
+
+**Balance after W3.** The career simulator (200 typical careers, seed 1), college: the national tournament in 100%
+of seasons (W2: 30%), 0.98 wins a trip (1.34), Final Fours 0.13 a career (0.07), national titles 0.03 (0.01), 2.47
+college seasons (2.58), the season-end mock pick a median 36 (38); the first pro offer 1–5★ 29/39/24/8/2%.
+`tests/difficulty.js` (600 careers a policy):
+
+| Row | Typical: W2 → W3 (band) | Great: W2 → W3 (band) |
+| --- | --- | --- |
+| A 5★ team | 25.3% → 23.7% (15–25) | 75.8% → 79.5% (52–68) |
+| Titles a career | 0.45 → 0.41 (0.2–0.4) | 2.21 → 2.48 (1–3) |
+| Hall of Fame | 6.2% → 4.5% (3–8%) | 53% → 54.8% (30–40%) |
+| A 3★ team | by 28 82% → 84% (50%) | by 24 94% |
+
+The rows outside their bands are the ones W2 left outside (a better player's whole run, and the 3★ climb since W2's
+trade offers); W6 retunes both policies against 2.1's §3.7 targets on the 16-franchise league, as planned.
+
+**New and changed constants.** New: `colleges` (`mileUnit`, `facXp`, `devXp`, `nilMul`, `tierStars`, `interest`
+{`base`, `perPt`, `prestige`, `smallCut`, `gpaCap`, `trust`, `near`, `nearMi`, `far`, `farMi`, `yearCap`}, `stages`,
+`spots`, `chasers`, `commitFrom`, `hotSeat`, `fired`, `pageRows`). Removed: the old name lists (`AM_COLLEGES`,
+`AM_CONF_EXTRA`, `CO_CONFS`, `colNames`) and `school.academic` (the three academic names). `amateur.recruit.facXp`
+now applies only to a program from before 2.1 that isn't in the table.
+
+**Tests.** New: `tests/colleges.js` (14 steps: the registry, crests, coaches, interest, the browser's list, the
+browser on screen, a program's page, offers and spots, committing, the field of 64, old saves, the Recruit tab, the
+Codex, phones). Updated: `flow` (the high school hub's six tabs and keys 1–6), `polish` (the offer dot on Recruit;
+the ? key on all six tabs), `smoke` (the field of 64: a 1-12 team is a low seed, a 12-1 blue blood a top seed),
+`school` (an academic offer is a Laurel League program), `phoneaudit` (twelve new cases: the Recruit tab, the browser
+and the filtered browser, the filter sheet, a program's page and its three phone views, a blue blood's page, the
+college Team tab, the browser in college, your own program). Quick checks this milestone: smoke (136), flow (12),
+polish (14), school (8), staff (11), story (13), old saves (34), playtest3 (11), improve21 (13), colleges (14), the
+phone and desktop audits (no flags), the difficulty table (above). The full suite runs once, at W10.
+
+**Found on the way.**
+
+- Two lines of code had been hidden behind a `//` comment on the line before them: the first-time Recruiting tip
+  (since V5) never showed, and a high school playoff game on the hub read "GAME 11 OF 10 · AWAY" instead of its round
+  ("DISTRICT SEMIFINAL", since R6). Both run again; the build's lint now also catches `if (...) return ...` and
+  `return '...'` behind a comment. The College Browser and a program's page have a first-time tip of their own, and the
+  hub's tips mention the Recruit tab and Study.
+- A desktop's small text is the pixel font at about 12 px a character whatever its size: the new screens are laid out
+  for it (the desktop audit cut the first layout's longer lines).
+- A program from before 2.1 that isn't in the table: your rival now goes to one of its conference's others (a random
+  program of the tier could be out of conference).
+
 ## W2 (2.1) — The playtest's improvements: teams come to you, effort matters, sim/play parity, money, GPA, leaving college
 
 The second of the ten 2.1 milestones (§1.1–1.5 and §1.7; §1.6, the story's rate, goes with the story engine in W7).

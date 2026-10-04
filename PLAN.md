@@ -304,7 +304,13 @@ a trade offer in season once you cross a better franchise's bar), effort matters
 good choices" vs "sims everything"), sim/play points within 10% at every level (`tests/parity.js`, fitted models of
 your points; the records book re-derived), six big buys for a pro's money, Study in the weekly plan with a hub warning
 and a C+ floor, leaving college with the agent's advice and the projected offers. (§1.6, the story's rate, is W7's.)
-**W3 — 64 colleges and the College Browser** — §2.1.
+**W3 — 64 colleges and the College Browser** *(done)* — §2.1: 64 programs in eight conferences of eight, the same 64
+in the national tournament (nobody left out; your rank sets the seed), each with a place, colors, a pixel crest, an
+arena, a tier and prestige, a coach (style, tenure, hot seat), a GPA line and majors, facilities, an NIL market, a
+roster and history; per career from the seed (coaches, rosters, the recruits chasing the spots, interest), so nothing
+is saved but your program's coach and its titles. The Recruit tab (high school), the College Browser and a program's
+page with your chances; offers, your team, your conference and the field come from the registry; old saves keep
+their program (`tests/colleges.js`).
 **W4 — The recruiting game** — §2.2–2.7, with its targets.
 **W5 — The PBL's structure** — §3.1–3.2: 16 franchises (the 12 and 4 new) in two conferences of 8 with owners, GMs
 and systems, the cap, rosters and chemistry, a 15-week calendar, playoffs for each conference's top 4 (best of 3,

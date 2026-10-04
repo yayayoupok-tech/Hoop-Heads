@@ -15,7 +15,7 @@ const { launch, openPage, runner } = require('./lib');
     const n = { offers: 0, blue: 0, academic: 0, byG: {} }, bad = [];
     for (let seed = 1; seed <= 40; seed++) for (const g of [1.7, 2.1, 2.4, 2.6, 3.1, 3.29, 3.3, 3.8]) {
       const c = eval(mkHs)(1000 + seed); const lvl = 52 + (seed % 6) * 7; for (const k of RATING_KEYS) c.r[k] = lvl; c.stageYear = 4; c.offers = []; c.gpa = g; hsOfferCheck(c, amRng(c), 'final');
-      for (const o of c.offers) { n.offers++; const line = o.academic ? SCH.gpaReq.academic : o.tier >= 3 ? SCH.gpaReq.blue : SCH.gpaReq.other; if (o.gpaReq !== line) bad.push(o.name + ': line ' + o.gpaReq); if (g < o.gpaReq) bad.push(o.name + ' offered at ' + g); if (o.tier >= 3) n.blue++; if (o.academic) { n.academic++; if (!SCH.academic.includes(o.name) || o.tier !== 2) bad.push('elite academic ' + o.name + ' tier ' + o.tier); } }
+      for (const o of c.offers) { n.offers++; const line = o.academic ? SCH.gpaReq.academic : o.tier >= 3 ? SCH.gpaReq.blue : SCH.gpaReq.other; if (o.gpaReq !== line) bad.push(o.name + ': line ' + o.gpaReq); if (g < o.gpaReq) bad.push(o.name + ' offered at ' + g); if (o.tier >= 3) n.blue++; if (o.academic) { n.academic++; const q = colProg(o.pid); if (!q || !q.academic || q.name !== o.name || o.tier !== q.tier) bad.push('elite academic ' + o.name + ' tier ' + o.tier); } /* 2.1: a Laurel League program (64 colleges) */ }
       n.byG[g] = (n.byG[g] || 0) + c.offers.length;
     }
     if (bad.length) throw new Error(bad.slice(0, 4).join(' | ')); if (!n.blue || !n.academic) throw new Error('no blue blood or no elite academic offer: ' + JSON.stringify(n)); if (n.byG[1.7]) throw new Error('offers under 2.0');
