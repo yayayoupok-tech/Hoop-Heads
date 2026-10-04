@@ -3,6 +3,102 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## W8 (2.1) — chapters 1–6: high school and college in chapters
+
+The eighth of the ten 2.1 milestones (§4.2, chapters 1–6; chapter 1 came with W7's engine). Chapters 2–4 are
+`179_saga_ch2.js`, chapters 5–6 `179_saga_ch5.js`. `tests/story21.js` has 7 new steps (18 in all). Chapters 7–12 and
+the endings are W9's.
+
+**Chapter 2: Varsity (sophomore year).** Three versions: the first varsity season, a second one (varsity as a
+freshman), JV again. *The bus home* after the season's first game (your best friend, or the coach); *The rival*, the big
+decision, after the rival game (or, by week 5, your rival in the stands at yours): shake their hand (rival +20, hype −2)
+or talk trash back (hype +5, rival −20, coach −5); *An autograph* or *The quote*, the rival's own story (their little
+sibling, who wears their number), told when the season has room; *Varsity*, the empty gym with Coach Adeyinka, who
+remembers what you did.
+
+**Chapter 3: The Spotlight (junior year).** Two versions: the letters (an offer, or a 3★ rating), or none yet (a camp
+brochure addressed to "Current Resident"; Coach Adeyinka makes calls). *The letters* (or *The mailbox*) at the kitchen
+table; *The bills*, the big decision: take a weekend job (+$400, practice XP −20% for 3 weeks, family +10) or let your
+best friend's family help (family +5, your friend +15, and you owe them: a flag; with no friend, Coach Adeyinka helps);
+*The shifts*, *Dinner at your friend's* or *The favor*, when the season has room; *The Spotlight* at the year's end.
+
+**Chapter 4: Signing Day (senior year).** *Senior year* (the captain's armband, or sharing it with your friend); *Two
+plans* (your friend's own college, a real program, and an invitation); *The kitchen table*, the big decision, at the
+season's end or on Signing Day: three voices name real programs, your parent the offer nearest home (if it's a drive
+away: its miles), Coach Adeyinka the dream (the best other one) and your friend their school (each answer carries its
+school; the recap and the Story screen say it in full); *Signing Day*, the closing scene, comes with the
+signing and has a version for every path: you kept your word, or you said one school and signed with another; a prep
+year; a walk-on; no college at all (straight to the pros: a flag the chapters after it read). Following your friend to
+their school makes you teammates (the friend's first path; the other three are W9's).
+
+**Chapter 5: Freshman Wall (college year one).** Three versions: a scholarship, a walk-on, or the first pro season with
+no college. *The first night* (the dorm, or a hotel room: your sibling's midnight video call); *The wall* (the bench,
+when the season has room); *A call from home*, the big decision: stay and grind (practice XP +15% for 3 weeks, your
+sibling −10) or go home for your sibling's big Saturday (sibling +20, family +10, practice XP −10% that week: a flag,
+your sibling's mentor); *End of year one*.
+
+**Chapter 6: March (college year two on).** Two versions: the national tournament, or the pros' playoff race (one
+college year, or none: the first two pro seasons). *March* on the whiteboard (college); *The call*: Coach Adeyinka
+collapses at practice, their heart (drive home, call every night, or win one for them: a flag); *Play through it?*, the
+big decision, in the tournament (the playoffs) or the season's last weeks: your knee buckles; play through it (a legend
+moment: hype +10, confidence +2, the injury risk of a rushed return for 4 weeks) or sit (fatigue −10, hype −3);
+*One shining moment* (*The stretch* in the pros): the coach, home from the hospital, on the phone.
+
+**The chapters take over their side arcs.** In a career with these chapters, Family Bills (chapter 3), the Best
+Friend's choice (chapter 4) and the rival's first handshake (chapter 2; the Rival arc's buzzer beat is skipped, and the
+arc goes on after it) wait for the chapter; a save whose chapters were passed by keeps the arcs.
+
+**Pacing (§4.3).**
+- The chapters keep the calendar's weeks (`chWeek`): a season on the bench opens its chapter on time, and its scenes
+  keep their pace (R9's week counts the games you played). A season's bench weeks no longer add up across seasons (the
+  fillers came at a season's first bench weeks). High school seasons with 3–5 scenes: 98.5% (96.5% with chapters 2–6 on
+  the games played).
+- A chapter opens in a season, never after its end (in the pros the playoffs go on without you).
+- Never more than two story screens in a row, now for every card: the rival's moments go through the same queue, and a
+  decision's card (an exam, your major, a visit, a staff call, your coach leaving) goes in at once while the story beats
+  step back to the next moment. An official visit's three cards are one scene (§2.4: "a short scene").
+
+**The dialogue box.** On a desktop, an answer too long for its button (three side by side) takes two lines, its note
+below it (it was cut; longer still, it is cut as before and the audits flag it). A chapter's answer can say more in the
+recap and on the Story screen than on its button (`pick`).
+
+**The career simulator.** 160 careers with the default story answers: 3–5 scenes in 98.5% of high school seasons,
+99.0% of college ones and 99.3% of pro ones (W7, with chapter 1 only: 95.7 / 100 / 99.6); with `--story=random` 97.7%,
+98.5% and 99.0%. Chapters 1–6 reached and closed in 100% of careers either way. Versions: varsity 24% / JV 76% as
+freshmen; sophomores on their first varsity season 53%, a second 24%, JV 23%; juniors with letters 42%, none yet 58%;
+Signing Day kept 87%, a prep year 13%; college 94%, a walk-on 6%; March in college 96%, in the pros 4%. Random answers
+spread every big decision (stay late 39% / go home 61%; shake hands 39 / talk trash 61; your friend's help 39 / the job
+61; home 28 / the dream 38 / your friend 34; grind 39 / go home 61; play through it 41 / sit 59) and Signing Day's
+closing (kept 34%, changed 54%, a prep year 12%). A new line lists careers that missed or
+cut a chapter (none). No errors.
+
+**Config.** `CONFIG.chapters.homeMiles` 250.
+
+**Calls made.**
+- Chapter 3's versions are by recruiting (letters or none yet): by junior year nearly every career is on varsity.
+- The kitchen table's three voices come from your live offers: the one nearest home if it's a drive away
+  (`CONFIG.chapters.homeMiles`, 250 miles; else "somewhere we can drive to"), the best of the others (with none, the
+  dream has no name yet: "aim as high as they'll let you") and your friend's school. The default answer is a school
+  with a name (by Signing Day most recruits hold one offer, their commitment).
+- Your best friend's school is one of your offers that is neither of the other two, else a small program near home.
+- March's college version opens in college year two or later; a career that leaves after year one gets the pro version
+  in its first pro season, and one with no college gets Freshman Wall in pro season 1 and March in pro season 2.
+- The coach's health scare ends in recovery (the story stays PG); W9 decides whether Coach Adeyinka coaches you again or
+  retires.
+- An official visit is one scene of three cards (§2.4), so the pacing counts it once.
+
+**Tests.** `tests/story21.js` (18 steps, 7 new): chapters 2–6 written (3–6 scenes, a choice on each, one big decision, a
+closing scene, their versions); high school over three simulated seasons (each chapter in its own season, 3–5 scenes,
+nothing told twice, the big decisions remembered, Signing Day's closing at the signing with the school's name); the side
+arcs the chapters take over; Signing Day's six versions (kept, changed, following your friend, a prep year, a walk-on,
+the pros); college (Freshman Wall in year one, March in year two with the health scare and the knee, every flag through
+a save and a reload); the pro versions (one-and-done, no college); old saves (a junior, a college sophomore). The career
+simulator lists careers that missed a chapter; the phone and desktop audits cover ten new cases (title cards, the
+rival, the bills, the kitchen table with the longest program names, Signing Day, the call from home, the health scare,
+the knee); their title-card cases now keep the card on screen (W7's case checked the scene behind it).
+Quick checks: story21 (18), story (13), oldsaves (42), smoke (136), flow (12), school (8), recruit21 (15), fullcareer,
+life21, the phone and desktop audits (297 and 293 cases, no problems) and the career simulator (both policies).
+
 ## W7 (2.1) — the story engine: chapters, the cast, cutscenes, the recap, the Story screen
 
 The seventh of the ten 2.1 milestones (§4.1 and §4.3, with §1.6's 3–5 scenes a season in every phase). The chapter

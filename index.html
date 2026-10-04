@@ -1651,6 +1651,7 @@ const CONFIG = {
     coachName: 'Coach Adeyinka', // your high school coach in a new career (§4.1: the mentor; an old save keeps the coach it had)
     react: 3,                  // a scene with nothing to decide still has two answers (§4.3): a warm one (that person's meter + this)...
     reactXp: 0.03,             // ...or a focused one (practice XP + this for the week)
+    homeMiles: 250,            // W8: Signing Day's "close to home" is an offer within this many miles of home (a drive for Sunday dinner)
   },
   school: {                    // V9 (Part 2 §3): GPA and school (172_school.js). One GPA (0.0–4.0) from high school through college; the grades' weekly drift, Study weeks and the report cards stay in CONFIG.hs
     exam: {                    // before each report card (a midterm and a final every season: a season is a semester), an EXAM WEEK card:
@@ -13196,7 +13197,7 @@ function createCareerFromAmateur(save, a, offer) { // F7: offer: the pro offer y
   startSeason(c, rng); const fs = frStars(c, me.club), fn = clubOf(me.club).name;
   pushNews(c, a.name + ' signs with the ' + fn + ' (' + fs + '★): ' + fmtMoney(offer.salary) + ' a season.', 'draft');
   if (c.rivalId) { const rv = c.players[c.rivalId], rs = frStars(c, rv.club); pushNews(c, rv.name + ' signs with the ' + clubOf(rv.club).name + ' (' + rs + '★). The rivalry turns pro.', 'rival');
-    c.events.push(rivalCard('draft', 'SIGNING DAY', [rv.name + ' signed with the ' + clubOf(rv.club).name + ', a ' + rs + '★ franchise. You signed with the ' + fn + ', ' + fs + '★.', rs > fs ? 'They landed the better team. Every one of those stars is a reason to catch them.' : rs < fs ? 'You landed the better team. ' + rv.nick + ' says a logo doesn\'t win games.' : 'Same level, different colors. This gets settled on the court.', h2hText(c.story.h2h.w, c.story.h2h.l) + ' Next stop: the pros.'])); }
+    chQueue(c, rivalCard('draft', 'SIGNING DAY', [rv.name + ' signed with the ' + clubOf(rv.club).name + ', a ' + rs + '★ franchise. You signed with the ' + fn + ', ' + fs + '★.', rs > fs ? 'They landed the better team. Every one of those stars is a reason to catch them.' : rs < fs ? 'You landed the better team. ' + rv.nick + ' says a logo doesn\'t win games.' : 'Same level, different colors. This gets settled on the court.', h2hText(c.story.h2h.w, c.story.h2h.l) + ' Next stop: the pros.'])); }
   tlAdd(c, 'draft', 'Signed with the ' + fn + ' (' + fs + '★, ' + fmtMoney(offer.salary) + ' a season)');
   try { stFill(a); c.me.family = a.family; c.me.arc = { season: c.season, beats: a.arc && a.arc.season === a.season && a.arc.shut !== a.season ? a.arc.beats || 0 : 0, /* 2.1: the scenes since your last college season (the decision, the combine) count in your first pro season */ fired: {}, done: Object.assign({}, (a.arc && a.arc.done) || {}), w: -99, streak: 0 }; if (Array.isArray(a.later) && a.later.length) { c.me.later = a.later.slice(); a.later = []; } /* 2.1: story screens still waiting */ c.me.social = (a.social || []).slice(0, SY.socialMax); stSigning(c, a, fs); stFirstContract(c); socialPost(c, 'draft', stFirst(a.name) + ' to the ' + fn + '! ' + (fs >= 4 ? 'A ' + fs + '★ team for a rookie. Huge.' : 'Every great career starts somewhere.'), 2); } catch (e) { /* the story is decoration */ } // R9: signing day, the first contract, your family
   c.me.road = a.road && a.road.done ? JSON.parse(JSON.stringify(a.road)) : null; /* V5: the road comes with you */ if (a.celebs) c.me.celebs = JSON.parse(JSON.stringify(a.celebs)); /* V13: and your celebrations */ frCheckGoals(c, 'sign'); roadCheck(c); c.me.ovrSeasonStart = recOvr(meOf(c)); // V1: the first season's practice gains start here
@@ -15477,13 +15478,13 @@ function amH2H(c) { const r = c.story && c.story.h2h || { w: 0, l: 0 }; return r
 // Called whenever the next game may have changed (amateur).
 function amRivalMoments(c) {
   storyFill(c); const g = amNext(c); if (!g || !g.opp || !g.opp.rival) return; const rv = g.opp, S = c.story, dh = Math.round((rv.height - c.height) / 0.0254), h2h = amH2H(c);
-  if (!S.firstMeeting) { S.firstMeeting = true; stCount(c); c.events.push(rivalCard('first', 'FIRST MEETING', [rv.name + '. Same age, same city' + (dh ? ', ' + Math.abs(dh) + '″ ' + (dh > 0 ? 'taller' : 'shorter') : ', same height') + '.', 'You have heard the name since middle school. Tonight the whole gym finds out who is better.', 'From here on you meet at every level: high school, college, the pros.'])); return; }
+  if (!S.firstMeeting) { S.firstMeeting = true; stCount(c); chQueue(c, rivalCard('first', 'FIRST MEETING', [rv.name + '. Same age, same city' + (dh ? ', ' + Math.abs(dh) + '″ ' + (dh > 0 ? 'taller' : 'shorter') : ', same height') + '.', 'You have heard the name since middle school. Tonight the whole gym finds out who is better.', 'From here on you meet at every level: high school, college, the pros.'])); return; }
   const po = c.league && c.league.playoffs; const key = 'final' + c.season + c.stage;
-  if (po && po.round === 2 && !S[key]) { S[key] = true; stCount(c); c.events.push(rivalCard('final', 'FINALS REMATCH', ['The ' + (c.stage === 'college' ? 'conference' : 'city') + ' final: you and ' + rv.name + ', again.', h2hText(h2h.w, h2h.l), 'Win this one and it is the first thing anyone says about the two of you.'])); }
+  if (po && po.round === 2 && !S[key]) { S[key] = true; stCount(c); chQueue(c, rivalCard('final', 'FINALS REMATCH', ['The ' + (c.stage === 'college' ? 'conference' : 'city') + ' final: you and ' + rv.name + ', again.', h2hText(h2h.w, h2h.l), 'Win this one and it is the first thing anyone says about the two of you.'])); }
 }
 function proRivalMoments(c) {
   storyFill(c); const g = userGame(c); if (!g || !c.rivalId || opponentOf(c, g) !== c.rivalId) return; const rv = c.players[c.rivalId], S = c.story, key = 'final' + c.season;
-  if (g.playoff && g.series && c.playoffs && c.playoffs.series.length === 1 && !S[key] && !sagaFinalsNow(c)) { /* the final (V6: the semifinals are a series too) */ S[key] = true; stCount(c); const h = c.story.h2h || { w: 0, l: 0 }; (c.events || (c.events = [])).push(rivalCard('final', 'FINALS REMATCH', ['The final is you against ' + rv.name + '. You have been doing this since you were fourteen.', h2hText(h.w, h.l), 'Best of ' + g.series.bestOf + '. Nobody in this league has a rivalry like yours.'])); }
+  if (g.playoff && g.series && c.playoffs && c.playoffs.series.length === 1 && !S[key] && !sagaFinalsNow(c)) { /* the final (V6: the semifinals are a series too) */ S[key] = true; stCount(c); const h = c.story.h2h || { w: 0, l: 0 }; chQueue(c, rivalCard('final', 'FINALS REMATCH', ['The final is you against ' + rv.name + '. You have been doing this since you were fourteen.', h2hText(h.w, h.l), 'Best of ' + g.series.bestOf + '. Nobody in this league has a rivalry like yours.'])); }
 }
 function h2hAdd(c, won) { storyFill(c); const h = c.story.h2h || (c.story.h2h = { w: 0, l: 0 }); if (won) h.w++; else h.l++; }
 
@@ -15582,7 +15583,7 @@ function recSpotNews(c, c0, c1, warn, pulled) {
   for (const id of recWatchIds(c)) { const P = colProg(id); if (!P) continue; const A = colSpots(c, id, c0), B = colSpots(c, id, c1), o = recLiveOffer(c, id), mine = R.commit && R.commit.pid === id;
     B.recruits.forEach((r, i) => { const was = A.recruits[i]; if (r.status !== 'committed' || (was && was.status === 'committed')) return; const key = id + ':' + r.name; if (R.ann[key]) return; R.ann[key] = 1;
       storyNews(c, (r.rival ? 'Your rival ' : '') + r.name + ' (' + r.stars + '★) commits to ' + P.name + '. Spots left: ' + B.left + '.', r.rival ? 'rival' : 'draft');
-      if (r.rival) c.events.push(rivalCard('recruit', 'YOUR RIVAL COMMITS', [c.rival.name + ' commits to ' + P.name + ' and takes one of its spots.', B.left ? 'Spots left there: ' + B.left + '.' : 'Its last spot: ' + P.name + ' is full.', (colInterest(c, id) || 0) >= COLG.stages[1] ? 'They wanted you too. Now it\'s a race for what\'s left.' : 'You\'ll see each other on the court.'])); });
+      if (r.rival) chQueue(c, rivalCard('recruit', 'YOUR RIVAL COMMITS', [c.rival.name + ' commits to ' + P.name + ' and takes one of its spots.', B.left ? 'Spots left there: ' + B.left + '.' : 'Its last spot: ' + P.name + ' is full.', (colInterest(c, id) || 0) >= COLG.stages[1] ? 'They wanted you too. Now it\'s a race for what\'s left.' : 'You\'ll see each other on the court.'])); });
     if (o && !mine) { if (B.left === 0 && A.left > 0) pulled.push(recPull(c, o, 'spot')); else if (B.left === 1 && A.left > 1) { const l = recWarn(c, o, 'spot', 'Spots left: 1 at ' + P.name + '. Commit soon, or the next recruit takes it and the offer goes.'); if (l) warn.push(l); } } }
 }
 // Interest and injury: a warning, then the pull (§2.2).
@@ -15675,13 +15676,13 @@ function recVisitScene(c, P) {
   const co = colCoach(c, P.id), ros = colRoster(c, P.id).mates || [], cap = ros[0], st = co.sys, F = CR.trainFocus[co.focus], fac = '★'.repeat(P.fac) + '☆'.repeat(5 - P.fac);
   const captain = cap ? { role: 'Captain', name: cap.name, look: cap.look, colors: P.colors } : 'coach', coach = { role: 'Head coach', name: co.name, look: co.look, colors: P.colors }, id = P.id; /* (a role fits under the portrait: the program is in the lines) */
   const pickup = { iso: '"Coach clears out for whoever\'s hot. Could be you."', pace: '"We run every possession. Bring your legs."', defense: '"Nobody scores in our practices. You\'ll guard me first."', development: '"Coach has a plan for every one of us. Mine is taped to my locker."' }[st] || '';
-  c.events.push({ kind: 'dialog', title: 'OFFICIAL VISIT', who: captain, bg: 'gym', mood: 'warm', rec: { pid: id, beat: 1 }, lines: [(cap ? cap.name : 'Their captain') + ' meets you at ' + P.arena + ', ' + P.name + '.', '"Welcome to ' + P.city + '. Want to run with us?" ' + pickup],
+  chPush(c, { kind: 'dialog', title: 'OFFICIAL VISIT', who: captain, bg: 'gym', mood: 'warm', rec: { pid: id, beat: 1 }, lines: [(cap ? cap.name : 'Their captain') + ' meets you at ' + P.arena + ', ' + P.name + '.', '"Welcome to ' + P.city + '. Want to run with us?" ' + pickup],
     choice: [{ label: 'Play hard', note: 'They like what they see: interest +5 · fatigue +8', fx: { fatigue: 8 }, rec: { earned: 5 } }, { label: 'Ask what they need', note: 'You learn their plan for you: interest +3', rec: { earned: 3, flag: 'needs' }, def: true }, { label: 'Watch from the side', note: 'Nothing risked, nothing shown', rec: {} }] }); /* (three labels side by side: short) */
-  c.events.push({ kind: 'dialog', title: 'SATURDAY NIGHT', who: captain, bg: 'quad', rec: { pid: id, beat: 2 }, lines: ['Saturday night. The players are heading to a get-together off campus.', 'The academic advisor has offered you breakfast and a tour of the library at eight.'],
+  chPush(c, { kind: 'dialog', title: 'SATURDAY NIGHT', who: captain, bg: 'quad', rec: { pid: id, beat: 2 }, lines: ['Saturday night. The players are heading to a get-together off campus.', 'The academic advisor has offered you breakfast and a tour of the library at eight.'],
     choice: [{ label: 'Go with the players', note: 'Interest +4 · a late night: fatigue +10, trust −2', fx: { fatigue: 10, trust: -2 }, rec: { earned: 4 } }, { label: 'Meet the advisor', note: P.academic ? 'Their kind of student: interest +6' : 'The majors and the plan: interest +2', rec: { earned: P.academic ? 6 : 2, flag: 'advisor' }, def: true }, { label: 'Call home, sleep', note: 'Confidence +2', fx: { conf: 2 }, rec: {} }] });
   const pitch = { iso: '"We put the ball in our best player\'s hands. Come here and that\'s you."', pace: '"We run. Forty minutes of pace: if you can fly, you start."', defense: '"We win with defense. Guard, and you\'ll never come off the floor."', development: '"' + (F ? F.label : 'Skill') + ' work every week, film every Monday, a coach just for you. Players leave here better than they came."' }[st] || '"We want you here."';
   const hint = co.hot || recCarouselWill(c, id), offered = !!recLiveOffer(c, id);
-  c.events.push({ kind: 'dialog', title: 'THE PITCH', who: coach, bg: 'locker', mood: 'warm', rec: { pid: id, beat: 3 }, lines: [co.name + ': ' + pitch, 'The practice gym: ' + fac + ' (XP +' + Math.round(colFacPct(P) * 100) + '% here)' + (F ? ', and extra ' + F.label + ' work after every game.' : '.'), hint ? 'On the way out, a team manager whispers that ' + colCoachTitle(co) + ' has been talking to other programs.' : 'Before you leave, the coach walks you to the car.'].filter(Boolean),
+  chPush(c, { kind: 'dialog', title: 'THE PITCH', who: coach, bg: 'locker', mood: 'warm', rec: { pid: id, beat: 3 }, lines: [co.name + ': ' + pitch, 'The practice gym: ' + fac + ' (XP +' + Math.round(colFacPct(P) * 100) + '% here)' + (F ? ', and extra ' + F.label + ' work after every game.' : '.'), hint ? 'On the way out, a team manager whispers that ' + colCoachTitle(co) + ' has been talking to other programs.' : 'Before you leave, the coach walks you to the car.'].filter(Boolean),
     choice: [offered ? { label: 'Commit on the spot', note: 'Verbal, not binding: the others stop rising', rec: { commit: true } } : { label: 'Ask for an offer', note: 'They know where you stand: interest +4', rec: { earned: 4 } },
       hint ? { label: 'Ask about rumors', note: 'Find out if the coach is staying', rec: { flag: 'rumor', earned: 1, ask: recCarouselWill(c, id) ? colCoachTitle(co) + ' pauses: "Nothing\'s decided." It sounds like a maybe.' : colCoachTitle(co) + ' laughs: "I\'m not going anywhere."' } } : { label: 'Ask about my role', note: 'How they\'d use you: interest +3', rec: { earned: 3 } },
       { label: 'Think it over', note: 'Thank them; no promises yet', rec: {}, def: true }] });
@@ -15732,7 +15733,7 @@ function recCarouselFire(c) {
   const to = COLLEGES.filter(q => q.id !== P.id && q.stars >= P.stars && colSpots(c, q.id).left > 0 && (c.gpa || 0) >= recGpaFloor(q)).sort((a, b) => hashString(a.id + c.seed) - hashString(b.id + c.seed)), Y = to[r.int(Math.max(1, to.length))] || null;
   const W = colWorld(c); if (!Array.isArray(W.moves)) W.moves = []; W.moves.push({ from: P.id, to: Y ? Y.id : null, season: c.season, coach: { name: co.name, last: co.last, look: co.look, age: co.age, sys: co.sys, focus: co.focus } }); recBump(c); _colMemo.clear();
   storyNews(c, colCoachTitle(co) + ' leaves ' + P.name + (Y ? ' for ' + Y.name : '') + '.', 'league');
-  c.events.push({ kind: 'dialog', offer: true, title: 'YOUR COACH IS LEAVING', who: { role: 'Head coach', name: co.name, look: co.look, colors: P.colors }, rec: { pid: P.id, to: Y ? Y.id : null, carousel: true },
+  chPush(c, { kind: 'dialog', offer: true, title: 'YOUR COACH IS LEAVING', who: { role: 'Head coach', name: co.name, look: co.look, colors: P.colors }, rec: { pid: P.id, to: Y ? Y.id : null, carousel: true },
     lines: ['"I took the job at ' + (Y ? Y.name : 'another program') + '. I wanted you to hear it from me."', P.name + ' will name a new coach. Your commitment there is still good, and nothing is signed yet.'],
     choice: (Y ? [{ label: 'Follow the coach', note: Y.name + ' offers you: no flip', rec: { car: 'follow' } }] : []).concat([{ label: 'Stay committed', note: 'A new coach; your spot stands', rec: { car: 'stay' }, def: true }, { label: 'Reopen recruiting', note: 'No flip cost: the coach left, not you', rec: { car: 'reopen' } }]) });
 }
@@ -15749,7 +15750,7 @@ function recSigningDay(c, rng) {
   hsFill(c); const R = recOf(c); if (R.carousel && !R.carousel.fired && R.commit) recCarouselFire(c);
   const live = hsLiveOffers(c).map(o => Object.assign({}, o)), cm = R.commit ? R.commit.pid : null; live.sort((a, b) => (b.pid === cm) - (a.pid === cm) || b.tier - a.tier);
   const none = !live.length, prepOk = none && !c.prep, walk = none && COLLEGES.some(P => (c.gpa || 0) >= colGpaReq(P)); if (amOvr(c) >= AMC.skipCollegeOvr || (none && !prepOk && !walk)) live.push({ name: 'Skip college: turn pro', tier: -1, draft: true }); /* (no road left: the pros, where three franchises always make an offer) */
-  c.decision = { kind: 'college', offers: live, signing: true, committed: cm, none, prepOk };
+  c.decision = { kind: 'college', offers: live, signing: true, committed: cm, none, prepOk }; try { sagaTick(c, 'signing', { d: c.decision }); } catch (e) { /* 2.1: chapter 4's kitchen table, if the season's end didn't have it (the story is decoration) */ }
   if (none) c.events.push({ kind: 'story', who: 'coach', title: 'NO OFFERS', lines: ['Signing Day, and nobody has offered you a scholarship.', (walk ? 'Walk on at any program whose GPA line you meet (no scholarship: you pay the tuition and start at the bottom of its depth chart)' : 'Your GPA (' + (c.gpa || 0).toFixed(2) + ') is under every program\'s line: no walk-on') + (prepOk ? (walk ? ', or a prep year' : '. A prep year') + ': one more season, and if you dominate the offers come back.' : walk ? '.' : '. The pros are still there: three franchises make offers after the combine.')] });
   storyNews(c, none ? 'Signing Day: ' + c.name + ' has no scholarship offers.' : 'Signing Day: ' + c.name + ' has ' + live.filter(o => !o.draft).length + ' scholarship offer' + (live.filter(o => !o.draft).length > 1 ? 's' : '') + (cm ? ' and a commitment to ' + colProg(cm).name : '') + '.', 'draft');
 }
@@ -15776,7 +15777,7 @@ function recPrepYear(c, rng) {
   for (const o of c.offers || []) if (!o.pulled) recPull(c, o, 'new class');
   amNewSeason(c, rng || amRng(c));
   c.events.push({ kind: 'story', who: 'coach', title: 'THE PREP YEAR', lines: ['Nobody offered, so you\'re spending a year at ' + c.school + '.', 'One more season against the best prep players around. Dominate it (win ' + Math.round(RCG.prep.winShare * 100) + '% of your games) and the scouts will add a star to your name: the offers come back.'] });
-  storyNews(c, c.name + ' heads to ' + c.school + ' for a prep year.', 'league'); tlAdd(c, 'prep', 'A prep year at ' + c.school); return c.prep;
+  storyNews(c, c.name + ' heads to ' + c.school + ' for a prep year.', 'league'); tlAdd(c, 'prep', 'A prep year at ' + c.school); try { sagaTick(c, 'signed', { kind: 'prep' }); } catch (e) { /* 2.1: Signing Day's closing scene */ } return c.prep;
 }
 // The prep year's turning point: dominating it.
 function recPrepCheck(c) {
@@ -15810,7 +15811,7 @@ function amVisit(c, i) {
 }
 // Commitment day: you pick a hat. The rival takes the contested spot if you pass on it.
 function amChooseCollege(c, o) {
-  const rng = amRng(c); const d = c.decision; c.decision = null; if (o.draft) { amGoToDraft(c); return; } try { socialPost(c, 'commit', stFirst(c.name) + ' commits to ' + o.name + '! Big get for them.', 2); } catch (e) { /* decoration */ }
+  const rng = amRng(c); const d = c.decision; c.decision = null; if (o.draft) { try { sagaTick(c, 'signed', { kind: 'pro' }); } catch (e) { /* 2.1: Signing Day's closing scene */ } amGoToDraft(c); return; } try { socialPost(c, 'commit', stFirst(c.name) + ' commits to ' + o.name + '! Big get for them.', 2); } catch (e) { /* decoration */ }
   const offers = d && d.offers ? d.offers.filter(x => !x.draft) : [o]; const contested = offers.find(x => x.contested); const R = c.stage === 'hs' ? recOf(c) : null, hats = R && (c.offers || []).length ? recHats(c) : offers.map(x => ({ name: x.name, colors: x.colors, tier: x.tier })); /* 2.1 (§2.5): every school that offered you */
   const rvP = R && R.rival && c.rival ? colProg(R.rival.pid) : null, rvIn = rvP && colSpots(c, rvP.id, 1).recruits.some(x => x.rival && x.status === 'committed');
   c.stage = 'college'; c.stageYear = 1; c.college = o.name; c.collegeTier = o.tier; c.colors = o.colors.slice(); c.program = { name: o.name, pid: o.pid || (colProgByName(o.name) || {}).id || null, tier: o.tier, fac: o.fac || 1, focus: o.focus || null, coach: o.coach || 'Coach', academic: !!o.academic }; const Pn = colProg(c.program.pid);
@@ -15821,7 +15822,7 @@ function amChooseCollege(c, o) {
   c.events.push({ kind: 'commit', title: R ? 'SIGNING DAY' : 'COMMITMENT DAY', signing: !!R, walkOn: !!o.walkOn, offers: hats.some(x => x.name === o.name) ? hats : hats.concat([{ name: o.name, colors: o.colors, tier: o.tier }]), chosen: Math.max(0, (hats.some(x => x.name === o.name) ? hats : hats.concat([o])).findIndex(x => x.name === o.name)), lines: [c.name + (o.walkOn ? ' walks on at ' : R ? ' signs with ' : ' commits to ') + o.name + '.', schoolTierLabel(o) + ' · ' + (o.coach || 'the coach') + ' · facilities ' + colFacStars(o), c.rival && c.rival.college ? c.rival.name + ' will be at ' + c.rival.college + (colProgByName(c.rival.college) && Pn && colProgByName(c.rival.college).conf !== Pn.conf ? ': you meet out of conference.' : ', in your conference.') : 'Bigger programs play tougher schedules, and more scouts are watching.'] });
   const Ros = Pn ? colRoster(c, Pn.id) : null; tmArchive(c); c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach, base: amOvr(c) + TM.tierGap[o.tier], mates: Ros ? Ros.mates : null }); colCoachToTeam(c); colSeat(c, Ros ? Ros.start : TM.ladderStart[o.tier]); /* 2.1: the roster and the coach the program's page showed */ // R3: the program is your team now; R4: bigger programs start you lower on the depth chart (R6: seated)
   if (o.walkOn) colSeat(c, ((c.team && c.team.mates) || []).length + 1); /* 2.1 (§2.6): a walk-on starts at the bottom */ if (R && R.flips) { trustAdd(c, -RCG.flip.trust); } /* §2.5: your coach remembers the flip */
-  schoolScholarship(c, o); if (o.walkOn) c.scholarship = 'walkon'; /* V9: before the season (its tuition is due when it starts); a walk-on pays it all */ amNewSeason(c, rng); c.events.push({ kind: 'story', who: 'coach', title: 'WELCOME TO ' + o.name.toUpperCase(), lines: [(o.coach || 'Your coach') + ': “' + (COACH_PITCH[o.focus] || 'Work hard and you will play.') + '”', 'College games are ' + gameLenLabel() + ' games, like high school. Every game here pays ' + Math.round((colFacMul(c) - 1) * 100) + '% more XP from the facilities' + (o.focus ? ', and your coach adds extra ' + (CR.trainFocus[o.focus] || {}).label + ' work after every game.' : '.'), 'Three marquee games, then the conference: win its tournament (or have the résumé) and you play in the national tournament. Scouts rate every game; declare after any season.'] });
+  schoolScholarship(c, o); if (o.walkOn) c.scholarship = 'walkon'; /* V9: before the season (its tuition is due when it starts); a walk-on pays it all */ try { sagaTick(c, 'signed', { kind: o.walkOn ? 'walkon' : 'college', pid: c.program.pid, name: o.name }); } catch (e) { /* 2.1: Signing Day's closing scene, before the college season opens */ } amNewSeason(c, rng); c.events.push({ kind: 'story', who: 'coach', title: 'WELCOME TO ' + o.name.toUpperCase(), lines: [(o.coach || 'Your coach') + ': “' + (COACH_PITCH[o.focus] || 'Work hard and you will play.') + '”', 'College games are ' + gameLenLabel() + ' games, like high school. Every game here pays ' + Math.round((colFacMul(c) - 1) * 100) + '% more XP from the facilities' + (o.focus ? ', and your coach adds extra ' + (CR.trainFocus[o.focus] || {}).label + ' work after every game.' : '.'), 'Three marquee games, then the conference: win its tournament (or have the résumé) and you play in the national tournament. Scouts rate every game; declare after any season.'] });
   schoolCommit(c, o); // V9: the scholarship, and your major
   amRivalMoments(c);
 }
@@ -17448,7 +17449,7 @@ function schoolExamCard(c, when) {
       { label: 'Cram', note: 'GPA +' + E.cram[0] + ' · fatigue +' + E.cram[1] + ' · practice XP −' + pct(E.cram[2]) + ' this week', fx: { gpa: E.cram[0], fatigue: E.cram[1], xp: E.cram[2] } },
       { label: 'Balanced', note: 'GPA +' + E.balanced[0] + ' · practice as usual', fx: { gpa: E.balanced[0] }, def: true },
       { label: 'Skip the studying', note: 'GPA −' + Math.abs(E.skip[0]) + ' · practice XP +' + pct(E.skip[2]) + ' this week', fx: { gpa: E.skip[0], xp: E.skip[2] } }] };
-  c.events.push(ev); return ev;
+  chPush(c, ev); return ev; /* (2.1: a decision goes in now; story beats wait) */
 }
 function schoolExamDone(c, ev) { const fail = amReportCard(c, ev.exam); return fail ? ['Ineligible for ' + HS.ineligibleGames + ' games'] : []; }
 // The report card (both levels): eligibility, the offers you hold (high school), academic probation (college).
@@ -17473,7 +17474,7 @@ function schoolScholarship(c, o) {
 function schoolCommit(c, o) { if (!c.scholarship) schoolScholarship(c, o); schoolMajorCard(c, o); }
 // The major's card (o: the program at commitment; null: a save from before V9 that's already in college).
 function schoolMajorCard(c, o) { const fee = schoolTuitionOf(c);
-  c.events.push({ kind: 'dialog', id: 'major', major: true, title: 'PICK A MAJOR', who: 'coach', lines: [!o ? 'The registrar needs a form from you.' : (c.scholarship === 'full' ? 'A full ride: ' + o.name + ' pays every dollar of tuition.' : c.scholarship === 'walkon' ? 'A walk-on: no scholarship, so you pay all $' + fee.toLocaleString() + ' of tuition at the start of every season.' : 'A partial scholarship: you pay $' + fee.toLocaleString() + ' of tuition at the start of every season (' + Math.round(SCH.partialShare * 100) + '% of $' + SCH.tuition.toLocaleString() + ').'), (o ? 'One more form: your' : 'Your') + ' major. It decides where you can go after basketball.', 'The degree takes ' + SCH.degreeYears + ' years (or summers, later). A major\'s classes are harder: GPA −' + SCH.majorDrift + ' more every game week.'],
+  chPush(c, { kind: 'dialog', id: 'major', major: true, title: 'PICK A MAJOR', who: 'coach', lines: [!o ? 'The registrar needs a form from you.' : (c.scholarship === 'full' ? 'A full ride: ' + o.name + ' pays every dollar of tuition.' : c.scholarship === 'walkon' ? 'A walk-on: no scholarship, so you pay all $' + fee.toLocaleString() + ' of tuition at the start of every season.' : 'A partial scholarship: you pay $' + fee.toLocaleString() + ' of tuition at the start of every season (' + Math.round(SCH.partialShare * 100) + '% of $' + SCH.tuition.toLocaleString() + ').'), (o ? 'One more form: your' : 'Your') + ' major. It decides where you can go after basketball.', 'The degree takes ' + SCH.degreeYears + ' years (or summers, later). A major\'s classes are harder: GPA −' + SCH.majorDrift + ' more every game week.'],
     choice: [
       { label: 'Business', note: 'Front office later · NIL deals +' + Math.round(SCH.majorNil * 100) + '%', fx: {}, major: 'business' },
       { label: 'Communications', note: 'The booth later · hype +' + SCH.majorHype + ' now', fx: { hype: SCH.majorHype }, major: 'comms' },
@@ -18488,12 +18489,12 @@ function staffWeek(c) {
 function staffWho(s) { return { role: STAFF_INFO[s.role][0], name: s.name, look: s.look, colors: ['#2B3A5C', '#C9D3E8'] }; }
 function staffPoachCard(c, role, rng) {
   const S = staffOf(c), s = S[role], club = (rng.pick(c.active.map(id => c.players[id]).filter(p => p.club !== meOf(c).club)) || {}).club, cn = club ? clubOf(club).name : 'Another club', pay = Math.round(s.salary * (1 + SF.poachRaise) / 10000) * 10000;
-  c.events.push({ kind: 'dialog', id: 'staff-poach-' + role + '-' + c.season, staff: { kind: 'poach', role, pay }, title: 'A CALL FOR YOUR ' + STAFF_INFO[role][0].toUpperCase(), who: staffWho(s),
+  chPush(c, { kind: 'dialog', id: 'staff-poach-' + role + '-' + c.season, staff: { kind: 'poach', role, pay }, title: 'A CALL FOR YOUR ' + STAFF_INFO[role][0].toUpperCase(), who: staffWho(s),
     lines: ['The ' + cn + ' called. They want me on their staff, and they pay ' + fmtMoney(pay) + ' a season.', 'I\'d rather stay. Match it and I\'m yours.'],
     choice: [{ label: 'Match it', note: 'Pay ' + fmtMoney(pay) + ' a season (now ' + fmtMoney(s.salary) + ') · they stay', def: true }, { label: 'Let them go', note: 'Keep the money · the job is open until you hire' }] });
 }
 function staffScandalCard(c) {
-  const a = staffOf(c).agent; c.events.push({ kind: 'dialog', id: 'staff-scandal-' + c.season, staff: { kind: 'scandal' }, title: 'YOUR AGENT IN THE NEWS', who: 'reporter',
+  const a = staffOf(c).agent; chPush(c, { kind: 'dialog', id: 'staff-scandal-' + c.season, staff: { kind: 'scandal' }, title: 'YOUR AGENT IN THE NEWS', who: 'reporter',
     lines: ['A report says your agent, ' + a.name + ', promised a high school star\'s family money to sign with the agency.', 'Your sponsors are calling. What do you tell them?'],
     choice: [{ label: 'Stand by them', note: 'Hype −' + SF.scandalHype + ' · keep their +' + Math.round(staffAgentRaise(c) * 100) + '% on contracts' }, { label: 'Fire them', note: 'Hype −' + Math.round(SF.scandalHype / 2) + ' · no agent until you hire one', def: true }] });
   pushNews(c, 'A report links agent ' + a.name + ' to payments to a recruit\'s family.', 'money');
@@ -19090,7 +19091,7 @@ function stLookFor(key, skin) { const L = genLook(new RNG((hashString('look:' + 
 function stMakeFamily(c) { const me = stMeName(c), look = isPro(c) ? meOf(c).look : c.look, rng = new RNG((hashString('family:' + me + ':' + (c.seed || 1)) >>> 0) || 3); const last = String(me).split(' ').slice(1).join(' ') || 'Family'; let first = rng.pick(GEN_FIRST); if (first === stFirst(me)) first = rng.pick(GEN_FIRST); return { name: first + ' ' + last, look: stLookFor('family:' + me, look && look.skin), rel: 'your parent' }; }
 function stFill(c) {
   const B = holderOf(c); let A = B.arc; if (!A || typeof A !== 'object') A = B.arc = { season: c.season, beats: 0, fired: {}, done: {}, w: -99, streak: 0 };
-  if (A.season !== c.season) { const off = A.shut === A.season ? A.off || 0 : 0; /* 2.1: the scenes after a season's end (its offseason) count in the season they lead into */ A.season = c.season; A.beats = off; A.off = 0; A.fired = {}; A.w = -99; A.streak = 0; }
+  if (A.season !== c.season) { const off = A.shut === A.season ? A.off || 0 : 0; /* 2.1: the scenes after a season's end (its offseason) count in the season they lead into */ A.season = c.season; A.beats = off; A.off = 0; A.fired = {}; A.w = -99; A.streak = 0; A.benchN = 0; /* (2.1: a season's bench weeks, not a career's) */ }
   if (!A.fired || typeof A.fired !== 'object') A.fired = {}; if (!A.done || typeof A.done !== 'object') A.done = {}; if (!(A.streak > -99)) A.streak = 0;
   if (!B.family || !B.family.look) B.family = stMakeFamily(c); if (!Array.isArray(B.social)) B.social = []; return A;
 }
@@ -19536,7 +19537,7 @@ function guideEntries(game, topic) {
     add('The main story', c ? (now ? 'Chapter ' + now.n + ' of 12' : chs.filter(r => r.st === 'done').length + ' of 12 done') : '', ['Your career is told in 12 chapters, from freshman tryouts to your last day, with a version for every path. Each opens with a title card and has one big decision: "This will be remembered", and later chapters do.', 'Scenes come at the start of a week, after big games and in the offseason: 3–5 a season, never more than two in a row, and every one asks you something.'].concat(last ? [['Chapter ' + last.n + ', ' + last.title + ': ' + last.pick + '.', UI_CYAN]] : []));
     add('Side stories', c ? arcs.length + ' of ' + Sg.quota + ' arcs' : '', ['Between the chapters, side stories of 3–6 beats: a career sees ' + SG.perCareer[0] + '–' + SG.perCareer[1] + ' of them, never the same one twice.', 'Every choice trades something for something else, and says both. What you choose sets flags that later beats remember.'].concat(arcs.length ? [['This career: ' + arcs.map(a => a.title.charAt(0) + a.title.slice(1).toLowerCase() + (a.st === 'done' ? '' : ' (going on)')).join(' · ') + '.', UI_CYAN]] : []));
     const met = Sg ? SAGA_CAST.filter(r => Sg.cast[r] && (Sg.cast[r].name || Sg.cast[r].m) && r !== 'rival') : [];
-    add('Your people', '', ['Family, a younger sibling, Coach Adeyinka (your high school coach), a best friend, your rival, a mentor, your agent, a journalist and, in the pros, an owner. Each has a meter from −100 to 100; choices move it ' + SG.m.small + ', ' + SG.m.mid + ' or ' + SG.m.big + '.', 'A family at +' + SG.warmAt + ' or more gets the warm version of an ending. A friend who is close follows you; one you pushed away goes their own way.'].concat(met.length ? [[met.map(r => { const w = sagaWho(c, r); return SAGA_ROLE[r] + ' ' + stFirst(String(w.name).replace(/^Coach /, '')) + ' ' + (w.meter > 0 ? '+' : '') + w.meter; }).join(' · '), UI_CYAN]] : []));
+    add('Your people', '', ['Family, a younger sibling, Coach Adeyinka (your high school coach), a best friend, your rival, a mentor, your agent, a journalist and, in the pros, an owner. Each has a meter from −100 to 100; choices move it ' + SG.m.small + ', ' + SG.m.mid + ' or ' + SG.m.big + '.', 'A family at +' + SG.warmAt + ' or more gets the warm version of an ending. Your best friend picks a college of their own: follow them on Signing Day and you\'re teammates again.'].concat(met.length ? [[met.map(r => { const w = sagaWho(c, r); return SAGA_ROLE[r] + ' ' + stFirst(String(w.name).replace(/^Coach /, '')) + ' ' + (w.meter > 0 ? '+' : '') + w.meter; }).join(' · '), UI_CYAN]] : []));
     add('How it ends', Sg && Sg.epilogue ? (SAGA_EPILOGUES.find(e => e.id === Sg.epilogue) || {}).title || '' : '', ['When you retire, the story ends one of six ways, the first that fits: Passing the Torch (you took a kid under your wing), The Legend (the Hall of Fame and a ring), Two Old Rivals (your rival at +' + SG.respectAt + ' and peace made), Home (your family at +' + SG.warmAt + '), The Long Road (' + SG.roadClubs + ' clubs or more) or The Work.', 'THE STORY SO FAR (on the ME tab) shows the chapters with what you chose in each, the side stories, and everyone\'s meter.']); // V8; 2.1
     add('Ceremonies and records', '', ['Awards night closes a season you won something in. The All-Star reveal comes before the weekend, and a Hall of Fame career ends with its induction.', 'THE RECORD BOOK (on the ME tab) keeps your best game at each level and the state, college and PBL records. Break one and a gold toast says so, and the book keeps your name on it.']); // V8 (2.0 §4.9)
   }
@@ -19943,6 +19944,7 @@ const SAGA_ARCS = {}; // id → the arc (179_saga_arcs.js fills it)
 function sagaRng(c, salt) { return new RNG((hashString(String(c.seed || 1) + ':saga:' + salt) >>> 0) || 7); }
 function sagaAct(c) { return isPro(c) ? 3 : c.stage === 'college' ? 2 : c.stage === 'hs' ? 1 : 0; }
 function sagaStageKey(c) { return isPro(c) ? 'pro' : c.stage || 'hs'; }
+const CH_HOOKS = ['season', 'tryout', 'signing', 'signed']; // 2.1: the chapters' own hooks (a season starts, the tryout list, Signing Day opens, you signed)
 // The saga's state, filled in (an old save gets an empty one: its arcs start from where the career is now).
 function sagaOf(c) {
   const B = holderOf(c); let S = B.saga; if (!S || typeof S !== 'object') S = B.saga = {};
@@ -19990,7 +19992,7 @@ function sagaTick(c, hook, x) {
   try {
     const S = sagaOf(c), stg = sagaStageKey(c); x = x || {}; chRelease(c);
     if (S.stage !== stg) { const was = S.stage; S.stage = stg; if (was) sagaTick(c, 'stage', { from: was }); }
-    if (chTick(c, hook, x)) return true; if (hook === 'season' || hook === 'tryout') return false; /* (2.1's hooks are the chapters' alone) */
+    if (chTick(c, hook, x)) return true; if (CH_HOOKS.includes(hook)) return false; /* (2.1's hooks are the chapters' alone) */
     sagaOpen(c, hook, x);
     for (const id of S.order) { const R = S.arcs[id], A = SAGA_ARCS[id]; if (!R || R.st !== 'on' || !A) continue;
       for (let guard = 0; guard < 8 && R.st === 'on'; guard++) { const b = A.beats[R.b]; if (!b) { R.st = 'done'; break; }
@@ -20058,7 +20060,7 @@ function sgTrainer(c) { return stWho(c, 'trainer'); }
 // 1. FAMILY BILLS (act I): the family needs money. A weekend job (cash, less practice), basketball first (more
 // practice, the family hurt), or the coach's help (a favor comes due).
 SAGA_ARCS.bills = { act: 1, title: 'FAMILY BILLS', chance: SG.chance.bills,
-  open: c => c.stage === 'hs' && c.stageYear <= 3 && stWeek(c) >= 2,
+  open: c => c.stage === 'hs' && c.stageYear <= 3 && stWeek(c) >= 2 && !chOwns(c, 3), /* 2.1: chapter 3 tells the bills */
   beats: [
     { id: 'ask', hook: 'game', bg: 'kitchen', who: 'family', mood: 'tense',
       lines: c => [sagaFirst(c, 'family') + ' has the bills spread across the kitchen table and tries to smile about it.', '"The car needs work, and the rent went up again. It\'s not your problem. I just wanted you to hear it from me."'],
@@ -20082,7 +20084,7 @@ SAGA_ARCS.bills = { act: 1, title: 'FAMILY BILLS', chance: SG.chance.bills,
 // 2. BEST FRIEND (acts I–III): a teammate from your first season. Your choices decide whether they follow you, play for
 // a rival, or quit; in the pros they turn up again.
 SAGA_ARCS.friend = { act: 1, title: 'BEST FRIEND', chance: SG.chance.friend,
-  open: c => c.stage === 'hs' && c.stageYear <= 2 && stWeek(c) >= 3 && !!(c.team && (c.team.mates || []).length),
+  open: c => c.stage === 'hs' && c.stageYear <= 2 && stWeek(c) >= 3 && !!(c.team && (c.team.mates || []).length) && !chOwns(c, 4), /* 2.1: the chapters tell your best friend's story */
   start: (c, S) => { if (S.cast.friend.name) return; /* 2.1: chapter 1 introduced them */ const T = c.team, mates = T.mates.slice().sort((a, b) => tmMateOvr(a) - tmMateOvr(b)), m = mates[sagaRng(c, 'friend').int(Math.min(3, mates.length))]; Object.assign(S.cast.friend, { name: m.name, look: m.look, colors: (T.colors || []).slice(), mate: m.id }); },
   beats: [
     { id: 'help', hook: 'game', bg: 'locker', who: 'friend', mood: 'warm',
@@ -20294,9 +20296,9 @@ SAGA_ARCS.torch = { act: 3, title: 'PASSING THE TORCH', chance: SG.chance.torch,
 // 12. THE RIVAL (acts I–III): the rival from your first high school meeting, now with a story of their own: after the
 // buzzer, on another program, in the PBL. The meter decides the Finals rematch's ending and an epilogue.
 SAGA_ARCS.rival = { act: 1, title: 'THE RIVAL', chance: SG.chance.rival,
-  open: (c, S, x) => !isPro(c) && c.stage === 'hs' && !!(x && x.rival) && !!c.rival,
+  open: (c, S, x) => !isPro(c) && (c.stage === 'hs' || (c.stage === 'college' && !!S.flags.ch2)) && !!(x && x.rival) && !!c.rival && !(chOwns(c, 2) && !S.flags.ch2), /* 2.1: chapter 2 tells the first handshake; the arc goes on after it */
   beats: [
-    { id: 'buzzer', hook: 'game', bg: 'gym', who: 'rival', mood: (c, S, R, x) => x && x.won ? 'story' : 'tense', title: 'AFTER THE BUZZER',
+    { id: 'buzzer', hook: 'game', bg: 'gym', who: 'rival', mood: (c, S, R, x) => x && x.won ? 'story' : 'tense', title: 'AFTER THE BUZZER', when: (c, S) => S.flags.ch2 ? 'skip' : true, /* (chapter 2 told it) */
       lines: (c, S, R, x) => { const r = sagaWho(c, 'rival').name; return x && x.won ? [r + ' finds you at half court after the buzzer, still breathing hard.', '"Enjoy it. I\'ll be there every year until one of us quits."'] : [r + ' walks past your bench on the way out, and stops.', '"You\'re better than they said. Not better than me. Same time next year."']; },
       choice: () => [{ label: 'Shake their hand', note: 'Rival +' + SG.m.mid + ' · hype −2 (the crowd wanted a fight)', saga: { hype: -2, meter: { rival: SG.m.mid } }, def: true }, { label: 'Say something back', note: 'Hype +4 · rival −' + SG.m.mid + ' · your coach −' + SG.m.small, saga: { hype: 4, meter: { rival: -SG.m.mid, coach: -SG.m.small } } }] },
     { id: 'program', hook: 'game', bg: 'quad', who: 'rival', when: (c, S, R) => isPro(c) ? 'skip' : c.stage === 'college' && stWeek(c) >= 2,
@@ -20379,6 +20381,9 @@ const CH = CONFIG.chapters;
 const CHAPTERS = []; // by number, 1–12 (179_saga_ch1.js and the parts after it fill them)
 const CH_TITLES = ['', 'The Kid from Central Tech', 'Varsity', 'The Spotlight', 'Signing Day', 'Freshman Wall', 'March', 'The Decision', 'Rookie', 'Prime', 'The Ring Chase', 'Finals', 'Legacy']; // (a chapter's own title() wins: your school, "The One That Got Away")
 function chAge(c) { return isPro(c) ? meOf(c).age : c.age; }
+// The season's week for the chapters: the calendar's (R9's stWeek counts the games you played, and a week on the bench
+// is a week too).
+function chWeek(c) { return Math.max(stWeek(c), (isPro(c) ? c.week : c.league && c.league.week) || 0); }
 function chOf(c) { const S = sagaOf(c); let Q = S.ch; if (!Q || typeof Q !== 'object' || !Q.list || typeof Q.list !== 'object') Q = S.ch = { v: 1, n: 1, list: {}, last: null }; if (!(Q.n >= 1)) Q.n = 1; return Q; }
 function chTitle(c, n) { const D = CHAPTERS[n]; try { if (D && D.title) return D.title(c, sagaOf(c)); } catch (e) { /* the list's */ } return CH_TITLES[n] || ''; }
 // A big game (§4.3: scenes come at the start of a week, after big games, or in the offseason): the rival, the playoffs,
@@ -20395,27 +20400,29 @@ function chTick(c, hook, x) {
     let gone = false; try { gone = !!(D.past && D.past(c, S, hook, x)); } catch (e) { gone = false; } if (!gone) break;
     Q.list[Q.n] = { st: 'past', s0: c.season, stage: sagaStageKey(c), age: chAge(c) }; Q.n++; }
   const D = CHAPTERS[Q.n]; if (!D) return null; let R = Q.list[Q.n];
-  if (!R) { let ok = false; try { ok = !!D.open(c, S, hook, x); } catch (e) { ok = false; } if (!ok) return null;
+  if (!R) { if (stFill(c).ended === c.season) return null; /* (a chapter opens in a season, never after its end: the playoffs go on without you) */ let ok = false; try { ok = !!D.open(c, S, hook, x); } catch (e) { ok = false; } if (!ok) return null;
     R = Q.list[Q.n] = { st: 'on', v: '', i: 0, told: 0, s0: c.season, stage: sagaStageKey(c), age: chAge(c), pick: null, k: null };
     try { R.v = (D.variant && D.variant(c, S, hook, x)) || ''; } catch (e) { R.v = ''; } try { if (D.start) D.start(c, S, R, x); } catch (e) { /* decoration */ } }
   if (!R.late) { try { R.late = !!(D.over && D.over(c, S, R, hook, x)); } catch (e) { R.late = false; } }
-  if (R.late && R.stage !== sagaStageKey(c)) { R.cut = true; chClose(c, Q, R); return null; } /* its level is gone (a jump to the pros): it closes without its last scenes */
-  if (R.late && !CH_LATE_HOOKS.includes(hook)) return null; /* (a late closing waits for a regular moment, never an unhappy star's or a report card's) */
+  if (R.late && R.stage !== sagaStageKey(c) && !D.cross) { R.cut = true; chClose(c, Q, R); return null; } /* its level is gone (a jump to the pros): it closes without its last scenes */
+  if (R.late) { const own = chHookOk(D.scenes[D.scenes.length - 1], hook, x, false); if (!own && (D.cross || !CH_LATE_HOOKS.includes(hook))) return null; } /* (a late closing waits for a regular moment, never an unhappy star's or a report card's; D.cross: a chapter whose closing scene comes across a new level, at its own hook) */
   for (let g = 0; g < 12 && R.st === 'on'; g++) { const sc = D.scenes[R.i]; if (!sc) { chClose(c, Q, R); break; } const last = R.i === D.scenes.length - 1;
     if (R.late && !last && !sc.big) { R.i++; continue; } /* out of time: the big decision (if it's still to come), then the closing scene */
     if (!chHookOk(sc, hook, x, R.late)) { if (sc.opt && D.scenes.slice(R.i + 1).some(s2 => chHookOk(s2, hook, x, false))) { R.i++; continue; } /* an optional scene a later one passes */ break; }
-    if (R.told && !sc.now && !R.late && hook === 'game' && R.ts === c.season && stWeek(c) - (R.tw || 0) < CH.gap) break; // the chapter's own pace
+    if (R.told && !sc.now && !R.late && hook === 'game' && R.ts === c.season && chWeek(c) - (R.tw || 0) < CH.gap) break; // the chapter's own pace
     let w = true; try { w = sc.when ? sc.when(c, S, R, x, hook) : true; } catch (e) { w = false; } if (R.late) w = w === 'skip' ? 'skip' : true;
     if (w === 'skip') { R.i++; continue; } if (!w) break;
     if (sc.opt && !chRoom(c, D, R)) { R.i++; continue; } /* a scene the season has no room for */
-    const ev = chTell(c, D, R, sc, x, hook); if (!ev) break; R.i++; R.told++; R.tw = stWeek(c); R.ts = c.season; if (R.i >= D.scenes.length) chClose(c, Q, R); return ev; }
+    const ev = chTell(c, D, R, sc, x, hook); if (!ev) break; R.i++; R.told++; R.tw = chWeek(c); R.ts = c.season; if (R.i >= D.scenes.length) chClose(c, Q, R); return ev; }
   return null;
 }
 // An optional scene fits when the season still has room for it, the chapter's scenes after it (this season's) and
 // CH.spare more (for what can't wait: an injury, a title).
 function chRoom(c, D, R) { const A = stFill(c), cnt = A.shut === c.season ? (A.off || 0) : A.beats; return cnt + 1 + chLeft(c, D, R, 1) + CH.spare <= SY.beatsMax; }
-// The chapter's scenes still to come this season (D.left can say, or else its size less the ones told).
-function chLeft(c, D, R, after) { try { if (D.left) return Math.max(0, D.left(c, sagaOf(c), R, after || 0)); } catch (e) { /* the default */ } return Math.max(0, (D.size || 4) - R.told - (after || 0)); }
+// The chapter's scenes still to come this season (D.left can say): by default its scenes from here (after: skip this
+// many) that aren't optional and can come in a season (at its start, a game, a tryout or its end).
+const CH_SEASON_HOOKS = ['game', 'end', 'season', 'tryout'];
+function chLeft(c, D, R, after) { try { if (D.left) return Math.max(0, D.left(c, sagaOf(c), R, after || 0)); } catch (e) { /* the default */ } return D.scenes.slice(R.i + (after || 0)).filter(s => !s.opt && [].concat(s.hook || 'game').some(h => CH_SEASON_HOOKS.includes(h))).length; }
 // The room the season's other beats leave the chapter in progress (0 once the season is over; a chapter out of time
 // needs its big decision, if it's still to come, and its closing scene).
 function chReserve(c) { try { const Q = chOf(c), D = CHAPTERS[Q.n], R = Q.list[Q.n], A = stFill(c); if (!D || !R || R.st !== 'on' || A.ended === c.season || R.stage !== sagaStageKey(c)) return 0; let late = R.late; if (!late) { try { late = !!(D.over && D.over(c, sagaOf(c), R)); } catch (e) { late = false; } } if (late) return D.scenes.slice(R.i).filter((s2, j) => s2.big || R.i + j === D.scenes.length - 1).length; return Math.min(CH.reserveMax, chLeft(c, D, R, 0)); } catch (e) { return 0; } }
@@ -20423,7 +20430,8 @@ const CH_LATE_HOOKS = ['game', 'end', 'season', 'stage'];
 // A scene as a dialogue card (R9's stBeat: counted in the season's scenes, never refused). Lines: strings (the scene's
 // speaker) or { w: a cast role or a speaker, t } (a page of its own, with that speaker's portrait). Every scene has a
 // choice. A scene: { id, hook, at, when, pre, opt (told only if the season has room), now (no pace wait), title, bg, who,
-// mood, lines, choice: [{ label, note, fx (R9's), saga (the saga's), k (a big decision's key), def, after }], big, sum
+// mood, lines, choice: [{ label, note, fx (R9's), saga (the saga's), k (a big decision's key), pick (the answer in full,
+// for the recap: label otherwise), def, after }], big, sum
 // (the recap's line), after }.
 function chTell(c, D, R, sc, x, hook) {
   const S = sagaOf(c), F = (f, d) => { try { const v = typeof f === 'function' ? f(c, S, R, x, hook) : f; return v != null ? v : d; } catch (e) { return d; } };
@@ -20432,7 +20440,7 @@ function chTell(c, D, R, sc, x, hook) {
   const ev = stBeat(c, 'ch' + D.n + '-' + sc.id, 'me', title, lines, { arc: 'ch:' + D.n, chapter: true, choice: choice.length ? choice.map(ch => Object.assign({ fx: {} }, ch)) : null });
   if (!ev) return null; const last = R.i === D.scenes.length - 1;
   ev.who = typeof sc.who === 'function' ? F(sc.who, null) || sagaWho(c, 'family') : sagaWho(c, sc.who || 'family'); ev.bg = F(sc.bg, 'gym'); ev.mood = F(sc.mood, 'story');
-  ev.ch = { n: D.n, scene: sc.id, i: R.i }; ev.chapter = { n: D.n, title: chTitle(c, D.n), open: R.i === 0, big: !!sc.big, close: last, sub: R.i === 0 ? String(F(D.sub, '') || '') : '', sum: String(F(sc.sum, '') || '') };
+  ev.ch = { n: D.n, scene: sc.id, i: R.i }; ev.chapter = { n: D.n, title: chTitle(c, D.n), open: !R.told, big: !!sc.big, /* (the title card on the first scene told: a version may skip the first) */ close: last, sub: R.i === 0 ? String(F(D.sub, '') || '') : '', sum: String(F(sc.sum, '') || '') };
   S.log.push({ arc: 'ch' + D.n, ch: D.n, beat: sc.id, title, s: c.season, stage: sagaStageKey(c), age: chAge(c), pick: null, big: !!sc.big });
   return ev;
 }
@@ -20440,10 +20448,10 @@ function chTell(c, D, R, sc, x, hook) {
 // good), its after(), the log, and what the recap tells.
 function chChoose(c, ev, i) {
   const S = sagaOf(c), Q = chOf(c), n = ev.ch.n, D = CHAPTERS[n], R = Q.list[n], ch = ev.choice[i]; if (!D || !R || !ch) return [];
-  const out = sagaApply(c, ch.saga || null, null) || [], L = S.log.slice().reverse().find(l => l.ch === n && l.beat === ev.ch.scene && l.pick == null); if (L) L.pick = ch.label;
-  if (ev.chapter && ev.chapter.big) { R.pick = ch.label; R.k = ch.k != null ? ch.k : String(i); S.flags['ch' + n] = R.k; out.push('This will be remembered'); tlAdd(c, 'story', 'Chapter ' + n + ': ' + ch.label); }
+  const pk = ch.pick || ch.label, out = sagaApply(c, ch.saga || null, null) || [], L = S.log.slice().reverse().find(l => l.ch === n && l.beat === ev.ch.scene && l.pick == null); if (L) L.pick = pk; /* (ch.pick: the answer in full, for the log, the recap and the Story screen) */
+  if (ev.chapter && ev.chapter.big) { R.pick = pk; R.k = ch.k != null ? ch.k : String(i); S.flags['ch' + n] = R.k; out.push('This will be remembered'); tlAdd(c, 'story', 'Chapter ' + n + ': ' + pk); }
   const sc = D.scenes.find(s => s.id === ev.ch.scene); try { if (ch.after) ch.after(c, S, R); if (sc && sc.after) sc.after(c, S, R, i, ch); } catch (e) { /* decoration */ }
-  Q.last = { n, scene: ev.title, sum: ev.chapter ? ev.chapter.sum : '', pick: ch.label, big: !!(ev.chapter && ev.chapter.big), bg: ev.bg || 'gym', s: c.season, age: chAge(c) };
+  Q.last = { n, scene: ev.title, sum: ev.chapter ? ev.chapter.sum : '', pick: pk, big: !!(ev.chapter && ev.chapter.big), bg: ev.bg || 'gym', s: c.season, age: chAge(c) };
   return out;
 }
 function chClose(c, Q, R) { R.st = 'done'; R.end = { s: c.season, age: chAge(c) }; const n = Q.n; Q.n = n + 1; tlAdd(c, 'story', 'Chapter ' + n + ' complete: ' + chTitle(c, n)); }
@@ -20459,8 +20467,14 @@ function chRecap(c) {
   } catch (e) { return null; }
 }
 // --- the pacing (§4.3): two story screens in a row at most ---
-// The story screens waiting in the queue now (dialogue cards and rival moments not yet answered).
-function chQueued(c) { return (c.events || []).filter(e => e && !e.answered && (e.kind === 'dialog' || e.kind === 'rival')).length; }
+// The story screens waiting in the queue now (dialogue cards and rival moments not yet answered; an official visit's
+// three cards are one scene, §2.4).
+function chQueued(c) { const seen = {}; let n = 0; for (const e of c.events || []) { if (!e || e.answered != null || !(e.kind === 'dialog' || e.kind === 'rival')) continue; const v = e.rec && e.rec.beat ? 'visit:' + e.rec.pid : null; if (v) { if (seen[v]) continue; seen[v] = 1; } n++; } return n; }
+// A card that can wait for the next moment: a story beat (a chapter's scene, the saga's, R9's, the rival's). A decision
+// can't (an exam, your major, a visit, a staff call, your coach leaving).
+function chCanWait(e) { return !!e && !e.exam && !e.major && !e.staff && !e.rec && !e.offer && !e.decision; }
+// A decision's card goes in now; story beats step back (to the holder, in order) while more than two would be in a row.
+function chPush(c, ev) { const E = c.events || (c.events = []); E.push(ev); try { const B = holderOf(c); let n = chQueued(c); for (let i = E.length - 1; i >= 0 && n > CH.inRow; i--) { const e = E[i]; if (!e || e.answered != null || !(e.kind === 'dialog' || e.kind === 'rival') || !chCanWait(e)) continue; E.splice(i, 1); (Array.isArray(B.later) ? B.later : (B.later = [])).unshift(e); n--; } } catch (e) { /* decoration */ } return ev; }
 // A card that would be the third in a row waits on the holder (B.later) for the next moment; chRelease lets two go.
 function chQueue(c, ev) { const B = holderOf(c); if (chQueued(c) >= CH.inRow) { (Array.isArray(B.later) ? B.later : (B.later = [])).push(ev); return false; } (c.events || (c.events = [])).push(ev); return true; }
 function chRelease(c, all) { try { const B = holderOf(c); if (!Array.isArray(B.later) || !B.later.length) return; while (B.later.length && (all || chQueued(c) < CH.inRow)) (c.events || (c.events = [])).push(B.later.shift()); } catch (e) { /* decoration */ } }
@@ -20497,7 +20511,6 @@ CHAPTERS[1] = { n: 1, id: 'kid', size: 5,
   title: (c, S) => 'The Kid from ' + chSchoolOf(c, S), sub: () => 'Freshman year',
   past: c => isPro(c) || c.stage !== 'hs' || c.stageYear > 1, open: c => !isPro(c) && c.stage === 'hs' && c.stageYear === 1,
   start: (c, S, R) => { R.school = c.school; }, over: (c, S, R) => isPro(c) || c.stage !== 'hs' || c.season > R.s0, /* freshman year is gone: straight to the closing scene */
-  left: (c, S, R, after) => Math.max(0, (R.i <= 3 ? 5 : 4) - R.told - after), /* the optional fourth scene counts until it is passed */
   scenes: [
     { id: 'night', hook: ['season', 'tryout', 'game', 'end'], now: true, bg: 'kitchen', who: 'family', mood: 'warm', title: 'THE NIGHT BEFORE',
       lines: (c, S) => { const pre = !!(c.tryout && c.tryout.step !== 'done'), sib = sagaFirst(c, 'sibling'), sch = chSchoolOf(c, S);
@@ -20514,12 +20527,12 @@ CHAPTERS[1] = { n: 1, id: 'kid', size: 5,
           .concat(F.name ? [{ w: 'friend', t: sagaFirst(c, 'friend') + ', another ' + x.year + ', bumps your fist: "' + (v ? 'Varsity! I\'m on it too. They\'re going to run us into the ground. Good."' : 'Same list as me. JV together. We\'ll come up together, too."') }] : []); },
       choice: (c, S, R, x) => { const f = sagaFirst(c, 'friend'), co = stFirst(sagaWho(c, 'coach').name.replace(/^Coach /, '')); return [{ label: x.result === 'jv' ? 'Ask ' + co + ' what to work on' : 'Ask what it takes to start', note: 'Coach +' + SG.m.mid + ' · practice XP +5% this week', fx: { xp: 0.05 }, saga: { meter: { coach: SG.m.mid } }, def: true }, { label: S.cast.friend.name ? 'Celebrate with ' + f : 'Celebrate tonight', note: S.cast.friend.name ? f + ' +' + SG.m.mid : 'Confidence +1', saga: S.cast.friend.name ? { meter: { friend: SG.m.mid } } : { conf: 1 } }]; },
       after: (c, S, R) => { R.v = c.squad === 'jv' ? 'jv' : 'varsity'; }, sum: (c, S, R, x) => sagaWho(c, 'coach').name + (x && x.result === 'jv' ? ' sent you to JV, and told you why.' : ' put you on varsity as a ' + ((x && x.year) || 'freshman') + '.') },
-    { id: 'choice', hook: ['game', 'end'], big: true, bg: 'gym', mood: 'tense', title: 'AFTER PRACTICE', when: (c, S, R, x, hook) => hook === 'end' || stWeek(c) >= 2, /* (a season that ends first still gets it, at its end) */
+    { id: 'choice', hook: ['game', 'end'], big: true, bg: 'gym', mood: 'tense', title: 'AFTER PRACTICE', when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 2, /* (a season that ends first still gets it, at its end) */
       who: c => chSenior(c) || sagaWho(c, 'coach'),
       lines: c => { const s = chSenior(c), sib = sagaFirst(c, 'sibling'); return [(s ? 'Practice is over. The seniors stay for another hour of runs, and ' + stFirst(s.name) + ' waves you over: "Freshman. You in?"' : 'Practice is over. The seniors stay for another hour of runs, and one of them waves you over.'), { w: 'family', t: 'Your phone buzzes. ' + sagaFirst(c, 'family') + ': "Can you pick up ' + sib + ' from the rec center? I\'m stuck at work again."' }]; },
       choice: c => { const sib = sagaFirst(c, 'sibling'); return [{ k: 'late', label: 'Stay and run with the seniors', note: 'Coach +' + SG.m.mid + ' · trust +5 · XP +10% for 2 weeks · family −' + SG.m.mid, fx: { trust: 5 }, saga: { meter: { coach: SG.m.mid, family: -SG.m.mid }, xpWeeks: [0.1, 2] } }, { k: 'home', label: 'Go home and help', note: 'Family +' + (SG.m.mid + SG.m.small) + ' · ' + sib + ' +' + SG.m.mid + ' · coach trust −3', fx: { trust: -3 }, saga: { meter: { family: SG.m.mid + SG.m.small, sibling: SG.m.mid } }, def: true }]; },
       sum: c => 'After practice: the seniors\' runs, or ' + sagaFirst(c, 'sibling') + ' waiting at the rec center.' },
-    { id: 'then', hook: 'game', opt: true, mood: 'warm', when: c => stWeek(c) >= 4,
+    { id: 'then', hook: 'game', opt: true, mood: 'warm', when: c => chWeek(c) >= 4,
       bg: (c, S) => S.flags.ch1 === 'late' ? 'gym' : 'kitchen', who: (c, S) => S.flags.ch1 === 'late' ? chSenior(c) || sagaWho(c, 'coach') : sagaWho(c, 'sibling'), title: (c, S) => S.flags.ch1 === 'late' ? 'THE SENIORS' : 'THE REC CENTER',
       lines: (c, S) => { const sib = sagaFirst(c, 'sibling'), s = chSenior(c); return S.flags.ch1 === 'late' ? ['Six weeks of staying late. Nobody calls you freshman anymore. ' + (s ? stFirst(s.name) : 'A senior') + ' shows you the move that took them three years.', '"Hesitate, then the step-back. Don\'t show it in a game until it\'s yours."'] : [sib + ' plays in the rec league now, and you\'re the loudest one in the bleachers.', { w: 'sibling', t: sib + ': "Did you see? I did the crossover! Kind of. Will you show me the real one?"' }]; },
       choice: (c, S) => { const sib = sagaFirst(c, 'sibling'), f = sagaFirst(c, 'friend'); return S.flags.ch1 === 'late' ? [{ label: 'Drill it until it\'s yours', note: 'Practice XP +10% this week · fatigue +8', fx: { xp: 0.1, fatigue: 8 }, def: true }, { label: S.cast.friend.name ? 'Bring ' + f + ' next time' : 'Thank them', note: S.cast.friend.name ? f + ' +' + SG.m.mid + ' · coach +' + SG.m.small : 'Coach +' + SG.m.small, saga: { meter: S.cast.friend.name ? { friend: SG.m.mid, coach: SG.m.small } : { coach: SG.m.small } } }]
@@ -20529,6 +20542,200 @@ CHAPTERS[1] = { n: 1, id: 'kid', size: 5,
       lines: (c, S) => { const co = sagaWho(c, 'coach').name, k = S.flags.ch1; return ['The last game of the year is over. ' + co + ' finds you in the empty gym, rebounding your own misses.', '"You came in a kid from down the street. You leave this year one of ours."', k === 'late' ? '"I saw who stayed late. Everybody did."' : k === 'home' ? '"I know where you go after practice. Family first. Just never let it be an excuse."' : '"Now the work starts."']; },
       choice: c => [{ label: 'Ask for a summer plan', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } }, def: true }, { label: 'Go home and celebrate', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } } }],
       sum: c => 'Freshman year ended with ' + sagaWho(c, 'coach').name + ' calling you one of theirs.' },
+  ] };
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 17c) — 2.1 (§4.2): chapters 2–4, the rest of high school. VARSITY (sophomore year:
+// the first varsity season, or a second one, or JV again; the big meeting with your rival: shake their hand or talk
+// trash), THE SPOTLIGHT (junior year: the letters, the family's bills; take a weekend job or let your best friend's
+// family help, and owe them), SIGNING DAY (senior year: three voices at the kitchen table name real programs, the one
+// nearest home, the dream and your best friend's school; the closing scene at the signing says whether you did what you
+// said, or a prep year, a walk-on, the pros). The chapters own the side arcs they tell (Family Bills, Best Friend, the
+// rival's first handshake): those wait or stand down in a career that has these chapters.
+// ============================================================================
+// The chapter is this career's (ahead, going on or done: not passed by), so a side arc that tells the same story waits.
+function chOwns(c, n) { const Q = chOf(c), R = Q.list[n]; return R ? R.st !== 'past' : !!CHAPTERS[n] && Q.n <= n; }
+function chHsYear(c, y) { return !isPro(c) && c.stage === 'hs' && !c.prep && c.stageYear === y; }
+function chFriend(c) { const F = sagaOf(c).cast.friend; return F && F.name ? stFirst(F.name) : ''; }
+function chProgOf(o) { return o && (colProg(o.pid) || colProgByName(o.name)) || null; }
+// Signing Day's three voices: the offer nearest home (within CH.homeMiles), the dream (the best other one: tier, then
+// stars), your best friend's school.
+function chVoices(c) {
+  const S = sagaOf(c), L = isPro(c) || c.stage !== 'hs' ? [] : hsLiveOffers(c).filter(o => !o.draft).map(chProgOf).filter(Boolean);
+  const near = L.slice().sort((a, b) => colMiles(c, a) - colMiles(c, b))[0] || null, home = near && colMiles(c, near) <= CH.homeMiles ? near : null; /* (none that close: "somewhere we can drive to") */
+  const dream = L.filter(p => !home || p.id !== home.id).sort((a, b) => b.tier - a.tier || b.stars - a.stars || colMiles(c, a) - colMiles(c, b))[0] || null; /* (one offer, near home: the dream has no name yet) */
+  return { home, dream, friend: colProg(S.cast.friend.pid) || null, n: L.length };
+}
+// Your best friend's school (picked once, in senior year): one of your offers that is neither nearest home nor the best
+// (a hash picks), else a small program near home.
+function chFriendSchool(c, S) {
+  const F = S.cast.friend; if (!F.name || F.pid) return colProg(F.pid); const L = hsLiveOffers(c).filter(o => !o.draft).map(chProgOf).filter(Boolean), V = chVoices(c), r = sagaRng(c, 'friend-school');
+  const mid = L.filter(p => (!V.home || p.id !== V.home.id) && (!V.dream || p.id !== V.dream.id)), pool = mid.length ? mid : COLLEGES.filter(p => p.tier <= 1).sort((a, b) => colMiles(c, a) - colMiles(c, b)).slice(0, 6);
+  const P = pool[r.int(pool.length)] || null; if (P) F.pid = P.id; return P;
+}
+
+// ---------------- Chapter 2: VARSITY (sophomore year) ----------------
+CHAPTERS[2] = { n: 2, id: 'varsity', title: () => 'Varsity', sub: (c, S, R) => R.v === 'jv' ? 'Sophomore year · JV again' : R.v === 'v2' ? 'Sophomore year · a second varsity season' : 'Sophomore year · the first varsity season',
+  past: c => isPro(c) || c.stage !== 'hs' || c.prep || c.stageYear > 2, open: (c, S, hook) => chHsYear(c, 2) && hook === 'game' && chWeek(c) >= 1, /* after the season's first game */
+  variant: (c, S) => c.squad === 'jv' ? 'jv' : (Q => Q.list[1] && Q.list[1].v === 'varsity')(chOf(c)) ? 'v2' : 'v1', over: (c, S, R) => isPro(c) || c.stage !== 'hs' || c.season > R.s0,
+  scenes: [
+    { id: 'bus', hook: 'game', now: true, bg: 'bus', mood: 'story', title: 'THE BUS HOME', who: c => chFriend(c) ? sagaWho(c, 'friend') : sagaWho(c, 'coach'),
+      lines: (c, S, R, x) => { const f = chFriend(c), w = x && x.won;
+        const a = R.v === 'jv' ? 'JV again, and another bus ride home. Through the window, the varsity bus pulls out ahead of yours.' : R.v === 'v2' ? 'A second varsity season starts on a bus that smells like orange slices and floor wax' + (w ? ', after a win.' : ', after a loss.') : 'Your first varsity game is in the books' + (w ? ', a win' : ', a loss') + '. The bus home is loud in the back and quiet up front.';
+        return [a, f ? f + ': "' + (R.v === 'jv' ? 'This is the year. They have to call us up."' : R.v === 'v2' ? 'Everybody is gunning for you now. You know that, right?"' : 'The student section knew your NAME. They knew your name."') : '"Get some sleep. Practice is at six."']; },
+      choice: c => { const f = chFriend(c); return [f ? { label: 'Sit in the back with ' + f, note: f + ' +' + SG.m.mid, saga: { meter: { friend: SG.m.mid } }, def: true } : { label: 'Sit in the back with the team', note: 'Confidence +1', saga: { conf: 1 }, def: true }, { label: 'Sit up front by Coach Adeyinka', note: 'Coach +' + SG.m.mid, saga: { meter: { coach: SG.m.mid } } }]; },
+      sum: (c, S, R) => R.v === 'jv' ? 'Sophomore year began with JV again, and a bus ride home.' : 'Sophomore year began with a bus ride home from a varsity game.' },
+    { id: 'meet', hook: ['game', 'end'], big: true, bg: 'gym', mood: 'tense', who: 'rival', title: (c, S, R, x) => x && x.rival ? 'THE RIVAL' : 'IN THE STANDS',
+      when: (c, S, R, x, hook) => !c.rival ? 'skip' : hook === 'end' || !!(x && x.rival) || chWeek(c) >= 5, /* the rival game, or by week 5 the rival comes to watch */
+      lines: (c, S, R, x) => { const r = sagaFirst(c, 'rival'), met = !!(c.story && c.story.firstMeeting);
+        return x && x.rival ? ['The final buzzer. ' + r + ' stops at half court, right in your path' + (met ? ', a year older and a step quicker.' : '.'), { w: 'rival', t: r + ': "' + (x.won ? 'Enjoy it. I\'ll be here every year until one of us quits."' : 'You\'re better than they said. Not better than me."') }, 'The whole gym waits to see what you do.']
+          : [r + ' is in the bleachers at your game in a ' + (c.rival.school || 'rival school') + ' hoodie, and finds you after.', { w: 'rival', t: r + ': "I came to see what all the talk was about."' }, 'Your teammates stop to watch.']; },
+      choice: c => { const r = sagaFirst(c, 'rival'); return [{ k: 'hand', label: 'Shake their hand', note: r + ' +' + SG.m.big + ' · hype −2 · they\'ll remember it', saga: { meter: { rival: SG.m.big }, hype: -2 }, def: true }, { k: 'talk', label: 'Talk trash back', note: 'Hype +5 · ' + r + ' −' + SG.m.big + ' · coach −' + SG.m.small, saga: { meter: { rival: -SG.m.big, coach: -SG.m.small }, hype: 5 } }]; },
+      sum: c => 'Your rival ' + sagaFirst(c, 'rival') + ', face to face for the first time on varsity.' },
+    { id: 'theirs', hook: 'game', opt: true, bg: 'gym', mood: (c, S) => S.flags.ch2 === 'talk' ? 'tense' : 'warm', when: c => chWeek(c) >= 5,
+      who: c => ({ role: 'Rival\'s family', name: stLookName(c, 'rivalkid'), look: stLookFor('rivalkid:' + (c.seed || 1), c.rival && c.rival.look && c.rival.look.skin), colors: (c.rival && c.rival.colors) || ['#B8322D', '#FFFFFF'], age: 10 }),
+      title: (c, S) => S.flags.ch2 === 'talk' ? 'THE QUOTE' : 'AN AUTOGRAPH', /* (the rival's own story: their family) */
+      lines: (c, S) => { const r = sagaFirst(c, 'rival'), kid = stFirst(stLookName(c, 'rivalkid')); return S.flags.ch2 === 'talk' ? ['Your words made the local paper, under a picture of ' + r + '.', { w: 'rival', t: r + '\'s little sibling ' + kid + ' glares at you from the bleachers all game, arms crossed, wearing ' + r + '\'s number.' }] : [r + '\'s little sibling ' + kid + ' finds you after a game, holding a program and a marker.', '"' + r + ' says you\'re the only one who can guard them. Can I have your autograph? Don\'t tell."']; },
+      choice: (c, S) => S.flags.ch2 === 'talk' ? [{ label: 'Own it', note: 'Hype +2 · ' + sagaFirst(c, 'rival') + ' −' + SG.m.small, saga: { hype: 2, meter: { rival: -SG.m.small } } }, { label: 'Wave to the kid', note: sagaFirst(c, 'rival') + ' +' + SG.m.small, saga: { meter: { rival: SG.m.small } }, def: true }] : [{ label: 'Sign it, and keep the secret', note: sagaFirst(c, 'rival') + ' +' + SG.m.small, saga: { meter: { rival: SG.m.small } }, def: true }, { label: 'Sign it "to my rival"', note: 'Hype +2', saga: { hype: 2 } }],
+      sum: (c, S) => S.flags.ch2 === 'talk' ? 'Your trash talk made the paper, and your rival\'s family noticed.' : 'Your rival\'s little sibling asked for your autograph.' },
+    { id: 'year', hook: 'end', bg: 'gym', who: 'coach', mood: 'warm', title: 'VARSITY',
+      lines: (c, S, R) => { const co = sagaWho(c, 'coach').name, k = S.flags.ch2, up = R.v === 'jv' && c.squad === 'varsity';
+        return [(R.v === 'jv' ? (up ? 'You started the year on JV and finished it on varsity.' : 'One more year of JV, and it still stings.') : 'Your ' + (R.v === 'v2' ? 'second' : 'first') + ' varsity season is over.') + ' ' + co + ' walks the empty gym with you.', '"' + (k === 'hand' ? 'You shook that kid\'s hand in front of the whole gym. That\'s who I want on my team."' : k === 'talk' ? 'Next time, let your game do the talking. It talks louder."' : 'Two more years. Make them count."')]; },
+      choice: c => [{ label: 'Promise to come back stronger', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } }, def: true }, { label: 'Shoot around with ' + sagaFirst(c, 'sibling'), note: sagaFirst(c, 'sibling') + ' +' + SG.m.small, saga: { meter: { sibling: SG.m.small }, flag: { sibPlays: 1 } } }],
+      sum: () => 'Sophomore year ended in an empty gym with Coach Adeyinka.' },
+  ] };
+// A name for someone in the rival's family (their surname; a hash picks the first name).
+function stLookName(c, key) { const last = String((c.rival && c.rival.name) || 'Rival Family').split(' ').slice(1).join(' ') || 'Family'; return GEN_FIRST[(hashString(key + ':' + (c.seed || 1)) >>> 0) % GEN_FIRST.length] + ' ' + last; }
+
+// ---------------- Chapter 3: THE SPOTLIGHT (junior year) ----------------
+CHAPTERS[3] = { n: 3, id: 'spotlight', title: () => 'The Spotlight', sub: (c, S, R) => R.v === 'quiet' ? 'Junior year · no letters yet' : 'Junior year',
+  past: c => isPro(c) || c.stage !== 'hs' || c.prep || c.stageYear > 3, open: (c, S, hook) => chHsYear(c, 3) && hook === 'game' && chWeek(c) >= 1,
+  variant: c => hsLiveOffers(c).length || (c.recruit && c.recruit.stars >= 3) ? 'letters' : 'quiet', /* (the colleges are writing, or not yet) */
+  over: (c, S, R) => isPro(c) || c.stage !== 'hs' || c.season > R.s0,
+  scenes: [
+    { id: 'letters', hook: 'game', now: true, bg: 'kitchen', who: 'family', mood: (c, S, R) => R.v === 'quiet' ? 'story' : 'warm', title: (c, S, R) => R.v === 'quiet' ? 'THE MAILBOX' : 'THE LETTERS',
+      lines: (c, S, R) => { const sib = sagaFirst(c, 'sibling'), rk = c.recruit; if (R.v === 'quiet') return ['Junior year. The other juniors get letters from colleges. Yours is a camp brochure addressed to "Current Resident."', '"They\'ll come. Coaches can\'t write to a kid they haven\'t seen play yet."', { w: 'sibling', t: sib + ' tapes the brochure to the fridge anyway, crooked, at eye level.' }];
+        return ['Junior year, and the letters come every day now: crests, coaches\' signatures, "we are watching."' + (rk && rk.stars ? ' The scouts have you at ' + rk.stars + '★.' : ''), '"There\'s one from a school I\'ve never heard of. And one from a school I have."', { w: 'sibling', t: sib + ' has taped the best one to the fridge, crooked, at eye level.' }]; },
+      choice: (c, S, R) => R.v === 'quiet' ? [{ label: 'Laugh about it at the table', note: 'Family +' + SG.m.small + ' · ' + sagaFirst(c, 'sibling') + ' +' + SG.m.small, saga: { meter: { family: SG.m.small, sibling: SG.m.small } }, def: true }, { label: 'Mail your tape to ten programs', note: 'Hype +2 · coach +' + SG.m.small, saga: { hype: 2, meter: { coach: SG.m.small } } }]
+        : [{ label: 'Read them all at the table', note: 'Family +' + SG.m.small + ' · ' + sagaFirst(c, 'sibling') + ' +' + SG.m.small, saga: { meter: { family: SG.m.small, sibling: SG.m.small } }, def: true }, { label: 'Put them away until spring', note: 'Coach +' + SG.m.small + ' (eyes on the season)', saga: { meter: { coach: SG.m.small } } }],
+      sum: (c, S, R) => R.v === 'quiet' ? 'Junior year: no letters yet, just a camp brochure on the fridge.' : 'Junior year: the recruiting letters started coming every day.' },
+    { id: 'bills', hook: ['game', 'end'], big: true, bg: 'kitchen', who: 'family', mood: 'tense', title: 'THE BILLS', when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 3,
+      lines: c => { const f = chFriend(c); return ['Under the letters, the bills. The car needs work and the rent went up again.', '"It\'s not your problem. I just wanted you to hear it from me."'].concat(f ? [{ w: 'friend', t: f + ' heard. "My parents want to help. Let them. Please."' }] : []); },
+      choice: c => { const f = chFriend(c); return [{ k: 'job', label: 'Take a weekend job', note: '+$' + SG.billsJob + ' · practice XP −' + sgPct(SG.billsXpCut) + ' for ' + SG.billsWeeks + ' weeks · family +' + SG.m.mid, saga: { cash: SG.billsJob, xpWeeks: [-SG.billsXpCut, SG.billsWeeks], meter: { family: SG.m.mid } } }, f ? { k: 'friend', label: 'Let ' + f + '\'s family help', note: 'Family +' + SG.m.small + ' · ' + f + ' +' + (SG.m.mid + SG.m.small) + ' · you owe them', saga: { meter: { family: SG.m.small, friend: SG.m.mid + SG.m.small }, flag: { owe: 'friend' } }, def: true } : { k: 'coach', label: 'Ask Coach Adeyinka for help', note: 'Coach +' + SG.m.mid + ' · family +' + SG.m.small + ' · you owe them', saga: { meter: { coach: SG.m.mid, family: SG.m.small }, flag: { owe: 'coach' } }, def: true }]; },
+      sum: () => 'The family\'s bills, spread across the kitchen table under the letters.' },
+    { id: 'then', hook: 'game', opt: true, when: c => chWeek(c) >= 5, bg: (c, S) => S.flags.ch3 === 'job' ? 'gym' : 'kitchen', mood: 'story',
+      who: (c, S) => S.flags.ch3 === 'job' ? { role: 'Your boss', name: 'Your manager', look: stLookFor('boss:' + (c.seed || 1)), colors: ['#5B6C8F', '#D8DEEC'], age: 40 } : S.flags.ch3 === 'friend' ? sagaWho(c, 'friend') : sagaWho(c, 'coach'),
+      title: (c, S) => S.flags.ch3 === 'job' ? 'THE SHIFTS' : S.flags.ch3 === 'friend' ? 'DINNER AT ' + chFriend(c).toUpperCase() + '\'S' : 'THE FAVOR',
+      lines: (c, S) => S.flags.ch3 === 'job' ? ['The store manager wants you for more shifts: the holiday rush, and the money is good.', '"You\'re the only one who shows up on time. Saturday mornings?"'] : S.flags.ch3 === 'friend' ? [chFriend(c) + '\'s family sets a place for you at dinner like they always have.', '"You\'re family at this table. Don\'t forget that when you\'re famous."'] : ['Coach Adeyinka doesn\'t mention the help again. You catch them watching you work after practice, though.', '"Don\'t thank me. Pay it forward someday."'],
+      choice: (c, S) => S.flags.ch3 === 'job' ? [{ label: 'Take the shifts', note: '+$' + SG.shiftsCash + ' · fatigue +' + SG.shiftsFatigue + ' · family +' + SG.m.small, fx: { fatigue: SG.shiftsFatigue }, saga: { cash: SG.shiftsCash, meter: { family: SG.m.small } } }, { label: 'Keep your weekends for practice', note: 'Practice XP +' + sgPct(SG.billsXpUp) + ' for 2 weeks', saga: { xpWeeks: [SG.billsXpUp, 2] }, def: true }] : [{ label: 'Promise you won\'t forget', note: (S.flags.ch3 === 'friend' ? chFriend(c) : 'Coach') + ' +' + SG.m.small, saga: { meter: S.flags.ch3 === 'friend' ? { friend: SG.m.small } : { coach: SG.m.small } }, def: true }, { label: 'Help clear the table', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } } }],
+      sum: (c, S) => S.flags.ch3 === 'job' ? 'Weekend shifts at the store, and the bills got paid.' : 'Dinner with the people who helped your family.' },
+    { id: 'year', hook: 'end', bg: 'gym', who: 'coach', mood: 'warm', title: 'THE SPOTLIGHT',
+      lines: c => { const rk = c.recruit, n = hsLiveOffers(c).length; return ['Junior year is over' + (rk && rk.stars ? ': a ' + rk.stars + '★ recruit, ' + hsRankText(rk) : '') + (n ? ', ' + n + ' offer' + (n > 1 ? 's' : '') + ' on the table.' : '.'), n || (rk && rk.stars >= 3) ? '"Every program in the country has your tape now. Next year they come to the house. Be ready for that."' : '"Nobody has offered yet. I\'ve made some calls: senior year, they\'ll be in the gym. Make them write it down."']; },
+      choice: c => [{ label: 'Ask which programs called', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } }, def: true }, { label: 'Tell ' + sagaFirst(c, 'family') + ' first', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } } }],
+      sum: () => 'Junior year ended with every program in the country watching.' },
+  ] };
+
+// ---------------- Chapter 4: SIGNING DAY (senior year) ----------------
+CHAPTERS[4] = { n: 4, id: 'signing', title: () => 'Signing Day', sub: () => 'Senior year', cross: true, /* (its closing scene comes with the signing, as college begins) */
+  past: c => isPro(c) || c.stage !== 'hs' || c.prep || c.stageYear > 4, open: (c, S, hook) => chHsYear(c, 4) && hook === 'game' && chWeek(c) >= 1,
+  over: (c, S, R) => isPro(c) || c.stage !== 'hs', /* (Signing Day comes after the season: the chapter runs on until it) */
+  scenes: [
+    { id: 'senior', hook: 'game', now: true, bg: 'gym', who: 'coach', mood: 'warm', title: 'SENIOR YEAR',
+      lines: c => ['Senior year. Coach Adeyinka hands you the captain\'s armband before the first practice.', '"Last year. Every program in the country is watching now. Let them see a leader."'],
+      choice: c => { const f = chFriend(c); return [{ label: 'Wear it', note: 'Coach +' + SG.m.mid, saga: { meter: { coach: SG.m.mid } }, def: true }, f ? { label: 'Ask for ' + f + ' to share it', note: f + ' +' + SG.m.mid + ' · coach +' + SG.m.small, saga: { meter: { friend: SG.m.mid, coach: SG.m.small } } } : { label: 'Give a speech in the locker room', note: 'Confidence +1', saga: { conf: 1 } }]; },
+      sum: () => 'Senior year began with the captain\'s armband.' },
+    { id: 'plans', hook: ['game', 'end'], bg: 'locker', who: c => chFriend(c) ? sagaWho(c, 'friend') : sagaWho(c, 'family'), mood: 'story', title: 'TWO PLANS', when: c => chWeek(c) >= 4,
+      pre: (c, S) => chFriendSchool(c, S),
+      lines: (c, S) => { const f = chFriend(c), P = colProg(S.cast.friend.pid); if (!f) return ['Every week another coach calls the house. ' + sagaFirst(c, 'family') + ' keeps a list on the fridge.', '"Wherever you go, I\'ll be in the stands. Just tell me where to drive."'];
+        return [f + ' slides a letter across the lunch table: ' + (P ? 'a spot at ' + P.name + ', in ' + P.city + '.' : 'a spot at a small program.'), '"They want me. ME. And they\'d want you too. We could do this together, like we always said."']; },
+      choice: c => { const f = chFriend(c); return f ? [{ label: 'Go see it with them', note: f + ' +' + SG.m.mid + ' · fatigue +5', fx: { fatigue: 5 }, saga: { meter: { friend: SG.m.mid } } }, { label: 'Tell them you have your own plan', note: 'Confidence +1 · ' + f + ' −' + SG.m.small, saga: { conf: 1, meter: { friend: -SG.m.small } } }, { label: 'Tell them you\'re proud of them', note: f + ' +' + SG.m.small, saga: { meter: { friend: SG.m.small } }, def: true }] : [{ label: 'Make the list together', note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } }, def: true }, { label: 'Leave it to the coaches', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } } }]; },
+      sum: c => chFriend(c) ? chFriend(c) + ' found a college of their own, and asked you to come along.' : 'Every week another college called the house.' },
+    { id: 'heart', hook: ['end', 'signing'], big: true, bg: 'kitchen', who: 'family', mood: 'story', title: 'THE KITCHEN TABLE',
+      when: (c, S, R, x, hook) => hook === 'signing' || (hook === 'end' && c.stageYear >= 4),
+      pre: (c, S, R) => { const V = chVoices(c); R.voices = { home: V.home ? V.home.id : null, dream: V.dream ? V.dream.id : null, friend: V.friend ? V.friend.id : null }; },
+      lines: (c, S, R) => { const V = R.voices || {}, H = colProg(V.home), Dm = colProg(V.dream), Fp = colProg(V.friend), f = chFriend(c);
+        return ['Signing Day is next week. Three voices at the kitchen table, and every one of them loves you.', '"' + (H ? H.name + ' is ' + colMiles(c, H) + ' miles away. Sunday dinners. ' + sagaFirst(c, 'sibling') + '\'s games."' : 'Somewhere we can drive to. That\'s all I ask."')]
+          .concat([{ w: 'coach', t: 'Coach Adeyinka: "' + (Dm ? Dm.name + '. Kids dream about that place their whole lives."' : 'Aim as high as they\'ll let you."') }]).concat(f ? [{ w: 'friend', t: f + ': "' + (Fp ? Fp.name : 'Wherever I end up') + '. Together, like we said."' }] : []); },
+      choice: (c, S, R) => { const V = R.voices || {}, H = colProg(V.home), Dm = colProg(V.dream), Fp = colProg(V.friend), f = chFriend(c), sib = sagaFirst(c, 'sibling');
+        return [{ k: 'home', label: 'Close to home', pick: 'Close to home' + (H ? ': ' + H.name : ''), note: (H ? H.name + ' · ' : '') + 'Family +' + (SG.m.mid + SG.m.small) + ' · ' + sib + ' +' + SG.m.mid, saga: { meter: { family: SG.m.mid + SG.m.small, sibling: SG.m.mid } }, def: !Dm && !!H },
+          { k: 'dream', label: 'The dream school', pick: 'The dream school' + (Dm ? ': ' + Dm.name : ''), note: (Dm ? Dm.name + ' · ' : '') + 'Coach +' + SG.m.mid + ' · family −' + SG.m.small + ' · aim high', saga: { meter: { coach: SG.m.mid, family: -SG.m.small } }, def: !!Dm || !H }]
+          .concat(f ? [{ k: 'friend', label: 'Follow ' + f, pick: 'Follow ' + f + (Fp ? ' to ' + Fp.name : ''), note: (Fp ? Fp.name + ' · ' : '') + f + ' +' + SG.m.big + ' · teammates again', saga: { meter: { friend: SG.m.big } } }] : []); }, /* (the school in the note: three side by side; pick: what the recap and the Story screen say) */
+      sum: () => 'Three voices at the kitchen table, the week before Signing Day.' },
+    { id: 'signed', hook: 'signed', now: true, mood: (c, S, R, x) => x && (x.kind === 'prep' || x.kind === 'walkon') ? 'story' : 'warm', title: 'SIGNING DAY',
+      bg: (c, S, R, x) => x && x.kind === 'pro' ? 'press' : x && x.kind === 'prep' ? 'kitchen' : 'quad',
+      who: (c, S, R, x) => R.k === 'friend' && chFriend(c) ? sagaWho(c, 'friend') : sagaWho(c, 'family'),
+      pre: (c, S, R, x) => { const V = R.voices || {}, said = V[R.k] || null, kind = (x && x.kind) || 'college', pid = x && x.pid; R.kept = !!(said && pid && said === pid); R.v = kind === 'college' ? (R.kept ? 'kept' : 'changed') : kind; if (kind === 'pro') S.flags.noCollege = 1;
+        if (R.k === 'friend' && kind === 'college' && V.friend && pid === V.friend) S.flags.friendWay = 'teammate'; },
+      lines: (c, S, R, x) => { const f = chFriend(c), nm = (x && x.name) || 'a program', fam = sagaFirst(c, 'family'), V = R.voices || {}, said = colProg(V[R.k]);
+        if (R.v === 'pro') return ['No college at all: you sign with an agent and head for the pro combine.', fam + ': "Eighteen years old. I\'m going to need a bigger frame for the newspaper."'];
+        if (R.v === 'prep') return ['No hat on Signing Day. A prep year instead, at ' + (c.prep && c.prep.school || 'a prep school') + '.', fam + ': "One more year. Then they\'ll be lining up at that door, you watch."'];
+        if (R.v === 'walkon') return ['A walk-on spot at ' + nm + ': no scholarship, the end of the bench, and the hat anyway.', fam + ': "They\'ll know your name by spring. Everyone always does."'];
+        if (R.kept) return R.k === 'friend' ? [f + ' signs with ' + nm + ' the same morning, at the same table, with the same pen.', { w: 'friend', t: f + ': "Teammates. Again. I told you."' }] : R.k === 'home' ? ['You put on the ' + nm + ' hat, and ' + fam + ' cries a little at the press table.', '"Sunday dinners. You promised."'] : ['The ' + nm + ' hat. The one on the posters in your room, since you were nine.', fam + ': "Go. We\'ll watch every single game."'];
+        return [said ? 'You said ' + said.name + ' at the kitchen table. You signed with ' + nm + '.' : 'You told the kitchen table you\'d aim higher. You signed with ' + nm + ', the school that wanted you most.', R.k === 'friend' ? { w: 'friend', t: f + ': "I\'ll see you on the other side of the court, then."' } : R.k === 'home' ? fam + ': "Far, then. We\'ll figure out the drive."' : 'Coach Adeyinka: "You picked the place that wanted you most. That\'s not nothing."']; },
+      choice: (c, S, R) => { const f = chFriend(c); return R.v === 'changed' && R.k === 'friend' && f ? [{ label: 'Promise to stay friends', note: f + ' −' + SG.m.small + ' (it still hurts)', saga: { meter: { friend: -SG.m.small } }, def: true }, { label: 'Let it go', note: f + ' −' + SG.m.big, saga: { meter: { friend: -SG.m.big } } }]
+        : [{ label: 'Hug ' + sagaFirst(c, 'family'), note: 'Family +' + SG.m.small, saga: { meter: { family: SG.m.small } }, def: true }, { label: 'Call Coach Adeyinka', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } } }]; },
+      sum: (c, S, R, x) => R.v === 'pro' ? 'Signing Day: no college, the pros.' : R.v === 'prep' ? 'Signing Day: a prep year.' : 'Signing Day: you signed with ' + ((x && x.name) || 'your school') + '.' },
+  ] };
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 17d) — 2.1 (§4.2): chapters 5–6, college. FRESHMAN WALL (college year one: the dorm,
+// the bench, a call from home; grind in the gym or go home for your sibling's big day) and MARCH (the national
+// tournament, Coach Adeyinka's health scare, and a knee that buckles in the tournament: play through it or sit). A
+// career that skips college gets the pro version of both in its first pro seasons; one that leaves after a single
+// college year gets March's pro version (the playoff race) in its first pro season.
+// ============================================================================
+// Where these chapters happen: 'college' (its year), or 'pro' (no college, or college over before March).
+function chColYear(c) { return !isPro(c) && c.stage === 'college' ? c.stageYear : 0; }
+function chProSeason(c) { if (!isPro(c)) return 0; const L = (c.me && c.me.seasonLog) || []; return L.length + 1; } // your pro season (1 = the first)
+
+// ---------------- Chapter 5: FRESHMAN WALL (college year one, or the first pro season with no college) ----------------
+CHAPTERS[5] = { n: 5, id: 'wall', title: () => 'Freshman Wall', sub: (c, S, R) => R.v === 'pro' ? 'Your first pro season' : R.v === 'walkon' ? 'College, year one · a walk-on' : 'College, year one',
+  past: (c, S) => isPro(c) ? !S.flags.noCollege || chProSeason(c) > 1 : (c.stage === 'combine' && !S.flags.noCollege) || (c.stage === 'college' && c.stageYear > 1), /* (no college: it waits for the pros) */
+  open: (c, S, hook) => (chColYear(c) === 1 || (isPro(c) && S.flags.noCollege && chProSeason(c) === 1)) && (hook === 'season' || hook === 'game'),
+  variant: c => isPro(c) ? 'pro' : c.scholarship === 'walkon' ? 'walkon' : 'college', over: (c, S, R) => c.season > R.s0 || sagaStageKey(c) !== R.stage,
+  scenes: [
+    { id: 'night', hook: ['season', 'game'], now: true, mood: 'warm', title: 'THE FIRST NIGHT', bg: (c, S, R) => R.v === 'pro' ? 'tunnel' : 'dorm', who: 'sibling',
+      lines: (c, S, R) => { const sib = sagaFirst(c, 'sibling'); return [R.v === 'pro' ? 'Your first night as a pro, in a hotel room in a city you\'ve only ever seen on TV.' : 'Your first night in the dorm. Your roommate snores, and the radiator clanks like a drum line.', { w: 'sibling', t: sib + ' video-calls at midnight: "Is it big? Is it like on TV? Do you have your own bed?"' }]; },
+      choice: c => { const sib = sagaFirst(c, 'sibling'); return [{ label: 'Show them around on the call', note: sib + ' +' + SG.m.mid, saga: { meter: { sibling: SG.m.mid } }, def: true }, { label: 'Tell them to get some sleep', note: 'Fatigue −5 · ' + sib + ' −' + SG.m.small, fx: { fatigue: -5 }, saga: { meter: { sibling: -SG.m.small } } }]; },
+      sum: (c, S, R) => R.v === 'pro' ? 'Your first night as a pro, on a video call home.' : 'Your first night in the dorm, on a video call home.' },
+    { id: 'bench', hook: 'game', opt: true, bg: 'locker', mood: 'tense', title: 'THE WALL', when: c => chWeek(c) >= 3, who: c => stWho(c, 'coach'),
+      lines: (c, S, R) => { const co = stWho(c, 'coach').name; return [R.v === 'pro' ? 'The pros are the hardest league you\'ve ever seen, and the bench has a better view of it than you\'d like.' : 'A few games in, the freshman wall hits: the bench, early classes, and nobody here calls you by your first name.', co + ': "You\'re not playing because you\'re not ready. Get ready."']; },
+      choice: c => [{ label: 'Call Coach Adeyinka', note: 'Coach Adeyinka +' + SG.m.mid, saga: { meter: { coach: SG.m.mid } }, def: true }, { label: 'Watch film until you\'re ready', note: 'Practice XP +5% this week · fatigue +3', fx: { xp: 0.05, fatigue: 3 } }],
+      sum: () => 'The freshman wall: the bench, early classes, nobody who knows your name.' },
+    { id: 'home', hook: ['game', 'end'], big: true, bg: (c, S, R) => R.v === 'pro' ? 'tunnel' : 'dorm', who: 'family', mood: 'story', title: 'A CALL FROM HOME', when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 4,
+      lines: c => { const sib = sagaFirst(c, 'sibling'), S = sagaOf(c); return [sagaFirst(c, 'family') + ' calls on a Tuesday. ' + sib + ' has ' + (S.flags.sibPlays ? 'their first real game' : 'a school concert') + ' on Saturday: the same day as your practice.', { w: 'sibling', t: sib + ': "You don\'t have to come. I mean it. Okay, I don\'t mean it."' }]; },
+      choice: c => { const sib = sagaFirst(c, 'sibling'); return [{ k: 'grind', label: 'Stay and grind', note: 'Practice XP +15% for 3 weeks · ' + sib + ' −' + SG.m.mid, saga: { xpWeeks: [0.15, 3], meter: { sibling: -SG.m.mid } }, def: true }, { k: 'home', label: 'Go home for the weekend', note: sib + ' +' + SG.m.big + ' · family +' + SG.m.mid + ' · practice XP −10% this week', fx: { xp: -0.1 }, saga: { meter: { sibling: SG.m.big, family: SG.m.mid }, flag: { sibMentor: 1 } } }]; },
+      sum: c => 'A call from home: ' + sagaFirst(c, 'sibling') + '\'s big Saturday, the same day as practice.' },
+    { id: 'year', hook: 'end', bg: (c, S, R) => R.v === 'pro' ? 'locker' : 'quad', who: 'coach', mood: 'warm', title: (c, S, R) => R.v === 'pro' ? 'YEAR ONE' : 'END OF YEAR ONE',
+      lines: (c, S, R) => { const k = S.flags.ch5, sib = sagaFirst(c, 'sibling'); return [(R.v === 'pro' ? 'Your first pro season is over.' : 'Freshman year is over.') + (k === 'home' ? ' You went home for ' + sib + '\'s big day, and came back.' : ' You hit the wall, and you went through it.'), 'Coach Adeyinka, on the phone: "Year one is the hardest one. Everybody says it because it\'s true."']; },
+      choice: c => [{ label: 'Tell them about the wall', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } }, def: true }, { label: 'Ask how ' + sagaFirst(c, 'sibling') + ' is doing', note: sagaFirst(c, 'sibling') + ' +' + SG.m.small, saga: { meter: { sibling: SG.m.small } } }],
+      sum: (c, S, R) => R.v === 'pro' ? 'Your first pro season ended with a call to Coach Adeyinka.' : 'Freshman year ended with a call to Coach Adeyinka.' },
+  ] };
+
+// ---------------- Chapter 6: MARCH (a later college season, or the pros' playoff race) ----------------
+// The college version opens in college year two or later; a career whose college is over before it (one year, or none)
+// gets the pro version in its first pro seasons.
+CHAPTERS[6] = { n: 6, id: 'march', title: () => 'March', sub: (c, S, R) => R.v === 'pro' ? 'The playoff race' : 'The national tournament',
+  past: c => isPro(c) && chProSeason(c) > 2, open: (c, S, hook) => (chColYear(c) >= 2 || (isPro(c) && chProSeason(c) <= 2)) && (hook === 'season' || hook === 'game'),
+  variant: c => isPro(c) ? 'pro' : 'college', over: (c, S, R) => c.season > R.s0 || sagaStageKey(c) !== R.stage,
+  scenes: [
+    { id: 'whiteboard', hook: ['season', 'game'], now: true, bg: 'arena', mood: 'story', title: 'MARCH', who: c => stWho(c, 'coach'), when: (c, S, R) => R.v === 'pro' ? 'skip' : true,
+      lines: c => ['On campus, everyone talks about one month: March, and the tournament.', stWho(c, 'coach').name + ' writes it on the whiteboard and underlines it twice: "Sixty-four programs. One cuts down the nets. Why not us?"'],
+      choice: c => [{ label: 'Circle March on your calendar', note: 'Hype +2', saga: { hype: 2 } }, { label: 'One game at a time', note: 'Coach Adeyinka +' + SG.m.small + ' (they taught you that)', saga: { meter: { coach: SG.m.small } }, def: true }],
+      sum: () => 'March, on the whiteboard, underlined twice.' },
+    { id: 'scare', hook: ['game', 'end'], bg: (c, S, R) => R.v === 'pro' ? 'tunnel' : 'quad', who: 'family', mood: 'sad', title: 'THE CALL', when: (c, S, R, x, hook) => hook === 'end' || chWeek(c) >= 3,
+      lines: c => [sagaFirst(c, 'family') + ' calls in the middle of film: Coach Adeyinka collapsed at practice. Their heart.', '"They\'re in the hospital. The doctors say they caught it in time. They keep asking about you."'],
+      choice: () => [{ label: 'Drive home', note: 'Coach +' + SG.m.big + ' · practice XP −15% this week · fatigue +5', fx: { xp: -0.15, fatigue: 5 }, saga: { meter: { coach: SG.m.big }, flag: { coachScare: 'visit' } } }, { label: 'Call them every night', note: 'Coach +' + SG.m.mid, saga: { meter: { coach: SG.m.mid }, flag: { coachScare: 'call' } }, def: true }, { label: 'Win one for them', note: 'Hype +5 · coach +' + SG.m.small, saga: { hype: 5, meter: { coach: SG.m.small }, flag: { coachScare: 'win' } } }],
+      sum: () => 'Coach Adeyinka\'s heart: a call in the middle of film.' },
+    { id: 'knee', hook: ['game', 'end'], big: true, bg: (c, S, R) => R.v === 'pro' ? 'tunnel' : 'arena', mood: 'tense', who: c => stWho(c, 'trainer'), title: 'PLAY THROUGH IT?',
+      when: (c, S, R, x, hook) => hook === 'end' || !!(x && x.playoff) || chWeek(c) >= Math.max(4, stWeeks(c) - 2), /* the tournament (the playoffs), or the season's last weeks */
+      lines: (c, S, R, x) => { const tr = stWho(c, 'trainer').name; return [(x && x.playoff ? (R.v === 'pro' ? 'A playoff game.' : 'A tournament game.') : 'A game that decides the season.') + ' Your knee buckles on a landing in the second half. It holds. Mostly.', tr + ': "It isn\'t torn. It will swell. If you play on it, I can\'t promise you anything."', 'Your teammates are all looking at you.']; },
+      choice: () => [{ k: 'play', label: 'Play through it', note: 'A legend moment: hype +10 · confidence +2 · injury risk ×' + SY.rushInjury + ' for ' + SY.rushWeeks + ' weeks', fx: { hype: 10, conf: 2, fragile: SY.rushWeeks }, saga: { flag: { legendMoment: 1 } } }, { k: 'sit', label: 'Sit and get it looked at', note: 'Fatigue −10 · hype −3 · the safe call', fx: { fatigue: -10, hype: -3 }, def: true }],
+      sum: (c, S, R) => R.v === 'pro' ? 'Your knee buckled in the playoff race.' : 'Your knee buckled in March.' },
+    { id: 'after', hook: 'end', bg: (c, S, R) => R.v === 'pro' ? 'locker' : 'kitchen', who: 'coach', mood: 'warm', title: (c, S, R) => R.v === 'pro' ? 'THE STRETCH' : 'ONE SHINING MOMENT',
+      lines: c => { const S = sagaOf(c), sc = S.flags.coachScare, k = S.flags.ch6; return ['Coach Adeyinka is home from the hospital, thinner, and calls the minute the season ends.', '"' + (sc === 'visit' ? 'You drove all that way to sit with me. I won\'t forget it. ' : sc === 'win' ? 'I watched every game from that bed. ' : 'You called every night. ') + (k === 'play' ? 'And you played on that knee. Stubborn. I wonder who you got that from."' : 'And you sat when you had to. That\'s growing up."')]; },
+      choice: () => [{ label: 'Tell them to rest', note: 'Coach +' + SG.m.small, saga: { meter: { coach: SG.m.small } }, def: true }, { label: 'Promise to visit this summer', note: 'Coach +' + SG.m.mid + ' · fatigue +3', fx: { fatigue: 3 }, saga: { meter: { coach: SG.m.mid } } }],
+      sum: () => 'Coach Adeyinka, home from the hospital, on the phone.' },
   ] };
 
 // ============================================================================
@@ -20687,7 +20894,7 @@ function dialogScreen(game, c, ev, done, opts) {
   const last = () => page >= nPages - 1;
   const next = btn('▼', 0, 0, 0, 0, () => { page++; shown = reduce ? 1e9 : 0; relayout(); }); // the buttons always act; a tap anywhere else finishes the typing
   const cont = btn('CONTINUE', 0, 0, 0, 0, () => done(), { primary: true });
-  const choices = (opts.options || (ev.choice || []).map((ch, i) => ({ label: ch.label, note: ch.note, pick: () => { stChoose(c, ev, i); game.save.save(); } }))).map(o => Object.assign(btn(o.label, 0, 0, 0, 0, () => { finish(); o.pick(); if (opts.options) { game.save.save(); done(); return; } relayout(); }), { note: o.note, primary: !!o.primary /* 2.1: a card's default option is gold (and focused) */, kind: 'custom', draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); const tight = !P && this.h < 100; /* V9: four answers' shorter buttons */ ui.label(ctx, this.label, this.x + 22, this.y + (this.note ? (P ? 30 : tight ? 18 : 22) : this.h / 2), P ? 24 : 16, this.primary ? UI_INK : UI_TEXT, 'left', this.w - 44); if (this.note) { ctx.font = fontStr(P ? 19 : 12, false); const lh = Math.max(P ? 22 : 15, rbLineH(ctx)), ny = P ? 56 : tight ? 36 : rbWrap(ctx, this.note, this.w - 44).length <= 2 && this.h - 48 - 16 >= lh ? 48 : 42; /* V10: a short note sits a little lower, clear of the label */ ui.para(ctx, this.note, this.x + 22, this.y + ny, this.w - 44, P ? 19 : 12, this.primary ? 'rgba(26,18,6,0.85)' : UI_GOLD /* 2.1: dark ink on the default's gold */, 'left', P ? 2 : Math.min(3, 1 + Math.max(0, Math.floor((this.h - ny - 16) / lh)))); } } /* V9: as many note lines as the button holds (the pixel font's lines are ~24 px) */ }));
+  const choices = (opts.options || (ev.choice || []).map((ch, i) => ({ label: ch.label, note: ch.note, pick: () => { stChoose(c, ev, i); game.save.save(); } }))).map(o => Object.assign(btn(o.label, 0, 0, 0, 0, () => { finish(); o.pick(); if (opts.options) { game.save.save(); done(); return; } relayout(); }), { note: o.note, primary: !!o.primary /* 2.1: a card's default option is gold (and focused) */, kind: 'custom', draw(ctx, focused, ui) { kitButton(ctx, this, focused, ui.t, {}); const tight = !P && this.h < 100; /* V9: four answers' shorter buttons */ let lab = this.label, dy = 0; if (!P && !tight && this.note) { ctx.font = fontStr(16, false); const L = rbWrap(ctx, lab, this.w - 44); if (L.length === 2) { lab = L.join('\n'); dy = Math.max(16 * 1.35, rbLineH(ctx)); } } /* 2.1: a long answer (three side by side) takes two lines (longer still: cut, as before, and the audits flag it) */ ui.label(ctx, lab, this.x + 22, this.y + (this.note ? (P ? 30 : tight ? 18 : 22) : this.h / 2), P ? 24 : 16, this.primary ? UI_INK : UI_TEXT, 'left', this.w - 44); if (this.note) { ctx.font = fontStr(P ? 19 : 12, false); const lh = Math.max(P ? 22 : 15, rbLineH(ctx)), ny = (P ? 56 : tight ? 36 : rbWrap(ctx, this.note, this.w - 44).length <= 2 && this.h - 48 - 16 >= lh ? 48 : 42) + dy; /* V10: a short note sits a little lower, clear of the label */ ui.para(ctx, this.note, this.x + 22, this.y + ny, this.w - 44, P ? 19 : 12, this.primary ? 'rgba(26,18,6,0.85)' : UI_GOLD /* 2.1: dark ink on the default's gold */, 'left', P ? 2 : Math.min(3, 1 + Math.max(0, Math.floor((this.h - ny - 16) / lh)))); } } /* V9: as many note lines as the button holds (the pixel font's lines are ~24 px) */ }));
   const answered = () => !opts.options && ev.answered != null;
   function relayout() {
     const lastP = last(), ask = lastP && choices.length && !answered(); scr.asks = !!ask && !opts.options; laidTyping = typing(); next.hidden = lastP; cont.hidden = !lastP || ask; for (const b of choices) b.hidden = !ask || laidTyping;

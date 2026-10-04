@@ -2,8 +2,9 @@
 // decision with a flag that lasts, a closing scene), chapter 1 over a freshman year, the cast (your sibling, Coach
 // Adeyinka, the best friend met at tryouts), the pacing (two story screens in a row at most, a season's 3–5 scenes,
 // every scene with a choice), the title card and "This will be remembered", the cutscene backgrounds, "Previously on
-// Hoop Heads", the Story screen as chapters, save and reload, old saves, Sim ahead. (Chapters reached and scenes per
-// season over whole careers: tests/careersim.js.) Usage: node tests/story21.js
+// Hoop Heads", the Story screen as chapters, save and reload, old saves, Sim ahead. W8: chapters 2–6 over simulated
+// careers (high school, Signing Day's paths, college, their pro versions), the side arcs they absorb, old saves. (Chapters
+// reached and scenes per season over whole careers: tests/careersim.js.) Usage: node tests/story21.js
 const { launch, openPage, runner } = require('./lib');
 const fs = require('fs'), path = require('path');
 (async () => {
@@ -11,9 +12,24 @@ const fs = require('fs'), path = require('path');
   // a new career (its chapter 1 already opened: the night before tryouts is in the queue)
   const mk = `(seed => amCreate(defaultSave(), { name: 'Chapter Test', look: PRESET_LOOKS[seed % 16], number: 9, style: 'slasher', seed, seasonLength: 11, gameLength: 120 }))`;
   // answers the queue (each card's default, or pick(e) → its index), keeping what was told
-  const drain = `((a, seen, pick) => { const q = a.events.filter(e => !e.answered && (e.kind === 'dialog' || e.kind === 'rival')).length; if (q > 2) throw new Error(q + ' story screens in a row'); for (const e of a.events) if (e.kind === 'dialog') { seen.push(e); if (e.choice && e.answered == null) { const i = pick ? pick(e) : -1; if (i >= 0) stChoose(a, e, i); else stAutoChoose(a, e); } } a.events.length = 0; })`;
+  const drain = `((a, seen, pick) => { const q = chQueued(a); /* (an official visit's three cards are one scene) */ if (q > 2) throw new Error(q + ' story screens in a row: ' + a.events.filter(e => !e.answered && (e.kind === 'dialog' || e.kind === 'rival')).map(e => e.kind + ':' + (e.id || e.moment) + ':' + e.title).join(', ')); for (const e of a.events) if (e.kind === 'dialog') { seen.push(e); if (e.choice && e.answered == null) { const i = pick ? pick(e) : -1; if (i >= 0) stChoose(a, e, i); else stAutoChoose(a, e); } } a.events.length = 0; })`;
   const year = `((a, seen, pick) => { const d = eval(DR); d(a, seen, pick); let g = 0; while (a.tryout && a.tryout.step !== 'done' && g++ < 5) hsSimTryout(a); d(a, seen, pick); const s0 = a.season; g = 0; while (a.season === s0 && g++ < 80) { if (a.decision || (a.summer && a.summer.pending)) break; const r = amSimGame(a); d(a, seen, pick); if (!r && !amNext(a)) break; } return a; })`.replace('DR', JSON.stringify(drain).slice(1, -1).replace(/\\"/g, '"'));
   const drawTexts = `(s => { const cv = document.createElement('canvas'); cv.width = 1280; cv.height = 720; const ctx = cv.getContext('2d'); const texts = []; const ft = ctx.fillText.bind(ctx); ctx.fillText = (t, x, y, w) => { texts.push(String(t)); return ft(t, x, y, w); }; s.draw(ctx, HH.game.ui); return texts; })`;
+  // a career run: seasons, tryouts, summers, a commitment to the best offer from junior year (o.commit false: none),
+  // Signing Day (o.sign, else the simulators' pick), the declare decision (o.declare), until o.until(a) or the combine;
+  // answers the queue as drain does
+  const life = `((a, seen, pick, o) => { o = o || {}; const d = eval(__DRAIN__); let g = 0;
+    while (!a.handedOff && g++ < 900) { d(a, seen, pick); if (o.until && o.until(a)) break; if (a.stage === 'combine') break;
+      if (a.tryout && a.tryout.step !== 'done') { hsSimTryout(a); continue; } if (a.summer && a.summer.pending) { hsSummerChoose(a, 'camp'); continue; }
+      if (a.decision) { const dd = a.decision; if (dd.kind === 'college') { if (o.sign) o.sign(a, dd); else if (!recSimSign(a)) break; } else if (dd.kind === 'declare') amDeclare(a, !!(o.declare && o.declare(a))); else if (dd.kind === 'portal') { if (o.declare && o.declare(a)) amDeclare(a, true); else colPortalChoose(a, null); } else break; continue; }
+      if (o.commit !== false && a.stage === 'hs' && !a.prep && a.stageYear >= 3 && !recOf(a).commit) { const L = hsLiveOffers(a).filter(x => x.pid); if (L.length && !recCommitWhyNot(a, L[0].pid)) recCommit(a, L[0].pid); } /* (a recruit commits to the best offer: the programs fill their classes by Signing Day) */
+      const r = amSimGame(a); if (!r && !amNext(a) && !a.decision && a.stage !== 'combine') break; }
+    d(a, seen, pick); return a; })`.replace('__DRAIN__', JSON.stringify(drain).slice(1, -1).replace(/\\"/g, '"'));
+  // a pro season, simmed week by week to the offseason (the queue answered; trait picks and the All-Star game too); the
+  // offseason, automatic, into the next season
+  const proDrain = `((c, seen, pick) => { for (const e of (c.events || [])) { if (e.kind === 'dialog') { seen.push(e); if (e.choice && e.answered == null) { const i = pick ? pick(e) : -1; if (i >= 0) stChoose(c, e, i); else stAutoChoose(c, e); } } else if (e.kind === 'traitpick') trPickAuto(c.me); else if (e.kind === 'rebuild' && !e.answered) proRebuildAnswer(c, e, true); } c.events.length = 0; })`;
+  const proYear = `((g, c, seen, pick) => { const d = eval(__PD__); let k = 0; d(c, seen, pick); while (c.phase !== 'offseason' && c.phase !== 'retired' && k++ < 90) { if (c.allStar && c.allStar.invited && !c.allStar.done) finishAllStar(c, 12); const r = simOneWeek(g, c); d(c, seen, pick); if (!r) break; } if (c.phase !== 'offseason') throw new Error('the pro season never ended: ' + c.phase + ' week ' + c.week); return c; })`.replace('__PD__', JSON.stringify(proDrain).slice(1, -1).replace(/\\"/g, '"'));
+  const proNext = `(c => { if (!lgOffseasonAuto(c, { rebuild: true })) throw new Error('no 2.1 offseason'); for (const e of (c.events || []).slice()) if (e.kind === 'rebuild' && !e.answered) proRebuildAnswer(c, e, true); c.events.length = 0; newSeason(c); return c; })`;
 
   await step('twelve chapters in order (each a title; chapter 1 written); a new career opens chapter 1 with its title card first in the queue, your school in its title', () => ev(mk => {
     if (CH_TITLES.length !== 13 || CH_TITLES[11] !== 'Finals' || CH_TITLES[12] !== 'Legacy') throw new Error('titles ' + CH_TITLES);
@@ -84,12 +100,12 @@ const fs = require('fs'), path = require('path');
     return ev(([raw, mk]) => {
       const d = JSON.parse(raw); const s = new SaveSystem(); s.data = s.migrate ? s.migrate(d) : d; const a = s.data.c1 || d.c1; if (!a) throw new Error('no career in the fixture');
       a.events = a.events || []; const n0 = a.events.length; sagaTick(a, 'game', {}); const Q = chOf(a); if (a.stageYear > 1 && (!Q.list[1] || Q.list[1].st !== 'past')) throw new Error('chapter 1 should be past: ' + JSON.stringify(Q.list[1]) + ' y' + a.stageYear);
-      if (a.events.slice(n0).some(e => e.ch)) throw new Error('a chapter scene for an old save past it'); const rows = chapterRows(a); if (rows[0].mark !== '—' || rows[0].sub !== 'Before this save') throw new Error('row ' + JSON.stringify(rows[0]));
+      if (a.events.slice(n0).some(e => e.ch && e.ch.n === 1)) throw new Error('a chapter 1 scene for an old save past it'); /* (W8: the chapter of its year may open) */ const rows = chapterRows(a); if (rows[0].mark !== '—' || rows[0].sub !== 'Before this save') throw new Error('row ' + JSON.stringify(rows[0]));
       // a 2.0 freshman: no chapter state, mid-season: chapter 1 starts now (the opening's version for after tryouts)
       const f = eval(mk)(71); while (f.tryout && f.tryout.step !== 'done') hsSimTryout(f); f.events.length = 0; delete f.saga.ch; f.seasonStats.g = 4; sagaTick(f, 'game', {}); const e = f.events.find(x => x.ch); if (!e || e.ch.scene !== 'night' || !/^Freshman year at /.test(e.lines[0])) throw new Error('mid-season start ' + JSON.stringify(e && e.lines));
       // a pro career (the dev jump, an old pro save) whose chapter 1 never closed: it closes without telling
       const save = defaultSave(), c = testProLeague(72, save), Q2 = chOf(c); Q2.list[1] = { st: 'on', v: '', i: 1, told: 1, s0: 1, stage: 'hs', age: 14 }; Q2.n = 1; c.events.length = 0; sagaTick(c, 'game', {}); if (Q2.list[1].st !== 'done' || !Q2.list[1].cut || c.events.some(x => x.ch)) throw new Error('quiet close ' + JSON.stringify(Q2.list[1]));
-      return 'w5 fixture y' + a.stageYear + ': chapter 1 past · a 2.0 freshman starts it mid-season · a stale chapter closes quietly';
+      return 'w5 fixture y' + a.stageYear + ': chapter 1 past' + (Q.list[Q.n] ? ', chapter ' + Q.n + ' ' + Q.list[Q.n].st : '') + ' · a 2.0 freshman starts it mid-season · a stale chapter closes quietly';
     }, [raw, mk]);
   });
 
@@ -118,6 +134,98 @@ const fs = require('fs'), path = require('path');
     for (let i = 0; i < 6; i++) { s2.finish(); const nx = s2.widgets.find(w => !w.hidden && w.label === '▼'); if (nx) nx.onPress(); } s2.finish(); const t2 = eval(drawTexts)(s2); if (!t2.some(x => /THIS WILL BE REMEMBERED/.test(x))) throw new Error('the banner: ' + t2.slice(0, 10));
     return SAGA_BG_KINDS.length + ' backgrounds · the card · the banner';
   }, [mk, drawTexts]));
+
+  // ---------------- W8: chapters 2–6 ----------------
+  await step('chapters 2–6 (§4.2): 3–6 scenes each with a choice on every one, one big decision, a closing scene; a version for every path (sophomore: the first varsity season, a second one or JV · junior: letters or none yet · Signing Day: kept, changed, a prep year, a walk-on, the pros · Freshman Wall: a scholarship, a walk-on, the pros · March: college or the pros)', () => ev(() => {
+    const out = [];
+    for (let n = 2; n <= 6; n++) { const D = CHAPTERS[n]; if (!D || D.n !== n || !D.scenes) throw new Error('chapter ' + n + ' is not written');
+      if (D.scenes.length < 3 || D.scenes.length > 6) throw new Error(n + ': ' + D.scenes.length + ' scenes'); if (D.scenes.filter(x => x.big).length !== 1) throw new Error(n + ': one big decision');
+      for (const x of D.scenes) if (!x.choice || !x.lines || !x.sum) throw new Error(n + ': ' + x.id + ' without a choice, lines or a recap line');
+      if (!D.past || !D.open || !D.over) throw new Error(n + ': past, open, over'); out.push(n + ' ' + CH_TITLES[n] + ' ' + D.scenes.length); }
+    if (!CHAPTERS[2].variant || !CHAPTERS[3].variant || !CHAPTERS[5].variant || !CHAPTERS[6].variant) throw new Error('versions');
+    return out.join(' · ');
+  }));
+
+  await step('high school over three simulated seasons, chapters 2–4: each in its own season (sophomore, junior, senior) with 3–5 scenes in that season, every one a choice, nothing told twice; the big decisions remembered (ch2: shake hands or talk trash · ch3: a weekend job or the help · ch4: home, the dream or your friend); Signing Day\'s closing scene comes with the signing (what you said, what you signed)', () => ev(([mk, life]) => {
+    const out = [], keys = { 2: ['hand', 'talk'], 3: ['job', 'friend', 'coach'], 4: ['home', 'dream', 'friend'] };
+    const sign = (a, dd) => { const R4 = chOf(a).list[4] || {}, V = R4.voices || {}, want = V[R4.k], live = dd.offers.filter(o => !o.draft), o = live.find(x => x.pid === want) || live[0]; if (o) amChooseCollege(a, o); else recSimSign(a); };
+    for (const seed of [201, 202, 203]) { const seen = [], a = eval(life)(eval(mk)(seed), seen, e => e.chapter && e.chapter.big ? seed % e.choice.length : -1, { until: a => a.stage !== 'hs', sign });
+      const S = sagaOf(a), Q = chOf(a), yrs = {};
+      for (let n = 2; n <= 4; n++) { const R = Q.list[n], D = CHAPTERS[n]; if (!R || R.st !== 'done' || R.cut) throw new Error(seed + ': chapter ' + n + ' ' + JSON.stringify(R));
+        if (!keys[n].includes(R.k) || S.flags['ch' + n] !== R.k) throw new Error(seed + ': ch' + n + ' = ' + S.flags['ch' + n] + ' / ' + R.k);
+        const L = S.log.filter(l => l.ch === n), ids = L.map(l => l.beat); if (new Set(ids).size !== ids.length) throw new Error(seed + ': told twice ' + ids);
+        if (L.some(l => l.s !== R.s0 && l.beat !== 'signed')) throw new Error(seed + ': chapter ' + n + ' outside its season ' + JSON.stringify(L.map(l => l.beat + '@' + l.s)) + ' s0 ' + R.s0);
+        if (L.length < 3 || ids[ids.length - 1] !== D.scenes[D.scenes.length - 1].id || !L.some(l => l.big)) throw new Error(seed + ': chapter ' + n + ' scenes ' + ids); yrs[n] = R.s0; }
+      if (!(yrs[2] < yrs[3] && yrs[3] < yrs[4])) throw new Error(seed + ': seasons ' + JSON.stringify(yrs));
+      for (const n of [2, 3]) { const lg = (a.arcLog || []).find(l => l.s === yrs[n] && l.st === 'hs'); if (!lg || lg.n < 3 || lg.n > 5) throw new Error(seed + ': season ' + yrs[n] + ' scenes ' + JSON.stringify(a.arcLog)); }
+      if (seen.filter(e => e.ch && e.ch.n >= 2).some(e => !(e.choice && e.choice.length))) throw new Error(seed + ': a scene without a choice');
+      const R4 = Q.list[4], sg = seen.find(e => e.ch && e.ch.n === 4 && e.ch.scene === 'signed'); if (!sg || !['kept', 'changed', 'prep', 'walkon', 'pro'].includes(R4.v)) throw new Error(seed + ': the signing ' + R4.v);
+      if ((R4.v === 'kept' || R4.v === 'changed') && !sg.lines.map(l => typeof l === 'string' ? l : l.t).join(' ').includes(a.college)) throw new Error(seed + ': the school in ' + JSON.stringify(sg.lines));
+      out.push(seed + ': ' + [2, 3, 4].map(n => n + '=' + Q.list[n].k + (Q.list[n].v ? '/' + Q.list[n].v : '')).join(' ') + ' · ' + a.college); }
+    return out.join(' · ');
+  }, [mk, life]));
+
+  await step('the side arcs a chapter tells wait for it: no Family Bills or Best Friend arc in a chapter career\'s high school, and the rival\'s first handshake is chapter 2\'s (the old arc\'s buzzer beat is skipped); a career whose chapters were passed by keeps them', () => ev(([mk, life]) => {
+    const a = eval(life)(eval(mk)(211), [], null, { until: a => a.stage !== 'hs' }), S = sagaOf(a);
+    if (S.arcs.bills) throw new Error('Family Bills opened ' + JSON.stringify(S.arcs.bills)); if (S.arcs.friend) throw new Error('the Best Friend arc opened'); if (S.log.some(l => l.arc === 'rival' && l.beat === 'buzzer')) throw new Error('the old handshake');
+    if (!S.flags.ch2 || !S.cast.friend.name) throw new Error('chapter 2 and the friend'); if (!chOwns(a, 2) || !chOwns(a, 3) || !chOwns(a, 4)) throw new Error('the chapters own their arcs');
+    const b = eval(mk)(212), Q = chOf(b); for (const n of [1, 2, 3, 4]) Q.list[n] = { st: 'past' }; Q.n = 5; if (chOwns(b, 2) || chOwns(b, 3) || chOwns(b, 4)) throw new Error('a passed chapter still owns its arc');
+    b.stageYear = 2; b.seasonStats.g = 3; if (!SAGA_ARCS.bills.open(b, sagaOf(b), {})) throw new Error('the bills arc can open in an old save');
+    return 'bills, friend: none · rival: ' + (S.arcs.rival ? S.arcs.rival.st + ' (after chapter 2)' : 'not yet') + ' · an old save keeps them';
+  }, [mk, life]));
+
+  await step('Signing Day\'s versions (§4.2): what you said at the kitchen table and what you signed (kept or changed; following your friend makes you teammates), a prep year, a walk-on, straight to the pros (a flag the chapters after it read)', () => ev(([mk, life, drain]) => {
+    const a = eval(life)(eval(mk)(221), [], null, { until: a => !!(a.decision && a.decision.kind === 'college') }); if (!a.decision || a.decision.kind !== 'college') throw new Error('no Signing Day: ' + a.stage + ' y' + a.stageYear);
+    const R0 = chOf(a).list[4]; if (!R0 || R0.st !== 'on' || !R0.voices || !R0.k) throw new Error('the kitchen table first ' + JSON.stringify(R0));
+    const base = JSON.stringify(a), out = [], text = e => e.lines.map(l => typeof l === 'string' ? l : l.t).join(' ');
+    const run = (f, k) => { const b = JSON.parse(base); b.events.length = 0; if (k) { chOf(b).list[4].k = k; sagaOf(b).flags.ch4 = k; } f(b); const seen = []; eval(drain)(b, seen); const R4 = chOf(b).list[4], e = seen.find(x => x.ch && x.ch.n === 4 && x.ch.scene === 'signed'); if (!e || R4.st !== 'done') throw new Error('no signing scene ' + JSON.stringify(R4)); return { b, R4, e, t: text(e) }; };
+    const V = R0.voices, said = V[R0.k] ? R0.k : V.dream ? 'dream' : 'home', offerOf = (b, P) => b.decision.offers.find(o => o.pid === P.id) || (o => (b.decision.offers.push(o), o))(colOfferFrom(b, P, 'x')); /* (the school named, or another: an offer from it if it has none) */
+    if (!V[said]) throw new Error('no school named at the kitchen table ' + JSON.stringify(V));
+    { const P = colProg(V[said]), r = run(b => amChooseCollege(b, offerOf(b, P)), said); if (r.R4.v !== 'kept' || !r.t.includes(P.name)) throw new Error('kept: ' + r.R4.v + ' ' + r.t); out.push('kept (' + said + ': ' + P.name + ')'); }
+    { const P = COLLEGES.find(q => !Object.values(V).includes(q.id)), r = run(b => amChooseCollege(b, offerOf(b, P)), said); if (r.R4.v !== 'changed' || !r.t.includes(P.name) || !r.t.includes(colProg(V[said]).name)) throw new Error('changed: ' + r.R4.v + ' ' + r.t); out.push('changed'); }
+    { const r = run(b => { const F = colProg(sagaOf(b).cast.friend.pid) || COLLEGES.find(P => P.tier <= 1); sagaOf(b).cast.friend.pid = F.id; chOf(b).list[4].voices.friend = F.id; let o = b.decision.offers.find(x => x.pid === F.id); if (!o) { o = colOfferFrom(b, F, 'x'); b.decision.offers.push(o); } amChooseCollege(b, o); }, 'friend');
+      if (r.R4.v !== 'kept' || sagaOf(r.b).flags.friendWay !== 'teammate' || !/Teammates/.test(r.t)) throw new Error('following the friend: ' + r.R4.v + ' ' + sagaOf(r.b).flags.friendWay + ' ' + r.t); out.push('friend: teammates'); }
+    { const r = run(b => { for (const o of b.offers || []) o.pulled = true; b.decision = null; recSigningDay(b, amRng(b)); if (!b.decision.prepOk) throw new Error('no prep year offered'); recPrepYear(b, amRng(b)); }); if (r.R4.v !== 'prep' || !/prep year/.test(r.t) || !r.b.prep) throw new Error('prep: ' + r.R4.v + ' ' + r.t); out.push('prep'); }
+    { const r = run(b => { b.gpa = Math.max(b.gpa || 0, 3.9); const P = COLLEGES.find(P => !recWalkOnWhyNot(b, P.id)); if (!recWalkOn(b, P.id)) throw new Error('no walk-on'); }); if (r.R4.v !== 'walkon' || !/walk-on/.test(r.t) || r.b.scholarship !== 'walkon') throw new Error('walk-on: ' + r.R4.v + ' ' + r.t); out.push('walk-on'); }
+    { const r = run(b => amChooseCollege(b, { name: 'Skip college: turn pro', tier: -1, draft: true })); if (r.R4.v !== 'pro' || !/No college/.test(r.t) || sagaOf(r.b).flags.noCollege !== 1) throw new Error('the pros: ' + r.R4.v + ' ' + r.t); out.push('the pros'); }
+    if (out.length < 5) throw new Error('paths ' + out); return out.join(' · ');
+  }, [mk, life, drain]));
+
+  await step('college (§4.2): Freshman Wall in year one (a scholarship or a walk-on) and March in year two (Coach Adeyinka\'s health scare; the knee in the tournament: play through it or sit), each in its season and remembered; the flags of chapters 1–6 survive a save and a reload', () => ev(([mk, life, drain]) => {
+    const g = HH.game, seen = [], a = eval(life)(eval(mk)(231), seen, e => e.chapter && e.chapter.big && e.ch.n >= 5 ? 1 : -1, { until: a => a.stage === 'college' && a.stageYear >= 3, declare: () => false }), S = sagaOf(a), Q = chOf(a), R5 = Q.list[5], R6 = Q.list[6];
+    if (a.stage !== 'college' || a.stageYear !== 3) throw new Error('not in college year three: ' + a.stage + ' y' + a.stageYear);
+    if (!R5 || R5.st !== 'done' || R5.cut || !['college', 'walkon'].includes(R5.v) || R5.k !== 'home' || S.flags.ch5 !== 'home' || !S.flags.sibMentor) throw new Error('chapter 5 ' + JSON.stringify(R5));
+    if (!R6 || R6.st !== 'done' || R6.cut || R6.v !== 'college' || R6.k !== 'sit' || !S.flags.coachScare) throw new Error('chapter 6 ' + JSON.stringify(R6) + ' scare ' + S.flags.coachScare);
+    const L5 = S.log.filter(l => l.ch === 5), L6 = S.log.filter(l => l.ch === 6); if (L5.some(l => l.s !== R5.s0) || L6.some(l => l.s !== R6.s0) || R6.s0 !== R5.s0 + 1) throw new Error('seasons ' + JSON.stringify([L5.map(l => l.s), L6.map(l => l.s)]));
+    if (!L6.some(l => l.beat === 'scare') || !L6.some(l => l.beat === 'knee')) throw new Error('March ' + L6.map(l => l.beat));
+    for (const s0 of [R5.s0, R6.s0]) { const lg = (a.arcLog || []).find(l => l.s === s0 && l.st === 'college'); if (!lg || lg.n < 3 || lg.n > 5) throw new Error('season ' + s0 + ' scenes ' + JSON.stringify(a.arcLog)); }
+    if (seen.filter(e => e.ch && e.ch.n >= 5).some(e => !(e.choice && e.choice.length))) throw new Error('a scene without a choice');
+    g.save.data.c1 = a; g.save.data.career = null; g.save.save(); const b = new SaveSystem().data.c1; for (let n = 1; n <= 6; n++) if (!b || sagaFlag(b, 'ch' + n) !== S.flags['ch' + n] || chOf(b).list[n].st !== 'done') throw new Error('after a reload: ch' + n);
+    return '5 ' + R5.v + '=' + R5.k + ' · 6 ' + R6.v + '=' + R6.k + ' (scare: ' + S.flags.coachScare + ') · ' + [1, 2, 3, 4, 5, 6].map(n => S.flags['ch' + n]).join('/') + ' after a reload';
+  }, [mk, life, drain]));
+
+  await step('the pro versions (§4.2): leaving college after one year gets March in the first pro season (the playoff race); no college at all gets Freshman Wall in the first pro season and March in the second', () => ev(([mk, life, proYear, proNext]) => {
+    const g = HH.game, out = [];
+    { const a = eval(life)(eval(mk)(241), [], null, { until: a => a.stage === 'college' && a.stageYear >= 2 || a.stage === 'combine', declare: a => a.stageYear >= 1 }); if (a.stage !== 'combine') throw new Error('not one-and-done: ' + a.stage + ' y' + a.stageYear);
+      const R5 = chOf(a).list[5]; if (!R5 || R5.st !== 'done' || R5.v === 'pro') throw new Error('chapter 5 in college ' + JSON.stringify(R5));
+      const save = g.save.data; save.c1 = a; save.career = null; createCareerFromAmateur(save, a); const c = save.career; save.c1 = null; const seen = []; eval(proYear)(g, c, seen); const R6 = chOf(c).list[6];
+      if (!R6 || R6.st !== 'done' || R6.v !== 'pro' || !R6.k) throw new Error('March in the pros ' + JSON.stringify(R6)); if (seen.some(e => e.ch && e.ch.n === 6 && e.ch.scene === 'whiteboard')) throw new Error('the whiteboard in the pros');
+      const card = seen.find(e => e.ch && e.ch.n === 6 && e.chapter.open); if (!card || card.chapter.sub !== '') { /* (the card's line comes with the version's first scene) */ } out.push('one-and-done: March (' + R6.v + ', ' + R6.k + ')'); }
+    { const a = eval(life)(eval(mk)(242), [], null, { until: a => !!(a.decision && a.decision.kind === 'college') }); amChooseCollege(a, { name: 'Skip college: turn pro', tier: -1, draft: true }); eval(life)(a, [], null, {}); if (a.stage !== 'combine' || sagaOf(a).flags.noCollege !== 1) throw new Error('no college ' + a.stage);
+      const save = g.save.data; save.c1 = a; save.career = null; createCareerFromAmateur(save, a); const c = save.career; save.c1 = null; const seen = []; eval(proYear)(g, c, seen); const Q = chOf(c), R5 = Q.list[5];
+      if (!R5 || R5.st !== 'done' || R5.v !== 'pro' || !R5.k) throw new Error('Freshman Wall in the pros ' + JSON.stringify(R5)); if (Q.list[6]) throw new Error('March in the same season');
+      eval(proNext)(c); eval(proYear)(g, c, seen); const R6 = Q.list[6] || chOf(c).list[6]; if (!R6 || R6.st !== 'done' || R6.v !== 'pro' || R6.s0 !== R5.s0 + 1) throw new Error('March in the second pro season ' + JSON.stringify(R6));
+      out.push('no college: Freshman Wall (' + R5.k + ') and March (' + R6.k + ') in pro seasons 1 and 2'); }
+    return out.join(' · ');
+  }, [mk, life, proYear, proNext]));
+
+  await step('old saves: a junior with no chapters yet passes chapters 1–2 by and opens chapter 3 at its moment; a college sophomore passes 1–5 and opens March', () => ev(([mk, life]) => {
+    const a = eval(life)(eval(mk)(251), [], null, { until: a => a.stage === 'hs' && a.stageYear === 3 && !(a.tryout && a.tryout.step !== 'done') }); delete a.saga.ch; a.events.length = 0; a.league.week = Math.max(1, a.league.week || 0); sagaTick(a, 'game', {}); const Q = chOf(a);
+    if (Q.list[1].st !== 'past' || Q.list[2].st !== 'past' || !Q.list[3] || Q.list[3].st !== 'on') throw new Error('a junior ' + JSON.stringify(Q.list)); if (!a.events.some(e => e.ch && e.ch.n === 3 && e.chapter.open)) throw new Error('chapter 3 opens with its card');
+    const b = eval(life)(eval(mk)(252), [], null, { until: b => b.stage === 'college' && b.stageYear === 2, declare: () => false }); if (b.stage !== 'college') throw new Error('no college ' + b.stage); delete b.saga.ch; b.events.length = 0; b.league.week = Math.max(1, b.league.week || 0); sagaTick(b, 'game', {}); const Q2 = chOf(b);
+    for (let n = 1; n <= 5; n++) if (!Q2.list[n] || Q2.list[n].st !== 'past') throw new Error('a college sophomore: ' + n + ' ' + JSON.stringify(Q2.list[n])); if (!Q2.list[6] || Q2.list[6].st !== 'on') throw new Error('March ' + JSON.stringify(Q2.list[6]));
+    return 'junior: 1–2 passed, 3 on · college sophomore: 1–5 passed, 6 on';
+  }, [mk, life]));
 
   await step('Sim ahead stops at a chapter\'s scene in both modes (the main story is never answered for you); other story cards stay routine in a season run', () => ev(() => {
     const ch = { kind: 'dialog', ch: { n: 1, scene: 'x' }, title: 'X' }, side = { kind: 'dialog', title: 'Y' };

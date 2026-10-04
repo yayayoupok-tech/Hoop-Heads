@@ -335,7 +335,16 @@ tryouts, an age on every portrait), a speaker per page, "This will be remembered
 bus, the dorm, a college arena, the owner's box, the retirement stage), every scene with a choice, two story screens in
 a row at most, 3–5 scenes a season (the beats that can wait keep a place for what can't), "Previously on Hoop Heads"
 and the Story screen as chapters (`tests/story21.js`, the career simulator's scenes by phase and chapters reached).
-**W8 — Chapters 1–6** — §4.2.
+**W8 — Chapters 1–6** *(done)* — §4.2: high school and college in chapters. Varsity (sophomore year: the first
+varsity season, a second one or JV again; the rival face to face: shake their hand or talk trash), The Spotlight
+(junior year: the letters or none yet; the family's bills: a weekend job or your best friend's family helps, and you
+owe them), Signing Day (senior year: three voices at the kitchen table name real programs, the one nearest home, the
+dream and your friend's; the closing scene at the signing: what you said and what you signed, a prep year, a walk-on,
+the pros), Freshman Wall (college year one, a walk-on's, or the first pro season with no college: grind, or go home for
+your sibling's big day) and March (the tournament, Coach Adeyinka's health scare, the knee: play through it or sit; the
+pros' playoff race after one college year or none). The chapters tell what the old arcs told (Family Bills, the Best
+Friend's choice, the rival's first handshake); the chapters run on the calendar's weeks (a bench season too); story
+beats step back for a decision's card (two in a row at most) (`tests/story21.js`, the career simulator).
 **W9 — Chapters 7–12 and the endings** — §4.2–4.4: six or more endings and the story tests.
 **W10 — Release** — the full suite once, every target table, version 2.1, the artifact republished.
 
