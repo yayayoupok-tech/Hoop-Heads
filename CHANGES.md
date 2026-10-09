@@ -3,6 +3,117 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X5 (3.0) — teammates play, the leagues below, transfers and the PBL's teams
+
+The request's §4.3–4.5: every team has five and all five play; the depth chart follows performance; nobody loses a
+season on the bench; transfers at every level with a chart of every move; an Overseas League below the PBL; the PBL's
+teams as cards with their dynasties. Quick checks for this milestone: the new `tests/lower.js` (12 steps, §11's
+depth-chart rule among them), `tests/screens30.js` (now with X5's screens), `tests/smoke.js`, `tests/flow.js`,
+`tests/loop.js`, `tests/oldsaves.js`, `tests/rankings.js`, `tests/fixes.js` and the career simulator (40 careers).
+
+### Five on every team, and the leagues below (§4.3)
+
+| Level | The league below | Its teams | Its games |
+| --- | --- | --- | --- |
+| High school | JV | the district's six schools: yours is your depth chart's #2–#5, the others' fours are generated at the district's level − 6 (± 5) | slot by slot (#2 v #2 … #5 v #5) on the district's pairings, a line each |
+| College | the Reserve League | your conference's programs, the same way | your game against the week's opponent's team; a week the league doesn't pair (a marquee game) pairs the rest at random |
+| The pros | the PBL Development League | the sixteen franchises' benches (yours: your depth chart's four) | on the PBL's schedule |
+
+- **Rosters:** `team.roster` 7 → 4 teammates in high school and college (the pros had 4). An old save keeps its best four.
+- **Tables:** standings (record, margin, streak, last five), a ranking of its players (the rankings' points: points a
+  game first) and your games (League → JV / Reserve / Dev League). Its games count there, not in your season line, the
+  national rankings or the records; a season's recap shows your line there (games, PPG, record, rank) when you mostly
+  played below, and a season mostly below counts its points a game at `lower.credit` (0.8) for recruiters and scouts.
+- **Not starting, you play there:** HOME's next game is the league below's (PLAY or SIM; a playable 1v1 against the
+  slot-matched player of the opponent's team, the pros' in a fieldhouse). It develops you like any game (`lower.xp` 1);
+  your team's game is simmed with its starter around it. Weeks you can't play (grades) and playoff games you don't
+  start stay bench weeks. The career simulator: 23 games a career below (amateurs) and the pro bench weeks became
+  Development League weeks.
+
+### The depth chart follows how the five play
+
+Every week each player's form is the mean of their last 3 games' points (the rankings' points for one game: points +
+8 × (FG% − .47) − 0.3 × turnovers + 1.5 × (won − ½) + 0.4 × (opponent's OVR − the league's mean), so a game against
+the league below's players counts for less). Your coach trust moves yours by 0.05 a point over or under 50. The best
+form on the bench ahead of the starter's by more than the edge (2) for 3 weeks running takes the spot; the starter
+goes below; the four line up behind by form. Swaps make the news and the Transfers chart; yours are a reward line
+("You start" / "Benched"). §11's test: a benched player who outplays the starter for 3 weeks takes the spot (not
+after 2, and not by a hair).
+
+`depth.opp` and `depth.edge`: 16 simulated careers at each setting (the share of regular-season weeks you start, by
+year; swaps a season; swaps that benched a starter 6+ OVR better than the one who took over):
+
+| opp · edge | HS year 1 / 2 / 3–4 | College year 1 / 2 / 3–4 | Swaps a season | 6+ OVR better benched |
+| --- | --- | --- | --- | --- |
+| 0.25 · 0 | 31% / 86% / 88% | 19% / 61% / 70% | 0.67 | 16 of 97 |
+| 0.25 · 2 | 22% / 85% / 92% | 14% / 63% / 80% | 0.44 | 10 of 64 |
+| 0.4 · 2 (shipped) | 19% / 87% / 92% | 7% / 54% / 74% | 0.38 | 9 of 55 |
+| 0.4 · 3 | 4% / 77% / 95% | 5% / 47% / 68% | 0.27 | 4 of 39 |
+
+The edge cuts the swaps by about a third; the heavier opponent term counts a game in the league below for less (about
+3 points at the usual 6–9 OVR gap); at an edge of 3 a freshman almost never starts.
+
+Gone: the practice challenges (played or simmed, the challenge card, the result screen), spot starts and the bench
+week's result screen; `team.challengeTarget` … `takeGap` stay in CONFIG for the tryout's 1v1 (`challengeScale`) and old
+saves. A 2.x save's pending challenge card is dropped on load.
+
+### High school is one team
+
+The school's team is five: the starter plays varsity's district, the four behind play JV. Tryouts (a freshman, or a
+sophomore not starting) set your place: a passing grade places you by OVR among the five, a failing one last. JV is no
+longer a team or a league of its own (a 2.x save's JV season finishes the old way, call-up and all); `squad` follows the
+depth chart. The Road's first milestone is now START FOR VARSITY.
+
+### Transfers (§4.4)
+
+- **High school:** one transfer, between seasons: a message after the season with a stronger program (teammates 4 OVR
+  over you, exposure +8) and a weaker one (6 under: you start), or stay. It stands until the next season's first game.
+- **College:** the transfer portal (a season you mostly didn't start), as before; the move is logged.
+- **The pros:** trades, free agency, the Development League's call-ups and send-downs (an AI franchise's best player
+  starts), and a buyout: the trade message's third answer, the club paying `life.buyout` (50%) of the rest of your
+  deal, and free agency that offseason.
+- **The Transfers chart** (League → Transfers): every move of this season, the last one, or yours: trades, signings,
+  rookies, free agents and cuts, call-ups and send-downs, the Overseas League both ways. Big moves (OVR 76+ trades, 78+
+  signings, abroad and back) make the headlines.
+
+### The Overseas League
+
+Twelve invented clubs in six invented countries (CONFIG.overseas).
+- **The pros:** a background league (each club's star, a game a week on its own dice, a stat line each; League →
+  Overseas). Each offseason its best 2 stars (OVR 72+) come back to the PBL's free agency; players nobody signs (under
+  31, OVR 60+) sign abroad when they're better than a club's star.
+- **You:** at the end of your amateur years a scouts' score under `overseas.bar` (93) brings no PBL offers: three clubs
+  abroad call (a signing bonus) and you play a season there: twelve players, eleven games and a final four, opponents
+  at OVR 63 (+2 the second season). A top-3 finish (or a title) brings the PBL's offers with +6 on the scouts' score;
+  after a second season they come anyway. The career simulator: 20% of careers went abroad. A save already at the
+  combine keeps its PBL offers.
+
+### The PBL's teams (§4.5)
+
+The Teams chart (League → Teams): sixteen cards, best first: record, team ranking, stars, title odds, title window
+(contender, rising, rebuilding), a dynasty (BACK-TO-BACK, THREE-PEAT… or DYNASTY: three titles in five years), titles
+and the best players; a tap opens the franchise's page (its History tab says the dynasty too). The brackets and the
+league's history were there (X4, 2.1).
+
+### A bug found on the way: simmed amateur games graded F
+
+A simmed amateur line had no turnovers, so its game score was NaN and every simmed high school and college game since
+V6 graded F (×0.3 XP, and a slump after three). Fixed: the score counts a missing number as 0, and an amateur game is
+graded per its level's game length (the pro scale graded most amateur lines A+). Graded properly, simmed amateur games
+average ×1.27, so `amateur.simGameXp` (0.24) keeps their XP where the balance was set; X10 tunes progression. The
+simulator no longer slumps all the time.
+
+| Career simulator, 40 careers, seed 1 | X4 | X5 |
+| --- | --- | --- |
+| OVR at 17 / 21 / 25 · peak | 56 / 65 / 69 · 71 | 56 / 64 / 69 · 71 |
+| a 5★ team · titles · Hall of Fame | 33% · 0.72 · 13% | 43% · 0.80 · 23% |
+| pro weeks off the top rung · games in the league below (amateur) | 26 · – | 40 · 23 |
+| went abroad | – | 20% |
+
+The extra 5★ teams and Hall of Famers most likely come from weeks that now play (a Development League game pays a
+game's XP where a bench week paid scrimmage XP) and from sims that no longer slump; 40 careers are a rough read, and
+the targets, already missed at X4, are X10's.
+
 ## X4 (3.0) — rankings and charts
 
 The request's §4.1–4.2: rankings that come from how people play, every week at each level, and charts as the LEAGUE

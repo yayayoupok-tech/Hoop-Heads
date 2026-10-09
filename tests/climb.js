@@ -1,6 +1,6 @@
 // V6 (Hoop Heads 2.0, Part 2 §1.2–§1.3): the rules of the climb. The XP curve and the soft ceiling of your hidden
 // potential, game XP by grade (simmed games pay half), the weekly practice load cap, injuries that cost rating points
-// for good, slumps, the competition at each level, the depth chart's takeover gap and the 5★ scarcity (bars, one open
+// for good, slumps, the competition at each level, the depth chart's edge (3.0: form, not challenges) and the 5★ scarcity (bars, one open
 // spot a season, named rivals). The §1.1 outcomes are tests/difficulty.js. Usage: node tests/climb.js
 const { launch, openPage, runner } = require('./lib');
 (async () => {
@@ -115,12 +115,12 @@ const { launch, openPage, runner } = require('./lib');
     return 'spots open in ' + (100 * rate).toFixed(0) + '% of 5★ team-seasons · rivals ' + S.open[id].rivals.map(r => r.name + ' ' + r.val).join(', ') + ' · value ' + v0.toFixed(1);
   }));
 
-  await step('the depth chart: a won challenge takes the spot only within team.takeGap (2) OVR of the teammate; further off, the teammate keeps it for now', () => ev(() => {
+  await step('the depth chart (3.0 §4.3): the starter keeps the spot on form within the edge (team.depth.edge); ahead of it 3 weeks running, the bench player takes it', () => ev(() => {
     const c = amCreate(defaultSave(), { name: 'Takeover', look: PRESET_LOOKS[6], number: 6, style: 'lockdown', seed: 2468 }); hsTryoutDrill(c, 30); hsTryoutGame(c, true, 7, 0); c.events.length = 0;
-    ladderInit(c, 2); const st = ladderOf(c)[0], m = ladderMate(c, st), myO = myChallengeOvr(c); const setOvr = v => { const d = v - tmMateOvr(m); for (const k of RATING_KEYS) m.r[k] = clamp(m.r[k] + d, 1, 99); };
-    setOvr(myO + TM.takeGap + 3); let r = ladderResolve(c, st, true, 'you'); if (!r || !r.held || ladderRank(c) !== 2) throw new Error('3 past the gap: the starter keeps it (' + JSON.stringify(r && { held: r.held, rank: ladderRank(c) }) + ')');
-    setOvr(myO + TM.takeGap - 1); r = ladderResolve(c, st, true, 'you'); if (!r || r.held || ladderRank(c) !== 1) throw new Error('within the gap: the start is yours (rank ' + ladderRank(c) + ')');
-    return 'takeGap ' + TM.takeGap;
+    ladderInit(c, 2); hsSquadSync(c); const T = c.team, st = ladderOf(c)[0]; T.form = {}; T.hot = {}; T.trust = 50; const wk = (me, them) => { llForm(c, 'me', me); llForm(c, st, them); return llDepthWeek(c); };
+    for (let i = 0; i < 5; i++) wk(10 + TM.depth.edge - 0.5, 10); if (ladderRank(c) !== 2) throw new Error('inside the edge: the starter keeps it (rank ' + ladderRank(c) + ')');
+    for (let i = 0; i < TM.depth.weeks; i++) wk(10 + TM.depth.edge + 3, 10); if (ladderRank(c) !== 1) throw new Error('past the edge for ' + TM.depth.weeks + ' weeks: the start is yours (rank ' + ladderRank(c) + ')');
+    return 'edge ' + TM.depth.edge + ' · ' + TM.depth.weeks + ' weeks';
   }));
 
   console.log(D.errors.length ? 'page errors: ' + D.errors.slice(0, 5).join(' | ') : 'no page errors');

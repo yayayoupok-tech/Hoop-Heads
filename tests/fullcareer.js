@@ -31,11 +31,9 @@ const { launch, openPage, runner } = require('./lib');
       case 'amhub': { if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); }
         const lvl = a && a.stage, play = by(/^PLAY( GAME)?$/); if (lvl && !played[lvl] && play && a.league && !a.decision) { pr(play); break; } /* V4: the scouting report, then TIP OFF */
         if (JUMP && played.hs && !g._jumped && a && a.stage === 'hs') { g._jumped = true; return { name: s.name, devKey: true }; } /* V14: the dev menu (the backtick key), then Jump to pro */
-        if (a && a.team && a.league && !a.decision && !isStarter(a) && ladderChallengeId(a) && !(a.wk && a.wk.done) && by(/^SIM( THE GAME)?$/)) { g.ui.push(ladderScreen(g)); return { name: s.name, ladder: true }; } // V1: a benched week: challenge for the spot (as that week's practice), the way a player would
         pr(by(/^(CHOOSE YOUR COLLEGE|SIGNING DAY|DRAFT DECISION|TURN PRO\?|TRANSFER PORTAL|DRAFT COMBINE|PRO COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^Sim to next big moment$/) || by(/^SIM( THE GAME)?$/)); break; } // V5 (2.0 §4.8): routine weeks in one press
       case 'career': { if (c && c.me) { c.me.plan = plans[i % plans.length]; if (i % 5 === 0) c.me.intensity = 'hard'; }
         if (c && c.me && !c.me._bizDone && c.phase === 'regular' && c.season >= 2) { c.me._bizDone = true; g.ui.push(managementScreen(g)); return { name: 'career', biz: true }; } // money: open Business once
-        if (c && c.me && c.team && c.phase === 'regular' && !isStarter(c) && ladderChallengeId(c) && !(c.me.wk && c.me.wk.done) && i % 3 === 0) { g.ui.push(ladderScreen(g)); return { name: 'career', ladder: true }; } // V1: a benched week, now and then: challenge for the spot
         const play = by(/^PLAY$/); if (!played.pro && play && c.phase === 'regular' && i % 7 === 3) { pr(play); break; } /* the pregame screen, then TIP OFF */ pr(by(/^Sim to next big moment$/) || by(/^SIM( THE GAME)?$/) || by(/^(START SEASON|OFFSEASON|CONTINUE)/)); break; } // V5: Sim to next big moment
       case 'dev': { const before = a ? a.stage + ' year ' + a.stageYear : 'none'; pr(by(/^Jump to pro$/)); const d2 = g.save.data.c1; window.__fcJump = { before, after: d2 ? d2.stage : 'none', msg: (g.devOpts && g.devOpts.lines || []).join(' ') }; break; } // V14 (2.0 §7)
       case 'pregame': pr(by(/^TIP OFF$/)); return { name: s.name, played: 'pro' };
@@ -59,9 +57,7 @@ const { launch, openPage, runner } = require('./lib');
       case 'simsummary': pr(by(/^CONTINUE$/)); break; // V5
       case 'roadcard': pr(by(/^Continue$/)); break; // V5: a Road to the League milestone
       case 'offseason': pr(by(/^Sim to next big moment$/) || by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^Opt in · /) || by(/^Skip to the end$/) || by(/^(Last day: take the best|Wait a day|Next day)$/) || by(/^Stay$/) || W.find(w => w.camp && !w.primary) || by(/^START SEASON/) || by(/^RETIRE/)); break; // 2.1 (W6): the seven steps (the sim stops for your decisions: an offer, an option, a no-trade call)
-      case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break;
-      case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break;
-      case 'ladder': pr(by(/^SIM THE CHALLENGE$/) || by(/^Back$/)); break;
+      case 'ladder': case 'lowerleague': pr(by(/^Back$/)); break;
       case 'recruiting': case 'statebracket': case 'amstandings': case 'draftstock': case 'confbracket': case 'natbracket': case 'moneybuilt': case 'networth': pr(by(/^Back$/)); break;
       case 'tryout': pr(by(/^SIM IT$/)); break;
       case 'tryoutpost': pr(by(/^CONTINUE$/)); break;

@@ -131,7 +131,7 @@ const INIT = () => {
           await game('tryout 1v1', "__H.P('^PLAY THE 1V1')", null);
           for (let i = 0; i < 6 && await screen() !== 'amhub'; i++) { const s = await screen(); if (s === 'tryoutpost') await step('tryout result: CONTINUE', 'screens', "__H.P('^CONTINUE$')"); else await through('amhub', 'tryouts'); }
           // ---- a high school game ----
-          await work(() => { const a = HH.game.save.data.c1; if (a && a.team && !isStarter(a)) { const id = ladderChallengeId(a); if (id) ladderTakeSpot(a, id); } HH.game.hubTab = 'play'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
+          await work(() => { const a = HH.game.save.data.c1; if (a && a.team && !isStarter(a)) { const L = ladderOf(a); L.splice(L.indexOf('me'), 1); L.unshift('me'); } /* (3.0: you start; the depth chart follows form) */ HH.game.hubTab = 'play'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
           await step('hub → scouting card', 'screens', "__H.P('^PLAY( GAME)?$')", { want: 'ampregame', dwell: 2500 });
           await game('high school game', "__H.P('^TIP OFF$')", 'amhub');
           await step('hub → standings', 'league', "g.ui.push(amStandingsScreen(g))").catch(e => rows.push({ name: 'hub → standings (skipped: ' + e.message + ')', cat: 'info' }));
@@ -160,7 +160,7 @@ const INIT = () => {
         await step('franchise → pro hub', 'franchise', "g.ui.pop()", { want: 'career' });
         await step('pro hub → staff', 'staff', "g.ui.push(staffScreen(g))", { want: 'staff' });
         await step('staff → pro hub', 'staff', "g.ui.pop()", { want: 'career' });
-        await work(() => { const c = HH.game.save.data.career; if (c && c.team && !isStarter(c)) { const id = ladderChallengeId(c); if (id) ladderTakeSpot(c, id); } HH.game.hubTab = 'play'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
+        await work(() => { const c = HH.game.save.data.career; if (c && c.team && !isStarter(c)) { const L = ladderOf(c); L.splice(L.indexOf('me'), 1); L.unshift('me'); } /* (3.0: you start; the depth chart follows form) */ HH.game.hubTab = 'play'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
         await step('pro hub → pregame', 'screens', "__H.P('^PLAY$')", { want: 'pregame', dwell: 2500 });
         await game('pro game', "__H.P('^TIP OFF$')", 'career');
         await step('pro hub → awards night', 'awards', "const c = g.save.data.career; c.events.length = 0; const ids = c.active; const aw = { mvp: c.meId, dpoy: ids[1], roy: ids[2], mip: ids[3], scoring: c.meId, finalsMvp: ids[4], allLeague: [c.meId, ids[5], ids[6]] }; c.events.push({ kind: 'ceremony', title: 'AWARDS NIGHT', sub: 'The PBL · season ' + c.season, rows: proCeremonyRows(c, aw) }); eventChain(g, c);");

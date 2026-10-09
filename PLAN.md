@@ -394,7 +394,15 @@ OVR: high school ranks a nation of 140 invented schools' starters with your dist
 PBL its league; the top 100 with ▲▼; stars follow the team rankings (`tests/rankings.js`: the top scorer in the top
 10 in 98% / 100% / 100% of seasons). The LEAGUE tab's charts: rankings, leaders, standings (PCT, GB, streak, last
 five), brackets, your team's page (title odds, titles by year) and your charts.
-**X5 — Teammates, lower leagues, transfers and PBL team life** — §4.3–4.5.
+**X5 — Teammates, lower leagues, transfers and PBL team life** *(done)* — §4.3–4.5: five on every team; the four
+behind the starter play the league below (JV, the Reserve League, the PBL Development League) with real games, lines,
+standings and rankings, and you play there when you don't start (no lost seasons); the depth chart follows form (the
+last 3 games' points; ahead of the starter 3 weeks running takes the spot) and the challenges and spot starts are gone;
+high school is one team (tryouts set the depth chart); transfers (high school's one, the portal, trades, free agency,
+buyouts, call-ups and send-downs, the Overseas League) and the Transfers chart; the Overseas League (twelve clubs
+abroad: a season there when no PBL franchise calls, a background league in the pros); the Teams chart's cards with
+dynasties (`tests/lower.js`). On the way: simmed amateur games graded F since V6 (a missing turnover count); fixed,
+with `amateur.simGameXp` keeping their XP where it was (X10 tunes progression).
 **X6 — Tournaments, rewards and difficulty** — §5.
 **X7 — Items and badges** — §6.
 **X8 — Your crew** — §7.

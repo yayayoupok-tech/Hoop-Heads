@@ -40,7 +40,7 @@ function rendererMB() { const P = descendants(process.pid).map(procInfo).filter(
       const pre = await ev(i => { const g = HH.game, s = g.save.data, c = s.career; if (!c) return { err: 'no career' }; c.events.length = 0;
         let guard = 0; while (!userGame(c) && guard++ < 40) { c.events.length = 0; if (c.phase === 'offseason') { if (c.offseason && c.offseason.v === 2) lgOffseasonAuto(c, { fa: () => lgUserFaDefault(c), rebuild: true }); else { offseasonProgression(c); offseasonMoves(c); } newSeason(c); } else if (!simUserGame(s)) break; } /* (a season's end: its offseason the career simulator's way, then the next season) */
         const ug = userGame(c); if (!ug) return { err: 'no game this week (phase ' + c.phase + ', week ' + c.week + ')' };
-        if (c.team && !isStarter(c)) { const id = ladderChallengeId(c); if (id) ladderTakeSpot(c, id); }
+        if (c.team && !isStarter(c)) { const L = ladderOf(c); L.splice(L.indexOf('me'), 1); L.unshift('me'); } /* (3.0: you start; the depth chart follows form) */
         const opp = c.players[opponentOf(c, ug)]; const rng = new RNG(9000 + i * 7919); opp.look = randomLook(rng); opp.name = 'Newface ' + i + ' ' + ['Okafor', 'Lindqvist', 'Moreau', 'Tanaka', 'Sowa', 'Brandt', 'Ibarra'][i % 7];
         g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); try { bakeNextCareerGame(g, 1); } catch (e) { /* the hub asks for it too */ } return { ok: true, opp: opp.name, week: c.week, season: c.season };
       }, i);

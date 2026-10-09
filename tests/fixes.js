@@ -53,23 +53,6 @@ async function racksStep(R, P, label) {
   }
 }
 
-// §1.4: the press room's answers are three rows (name, effect, quote) that never overlap, never leave their button and
-// are never cut short, with four answers, at 1× and 1.25× text.
-async function pressStep(R, P, label) {
-  for (const big of [false, true]) await R.step('press answers: three rows, no overlap, nothing cut (' + label + ', ' + (big ? '1.25×' : '1×') + ' text)', async () => {
-    await P.ev(big => { RBF.textScale = big ? 1.25 : 1; localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); g.save.data.settings.textSize = big ? 1.25 : 1; const a = amCreate(g.save.data, { name: 'Press Check', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 31 }); hsAutoResolve(a); if (!a.league) hsBuildLeague(a, amRng(a), 0); a.events.length = 0;
-      const o = a.league.opps[0]; a.hype = 40; a.events.push({ kind: 'press', q: 'Nobody gave you a chance against ' + o.name.split(' ')[0] + '. What changed?', x: { name: a.name, won: true, us: 15, them: 11, opp: o.name, oppId: o.id, upsetWin: true, recs: [] } }); g.ui.clearTo(amHub(g)); }, big);
-    await P.page.waitForTimeout(700);
-    const r = await P.ev(() => { const g = HH.game, ui = g.ui, s = ui.screen, d = g.dpr; if (!s || s.name !== 'press') return { err: 'no press screen: ' + (s && s.name) };
-      RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { var B = RBF.boxes || []; RBF.boxes = null; } const bad = [], ans = s.widgets.filter(w => w.ans && !w.hidden);
-      for (const w of ans) { const x0 = (ui.ox + w.x * ui.scale) * d, y0 = (ui.oy + w.y * ui.scale) * d, x1 = x0 + w.w * ui.scale * d, y1 = y0 + w.h * ui.scale * d; const mine = B.filter(b => b.a >= 0.35 && b.x >= x0 - 1 && b.x < x1 && b.y + b.h / 2 > y0 && b.y + b.h / 2 < y1); // (faint text: the backdrop's logos)
-        if (mine.length < 3) bad.push(w.ans + ': ' + mine.length + ' strings'); for (const b of mine) { if (b.cut) bad.push(w.ans + ' cut: ' + b.cut.slice(0, 30)); if (b.y < y0 - 1 || b.y + b.h > y1 + 1 || b.x + b.w > x1 + 1) bad.push(w.ans + ' outside its button: ' + b.t.slice(0, 20)); }
-        for (let i = 0; i < mine.length; i++) for (let j = i + 1; j < mine.length; j++) { const a = mine[i], c = mine[j]; if (a.t === c.t) continue; /* one string drawn twice: its outline, then its fill */ const ix = Math.min(a.x + a.w, c.x + c.w) - Math.max(a.x, c.x), iy = Math.min(a.y + a.h, c.y + c.h) - Math.max(a.y, c.y); if (ix > 0 && iy > 0) bad.push(w.ans + ' overlap: "' + a.t.slice(0, 16) + '" / "' + c.t.slice(0, 16) + '"'); } }
-      return { n: ans.length, bad }; });
-    await P.ev(() => { RBF.textScale = 1; });
-    if (r.err) throw new Error(r.err); if (r.n !== 4) throw new Error(r.n + ' answers (want 4)'); if (r.bad.length) throw new Error(r.bad.slice(0, 4).join(' | '));
-  }, P);
-}
 
 // §1.11: Signing Day's "Around the league" panel appears with its first signing (it sat empty through the reveal).
 async function signingStep(R, P, label) {
@@ -81,16 +64,17 @@ async function signingStep(R, P, label) {
   }, P);
 }
 
-// §1.12: a season on the bench: the recap says so, with your practice gains and challenge record, instead of 0.0 tiles.
+// §1.12: a season on the bench: the recap says what you did instead of 0.0 tiles (3.0 §4.3: your season in the league
+// below, JV: its points a game, games, record and rank).
 async function benchStep(R, P, label) {
-  await R.step('a season on the bench: the recap shows "Benched all season" (' + label + ')', async () => {
+  await R.step('a season off the top rung: the recap shows the JV season (' + label + ')', async () => {
     const r = await P.ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Bench Check', look: PRESET_LOOKS[4], number: 12, style: 'shooter', seed: 909 }); a.events.length = 0; hsAutoResolve(a); amEnsureTeam(a); ladderInit(a, 3);
-      let n = 0, played = 0; const spot0 = TM.spotAfter; TM.spotAfter = 999; /* V5: no spot starts here (they have their own test in flow.js): the recap's bench season is what this checks */ try { while (a.league && !a.league.done && n++ < 40) { const res = amSimGame(a); if (!res) break; if (!res.bench) played++; a.events = a.events.filter(e => e.kind === 'recap'); if (a.decision || (a.tryout && a.tryout.step !== 'done')) break; } } finally { TM.spotAfter = spot0; }
+      let n = 0, played = 0; hsSquadSync(a); while (a.league && !a.league.done && n++ < 40) { if (isStarter(a)) { const L = ladderOf(a); L.splice(L.indexOf('me'), 1); L.splice(2, 0, 'me'); } a.team.hot = {}; /* (kept off the top rung all season) */ const res = amSimGame(a); if (!res) break; if (!res.bench && !res.ll) played++; a.events = a.events.filter(e => e.kind === 'recap'); if (a.decision || (a.tryout && a.tryout.step !== 'done')) break; }
       const row = a.log[a.log.length - 1]; if (!row) return { err: 'the season never ended (' + n + ' sims)' }; if (row.g) return { skip: 'played ' + row.g + ' games' };
       const s = amRecapScreen(g, a, { kind: 'recap', title: 'SEASON RECAP', lines: [] }, () => {}); g.ui.clearTo(s); g.ui.trans = null; s.update(9); RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { var B = RBF.boxes || []; RBF.boxes = null; }
-      const t = B.map(b => b.t); return { played, row, benched: t.some(x => /^Benched$/.test(x.trim())) && t.some(x => /ALL SEASON/.test(x)) && t.some(x => /PRACTICE/.test(x)), challenges: t.some(x => /CHALLENGES/.test(x)), zeros: t.filter(x => /^0\.0$|^0%$/.test(x.trim())), cut: B.filter(b => b.cut).map(b => b.cut) }; });
+      const t = B.map(b => b.t); return { played, row, benched: t.some(x => /^JV PPG$/.test(x.trim())) && t.some(x => /^RANK$/.test(x.trim())) && t.some(x => /PRACTICE/.test(x)) && !!(row.ll && row.ll.g >= 8), zeros: t.filter(x => /^0\.0$|^0%$/.test(x.trim())), cut: B.filter(b => b.cut).map(b => b.cut) }; });
     if (r.err) throw new Error(r.err); if (r.skip) throw new Error('the scripted season was not benched: ' + r.skip);
-    if (!r.benched || !r.challenges) throw new Error('recap tiles: benched ' + r.benched + ', challenges ' + r.challenges); if (r.zeros.length) throw new Error('zero tiles still drawn: ' + r.zeros.join(', ')); if (r.cut.length) throw new Error('cut: ' + r.cut.join(' | '));
+    if (!r.benched) throw new Error('recap tiles: the JV season ' + JSON.stringify(r.row && r.row.ll)); if (r.zeros.length) throw new Error('zero tiles still drawn: ' + r.zeros.join(', ')); if (r.cut.length) throw new Error('cut: ' + r.cut.join(' | '));
   }, P);
 }
 
@@ -99,7 +83,6 @@ async function benchStep(R, P, label) {
   for (const phone of [false, true]) {
     const P = await openPage(b, { phone }); const label = phone ? 'phone' : 'desktop';
     await racksStep(R, P, label);
-    await pressStep(R, P, label);
     await signingStep(R, P, label);
     if (!phone) await benchStep(R, P, label);
     await P.context.close();

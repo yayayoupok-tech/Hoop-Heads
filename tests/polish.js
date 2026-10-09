@@ -79,7 +79,6 @@ const { launch, openPage, runner } = require('./lib');
     hubNewsSeen(a); hubStorySeen(a); if (B().me) bad.push('a me dot with nothing new'); pushNews(a, 'A test headline.'); if (!B().me) bad.push('no me dot for news'); const nw = btnOf('me', 'News'); if (!dot(nw)) bad.push('no dot on News'); nw.onPress(); g.ui.pop(); if (hubNewsUnread(a)) bad.push('news stays unread'); else ok.push('news');
     sagaOf(a).log.push({ arc: 'test', b: 0, pick: 'x', s: a.season }); if (!B().me || !hubStoryUnread(a)) bad.push('no me dot for story'); const st = btnOf('me', 'Story'); if (!dot(st)) bad.push('no dot on Story'); st.onPress(); g.ui.pop(); if (hubStoryUnread(a)) bad.push('the story stays unread'); else ok.push('story'); sagaOf(a).log.pop();
     const T = traitsOf(a); if (T) { T.offer = { ids: ['clutch', 'gymRat'] }; T.third = null; if (!B().me) bad.push('no me dot for a trait to pick'); else ok.push('trait'); T.offer = null; }
-    const ch = hubChallengeOpen(a); if (B().train !== ch) bad.push('the train dot (' + B().train + ') ≠ a challenge you can take (' + ch + ')'); const db = btnOf('train', 'Depth chart'); if (db && dot(db) !== ch) bad.push('the Depth chart dot'); ok.push('challenge ' + ch);
     g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.join(' | ')); return ok.join(', ');
   }, AM));
 

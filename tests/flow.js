@@ -1,5 +1,5 @@
 // V5 (Hoop Heads 2.0 §4.1, §4.2, §4.6–4.8, §5): the career flow. Pace in one-minute career games, the sims at the new
-// pace, fatigue, fame from performance (3.0: no press room), the depth chart's challenges, spot starts and playing time,
+// pace, fatigue, fame from performance (3.0: no press room), the depth chart (3.0: it follows form) and playing time,
 // Road to the League, Sim to next big moment / Sim the rest of the season, Quick results, the five-tab hub with its
 // calendar and red dots, and the league's name (the PBL). Usage: node tests/flow.js
 const { launch, openPage, runner } = require('./lib');
@@ -44,29 +44,22 @@ const { launch, openPage, runner } = require('./lib');
       while (guard++ < 400 && a.stage === 'hs') { for (const e of a.events) if (e.kind === 'press' || e.kind === 'rival' || e.ch || e.saga || e.arc) bad++; a.events.length = 0; if (a.decision || a.stage !== 'hs') break; if (a.summer && a.summer.pending) { hsSummerChoose(a, 'rest'); continue; } if (a.tryout && a.tryout.step !== 'done') { hsSimTryout(a); continue; } const r = amSimGame(a); if (!r) break; if (!r.bench) games++; } }
     if (games < 20 || bad) throw new Error(bad + ' press, rival or story cards in ' + games + ' games'); return games + ' games, no press';
   }));
-  await step('the depth chart (§4.2, §4.6): no teammate challenges in weeks 1–3, three weeks apart, only within 3 OVR; benched, you challenge the starter', () => ev(() => {
-    const save = defaultSave(); const c = amCreate(save, { name: 'Ladder V5', look: PRESET_LOOKS[6], number: 9, style: 'lockdown', seed: 1234 }); hsTryoutDrill(c, 30); hsTryoutGame(c, true, 7, 0); ladderInit(c, 1); c.events.length = 0;
-    const rng = { next: () => 0 }; const L = c.league, T = c.team; const mates = T.mates.slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a)); const below = ladderBelowId(c), m = ladderMate(c, below); const myO = myChallengeOvr(c);
-    const setOvr = v => { const d = v - tmMateOvr(m); for (const k of RATING_KEYS) m.r[k] = clamp(m.r[k] + d, 1, 99); };
-    setOvr(myO - 1); L.games = [{}, {}]; T.pending = null; T.lastChal = null; ladderMaybeChallenge(c, rng); if (T.pending) throw new Error('a challenge in week 2');
-    L.games = [{}, {}, {}, {}]; ladderMaybeChallenge(c, rng); if (T.pending !== below) throw new Error('week 4: the challenge should come (p forced)'); T.pending = null; c.events.length = 0;
-    L.games.push({}); ladderMaybeChallenge(c, rng); if (T.pending) throw new Error('one week later: too soon'); L.games.push({}, {}); ladderMaybeChallenge(c, rng); if (T.pending !== below) throw new Error('three weeks later it can come again'); T.pending = null; T.lastChal = null; c.events.length = 0;
-    setOvr(myO - 6); L.games.push({}, {}, {}); ladderMaybeChallenge(c, rng); if (T.pending) throw new Error('6 OVR under you: no challenge');
-    // benched: the starter is the target; a win takes the start, the rest move down
-    ladderInit(c, 4); const st = ladderOf(c)[0], second = ladderOf(c)[1]; if (ladderChallengeId(c) !== st) throw new Error('the target should be the starter'); const r = ladderResolve(c, st, true, 'you'); if (!r || r.rankAfter !== 1 || ladderOf(c)[1] !== st || ladderOf(c)[2] !== second) throw new Error('a win takes the start: ' + ladderOf(c).slice(0, 4).join(','));
+  await step('the depth chart (3.0 §4.3): it follows form, the last 3 games\' points; the best on the bench ahead of the starter 3 weeks running takes the spot (and the starter goes to the league below)', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'Depth X5', look: PRESET_LOOKS[6], number: 9, style: 'lockdown', seed: 1234 }); hsTryoutDrill(c, 30); hsTryoutGame(c, true, 7, 0); ladderInit(c, 1); c.events.length = 0;
+    const T = c.team, L = ladderOf(c), m = L[2]; T.form = {}; T.hot = {}; T.trust = 50; const wk = (mine, theirs) => { llForm(c, 'me', mine); llForm(c, m, theirs); for (const id of L) if (id !== 'me' && id !== m) llForm(c, id, 4); return llDepthWeek(c); };
+    if (wk(12, 30) || wk(12, 30)) throw new Error('a swap inside 3 weeks'); if (!isStarter(c)) throw new Error('benched early'); const r = wk(12, 30); if (!r || r.up !== m || r.down !== 'me' || isStarter(c) || ladderOf(c)[0] !== m) throw new Error('3 weeks behind: the spot goes: ' + ladderOf(c).join(','));
+    if (!(c.events || []).some(e => e.kind === 'depth' && e.title === 'BENCHED')) throw new Error('no BENCHED news'); const nx = amNext(c); if (!nx || !nx.ll) throw new Error('benched: next is the JV game');
   }));
-  await step('playing time (§4.6): three bench weeks earn a spot start; A or B moves you up a rung; a pro may ask for a trade after 4 bench weeks', () => ev(() => {
-    const save = defaultSave(); const c = amCreate(save, { name: 'Spot Start', look: PRESET_LOOKS[3], number: 2, style: 'shooter', seed: 4321 }); hsTryoutDrill(c, 30); hsTryoutGame(c, true, 7, 0); c.events.length = 0; ladderInit(c, 3); c.fatigue = 0;
-    let bench = 0, spotPlayed = null; for (let i = 0; i < 6 && !spotPlayed; i++) { c.team.pending = null; const r = amSimGame(c); c.events.length = 0; if (!r) break; if (r.bench) bench++; else spotPlayed = r; }
-    if (!spotPlayed) throw new Error('no spot start after ' + bench + ' bench weeks'); if (bench !== TM.spotAfter) throw new Error('the spot start came after ' + bench + ' bench weeks'); if (!spotPlayed.spot || !spotPlayed.spot.grade) throw new Error('the spot start should be graded');
-    if (benchStreakOf(c) !== 0) throw new Error('the streak resets after a game you play');
-    const up = spotStartDone, c2 = amCreate(defaultSave(), { name: 'Spot Up', look: PRESET_LOOKS[4], number: 3, style: 'slasher', seed: 99 }); hsTryoutDrill(c2, 30); hsTryoutGame(c2, true, 7, 0); ladderInit(c2, 3); const before = ladderRank(c2); const res = up(c2, true, 'A'); if (!res.up || ladderRank(c2) !== before - 1) throw new Error('an A moves you up a rung'); const res2 = up(c2, true, 'C'); if (res2.up) throw new Error('a C does not');
+  await step('playing time (3.0 §4.3): not starting, you play the league below every regular-season week; a pro may ask for a trade after 4 weeks without starting', () => ev(() => {
+    const save = defaultSave(); const c = amCreate(save, { name: 'JV Weeks', look: PRESET_LOOKS[3], number: 2, style: 'shooter', seed: 4321 }); hsTryoutDrill(c, 30); hsTryoutGame(c, true, 7, 0); c.events.length = 0; ladderInit(c, 3); hsSquadSync(c); c.fatigue = 0;
+    let ll = 0, other = 0; for (let i = 0; i < 4; i++) { if (isStarter(c)) { ladderInit(c, 3); hsSquadSync(c); } c.team.hot = {}; const r = amSimGame(c); c.events.length = 0; if (!r) break; if (r.ll) ll++; else other++; } if (ll !== 4) throw new Error('JV weeks ' + ll + ', others ' + other);
+    if (benchWeeksOf(c) < 4) throw new Error('the weeks you didn\'t start count: ' + benchWeeksOf(c));
     const p = testProLeague(23); p.phase = 'regular'; p.me.tradeSeason = p.season; p.week = 1; if (proTradeOpen(p)) throw new Error('inside the gap with no bench weeks: closed'); const R_ = benchRunOf(p); R_.weeks = TM.tradeBenchWeeks; p.me.tradeSeason = p.season - 1; if (!proTradeOpen(p)) throw new Error('after ' + TM.tradeBenchWeeks + ' bench weeks a trade request opens');
   }));
   await step('Road to the League (§4.1): fourteen milestones from varsity to the Hall of Fame (V12, Part 2 §6: a franchise player, a ring, Finals MVP, a jersey retired); rewards (cash, a badge level, a free gear level) and a card each; the goal is a 5★ team; old saves mark what they did quietly', () => ev(() => {
     if (ROAD.list.length !== 14 || !roadDef('team5').goal) throw new Error('the list: ' + ROAD.list.length);
     const save = defaultSave(); const c = amCreate(save, { name: 'Road Runner', look: PRESET_LOOKS[5], number: 8, style: 'slasher', seed: 2024 }); c.events.length = 0; if (!c.road || !c.road.init) throw new Error('a new career starts its road');
-    c.cash = 0; hsTryoutDrill(c, 60); hsTryoutGame(c, true, 9, 0); roadCheck(c); if (!c.road.done.varsity) throw new Error('varsity after a varsity tryout: ' + c.squad); const card = c.events.find(e => e.kind === 'road' && e.id === 'varsity'); if (!card || !(c.cash >= ROAD.list[0].cash)) throw new Error('the varsity card and its cash');
+    c.cash = 0; hsTryoutDrill(c, 60); hsTryoutGame(c, true, 9, 0); ladderInit(c, 1); hsSquadSync(c); roadCheck(c); if (!c.road.done.varsity) throw new Error('varsity: the starting spot (3.0) ' + c.squad); const card = c.events.find(e => e.kind === 'road' && e.id === 'varsity'); if (!card || !(c.cash >= ROAD.list[0].cash)) throw new Error('the varsity card and its cash');
     // a badge level (3.0): top100 levels the badge nearest its next level (here, unlocks it)
     const n0 = badgeNextUp(c, 1)[0]; c.recruit = { nat: 80, stars: 4 }; c.events.length = 0; roadCheck(c); if (!c.road.done.top100) throw new Error('top 100'); if (!n0 || trLvOf(c, n0.id) !== n0.level) throw new Error('the badge level reward: ' + JSON.stringify(n0) + ' → Lv' + (n0 && trLvOf(c, n0.id))); if (!c.events.some(e => e.kind === 'road' && e.id === 'top100')) throw new Error('its card');
     // gear: a college offer gives a free level of court shoes (3.0: Lv1 when they're new; worn)
@@ -97,7 +90,7 @@ const { launch, openPage, runner } = require('./lib');
   await step('SIM (3.0 §2.2): a simmed week is a toast, then HOME (2.0\'s Quick results, now always)', async () => {
     await newAm(55); const r = await ev(() => { const g = HH.game, a = g.save.data.c1; g.hubTab = 'home'; g.ui.clearTo(amHub(g)); let tries = 0;
       while (tries++ < 12) { const nx = amNext(a); if (!nx || !nx.opp) return 'no game'; a.events.length = 0; if (a.league) a.league.exMid = a.league.exFin = true; g.ui.clearTo(amHub(g)); const big = simNext(a).big; const sim = g.ui.screen.widgets.find(w => /^SIM( THE GAME)?$/.test(w.label || '')); if (!sim) return 'no SIM'; sim.onPress(); const sn = g.ui.screen.name; if (!big && sn === 'amhub' && g.ui.toast) return 'toast: ' + g.ui.toast; }
-      return 'never a toast'; }); if (!/^toast: [WL] /.test(r)) throw new Error(r); return r;
+      return 'never a toast'; }); if (!/^toast: ([A-Za-z ]+: )?[WL] /.test(r)) throw new Error(r); return r; /* (3.0 §4.3: a game in the league below says so first) */
   });
   await step('the hub (3.0 §2.1): five tabs along the bottom (HOME · LEAGUE · EVENTS · CAREER · STORE), keys 1–5, every tab draws; HOME has PLAY, SIM, the scouting report, the sims ahead and the plan; red dots; the calendar', async () => {
     await newAm(77); const r = await ev(() => { const g = HH.game, a = g.save.data.c1; a.cash = 300; for (let i = 0; i < 3; i++) { amSimGame(a); a.events.length = 0; } roadCheck(a); a.events.length = 0; a.inbox = []; const L = ladderOf(a); if (L && L.indexOf('me') > 0) { L.splice(L.indexOf('me'), 1); L.unshift('me'); } g.hubTab = 'home'; g.ui.clearTo(amHub(g)); const s = g.ui.screen; if (s.name !== 'amhub') throw new Error('screen ' + s.name);
