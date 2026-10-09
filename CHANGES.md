@@ -3,6 +3,224 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X6 (3.0) — tournaments, rewards and difficulty
+
+The request's §5: real tournaments at every level, all 1v1 and harder at each level, with rewards that mean something
+and a bracket chart and headlines each. Quick checks for this milestone: the new `tests/tourney.js` (§11's tournament
+targets and their table), `tests/screens30.js` (now with X6's screens), `tests/smoke.js`, `tests/flow.js`,
+`tests/loop.js`, `tests/oldsaves.js`, `tests/life21.js`, `tests/lower.js`, `tests/rankings.js`, `tests/fixes.js`,
+`tests/pbl21.js`, `tests/shop.js` and the career simulator (120 careers).
+
+### One engine for the new tournaments
+
+`tourney` (CONFIG) and `167_tourney.js`: a field (generated players, or the PBL's own), a format, your games played
+or simmed, the rewards and the history.
+
+| Format | How it runs | Used by |
+| --- | --- | --- |
+| knockout (8 or 16) | seeded 1 v 16, 8 v 9 …; one game a round | HS Nationals, the AAU circuit, the Preseason Invitational, Blacktop Kings |
+| groups | four groups of four (a round robin), the top two to the quarterfinals, a bronze game: medals | the U17 and U21 World Cups, the World Cup, the Olympics |
+| skills | three stations (Shooting; Handles and speed; Finishing and hops) scored 0–30, then the top four play 1v1 semifinals and a final | the Elite Camp |
+| showcase | East v West: twelve 1v1 matchups by rank; the side with more wins takes it; an MVP | the All-American Game |
+| the Cup | groups from the league's group nights, then an eight-team knockout | the PBL Cup |
+
+- **The difficulty ladder:** a generated field sits at its stage's mean OVR (the pros: `tourney.proMean`, 74) plus
+  its tier's step, `tourney.tier` [0, 3, 6, 10, 13] (local, state, national, international, Olympic), ± `tourney.sd`
+  (3.5); every round adds `tourney.round` (1.5) to every NPC's game rating (a 16-player final: +4.5). The pros'
+  internationals: the best four 85–92 at the World Cup and 87–95 at the Olympics, the rest 77–86 and 80–88
+  (`tourney.intl`). A generated player's ratings are lifted until its real OVR hits its mark (the rating clamps had
+  pulled the stars under 85). The rating for the round shows before every game (the tournament screen's RATING).
+- **Your game:** PLAY is the real 1v1 at the tournament's floor (the Fieldhouse, the College Arena, the Blacktop,
+  Legends Arena…) against the opponent at their round's rating; SIM plays it on the season's dice. It develops you like
+  a game (`tourney.xp` 1; simmed amateur games × `amateur.simGameXp` as ever) and counts for the badges (not for
+  Unbreakable's and Iron Man's games: below); its line is the tournament's, not the season's. A team event (the Invitational, the Cup) you don't start is played by your starter.
+- **The screen:** a moment: its chart (the bracket, the groups and the knockout, the stations and the final four, the
+  matchups), your next game (the opponent's portrait, RATING, your OVR), PLAY / SIM / Sim the rest, and at the end
+  your finish and the rewards. LEAGUE → Brackets lists every tournament of this season and the last, and the All-Star
+  1v1 (with the 3-point contest's winner).
+
+### The calendar
+
+| Level | Tournament | When | Who gets in |
+| --- | --- | --- | --- |
+| High school | State (was there) | after the district | the district champion |
+| High school | HS Nationals (16) | after State | a state champion who started, or the top `hsnat.atLarge` (24) nationally |
+| High school | the AAU circuit: the Summer Jam, the Elite Classic, the Grassroots Finals (16 each; local, state, national) | summers | open: you pick which |
+| High school | the Elite Camp (12) | summers | the top `camp.invite` (60) nationally |
+| High school | the All-American Game (24) | the senior spring | the top 24 seniors (the recruiting rank) |
+| High school | the U17 World Cup (16 players, 16 nations) | every two years (a career's own calendar: the sophomore or the junior summer) | the top `u17.pick` (16) nationally: Estravia's team |
+| College | the Preseason Invitational (8 programs) | before the first game | your program and seven within a star of it |
+| College | the conference and national tournaments (were there) | March | as before |
+| College | the U21 World Cup | every other college summer | the top `u21.pick` (12) in college |
+| The pros | the PBL Cup | group nights in weeks 3–5, the knockout before week 7 | all sixteen; the top two of each group |
+| The pros | All-Star weekend (was there) | week 8 | the fans' vote |
+| The pros | the playoffs and the Finals (were there) | the season's end | the top 4 of each conference |
+| The pros | Blacktop Kings (16; 3 pros among them) | every summer | open: a message, enter or not |
+| The pros | the World Cup / the Olympics | years ≡ 2 / ≡ 0 (mod 4): two years apart | Estravia's team: the PBL ranking's top 4 |
+
+- **The PBL Cup:** each conference's eight are drawn into two groups of four by stars (snaked). The season's schedule
+  is built around it: weeks 3–5 are each group's round robin (the games count in the standings too) and the other
+  twelve pair every team with the twelve outside its group, so it's still everyone once. The tables come from those
+  nights; the knockout weekend (a group's winner v the other's runner-up, the conferences' winners in the final) comes
+  before week 7's game. A season begun before X6 has no Cup.
+- **The pros' offseason has a Summer step** (eight steps: the Summer after the trade window): the World Cup or the
+  Olympics, and Blacktop Kings' message. Sim to next big moment enters Blacktop Kings and plays it out, and stops for
+  a World Cup or an Olympics you were picked for. An offseason saved before X6 skips that summer (its steps move on).
+- **The high school summer** is the events you pick (any of the AAU circuit's three, the Elite Camp by invitation,
+  the U17 World Cup when you're picked) and the rest of it: a skills camp, rest or a job. Each event adds
+  `tourney.summer.fatigue` (7) to the season's start and a `tourney.summer.injury` (6%) injury chance; its exposure
+  is in its rewards. The old AAU circuit's constants are gone: `aauFatigue` 18, `aauInjury` 0.2, `aauXp` 20,
+  `aauOvr` 6, `aauExposure` 2 (three events: 21 fatigue, about 17%, the games' own XP, exposure 1–4 an event).
+  The career simulator's summers stay a job, the skills camp, then the AAU summer (now the rest of it off and the
+  circuit's three events); it doesn't enter the Elite Camp or the U17 World Cup (`tests/tourney.js` does).
+- **The EVENTS tab** lists what's coming (after State, the spring, the summer; the Cup's nights and knockout as key
+  weeks on the calendar); the Codex has a Tournaments entry. The playoffs' line said "the top eight of each
+  conference": four.
+
+### Rewards
+
+Rows of `tourney.events[key].rw`: [the place it pays down to, cash, ranking points, credits, fame, recruiting
+exposure]; a finish takes the first row it reaches. A team event your team won without you pays half and no item.
+
+| Tournament | The champion (gold): cash · ranking points · credits · fame · exposure | Its item | Legacy (1st / 2nd / 3rd) |
+| --- | --- | --- | --- |
+| State | $200 · 1.5 · 5 · 3 · 2 | State Champion Wristbands | 0.5 |
+| HS Nationals | $300 · 2 · 6 · 4 · 3 | Nationals Headband | 1 |
+| AAU Summer Jam / Elite Classic / Grassroots Finals | $100 / $150 / $200 · 0.8 / 1 / 1.2 · 3 / 4 / 5 · 1 / 2 / 2 · 2 / 3 / 4 | Circuit Socks (the circuit's one item) | – |
+| Elite Camp | $150 · 1 · 4 · 2 · 3 | Elite Camp Sleeve | – |
+| All-American Game (the MVP) | $250 · 1.5 · 6 · 4 · 2 | All-American Shoes | 0.5 |
+| U17 World Cup | $400 · 2.5 · 8 · 6 · 4 | U17 Gold Wristbands | 1 / 0.5 / 0.3 |
+| Conference tournament | $1,000 · 1 · 4 · 2 | – | – |
+| National tournament | $4,000 · 3 · 10 · 6 | National Champion Shoes | 2 / 1 / 0.5 |
+| Preseason Invitational | $1,500 · 1.5 · 5 · 3 | Invitational Headband | – |
+| U21 World Cup | $3,000 · 2.5 · 8 · 6 | U21 Gold Sleeve | 1.5 / 1 / 0.5 |
+| PBL Cup | $500,000 · 2 · 10 · 5 | PBL Cup Shoes | 2 / 1 |
+| All-Star 1v1 | its prize as before · 1 · 5 | All-Star Sleeve | 1 |
+| 3-Point Contest | 0.3 ranking points · 3 credits | – | – |
+| The PBL playoffs (the title) | 15 credits (the title's money and fame as before) | Champion's Wristbands | – |
+| Blacktop Kings | $100,000 · 0.5 · 5 · 3 | Blacktop Kings Headband | 1 |
+| World Cup | $250,000 · 1.5 · 12 · 6 | World Cup Socks | 4 / 3 / 2 |
+| Olympics | $500,000 · 2 · 15 · 8 | Olympic Shoes | 6 / 4 / 3 |
+
+- **Cash** is your amateur cash in high school and college, earnings in the pros. **Ranking points** are added to your
+  ranking's score for the rest of that season (the high school, college and PBL rankings). **Credits** are new: a
+  currency kept for your crew (§7, X8), shown with your cash. **Exposure** is high school's recruiting exposure.
+- **A tournament item** (§6.2, early: X7 has the rest of §6) is won, never bought: Lv1 the first time, a level up each
+  time it's won again (to the store's top level), worn at once when its slot is free or it beats what's there, and
+  one level stronger than the store's item of its kind at the same level. The store can't sell it; the locker lists it
+  after the store's.
+- **Trophies and medals:** the trophy case shows each title as a cup, each medal on its ribbon and the All-American
+  Game's MVP; the legacy screen counts MEDALS and TOURNAMENTS; the legacy score adds `tourney.events[key].legacy` (an
+  Olympic gold: 6; a PBL title is still 12). The ones that were awards before (the State title, the conference and
+  national titles, the All-Star 1v1, the 3-point contest) stay awards: no second trophy.
+- **Headlines:** a tournament you play puts a headline in the news when it tips off, one for each of your games, and
+  the champion and your finish at the end; its rewards show on its screen's last panel. The tournaments that were
+  there before (State, the conference and national tournaments, All-Star weekend, the playoffs) pay theirs in a message
+  (a `tnreward` event: X3's Rewards line).
+
+### Your tournament games and the badges
+
+A tournament game counts for the badges' deeds (points, threes, blocks, dunks, highlights, hot games; a close win's
+last basket is clutch) but not for the seasons' games and healthy games (Unbreakable's and Iron Man's deeds), and a
+knockout game isn't the playoffs (a simmed playoff game counts every make as clutch). Counted like the season's games,
+the tournaments (about 80 more games a career) brought those badges, and their later aging, early enough to stretch
+the median pro career from 13 seasons to 15, with more titles and MVPs in those years (the simulator below).
+
+### Old saves
+
+- Nothing to convert: a save's tournaments start empty (made on first use); its trophies, medals and their legacy
+  count from X6 on.
+- An offseason saved before X6 at its training camp or later moves one step on (the Summer is step 5 now) and skips
+  that summer; one saved earlier gets the Summer.
+- A season begun before X6 plays without the Cup (its schedule was made without the group nights); the next one has it.
+- `tests/oldsaves.js` drives its 42 fixtures through the new screens (the summer's GO, the tournament screen, its chart
+  and result): none failed.
+
+### Found on the way (the new audits)
+
+- **The trophy case:** a long label was cut short ("All-District 2nd te…"), the season line was drawn over the label,
+  and the bottom shelf's labels ran off the screen. A label now takes two lines (measured as the pixel font draws),
+  the season sits under it, and each shelf is raised to make room.
+- **Your charts:** two lines ending at the same rank drew their numbers over each other (the second moves under its
+  point), and a small range's axis repeated its numbers (13, 13, 12, 12).
+- **The legacy screen:** the jersey note was cut (now two lines), and after an epilogue the "What money built" button
+  sat over the text (the two buttons are side by side now) and the legacy line ran past its panel (it shortens).
+- **Words:** HOME's line while the summer waits, the summer's first-time tip and high school's opening card still
+  offered one choice for the summer.
+- **The offseason** (caught by `tests/life21.js`'s screens, now in the 3.0 audit too): the review's
+  record tile cut "Lost in the conference finals" (now "Conf finals"); the trade window's title-window columns ran into
+  their note when one window held most of the league (a long column closes up).
+- **The Codex** (a new sweep of every page, at both levels and all four passes: 288 pages): nine paragraphs ran past
+  a Codex paragraph's six lines and were cut (the depth chart, two of the rankings', the leagues below, playing time,
+  transfers, Sim to next event, and two of X6's own), so they're split; the Tournaments entry was taller than a page (it ran
+  under Back), so it's three entries: Tournaments (the ladder), The tournament calendar and Tournament rewards.
+
+### Tests
+
+- **New: `tests/tourney.js`** (§11 "Tournaments", 8 steps): every tournament runs and has a bracket chart (the 13 new
+  ones and the old brackets); NPC strength rises each round and each tier (high school's tiers 45.0 < 46.4 < 49.0 <
+  53.2; the pros' Blacktop 74.2 < World Cup 83.9 < Olympics 85.7, their best 91 and 92); the rewards are granted (once
+  a season for the old brackets; the games count for the badges, not for Unbreakable's and Iron Man's games); the
+  Olympics and the World Cup alternate (2032 the Olympics, 2034 the World Cup, 2036 the Olympics); tournament items
+  (never sold, Lv1 = the store's Lv2, and a property test: 300 random lockers never pass +4 on a rating); your game
+  from the tournament's screen (PLAY, SIM, Sim the rest, DONE); the calendar across six careers; and the table:
+
+  | Tournament | Format | Tier | Opponent by round | Title share | The champion's reward |
+  | --- | --- | --- | --- | --- | --- |
+  | HS Nationals | ko 16 | national | 44 → 52 → 55 → 58 | 13% | $300 · 2 rk · 6 cr · Nationals Headband |
+  | AAU Summer Jam | ko 16 | local | 38 → 46 → 49 → 53 | 30% | $100 · 0.8 rk · 3 cr · Circuit Socks |
+  | AAU Elite Classic | ko 16 | state | 41 → 49 → 52 → 56 | 27% | $150 · 1 rk · 4 cr · Circuit Socks |
+  | AAU Grassroots Finals | ko 16 | national | 44 → 52 → 55 → 58 | 13% | $200 · 1.2 rk · 5 cr · Circuit Socks |
+  | Elite Camp | skills 12 | national | 53 → 54 | 40% | $150 · 1 rk · 4 cr · Elite Camp Sleeve |
+  | All-American Game | showcase 24 | national | 58 | 7% | $250 · 1.5 rk · 6 cr · All-American Shoes |
+  | U17 World Cup | groups 16 | international | 55 → 57 → 60 → 62 | 0% | $400 · 2.5 rk · 8 cr · U17 Gold Wristbands |
+  | Preseason Invitational | ko 8 | state | 60 → 67 → 71 | 60% | $1,500 · 1.5 rk · 5 cr · Invitational Headband |
+  | U21 World Cup | groups 16 | international | 73 → 75 → 77 → 81 | 0% | $3,000 · 2.5 rk · 8 cr · U21 Gold Sleeve |
+  | PBL Cup | the Cup | the league | the league's | – | $500,000 · 2 rk · 10 cr · PBL Cup Shoes |
+  | Blacktop Kings | ko 16 | local | 68 → 76 → 81 → 85 | 37% | $100,000 · 0.5 rk · 5 cr · Blacktop Kings Headband |
+  | World Cup | groups 16 | international | 84 → 89 → 89 → 93 | 3% | $250,000 · 1.5 rk · 12 cr · World Cup Socks |
+  | Olympics | groups 16 | Olympic | 87 → 90 → 91 → 96 | 3% | $500,000 · 2 rk · 15 cr · Olympic Shoes |
+
+  Simmed, 30 runs each: a high school player 16 over a freshman (about OVR 57), a college one 36 over (about 77), a
+  pro at OVR 88. The World Cup's and the Olympics' gold is a long shot for one player against the best of sixteen
+  nations; their medals pay too. X10 tunes progression, and with it these odds.
+- **`tests/screens30.js`** adds X6's screens: each format's chart (knockout, groups and their knockout, the skills
+  stations, the showcase's matchups), a finished bracket, the result over a match, the Brackets chart, the summer's
+  events (and HOME and the tip while it waits), the trophy case with medals, the college Invitational, the World Cup,
+  a finished Olympics, Blacktop Kings and its message, the PBL Cup and its groups, the pros' Summer step, the legacy
+  screen (with and without the epilogue's second button), the offseason's review and trade window, and every page of
+  the Codex: 600 screens over the four passes, none flagged.
+- **Updated:** `smoke.js` (the AAU summer's check reads the events: exposure, fatigue and their rows; the postgame
+  step polls), `oldsaves.js` (the summer's GO, the tournament screen, its chart and its result), `loop.js` (the gap is
+  counted per match; the tournament screen is HOME's), `life21.js` (eight offseason steps: the Summer is step 5).
+- **`tests/life21.js`** passes 12 of 17, the same 12 as at X5: three of the five test 2.1 features 3.0 removed (the
+  agent's staff tier, the press after a meddler's slide, the old hub's value meter) and the two screen sweeps stop on
+  those; X11's full suite rewrites them for 3.0.
+
+### The career simulator (120 careers, seed 1)
+
+Forty careers swung too much to read X6 by (two X5 runs gave 0.80 and 1.48 titles a career), so X5 and X6 ran 120.
+
+| | X5 | X6, tournament games counted as the season's | X6 |
+| --- | --- | --- | --- |
+| median OVR at 17 / 21 / 25 / 29 / 33 · peak | 56 / 65 / 68 / 71 / 66 · 71 | 56 / 65 / 69 / 71 / 70 · 72 | 56 / 65 / 69 / 71 / 68 · 72 |
+| pro seasons · retirement age (medians) | 13 · 34 | 15 · 36 | 13 · 34 |
+| a 5★ team (target 15–25%) | 36% | 36% | 28% |
+| titles a career (0.2–0.4) · MVPs | 0.90 · 0.58 | 1.43 · 1.34 | 0.96 · 0.76 |
+| Hall of Fame (3–8%) · legacy median | 24% · 54 | 39% · 72 | 25% · 58 |
+| badges at retirement (Lv3) | 14.6 (4.9) | 15.7 (8.8) | 14.9 (6.1) |
+| stars at signing 2★ / 3★ / 4★ / 5★ | 18 / 67 / 15 / 0% | 1 / 51 / 47 / 2% | 1 / 51 / 47 / 2% |
+| best national rank: high school · college (medians) | 12 · 18 | 6 · 13 | 7 · 14 |
+
+- **The pros** are back where X5 left them (the titles' and the 5★ teams' gaps are inside 120 careers' noise); the
+  legacy median's +4 is the tournaments' trophies and medals (§9 asks legacy to weigh tournaments and medals; X10
+  re-weights it). `tourney.xp` 0.5 and 0 (40 careers) moved none of it: the extra games' XP wasn't the cause.
+- **High school recruits sign a star higher:** the tournaments' recruiting exposure (the old AAU summer was +2; the
+  circuit's three events now pay 1–4 each by finish, HS Nationals 1–3), which the recruit score counts like OVR. §8
+  wants tournaments to drive interest; X9 calibrates the stars and the offers against §8's targets (600 careers).
+- The simulator's tournaments: the high school summers above, HS Nationals when ranked, the college Invitational and
+  the U21 World Cup when picked, the PBL Cup, Blacktop Kings (entered every summer) and the World Cup or the Olympics when picked.
+
 ## X5 (3.0) — teammates play, the leagues below, transfers and the PBL's teams
 
 The request's §4.3–4.5: every team has five and all five play; the depth chart follows performance; nobody loses a

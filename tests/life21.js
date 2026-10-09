@@ -15,7 +15,7 @@ const { launch, openPage, runner } = require('./lib');
 const LIB = `
 window.tPro = (seed, star) => { const g = HH.game, save = g.save.data, c = testProLeague(seed, save); save.career = c; save.c1 = null; c.events.length = 0; if (star) { const me = meOf(c); for (const k of RATING_KEYS) { me.r[k] = Math.max(me.r[k], star); me.caps[k] = Math.max(me.caps[k], star); } } return c; };
 window.tSim = (save, until) => { const c = save.career; let n = 0; while (n++ < 90 && !until(c)) { if (c.events) c.events.length = 0; if (c.phase === 'regular' || c.phase === 'playoffs') { if (!simUserGame(save)) { if (c.phase === 'playoffs') simPlayoffsToEnd(c); else break; } continue; } break; } if (c.events) c.events.length = 0; return c; };
-window.tStep = (c, k, opt) => { opt = opt || {}; const O = c.offseason; while (O.step < k) { if (O.step === 3) { let gd = 0; while (!O.faDone && gd++ < 10) { if (lgUserFaPending(c) && lgUserFaLive(c).length && (O.day | 0) >= (opt.signDay || 2)) lgUserAccept(c, lgUserFaLive(c)[lgUserFaDefault(c)]); off2Day(c); } } if (O.step === 4 && O.rebuild && O.rebuild.ntc && !O.rebuild.answered) proRebuildAnswer(c, O.rebuild, false); if (O.step === 5 && !(c.me.camp && c.me.camp.s === c.season + 1)) lgCampPick(c, lgCampSuggest(c).slice(0, LIFE.campGoals).map(x => x.id)); O.step++; off2Enter(c); } if (c.events) c.events.length = 0; return O; };
+window.tStep = (c, k, opt) => { opt = opt || {}; const O = c.offseason; while (O.step < k) { if (O.step === 3) { let gd = 0; while (!O.faDone && gd++ < 10) { if (lgUserFaPending(c) && lgUserFaLive(c).length && (O.day | 0) >= (opt.signDay || 2)) lgUserAccept(c, lgUserFaLive(c)[lgUserFaDefault(c)]); off2Day(c); } } if (O.step === 4 && O.rebuild && O.rebuild.ntc && !O.rebuild.answered) proRebuildAnswer(c, O.rebuild, false); if (O.step === 5) tnSummerAuto(c, true); /* 3.0 (§5): the Summer step */ if (O.step === 6 && !(c.me.camp && c.me.camp.s === c.season + 1)) lgCampPick(c, lgCampSuggest(c).slice(0, LIFE.campGoals).map(x => x.id)); O.step++; off2Enter(c); } if (c.events) c.events.length = 0; return O; };
 window.tTexts = g => { g.ui.trans = null; g.ui.toastT = 0; RBF.boxes = []; let X = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { X = RBF.boxes || []; RBF.boxes = null; } return X; };
 window.tSaid = g => tTexts(g).map(x => String(x.t)).join(' | ');
 window.tFaults = g => { const B = tTexts(g), out = B.filter(x => x.cut).map(x => 'CUT ' + String(x.cut).slice(0, 40)); const T = B.filter(x => String(x.t).trim() && x.a >= 0.35 && x.w >= 1); for (let i = 0; i < T.length; i++) for (let j = i + 1; j < T.length; j++) { const p = T[i], q = T[j]; if (p.t === q.t) continue; const px = Math.max(p.s, q.s), ix = Math.min(p.x + p.w, q.x + q.w) - Math.max(p.x, q.x), iy = Math.min(p.y + p.h, q.y + q.h) - Math.max(p.y, q.y); if (ix > px && iy > px) out.push('OVERLAP "' + String(p.t).slice(0, 24) + '" x "' + String(q.t).slice(0, 24) + '"'); } return out.concat((window.HH_ERRORS || []).splice(0).map(e => 'ERROR ' + e)); };
@@ -35,8 +35,8 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
   for (const k of [1, 2, 3]) { tStep(c, k, { signDay: 9 }); look('offseason ' + k + ' ' + LG_OFF_STEPS[k], () => g.ui.push(offseasonScreen(g))); }
   off2Day(c); c.events.length = 0; look('free agency day 2', () => g.ui.push(offseasonScreen(g)));
   { const L = lgUserFaLive(c); if (L.length) { look('negotiation', () => { g.ui.push(offseasonScreen(g)); g.ui.push(negotiate2Screen(g, L[0].id)); }); } }
-  for (const k of [4, 5, 6]) { tStep(c, k); if (k === 5) c.me.camp = null; look('offseason ' + k + ' ' + LG_OFF_STEPS[k], () => g.ui.push(offseasonScreen(g))); }
-  if (phone) look('offseason 6, rankings 9–16', () => { g.offPow = { page: 1 }; g.ui.push(offseasonScreen(g)); });
+  for (const k of [4, 5, 6, 7]) { tStep(c, k); if (k === 6) c.me.camp = null; look('offseason ' + k + ' ' + LG_OFF_STEPS[k], () => g.ui.push(offseasonScreen(g))); }
+  if (phone) look('offseason 7, rankings 9–16', () => { g.offPow = { page: 1 }; g.ui.push(offseasonScreen(g)); });
   g.offPow = null; return bad; };
 `;
 
@@ -45,15 +45,15 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
   const P = await openPage(b, { wait: 900 }); const { ev } = P; await ev(src => { (0, eval)(src); }, LIB);
   const ok = (bad, msg) => bad.length ? Promise.reject(new Error(bad.slice(0, 6).join('; '))) : msg;
 
-  await R.step('the offseason in seven steps (Awards Night, aging, retirements, the free agency week, the trade window, training camp, the preseason power rankings), then a new season with sixteen starters and five on every franchise', () => ev(() => {
+  await R.step('the offseason in eight steps (Awards Night, aging, retirements, the free agency week, the trade window, the summer (3.0 §5), training camp, the preseason power rankings), then a new season with sixteen starters and five on every franchise', () => ev(() => {
     const bad = [], g = HH.game, save = g.save.data, c = tPro(601); tSim(save, c => c.phase === 'offseason'); const O = c.offseason;
-    if (!O || O.v !== 2 || O.step !== 0 || !O.awards || LG_OFF_STEPS.length !== 7) bad.push('the offseason ' + JSON.stringify(O && { v: O.v, step: O.step }));
+    if (!O || O.v !== 2 || O.step !== 0 || !O.awards || LG_OFF_STEPS.length !== 8) bad.push('the offseason ' + JSON.stringify(O && { v: O.v, step: O.step }));
     const ages = {}; for (const id of c.active) ages[id] = c.players[id].age;
     tStep(c, 1); if (!O.prog) bad.push('no aging'); for (const id of c.active) if (ages[id] != null && c.players[id].age !== ages[id] + 1) { bad.push('age ' + c.players[id].name); break; }
     tStep(c, 2); if (!O.ret || !Array.isArray(O.ret.list) || !O.ret.tributes.every(t => t.score >= LIFE.legendScore || t.mvp >= 1 || t.titles >= 2)) bad.push('retirements ' + JSON.stringify(O.ret && O.ret.tributes.map(t => t.score)));
     tStep(c, 3); if (!Array.isArray(O.pool) || !O.ticker.length || !O.fa) bad.push('free agency did not open');
     tStep(c, 4); if (!O.faDone || !Array.isArray(O.trades)) bad.push('the week did not close / no trade window');
-    tStep(c, 5); tStep(c, 6); if (!(c.me.camp && c.me.camp.goals.length === LIFE.campGoals)) bad.push('camp goals ' + JSON.stringify(c.me.camp)); if (!c.power || c.power.order.length !== 16) bad.push('power rankings');
+    tStep(c, 5); tStep(c, 6); tStep(c, 7); if (!(c.me.camp && c.me.camp.goals.length === LIFE.campGoals)) bad.push('camp goals ' + JSON.stringify(c.me.camp)); if (!c.power || c.power.order.length !== 16) bad.push('power rankings');
     for (const id of frIds()) if (lgCount(c, id) !== 5) bad.push(id + ' has ' + lgCount(c, id));
     newSeason(c); if (c.phase !== 'regular' || c.active.length !== 16 || !pblReady(c)) bad.push('season 2: ' + c.phase + ' ' + c.active.length);
     return ok(bad, O.ret.list.length + ' retired (' + O.ret.tributes.length + ' tributes), ' + O.signed.length + ' signings, ' + O.trades.length + ' trades in the window, camp: ' + c.me.camp.goals.map(x => x.label).join(' + '));

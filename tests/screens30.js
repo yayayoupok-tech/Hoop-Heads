@@ -2,8 +2,10 @@
 // focus picker, the weekly drill's result, the result screen (a good week, a hurt one, a slump), the season review, the
 // recruiting board, messages (one with three answers, an urgent one), the SIM toast, X4's charts (rankings, standings,
 // leaders, brackets, your team, your charts) at each level and X5's (the league below, the depth chart, the transfers,
-// the teams, the Overseas League and a season abroad), each at a desktop (1280×720), a
-// phone (844×390 with touch) and both at the 1.25× text size. The checks are auditkit.js's (tap targets, overlaps, text
+// the teams, the Overseas League and a season abroad) and X6's (the tournament screen in every format, its result and
+// chart, the summer's picks, HOME and the tip while it waits, the trophy case, the Cup, the Summer step, Blacktop's
+// message, the legacy with and without the epilogue), each at a desktop (1280×720), a phone (844×390 with touch) and
+// both at the 1.25× text size. The checks are auditkit.js's (tap targets, overlaps, text
 // over text, cut text, two screens at once, art over text, legibility); any flag fails the run. Each milestone adds its
 // screens here. Usage: node tests/screens30.js [shotsDir] [--only=desktop|phone|desktop125|phone125]
 const path = require('path'), fs = require('fs');
@@ -61,6 +63,20 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('hs-league-ranked', () => __home('league')); await charts('hs', false);
     await audit('hs-district', () => { const g = HH.game, a = g.save.data.c1; __adv(a, 100, a => !a.league || a.league.playoffs); __quiet(a); g.hubTab = 'league'; g.ui.clearTo(amHub(g)); g.ui.push(districtBracketScreen(g)); });
     await audit('hs-brackets-po', () => { const g = HH.game; __home('league'); g.ui.push(bracketsScreen(g)); });
+    // X6 (§5): tournaments: the screen in each format (in progress, done, a result over it), a chart, the summer's picks, the trophy case
+    await ev(() => { window.__tn = (key, o, sim) => { const g = HH.game, a = g.save.data.c1; __quiet(a); const T = tnCreate(a, key, Object.assign({ mine: true }, o || {})); if (sim === 'all') tnSimAll(a, T); else { tnAdvance(a, T); for (let i = 0; i < (sim | 0); i++) tnSimMine(a, T); } g.hubTab = 'home'; g.ui.clearTo(amHub(g)); g.ui.push(tnScreen(g, a, { kind: 'tourney', tid: T.id }, () => g.ui.pop())); return T; }; });
+    await audit('hs-tn-ko', () => __tn('hsnat', null, 1));
+    await audit('hs-tn-ko-done', () => __tn('hsnat', null, 'all'));
+    await audit('hs-tn-groups', () => __tn('u17', null, 2));
+    await audit('hs-tn-groups-ko', () => __tn('u17', null, 'all'));
+    await audit('hs-tn-skills', () => __tn('camp', null, 0));
+    await audit('hs-tn-show', () => __tn('allam', null, 0));
+    await audit('hs-tn-result', () => { const g = HH.game, a = g.save.data.c1, T = __tn('aau3', null, 0), rec = tnSimMine(a, T); g.ui.replace(tnScreen(g, a, { kind: 'tourney', tid: T.id }, () => g.ui.pop())); g.ui.push(tnResultScreen(g, rec, null)); });
+    await audit('hs-tn-chart', () => { const g = HH.game, a = g.save.data.c1, T = tnCreate(a, 'u17', { mine: true }); tnSimAll(a, T); __home('league'); g.ui.push(tnChartScreen(g, a, T)); });
+    await audit('hs-summer', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.summer = { pending: true, year: 2, season: a.season }; g.sumPick = null; g.hubTab = 'home'; g.ui.clearTo(amHub(g)); g.ui.push(summerScreen(g)); });
+    await audit('hs-summer-home', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); }); // X6: HOME's line while the summer waits
+    await audit('hs-summer-tip', () => { const g = HH.game; g.ui.push(tipScreen(g, 'summer')); }); // X6: the summer's first-time tip
+    await audit('hs-trophies', () => { const g = HH.game, a = g.save.data.c1; a.summer = null; for (const [k, f] of [['hsnat', 1], ['u17', 1], ['u17', 2], ['allam', 1], ['aau3', 1], ['camp', 1]]) tnRow(a, k, f, { n: TNE[k].name, m: TNE[k].medals ? f : 0 }); __home('career'); g.ui.push(trophyCaseScreen(g)); });
     // X5 (§4.3): no PBL offers: the clubs abroad, then a season there (HOME, LEAGUE, its table)
     await ev(() => { const g = HH.game; g.__keep = g.save.data.c1; const a = amCreate(g.save.data, { name: 'Abroad Audit', look: PRESET_LOOKS[4], number: 8, style: 'playmaker', seed: 77 }); a.age = 22; a.stage = 'combine'; a.events = []; g.save.data.c1 = a; });
     await audit('ovs-offers', () => { const g = HH.game; g.ui.clearTo(amHub(g)); g.ui.push(proOffersScreen(g)); });
@@ -76,6 +92,7 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('col-agent', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.agent = undefined; colAgentPitch(a); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); });
     await audit('col-result', () => { const g = HH.game, a = g.save.data.c1; const r = amSimGame(a); __quiet(a); g.ui.clearTo(amResultScreen(g, r, null)); });
     await audit('col-league', () => __home('league')); await charts('col', false);
+    await audit('col-tn-inv', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); const T = tnCreate(a, 'inv', { mine: true }); tnAdvance(a, T); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); g.ui.push(tnScreen(g, a, { kind: 'tourney', tid: T.id }, () => g.ui.pop())); }); // X6 (§5): the Preseason Invitational
     // the pros
     await ev(() => { const g = HH.game, c = testProLeague(36, g.save.data); g.save.data.career = c; g.save.data.c1.handedOff = true; for (let i = 0; i < 4; i++) simUserGame(g.save.data); __quiet(c); g.save.save(); });
     for (const t of tabs) await audit('pro-' + t, t => __home(t), t);
@@ -95,7 +112,23 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('pro-overseas', () => { const g = HH.game; __home('league'); g.ui.push(lowerLeagueScreen(g, 'ovs')); const b = g.ui.screen.widgets.find(w => w.label === 'PLAYERS'); if (b) b.onPress(); });
     await audit('pro-transfers', () => { const g = HH.game; __home('league'); g.ui.push(transfersChartScreen(g)); });
     await audit('pro-buyout', () => { const g = HH.game, c = g.save.data.career; __quiet(c); c.inbox = [{ kind: 'trade', title: 'UNHAPPY', why: 'bench', inS: c.season, lines: ['You have watched six of the games from the bench.', 'Your agent can ask for a trade, or the club can buy you out: a free agent this offseason.', 'Or stay and fight for it.'] }]; g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); });
+    // X6 (§5): the pros' tournaments: the World Cup (groups), the Olympics (done: medals), Blacktop Kings, the PBL Cup (its knockout, its groups), the summer's message
+    await ev(() => { window.__ptn = (key, o, sim) => { const g = HH.game, c = g.save.data.career; __quiet(c); const T = tnCreate(c, key, Object.assign({ mine: true }, o || {})); if (sim === 'all') tnSimAll(c, T); else { tnAdvance(c, T); for (let i = 0; i < (sim | 0); i++) tnSimMine(c, T); } g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); g.ui.push(tnScreen(g, c, { kind: 'tourney', tid: T.id }, () => g.ui.pop())); return T; }; window.__team = c => c.active.filter(id => id !== c.meId).slice(0, 3).concat([c.meId]); });
+    await audit('pro-tn-wc', () => __ptn('wc', { field: __team(HH.game.save.data.career) }, 1));
+    await audit('pro-tn-oly-done', () => __ptn('oly', { field: __team(HH.game.save.data.career) }, 'all'));
+    await audit('pro-tn-blacktop', () => __ptn('blacktop', null, 0));
+    await audit('pro-tn-cup', () => { const g = HH.game, c = g.save.data.career; __quiet(c); let T = tnOfSeason(c, 'cup', c.season); if (!T || !T.wait) { T = tnCreate(c, 'cup', { mine: true, groups: tnCupDraw(c, careerRng(c)) }); T.wait = true; } const club = meOf(c).club; for (const id in T.gt) T.gt[id] = { w: 1 + (id.length % 2), l: 2 - (id.length % 2), pf: 30 + id.length, pa: 30 }; T.gt[club] = { w: 3, l: 0, pf: 50, pa: 30 }; tnCupKo(c); __quiet(c); g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); g.ui.push(tnScreen(g, c, { kind: 'tourney', tid: T.id }, () => g.ui.pop())); });
+    await audit('pro-tn-cup-groups', () => { const g = HH.game, c = g.save.data.career, T = tnState(c).list.filter(x => x.key === 'cup').slice(-1)[0]; __home('league'); g.ui.push(tnChartScreen(g, c, T)); const b = g.ui.screen.widgets.find(w => w.label === 'Groups'); if (b) b.onPress(); });
+    await audit('pro-blacktop-msg', () => { const g = HH.game, c = g.save.data.career; __quiet(c); c.events.push({ kind: 'blacktop', title: 'BLACKTOP KINGS', lines: ['Summer\'s street tournament is open: sixteen on the blacktop, 3 pros among them. Enter?', 'The king takes $100K, 5 credits and the Blacktop Kings Headband. Every game counts as one: XP and the badges\' deeds.'] }); g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); });
     await audit('pro-review', () => { const g = HH.game, c = g.save.data.career; let n = 0; __quiet(c); while (n++ < 140 && !(c.events || []).some(e => evClass(e, c) === 'season')) { if (c.phase === 'offseason') break; c.events = (c.events || []).filter(e => evClass(e, c) === 'season'); simUserGame(g.save.data); } c.events = (c.events || []).filter(e => evClass(e, c) === 'season'); c.inbox = []; g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); g.ui.push(seasonReviewScreen(g, c)); });
+    await audit('pro-off-awards', () => { const g = HH.game, c = g.save.data.career; let n = 0; while (c.phase !== 'offseason' && n++ < 200) { c.events = []; if (!simUserGame(g.save.data) && c.phase === 'playoffs') simPlayoffsToEnd(c); } __quiet(c); const row = c.me.seasonLog[0]; if (row && row.g) row.playoff = 'Lost in the conference finals'; g.ui.clearTo(offseasonScreen(g)); }); // X6: the offseason's review (its record tile's line was cut)
+    await audit('pro-off-trades', () => { const g = HH.game, c = g.save.data.career, O = c.offseason; let k = 0; while (O.step < 4 && k++ < 20) { if (O.step === 3) { let d = 0; while (!O.faDone && d++ < 12) off2Day(c); } O.step++; off2Enter(c); } __quiet(c); for (const id of frIds()) if (c.fr && c.fr[id]) c.fr[id].window = 'rebuilding'; g.ui.clearTo(offseasonScreen(g)); }); // X6: the trade window with every team in one column (a long one ran into the note)
+    // X6: the Codex, every page of every topic (a long paragraph past its six lines is cut; the depth chart's was on a phone)
+    await ev(() => { window.__codex = i => { const g = HH.game, s0 = statsGuideScreen(g, 'league'); g.ui.clearTo(careerHub(g)); g.ui.push(s0); g.ui.trans = null; for (let k = 0; k < 400; k++) { try { g.drawUI(g.ctx, g.W, g.H); } catch (e) { /* (warming the pages) */ } } if (i != null) s0.widgets[0].set(i); return s0.widgets[0].options.slice(); }; });
+    { const pages = await ev(() => __codex(null)); for (let i = 0; i < pages.length; i++) await audit('pro-codex ' + pages[i], i => { __codex(i); }, i); }
+    await audit('pro-summer-step', () => { const g = HH.game, c = g.save.data.career; let n = 0; while (c.phase !== 'offseason' && n++ < 200) { c.events = []; if (!simUserGame(g.save.data) && c.phase === 'playoffs') simPlayoffsToEnd(c); } __quiet(c); const O = c.offseason; if (O && O.v === 2) { O.step = 5; tnSummerAuto(c, true); __quiet(c); } g.ui.clearTo(off2Screen(g)); }); // X6 (§5): the offseason's Summer step
+    await audit('pro-legacy', () => { const g = HH.game, c = g.save.data.career; g.save.data.settings.reduceMotion = true; for (const [k, f] of [['oly', 1], ['wc', 2], ['cup', 1], ['blacktop', 1]]) tnRow(c, k, f, { n: TNE[k].name, m: TNE[k].medals ? f : 0 }); retireCareer(g.save.data); g.ui.clearTo(legacyScreen(g)); }); // X6: medals and tournaments on the legacy
+    await audit('pro-legacy-epi', () => { const g = HH.game, c = g.save.data.career; c.epilogue = Object.assign({ foundation: 4 }, c.epilogue || {}); g.ui.clearTo(legacyScreen(g)); }); // X6: the epilogue's second button, beside MAIN MENU
     errs.push(...P.errors.map(e => pass.id + ': ' + e)); await P.context.close();
   }
   console.log('screens30: ' + screens + ' screens, ' + flags + ' flagged · errors: ' + (errs.length ? errs.slice(0, 6).join(' | ') : 'none'));

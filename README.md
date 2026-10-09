@@ -215,6 +215,7 @@ node tests/loop.js                 # 3.0 (§2.2): a season's weeks at each level
 node tests/screens30.js [dir] [--only=desktop|phone|desktop125|phone125]   # 3.0 (§11): the overflow audit of the 3.0 screens (HOME's tabs, results, messages…) at a desktop, a phone and 1.25× text
 node tests/rankings.js [careers]  # 3.0 (§4.1): weekly rankings at each level follow how people play: the top scorer in the top 10, teams by record, not OVR
 node tests/lower.js                # 3.0 (§4.3–4.5): five on a team, the leagues below, the depth chart by form (§11), transfers, the Overseas League, the PBL's teams
+node tests/tourney.js              # 3.0 (§5): every tournament runs and has a bracket chart, NPC strength rises each round and tier, rewards, the Olympics and the World Cup alternate (§11), and the table
 node tests/effort.js [200] [seed] [par]   # the career policies: plays well + good choices vs sims everything, never opening a menu,
                                    # a smart spender (legacy, 5★ teams, titles, money left over)
 node tests/traitbalance.js [n] [seed] [par]                      # every badge forced on n careers: legacy against the median

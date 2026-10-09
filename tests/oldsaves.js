@@ -42,7 +42,9 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'focuspick': case 'homemore': case 'recboard': pr(by(/^Back$/)); break; // 3.0: the focus picker, HOME's MORE…, the recruiting board
       case 'ladder': pr(by(/^Back$/)); break;
       case 'tryout': pr(by(/^SIM IT$/)); break; // R5: tryouts (both parts simmed)
-      case 'summer': { const opts = W.filter(w => /AAU|CAMP|REST|JOB/.test(w.label || '')); if (opts.length) opts[i % opts.length].onPress(); pr(by(/^CHOOSE$/)); break; } // R5: a summer
+      case 'summer': { const opts = W.filter(w => /Camp|Rest|Job/.test(w.label || '') && !/Elite/.test(w.label || '')); if (opts.length) opts[i % opts.length].onPress(); pr(by(/^GO$/)); break; } // R5: a summer (3.0 §5: the events you picked, then GO)
+      case 'tourney': pr(by(/^DONE$/) || by(/^Sim the rest$/) || by(/^SIM$/)); break; // 3.0 (§5): a tournament (simmed through)
+      case 'tnchart': case 'tnresult': pr(by(/^Back$/) || W.find(w => w.primary)); break;
       case 'recruiting': case 'statebracket': case 'amstandings': pr(by(/^Back$/)); break;
       case 'ovsoffers': pr(by(/^SIGN WITH/)); break; // X5: no PBL offers: a season abroad
       case 'standings': case 'rankings': case 'leaders': case 'brackets': case 'districtbracket': case 'teampage': case 'mycharts': case 'lowerleague': case 'overseas': case 'transfers': case 'teams': pr(by(/^Back$/)); break; // X4: the charts; X5: the league below, the transfers, the teams

@@ -403,8 +403,18 @@ buyouts, call-ups and send-downs, the Overseas League) and the Transfers chart; 
 abroad: a season there when no PBL franchise calls, a background league in the pros); the Teams chart's cards with
 dynasties (`tests/lower.js`). On the way: simmed amateur games graded F since V6 (a missing turnover count); fixed,
 with `amateur.simGameXp` keeping their XP where it was (X10 tunes progression).
-**X6 — Tournaments, rewards and difficulty** — §5.
-**X7 — Items and badges** — §6.
+**X6 — Tournaments, rewards and difficulty** *(done)* — §5: one engine for the new tournaments (knockouts, groups
+with medals, the Elite Camp's skills challenge, the All-American Game's showcase, the PBL Cup's groups from the
+league's group nights), all 1v1; the difficulty ladder (a field at its stage's level plus its tier: local, state,
+national, international, Olympic; +1.5 a round; the best international players 85–95; the rating shown before each
+game); the calendar (HS Nationals after State, the AAU circuit's three events and the Elite Camp in the summers you
+pick, the All-American Game, the U17 and U21 World Cups every other year, the Preseason Invitational, the PBL Cup,
+Blacktop Kings, the World Cup and the Olympics two years apart in a new Summer step); rewards (cash, ranking points,
+credits, fame, exposure, §6.2's tournament items, trophies and medals in the trophy room and the legacy score), the
+older tournaments' too; a chart for each in Brackets (`tests/tourney.js`). On the way: tournament games count for the
+badges but not for Unbreakable's and Iron Man's games (counted, they stretched the simulator's careers by two seasons);
+the new audits fixed the trophy case's labels, your charts' end labels and the legacy screen's text.
+**X7 — Items and badges** — §6 (§6.2's tournament items came with X6: they're its rewards).
 **X8 — Your crew** — §7.
 **X9 — Recruiting** — §8.
 **X10 — Progression tuning** — §9.

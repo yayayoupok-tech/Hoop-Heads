@@ -22,15 +22,16 @@ const { launch, openPage, runner } = require('./lib');
   // one week from HOME: returns { mode, screens: [names], ok }
   const week = async (mode) => {
     const h = await homeState(); if (h.kind !== 'game') return null; const useP = mode === 'play' && h.play; await press(useP ? /^PLAY$/ : /^SIM( THE GAME)?$/); await wait(120);
-    const seen = []; let homeFor = 0;
-    for (let i = 0; i < 60; i++) { const t = await top(); if (t === 'match') { await wait(200); await finish(); await wait(900); continue; }
-      if (HOME.test(t)) { homeFor++; if (homeFor >= 3) break; await wait(150); continue; } homeFor = 0; if (!seen.includes(t) || seen[seen.length - 1] !== t) seen.push(t); const r = await advance(); if (r.stuck) throw new Error('stuck on ' + r.name + ' ' + JSON.stringify(r.labels)); await wait(150); }
-    return { mode: useP ? 'play' : 'sim', screens: seen };
+    // 3.0 (§5): a tournament's games are games too: each match ends a gap; a gap after a game you played is a PLAY gap
+    const rows = []; let seen = [], played = useP, homeFor = 0;
+    for (let i = 0; i < 160; i++) { const t = await top(); if (t === 'match') { const was = seen.length || rows.length; if (was || !useP) { rows.push({ mode: played ? 'play' : 'sim', screens: seen }); seen = []; } played = true; await wait(200); await finish(); await wait(900); continue; }
+      if (HOME.test(t)) { homeFor++; if (homeFor >= 3) break; await wait(150); continue; } homeFor = 0; if (t !== 'tourney' && (!seen.includes(t) || seen[seen.length - 1] !== t)) seen.push(t); /* (a tournament's screen is its HOME: PLAY and SIM are there) */ const r = await advance(); if (r.stuck) throw new Error('stuck on ' + r.name + ' ' + JSON.stringify(r.labels)); await wait(150); }
+    rows.push({ mode: played ? 'play' : 'sim', screens: seen }); return rows;
   };
   const starter = () => ev(() => { const g = HH.game, c = g.save.data.career || g.save.data.c1; const L = c && ladderOf(c); if (L && L.indexOf('me') > 0) { L.splice(L.indexOf('me'), 1); L.unshift('me'); } if (c && !isPro(c)) c.ineligible = 0; }); // you start: PLAY weeks to count
   const levelRun = async (label, setup, weeks) => {
     await ev(setup); await wait(400); const rows = []; let stages = 0;
-    for (let i = 0; rows.length < weeks && i < weeks * 3; i++) { await starter(); const h = await homeState(); if (h.kind === 'stage' || h.kind === 'none') { if (++stages > 12) break; await stageStep(); await wait(200); continue; } if (h.kind !== 'game') { await advance(); await wait(150); continue; } const r = await week(rows.length % 2 ? 'sim' : 'play'); if (r) rows.push(r); }
+    for (let i = 0; rows.length < weeks && i < weeks * 3; i++) { await starter(); const h = await homeState(); if (h.kind === 'stage' || h.kind === 'none') { if (++stages > 12) break; await stageStep(); await wait(200); continue; } if (h.kind !== 'game') { await advance(); await wait(150); continue; } const r = await week(rows.length % 2 ? 'sim' : 'play'); if (r) rows.push(...r); }
     const play = rows.filter(r => r.mode === 'play'), sim = rows.filter(r => r.mode === 'sim'), maxP = Math.max(0, ...play.map(r => r.screens.length)), maxS = Math.max(0, ...sim.map(r => r.screens.length)), kinds = {}; for (const r of rows) for (const s of r.screens) kinds[s] = (kinds[s] || 0) + 1;
     console.log('     ' + label.padEnd(12) + ' weeks ' + rows.length + ' (play ' + play.length + ', sim ' + sim.length + ') · screens on a PLAY week: max ' + maxP + ', mean ' + (play.length ? (play.reduce((a, r) => a + r.screens.length, 0) / play.length).toFixed(2) : '–') + ' · on a SIM week: max ' + maxS + ', mean ' + (sim.length ? (sim.reduce((a, r) => a + r.screens.length, 0) / sim.length).toFixed(2) : '–') + ' · ' + JSON.stringify(kinds));
     return { rows, maxP, maxS, play: play.length, sim: sim.length };
