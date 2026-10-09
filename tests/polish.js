@@ -12,7 +12,7 @@ const { launch, openPage, runner } = require('./lib');
   const PRO = `(() => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const c = testProLeague(21, g.save.data); g.save.data.career = c; c.events.length = 0; c.me.money = 6e6; c.me.fame = 40; g.save.save(); return c; })()`;
   // the page the Codex shows (its label), after one draw
   const PAGE = `(() => { const g = HH.game, s = g.ui.screen; if (!s || s.name !== 'guide') return s ? s.name : '(none)'; g.ui.trans = null; g.drawUI(g.ctx, g.W, g.H); const p = s.widgets[0]; return 'guide:' + p.options[p.get()]; })()`;
-  const LABEL = `(t => t === 'traits' ? 'Traits' : (GUIDE_TOPICS.find(x => x[0] === t) || ['', '?'])[1])`;
+  const LABEL = `(t => t === 'traits' ? 'Badges' : (GUIDE_TOPICS.find(x => x[0] === t) || ['', '?'])[1])`;
 
   await step('the ? key opens the Codex from every screen at the page about it (the hub: its tab\'s), and Back returns to that screen; none on the title or the Codex itself', () => ev(([AM, PRO, PAGE, LABEL]) => {
     const g = HH.game, bad = [], seen = []; const press = () => { g.input.ui.help = (g.input.ui.help || 0) + 1; g.ui.update(0.016, g.input); };

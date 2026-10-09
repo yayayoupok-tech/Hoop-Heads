@@ -3,6 +3,48 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X7 (3.0) — items and badges
+
+The request's §6: items with levels and no rarity, tournament items, badges earned by doing the thing. Most of §6 came
+earlier: the store's twelve items with levels 1–5 and the +4 cap (X2, §6.1), badges earned by their deeds (X2, §6.3)
+and the tournament items themselves (X6: §6.2's are tournament rewards). X7 finishes §6.2 and checks §11's "Items"
+targets. Quick checks for this milestone: the new `tests/items.js`, `tests/shop.js`, `tests/traits.js`,
+`tests/tourney.js`, `tests/polish.js`, `tests/smoke.js`, `tests/oldsaves.js` and `tests/screens30.js`.
+
+### Tournament items (§6.2)
+
+- **Upgraded like the others:** the locker's Upgrade raises a won item a level at the stage's price table (high
+  school $100–$400 a level, college $1,000–$4,000, the pros $25K–$400K); winning it again still adds one, up to Lv5. A
+  won item stays a level stronger than the store's at the same level.
+- **In the trophy room:** each won item stands in the trophy case in a glass box, at its level ("Olympic Shoes Lv2"),
+  dated by the season it was first won.
+- The Codex's Gear entry says both.
+
+### Badges (§6.3)
+
+- The Codex's badge pages were still named "Traits", and its Injuries entry said "some traits cut it": Badges.
+
+### The trophy case
+
+- **A phone showed eight pieces of every twelve:** a page counted twelve, but its two shelves hold eight, so the last
+  four of each page never showed. A phone's page is eight now.
+- **A medal's ribbon could reach the season line of the row above:** the room under each shelf now comes from the
+  font's real line heights (two label lines and the season line, at 1× and 1.25× text), and the pieces fit what's left.
+
+### Tests
+
+- **New: `tests/items.js`** (§11 "Items", 5 steps): no rarity anywhere (the config, and every text drawn on 18 screens
+  that show items or badges at both levels: the store's shelves, locker and extras, the trophy case, badge cards, the
+  Codex's badge and gear pages: 515 texts); the +4 cap holds (a property test: 500 random lockers of store and won
+  items at random levels, worn at random; the most was +4, and OVR never moved); tournament items (never on a shelf or
+  bought; the locker takes the Nationals Headband from Lv1 to Lv5 for $910 at high school's prices, and Olympic Shoes
+  to Lv2 for $25K at the pros'; a level stronger at every level; in the trophy case); the trophy room shows every piece
+  over its pages (twelve pieces: one page on a desktop, two on a phone); badges earned, never rolled (a new career has
+  none; Gym Rat at 40, 160 and 250 practice weeks; its card shows the next count).
+- **`tests/screens30.js`**: the trophy case holds the items won, on all four passes: 600 screens, none flagged.
+- **Updated:** `tests/polish.js` (the Codex's badge page is "Badges"). It passes 9 of 14, as at X6: its five failing
+  steps test 2.x features 3.0 removed (the story so far, Hype, the old hub's red dots); X11's full suite rewrites them.
+
 ## X6 (3.0) — tournaments, rewards and difficulty
 
 The request's §5: real tournaments at every level, all 1v1 and harder at each level, with rewards that mean something

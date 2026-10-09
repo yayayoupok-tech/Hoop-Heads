@@ -414,7 +414,10 @@ credits, fame, exposure, §6.2's tournament items, trophies and medals in the tr
 older tournaments' too; a chart for each in Brackets (`tests/tourney.js`). On the way: tournament games count for the
 badges but not for Unbreakable's and Iron Man's games (counted, they stretched the simulator's careers by two seasons);
 the new audits fixed the trophy case's labels, your charts' end labels and the legacy screen's text.
-**X7 — Items and badges** — §6 (§6.2's tournament items came with X6: they're its rewards).
+**X7 — Items and badges** *(done)* — §6 (§6.1's store and §6.3's badges came with X2, §6.2's tournament items with
+X6): won items upgrade in the locker like the store's and stand in the trophy room; the Codex's badge pages are named
+Badges; the trophy case shows every piece on a phone (it showed eight of every twelve) and keeps a medal's ribbon off the
+row above (`tests/items.js`: no rarity anywhere, the +4 cap's property test, tournament items).
 **X8 — Your crew** — §7.
 **X9 — Recruiting** — §8.
 **X10 — Progression tuning** — §9.
