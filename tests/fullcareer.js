@@ -71,6 +71,7 @@ const { launch, openPage, runner } = require('./lib');
       case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8 (only if a press lands on them)
       case 'recap': pr(by(/^CONTINUE$/)); break; // 2.1 (§4.3): "Previously on Hoop Heads"
       case 'legacy': case 'halloffame': return { name: s.name, done: !!(c && c.phase === 'retired') };
+      case 'crewrecap': pr(by(/^CONTINUE$/)); break; case 'crew': case 'crewrole': case 'crewhire': pr(by(/^Back$/)); break; // 3.0 (§7): the season's crew grades; the crew's screens
       default: throw new Error('the driver does not know screen ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']');
     }
     return { name: g.ui.screen ? g.ui.screen.name : g.mode === 'match' ? 'match' : '(none)' };

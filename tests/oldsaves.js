@@ -58,6 +58,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'franchise': case 'bracket': pr(by(/^Back$/)); break; // V12
       case 'tradecompare': pr(by(/^Stay$/)); break; // V12
       case 'records': pr(by(/^Back$/)); break; // V8
+      case 'crewrecap': pr(by(/^CONTINUE$/)); break; case 'crew': case 'crewrole': case 'crewhire': pr(by(/^Back$/)); break; // 3.0 (§7): the season's crew grades; the crew's screens
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

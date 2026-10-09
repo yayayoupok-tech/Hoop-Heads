@@ -418,7 +418,11 @@ the new audits fixed the trophy case's labels, your charts' end labels and the l
 X6): won items upgrade in the locker like the store's and stand in the trophy room; the Codex's badge pages are named
 Badges; the trophy case shows every piece on a phone (it showed eight of every twelve) and keeps a medal's ribbon off the
 row above (`tests/items.js`: no rarity anywhere, the +4 cap's property test, tournament items).
-**X8 — Your crew** — §7.
+**X8 — Your crew** *(done)* — §7: six roles (levels 1–5, no rarity; three candidates a role; credits buy a level; two
+seasons together and they work a level higher; slots 1/3/6 by stage; they follow you to the pros); HOME's crew report,
+the result screen's crew line, the season's grades, the bench and the tip-off banner; the crew's messages (the physio's
+hamstring call, poaching, the agent's trade talk and the counter's odds); the tournament prep and the scout's read on the
+bracket; the career simulator's crew table (`tests/crew.js`, `tests/careersim.js --crew=`).
 **X9 — Recruiting** — §8.
 **X10 — Progression tuning** — §9.
 **X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed; the README's

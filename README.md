@@ -61,8 +61,10 @@ Hoop Heads 2.0 and its Part 2, in fourteen milestones (V1–V14; `CHANGES.md` ha
 - **The shop.** Gear in slots with rarities and levels (never more than +4 to a rating, all of it together), a weekly
   stock at a shop with a keeper at each level, a try-on, extras for the week, a lifestyle, signature collabs from the
   Road, and celebrations.
-- **Your staff.** An agent, a skills coach, a strength trainer, a physio, a nutritionist and a mental coach, 1★ to 5★,
-  each with a salary, a personality and the odd call from a rival club.
+- **Your crew.** Six staff you hire, level up with credits (Lv1–5, no rarity) and keep from high school to retirement:
+  a skills coach, a strength coach, a physio, a scout, a mental coach and an agent. Their work shows every week on
+  HOME, in every game (on your bench, in each result's crew line), before every tournament (the prep) and in a season's
+  grades; they call with their news (a tight hamstring, a rival's offer for one of them, a team asking about you).
 - **Pro teams.** Twelve PBL franchises with cities, crests, owners, coaches, markets, fans, history and rivalries; title
   odds on the hub and on every offer; top-8 playoffs with best-of-3 rounds and a Finals MVP; a parade, a ring ceremony,
   a banner in the rafters and dynasties.

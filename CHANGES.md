@@ -3,6 +3,180 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X8 (3.0) — your crew
+
+The request's §7: the old staff menu (removed in X2) comes back as your crew, a small team you hire, level up and keep
+from high school to retirement, whose work shows every week, in every game and before every tournament. Quick checks
+for this milestone: the new `tests/crew.js`, `tests/screens30.js` (the crew's screens), the Codex audit,
+`tests/tourney.js`, `tests/items.js`, `tests/oldsaves.js` and `tests/smoke.js`; the career simulator's crew table
+(below).
+
+### The crew (§7.1–7.2)
+
+- **Six roles, levels 1–5, no rarity.** A skills coach (a specialty: Shooting, Finishing, Handles or Defense), a
+  strength coach, a physio (the old nutritionist too), a scout, a mental coach and an agent. Each has a level from 1 to
+  5 and nothing else: no stars, no rarity, no rolls. Every effect shows in numbers on the card and in the Codex.
+- **When they open:** the skills coach in your sophomore year, the scout in your junior year, the strength coach, the
+  physio and the mental coach in college, the agent from your second college season. **Slots:** high school 1, college
+  3, the pros 6.
+- **Hiring:** three candidates a role, new each season and stage, at the stage's levels (high school Lv1–2, college
+  Lv1–3, the pros Lv2–4). Each card shows the level, the specialty, the salary and every effect, and the next level's
+  cost and salary.
+- **Pay:** a Lv1's season salary by stage (high school $300, college $800, the pros $250K) × 1/1.5/2.2/3.1/4.2 by
+  level, paid a game week at a time. Two weeks unpaid and the best-paid one walks (the PAYDAY message warns you first).
+  The agent has no salary: their pay is their cut (3–8% of your pay and sponsors).
+- **Credits** buy a level: 6, 12, 20 and 30 credits for Lv2–Lv5. They come from wins (1 a main game), tournaments
+  (X6's credit rewards) and Road to the League goals (3 each).
+- **Years together:** after two seasons a staff member works a level higher ("knows your game"), news and all.
+- **They follow you** from high school to college to the pros while you pay them (the pros' prices from then on).
+- **Old saves:** a 2.x save's staff join the crew at their tier, two seasons in (they know your game), and a signed
+  agent joins at Lv3 (the old agent's +10% for 4%).
+
+### What each one does (the numbers on the cards)
+
+Lv1–Lv5 (a sixth level's numbers apply when a Lv5 knows your game):
+
+| Role | Every week | In games |
+|---|---|---|
+| Skills coach | +10/20/30/40/50% XP to the specialty (practice and games), and 0.5/0.75/1/1.5/2% of what your other ratings earn; its ceiling +1 at Lv3, +2 at Lv5 | its signature moves a rating point early; its timing +5% (Shooting: the perfect-release window; Finishing: rim makes under a contest; Handles: steals against you −5%; Defense: your steals +5%) |
+| Strength coach | +2/2.5/3/3.5/4% XP to Speed, Hops and Strength; Hops starts to fade a year later at Lv3, two at Lv5 (caught up at 32) | stamina lasts 5/7/9/11/13% longer; rim makes through contact +3/4/6/7/9% |
+| Physio | a game's fatigue −10/14/18/22/26%; injury risk −15/21/27/33/39%; injuries a game shorter (two from Lv4); a lasting injury 15/20/30/40/50% less likely; each aging year's decline 2.5/3.5/4.5/5.5/6.5% smaller; the hamstring call | the tired penalty starts 3/4/5/6/8 stamina later |
+| Scout | 3/3/4/4/4 of the opponent's tendencies before every game (2 without one); the bracket's read | a game plan from the report: +5/6.5/8/9.5/11% makes (at the rim, on jumpers) or steals |
+| Mental coach | a loss costs 10/16/22/28/34% less confidence; slumps end 25/32/39/46/53% faster | +5/7/9/10.5/12% make chance in the last 15 s, the playoffs and tournament knockouts |
+| Agent | +6/8/10/12/14% on every contract; sponsors +5/10/15/20/25%; counteroffers 2/4/6/8/10 points safer, with the odds shown; benched in the pros, a 7/8.5/10/12/14% chance a week they get you the start; trade talk; takes 3/3.5/4/5/6% | — |
+
+### Visible every week (§7.3)
+
+- **HOME's crew report:** one entry per staff member with last week's numbers ("Coach Ruiz: +24 Shooting XP · Physio:
+  fatigue −8 · Scout: he can't go left"). On a desktop it has its own line under the fatigue meter (the week's note
+  moved beside the meter, in its short form when the line is narrow); on a phone, its line on the right.
+- **The result screen's "Crew:" line:** the coaches' XP, the game plan (in a played game the plays it bought, in a
+  simmed one the plan in effect), clutch makes or confidence held, makes through contact, the physio's fatigue saved and
+  the agent's money. It's built after the week turns, from the week's notes (before, the XP never showed).
+- **The season's recap** (a moment of its own): each staff member's season (XP added, injuries avoided, money earned,
+  clutch makes) and a grade from A to F.
+- **On the court:** your crew sits on your bench beside the scorer's table (seated big-head sprites, in shade so the
+  players in front still read), on its feet for your big plays (a dunk, a three, a block, a steal, a poster, broken
+  ankles, a buzzer-beater, a clutch basket, the win). The scout's game plan shows as a small banner under your side of
+  the score bug after the TIP-OFF stamp (and the tournament's prep under it).
+- **The pregame:** a Plan button (Rim, Shoot, Steal; the scout's pick starred).
+
+### Crew messages (§7.4)
+
+- **The physio's hamstring call** (urgent): "Rest a week (no risk) or play (+15% injury risk)?" Tightness comes to
+  everyone (3% of weeks, more when tired); without a physio you play at the risk unwarned.
+- **A rival poaching** a Lv3+ staff member (a message): match their offer (a raise for good) or let them go.
+- **The agent's trade talk** (pros, a message): a franchise a star up asks about you once your value nears its bar;
+  push for it at the odds shown (a no costs coach trust).
+- **The agent at the table:** a counteroffer reads "Counter at $18M a season (+10%)? 60% they accept, 40% they walk."
+- **Level-ups** come as news ("Coach Ruiz reached Lv3: your Shooting ceiling is +1").
+- They count toward the one message a week, except the physio's call. Old trade talk and poaching expire with the
+  season.
+
+### Tournament prep (§7.5)
+
+- On the tournament's screen, **Prep** picks what your crew runs until your first game there (a pick that suits the
+  week is set when it starts): Sharpen (double XP in the specialty, twice the timing edge), Recover (fatigue to 0 at your
+  first game, injury risk halved), Study the bracket (every opponent's full report; the game plan +50%) or Lock in (the
+  clutch bonus doubled). It ends with the tournament.
+- The scout reads the bracket: the best in the field and where to hurt them, then each opponent's tendencies and the
+  plan in the side panel. Tournament games use the scout's plan for that opponent.
+
+### Balance (§7.6): the career simulator
+
+`tests/careersim.js --crew=` none | full (all six hired at Lv3: a level higher after two seasons, no credit upgrades) |
+one role alone at Lv3 | auto (the typical crew: hired when the money covers two seasons, credits spent on upgrades)
+| full+ (all six at Lv3, upgraded with the credits). The same 200 careers each run (seed 1); the crew's rolls have a
+stream of their own, so a career with a crew stays in step with the same one without.
+
+The crew table (§7.6; 1,200 careers a policy: seeds 1–6, 200 each; legacy as the paired difference from the same
+careers without a crew, ± its standard error):
+
+| Crew | Legacy | Peak OVR | Titles | MVPs | Injuries a career (avoided) | Money earned | Crew pay / income, pro seasons 4–8 |
+|---|---|---|---|---|---|---|---|
+| None | 68.5 | 71.74 | 0.76 | 0.67 | 3.95 | $221M | — |
+| **Full crew, all six at Lv3** | **+36.5% ±2.0** | +1.15 | 1.27 | 1.24 | 2.32 (1.74) | +$35M | 19% |
+| Skills coach alone | +6.7% ±1.5 | +0.63 | 0.87 | 0.78 | 4.15 | +$13M | 6% |
+| Scout alone | +5.6% ±1.4 | +0.14 | 0.84 | 0.81 | 4.04 | +$3M | 6% |
+| Strength coach alone | +10.0% ±1.3 | +0.22 | 0.90 | 0.85 | 4.02 | +$5M | 6% |
+| Physio alone | +5.8% ±1.5 | +0.36 | 0.85 | 0.78 | 2.11 (1.80) | +$3M | 6% |
+| Mental coach alone | +6.5% ±1.4 | +0.13 | 0.93 | 0.71 | 3.94 | +$4M | 6% |
+| Agent alone | +8.2% ±1.4 | +0.03 | 0.90 | 0.73 | 4.03 | +$20M | 0% (their cut) |
+| The typical crew (auto) | +43.2% ±2.2 | +1.04 | 1.37 | 1.37 | 2.38 (1.66) | +$40M | 22% |
+| Full crew upgraded (full+) | +48.7% ±2.2 | +1.28 | 1.48 | 1.43 | 2.26 (1.87) | +$51M | 24% |
+
+- **A full crew at Lv3 adds +36.5%** (25–40). **Every role alone adds at least +5.6%** (at least 4). The typical crew,
+  hired as the money allows and upgraded with every credit, adds +43%: past the band, because its credits keep raising
+  levels (most of the full crews of a real career end at Lv4–5).
+- **The crew's salaries take 22% of a mid-career pro's income** (15–30) for the typical crew (19% for all six at Lv3).
+- **Credits: 91% come from wins and tournaments** (wins 42%, tournaments 49%, Road goals 9%); a typical career earns
+  334, and its crew is hired 9.4 times and upgraded 12.1 times.
+- The physio saves 1.7–1.9 injuries a career (of 3.95 without one).
+- The typical crew's messages a career: 8.2 hamstring calls, 5.4 rivals after a staff member (3.9 matched), 1.5 trade
+  talks (0.7 trades), 5.2 unpaid weeks (mostly in high school and college), 14 level-ups.
+
+
+The spec's numbers first (all six or one alone, hired at Lv3, the later aging over the whole decline; 200 careers):
+a full crew added +32.4% ±4.9 legacy, inside 25–40, but alone the strength coach added +16.4% and the other five
+under +4% (skills +1.3, the mental coach +2.5, the scout −1.4, the physio −3.8, the agent −5.5; each ±3.3). Legacy is
+mostly MVPs and titles: what moves it is how good you are and for how long. So each role got a piece of that, and the
+strong one gave some back:
+
+- **Skills coach:** the spec's +10–50% XP only counts the weeks you train the specialty (Auto moves around): it adds
+  a share of what your other ratings earn too (0.5–2%).
+- **Strength coach:** Auto trains the body most weeks, so its +10–50% XP was most of all your XP: +2–4% now. Its later
+  aging holds Hops (Speed fades on time) and catches up at 32: with Speed and Hops, caught up at 34, it added +12% alone;
+  over the whole decline (the first version), +33% upgraded.
+- **Physio:** each aging year's decline 2.5–6.5% smaller (the old nutritionist's part, which the physio absorbs).
+- **Scout:** the game plan +3–8% → +5–11%, and a simmed game counts it on half its shots (0.35 before).
+- **Mental coach:** clutch +3–8% → +5–12%.
+- **Agent:** the call-ups (the spec's "team interest … call-ups"): benched in the pros, a 7–14% chance a week they get
+  you the start. (A first try, franchises valuing you higher, cost legacy: a better franchise is a deeper bench, and
+  fewer starts mean fewer MVPs.)
+- **Tightness** comes to everyone (3% of game weeks, more when tired; +15% injury risk if played): the physio turns it
+  into a call.
+
+The passes in between (200–1,200 careers each) overshot: a full crew at Lv3 at +67–78% with the skills coach's share at
+10–60% of all XP, then +57% and +47% as the numbers came down. The effects add up (a full crew's legacy is about the sum
+of the six alone), so the targets meet at five or six points each.
+
+
+### Found on the way
+
+- An old save's signed agent was dropped when its old staff joined the crew (the staff's sync named the crew's agent:
+  none yet). The agent joins first now.
+- The result screen's crew line never showed the coaches' XP (it read a map nothing passed in): it's built from the
+  week's notes now, at both levels.
+
+### Tests
+
+- **New: `tests/crew.js`** (§11 "Crew", 8 steps): the roles, slots and levels (opening years, 1/3/6 slots, three
+  candidates a role at the stage's levels, no rarity, every effect in numbers, the salary by level, credits 6/12/20/30,
+  two seasons together → a level higher, the ceilings); they follow you (a coach hired as a sophomore is the same person
+  in the pros, the years kept); every role works and shows (a full crew: HOME's six report entries, the result screen's
+  Crew line with the coaches' XP, the plan, the physio, the agent and the mental coach; the game def's numbers); the
+  messages (the hamstring call urgent, resting and playing through it: injury odds 1% → 16%; no physio: the risk comes
+  unwarned; poaching matched and lost; trade talk's odds and a yes; the counter's odds in words; one message a week);
+  the tournament prep (set at the start, the button cycles all four until the first game, each prep's effect, the
+  bracket's read, cleared at the end); on the court (six on your bench, the right side, cheers for your plays only, the
+  banner after the TIP-OFF stamp); an old save's staff and agent; the §7.6 table (below: 1,200 careers a policy, four
+  simulators at a time, about 40 minutes).
+- **`tests/careersim.js --crew=`** none | full | full+ | auto | a role (role+): the crew policy, its messages (rest a
+  regular-season tight hamstring, play through a playoff one; match a poacher when the money covers three times the
+  offer; push trade talk at even odds or better) and a crew line (hires, upgrades, pay against income in pro seasons
+  4–8, where credits come from, injuries avoided, the agent's money, the messages). The default is the typical crew
+  (auto); `--crew=none` is the old runs' setting.
+- **`tests/screens30.js`**: the crew's screens on all four passes (high school's crew and hiring with the slot full,
+  HOME's crew line, the pros' crew, a role on a phone, hiring, the season's grades, the pregame's Plan, the three crew
+  messages, a tournament's prep before and after the first game).
+- **`tests/oldsaves.js`, `tests/fullcareer.js`**: their drivers know the season's crew recap (`crewrecap`) and the crew's
+  screens.
+- **Results:** `tests/crew.js`: its seven checks pass; the eighth, the table, is the 1,200-career run above (the same
+  simulator runs, through a driver that keeps each run; the step itself ran as a 10-career dry run); `tests/screens30.js` 674 screens, none flagged (its
+  first run cut the scout's line on a high-school hiring card: shorter now); the Codex audit 328 pages, none flagged (the
+  tournament prep's entry ran past six lines: two entries now); `tests/smoke.js` 134 of 134; `tests/oldsaves.js` 42 of
+  42; `tests/tourney.js` 8 of 8; `tests/items.js` 5 of 5.
+
 ## X7 (3.0) — items and badges
 
 The request's §6: items with levels and no rarity, tournament items, badges earned by doing the thing. Most of §6 came
