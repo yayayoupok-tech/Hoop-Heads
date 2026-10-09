@@ -1,6 +1,7 @@
 // 3.0 (§11): the overflow audit of the 3.0 screens. HOME and its five tabs (high school, college, the pros), MORE…, the
 // focus picker, the weekly drill's result, the result screen (a good week, a hurt one, a slump), the season review, the
-// recruiting board, messages (one with three answers, an urgent one) and the SIM toast, each at a desktop (1280×720), a
+// recruiting board, messages (one with three answers, an urgent one), the SIM toast and X4's charts (rankings, standings,
+// leaders, brackets, your team, your charts) at each level, each at a desktop (1280×720), a
 // phone (844×390 with touch) and both at the 1.25× text size. The checks are auditkit.js's (tap targets, overlaps, text
 // over text, cut text, two screens at once, art over text, legibility); any flag fails the run. Each milestone adds its
 // screens here. Usage: node tests/screens30.js [shotsDir] [--only=desktop|phone|desktop125|phone125]
@@ -40,12 +41,22 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('hs-review', () => { const g = HH.game, a = g.save.data.c1; __adv(a, 99, a => (a.events || []).some(e => e.kind === 'recap')); a.events = (a.events || []).filter(e => evClass(e, a) === 'season'); a.inbox = []; g.hubTab = 'home'; g.ui.clearTo(amHub(g)); g.ui.push(seasonReviewScreen(g, a)); });
     await audit('hs-recruit-home', () => { const g = HH.game, a = g.save.data.c1; __adv(a, 400, a => a.stageYear >= 3 && a.offers && a.offers.length > 0 && !a.decision); __quiet(a); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); });
     await audit('hs-recboard', () => { const g = HH.game; __home('home'); g.ui.push(recBoardScreen(g)); });
+    // X4 (§4.2): the charts, mid-season on varsity, then at the playoffs
+    const charts = async (pre, pro) => { for (const [n, f] of [['rankings', 'rankingsChartScreen(g)'], ['rankings-teams', 'rankingsChartScreen(g, 1)'], ['standings', 'standingsChartScreen(g)'], ['leaders', 'leadersChartScreen(g)'], ['team', 'teamPageScreen(g)'], ['mycharts', 'myChartsScreen(g)']]) await audit(pre + '-' + n, src => { const g = HH.game; __home('league'); g.ui.push(eval(src)); }, f);
+      if (phone) { await audit(pre + '-leaders-3p', () => { const g = HH.game; __home('league'); g.ui.push(leadersChartScreen(g)); const b = g.ui.screen.widgets.find(w => w.label === '3P%'); if (b) b.onPress(); }); await audit(pre + '-mycharts-career', () => { const g = HH.game; __home('league'); g.ui.push(myChartsScreen(g)); const b = g.ui.screen.widgets.find(w => w.label === 'CAREER'); if (b) b.onPress(); }); }
+      if (pro && phone) await audit(pre + '-standings-west', () => { const g = HH.game; __home('league'); g.ui.push(standingsChartScreen(g)); const b = g.ui.screen.widgets.find(w => w.label === 'WEST'); if (b) b.onPress(); });
+      await audit(pre + '-brackets', () => { const g = HH.game; __home('league'); g.ui.push(bracketsScreen(g)); }); };
+    await ev(() => { const g = HH.game, a = g.save.data.c1; __adv(a, 400, a => a.league && a.league.format === 'district' && a.league.week >= 5); __quiet(a); });
+    await audit('hs-league-ranked', () => __home('league')); await charts('hs', false);
+    await audit('hs-district', () => { const g = HH.game, a = g.save.data.c1; __adv(a, 100, a => !a.league || a.league.playoffs); __quiet(a); g.hubTab = 'league'; g.ui.clearTo(amHub(g)); g.ui.push(districtBracketScreen(g)); });
+    await audit('hs-brackets-po', () => { const g = HH.game; __home('league'); g.ui.push(bracketsScreen(g)); });
     // college
     await ev(() => { const g = HH.game, a = g.save.data.c1; __adv(a, 900, a => a.stage !== 'hs'); __adv(a, 3); __quiet(a); g.save.save(); });
     for (const t of tabs) await audit('col-' + t, t => __home(t), t);
     await audit('col-nil', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); colNilOffer(a, amRng(a), 'audit'); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); });
     await audit('col-agent', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.agent = undefined; colAgentPitch(a); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); });
     await audit('col-result', () => { const g = HH.game, a = g.save.data.c1; const r = amSimGame(a); __quiet(a); g.ui.clearTo(amResultScreen(g, r, null)); });
+    await audit('col-league', () => __home('league')); await charts('col', false);
     // the pros
     await ev(() => { const g = HH.game, c = testProLeague(36, g.save.data); g.save.data.career = c; g.save.data.c1.handedOff = true; for (let i = 0; i < 4; i++) simUserGame(g.save.data); __quiet(c); g.save.save(); });
     for (const t of tabs) await audit('pro-' + t, t => __home(t), t);
@@ -55,6 +66,7 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('pro-result', () => { const g = HH.game, c = g.save.data.career; const rec = simUserGame(g.save.data); __quiet(c); g.ui.clearTo(careerResultScreen(g, rec, null)); });
     await audit('pro-trade', () => { const g = HH.game, c = g.save.data.career, me = meOf(c); __quiet(c); const dest = frIds().find(k => k !== me.club); c.events.push({ kind: 'tradeoffer', title: 'A TRADE OFFER', who: 'agent', dest, lines: ['Your agent: "The ' + frFullName(dest) + ' called. A 4★ franchise, and they want you before the deadline."', 'Say yes and you move this week; say no and you stay where you are.'] }); g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); });
     await audit('pro-shoe', () => { const g = HH.game, c = g.save.data.career; __quiet(c); c.me.fame = MD.fameMax; c.me.shoePitched = false; c.me.shoe = null; proShoePitch(c); g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); });
+    await charts('pro', true);
     await audit('pro-review', () => { const g = HH.game, c = g.save.data.career; let n = 0; __quiet(c); while (n++ < 140 && !(c.events || []).some(e => evClass(e, c) === 'season')) { if (c.phase === 'offseason') break; c.events = (c.events || []).filter(e => evClass(e, c) === 'season'); simUserGame(g.save.data); } c.events = (c.events || []).filter(e => evClass(e, c) === 'season'); c.inbox = []; g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); g.ui.push(seasonReviewScreen(g, c)); });
     errs.push(...P.errors.map(e => pass.id + ': ' + e)); await P.context.close();
   }

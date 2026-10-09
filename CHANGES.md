@@ -3,6 +3,117 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X4 (3.0) — rankings and charts
+
+The request's §4.1–4.2: rankings that come from how people play, every week at each level, and charts as the LEAGUE
+tab's first business. Quick checks for this milestone: the new `tests/rankings.js`, `tests/screens30.js` (now with
+the charts), `tests/smoke.js`, `tests/flow.js`, `tests/loop.js`, `tests/oldsaves.js`, `tests/pbl21.js`,
+`tests/playtest3.js`, `tests/shop.js`, `tests/traits.js` and the career simulator (40 careers, seeds 1 and 2).
+
+### Rankings (§4.1)
+
+Every week of the regular season each level ranks its players and its teams from the season's games, never from OVR
+(`164_rank.js`). In this 1v1 world a team plays through its starter, so a level's pool is its teams' starters:
+
+| Level | Who's ranked | Their games |
+| --- | --- | --- |
+| High school | the nation: 140 schools' starters (all four classes) and your district | your district's are real; the nation's starters play a game a week against a varsity schedule, a stat line each |
+| College | the starters of all 64 programs | your conference's are real; the other programs' play a game a week (a marquee opponent plays as its program's starter) |
+| The PBL | its 16 league players | the league's own lines (X5 adds the lower leagues) |
+
+- **A player's points:** PPG + 8 × (FG% − the level's) − 0.3 × turnovers a game + 1.5 × (win share − ½) + 0.06 ×
+  (opponents' OVR − the level's mean). Points a game come first; the rest break ties. FG% leans on the level's with
+  30 shots, the win share starts from ½ with 2 games, and the preseason poll (last season's points halfway back to the
+  middle, or a newcomer's expected points) weighs as half a game.
+- **A team's points:** 20 × (win share − ½) + 0.3 × point margin a game + 0.25 × (opponents' OVR − the level's mean).
+- **The lists** show the top 100 with ▲▼ (the move since last week, NEW for a newcomer); below it you're NR, with your
+  points against the #100's. JV players and JV teams aren't ranked nationally (their league is the school's second
+  team). The playoffs don't move the rankings (X6's tournaments add ranking points).
+- **The nation's high schools** are invented (48 invented towns × High, Prep, Academy, Central, Christian, Tech), each
+  with a prestige: a strong school's starter is better and plays a tougher schedule, the best play the best (a
+  schedule at the varsity mean + 40% of the starter's edge over it), and a school's prestige follows its final rank.
+  Seniors graduate and a school's new starter is a freshman or sophomore. A simmed line's turnovers come from its
+  Handles (about 1.6 × (1.15 − Handles ÷ 100) a game); a played game counts its own.
+- **Stars follow the team rankings at the season's end:** a PBL franchise's prestige moves with its final team rank
+  (it moved with the standings' order); a college program's prestige is half last year's and half its final rank,
+  and its stars follow by the registry's distribution (the college list, the rankings and your team page show them).
+- **History:** your weekly ranks (and your team's) for the season's chart; each season's final ranks in the season log
+  (`prk`, `trk`) for the career charts, and in the season's recap ("Ranked #12 nationally · your team #30").
+- **Old saves:** a save from before the rankings gets its season so far when it loads: your line from the season's
+  stats (turnovers estimated), your league's records as lines, and the nation's weeks played to catch up.
+- **The save** carries the pool: about 80 KB in high school (the nation's 140 starters and their lines, whole numbers
+  and one decimal), about 35 KB in college, a few hundred bytes in the PBL (its lines are the league's).
+
+The weights came from a sweep over the season's-end lines of 75 careers (185 high school and 300 college seasons):
+
+| Weights (fg · to · win · sos · preseason) | High school: the top scorer in the top 10 | College |
+| --- | --- | --- |
+| 12 · 0.3 · 2 · 0.15 · 1 (the first fit) | 86% | 100% |
+| 8 · 0.3 · 1.5 · 0.06 · 0.5 (shipped) | 97% | 100% |
+| 5 · 0.15 · 1 · 0.06 · 0 | 99% | 100% |
+
+The opponents' strength weight decided it: your district is scaled to your class (a freshman's opponents are
+freshman-strength), so at 0.15 a high-scoring underclassman fell out of the top 10.
+
+### Charts (§4.2)
+
+The LEAGUE tab shows your league's table (W-L, PCT, streak; the PBL: your conference) and where you're ranked, with
+six chart doors before the old ones (a phone: five and MORE…):
+
+| Chart | What it shows |
+| --- | --- |
+| **Rankings** | the top 100 players (PPG, FG%, W-L, points) or teams (stars, W-L, margin, points) with ▲▼, 13 a page (a phone: 8), Find me |
+| **Leaders** | PPG, FG%, 3P%, RPG, SPG, BPG: the top five each (a phone: a tab each, the top eight) and your place; FG% needs 5 shots a game, 3P% a three a game |
+| **Standings** | W-L, PCT, games back, streak, the last five, margin and OVR (the PBL: both conferences side by side; a phone: a tab each), the playoff line |
+| **Brackets** | this season's: the district playoffs (a new four-team bracket), the state tournament, the conference and national tournaments, the PBL playoffs |
+| **Team** | your team: stars, record, team rank, title odds, the schedule and results, your season and titles by year (the PBL: the franchise's, the last twelve seasons) |
+| **My charts** | your rank and your team's week by week (rank 1 at the top, gaps when not ranked), and PPG, OVR and rank by season |
+
+- **Title odds** for an amateur team come from 200 runs of the rest of the season and the playoffs' rounds with the
+  league's strengths; the PBL's are its own (the franchise odds).
+- HOME's season line reads your team's rank and yours (WEEK 6 OF 10 · 2-3 · TEAM NR · YOU #34); the next game's card
+  shows the opponent's national rank when they have one; the result screen adds "Ranked #30 (▲4)"; a rank is
+  tappable (its tip and the Codex's new Rankings entry).
+- The old LEAGUE doors: Standings is the new chart (the old screen's schedule is on Team); Team opens your team's page
+  (the roster behind its Roster button, the PBL's franchise behind The franchise); the PBL's League screen stays a door.
+- `chartTable` draws a column's text from versions, longest first, so a long name shortens instead of being cut
+  (`rbFirstFit`): the PBL's teams fall back to their short names.
+
+### Tests
+
+- **New: `tests/rankings.js`** (§11 "Rankings"), 20 careers a level:
+
+  | | High school | College | The PBL |
+  | --- | --- | --- | --- |
+  | seasons read | 46 | 80 | 20 |
+  | the season's top scorer in the top 10 (target 95%) | 98% | 100% | 100% |
+  | teams: rank vs win share (Spearman ρ) · the #1 within a loss of the best record | 0.85 · 100% | 0.97 · 100% | 0.95 · 100% |
+  | rank vs PPG ρ · rank vs OVR ρ | 0.89 · 0.53 | 0.97 · 0.68 | 0.97 · 0.74 |
+
+  Plus: ▲▼ remembers last week's rank, JV players aren't ranked, the PBL's stars follow its team ranking, an old
+  save gets its season so far.
+- **`tests/screens30.js`** adds the charts at each level (rankings, the teams' list, standings, leaders, brackets,
+  the district bracket, your team, your charts, a phone's leader and conference tabs): 262 screens over the four
+  passes, none flagged.
+- **Updated:** `flow.js` (the LEAGUE tab's doors, the Standings chart), `oldsaves.js` (the charts drawn on every
+  fixture), `careersim.js` (a rankings line: your best rank at each level).
+- A PBL team's points for and against were first read from the wrong field (three-point attempts) and gave losing
+  teams a plus margin; caught on the Rankings chart, fixed before these numbers.
+
+### The career simulator (40 careers)
+
+| | X3, seed 1 | X4, seed 1 | X3, seed 2 | X4, seed 2 |
+| --- | --- | --- | --- | --- |
+| median OVR at 17 / 21 / 25 / 29 | 56 / 65 / 69 / 71 | 56 / 65 / 69 / 71 | 56 / 65 / 69 / 71 | 56 / 65 / 69 / 71 |
+| a 5★ team (15–25%) | 23% | 33% | 20% | 20% |
+| titles a career (0.2–0.4) | 0.93 | 0.72 | 0.25 | 0.28 |
+| Hall of Fame (3–8%) | 15% | 13% | 10% | 5% |
+
+Rankings: your best national rank in high school has a median of 37 (seed 1) and 6 (seed 2); 88–95% of careers are
+ranked at some point in high school, all in college; 63–70% reach #1 in the PBL, with about 4 seasons in its top 3.
+The franchises' stars now follow the team ranking (record, margin, opponents) instead of the standings' order; the
+5★ share's swing on seed 1 doesn't repeat on seed 2.
+
 ## X3 (3.0) — the Retro Bowl home, the weekly loop, messages and practice
 
 The request's §2–3: one HOME with five tabs, PLAY → one result screen → HOME, SIM → a toast, messages that say one

@@ -388,7 +388,12 @@ into info (rewards and headlines), messages (one a week), urgent ones, moments a
 optional 30 s drill worth up to +50%; `xpEarn` 9 → 2.3 keeps X2's curve within a point to 25 (two higher after: X10).
 The overflow audit (`tests/screens30.js`, on `tests/auditkit.js`) covers every new screen at a desktop, a phone and
 1.25× text; later milestones add theirs.
-**X4 — Rankings and charts** — §4.1–4.2.
+**X4 — Rankings and charts** *(done)* — §4.1–4.2: weekly player and team rankings at each level from how people
+play (points a game first; FG%, turnovers, wins and opponents break ties; teams by record, margin, opponents), never
+OVR: high school ranks a nation of 140 invented schools' starters with your district, college all 64 programs, the
+PBL its league; the top 100 with ▲▼; stars follow the team rankings (`tests/rankings.js`: the top scorer in the top
+10 in 98% / 100% / 100% of seasons). The LEAGUE tab's charts: rankings, leaders, standings (PCT, GB, streak, last
+five), brackets, your team's page (title odds, titles by year) and your charts.
 **X5 — Teammates, lower leagues, transfers and PBL team life** — §4.3–4.5.
 **X6 — Tournaments, rewards and difficulty** — §5.
 **X7 — Items and badges** — §6.
@@ -416,6 +421,7 @@ node tests/oldsaves.js             # every fixture save reloaded and played on (
 node tests/phoneaudit.js [dir]     # phone tap targets, overlaps and text size on 65 screens (M9)
 node tests/loop.js                 # 3.0: the weekly loop's screens between games at each level (§2.2)
 node tests/screens30.js [dir]      # 3.0: the overflow audit of the 3.0 screens at a desktop, a phone and 1.25× text (§11)
+node tests/rankings.js [n]         # 3.0: rankings follow how people play at each level (§4.1, §11)
 node tests/gate.js [n] [hn]        # the §2 Legends View gate: mirror, Legend vs Pro and the harness in both layouts (L1)
 node tests/tojpeg.js <dir>         # milestone screenshots: PNG → JPEG
 ```

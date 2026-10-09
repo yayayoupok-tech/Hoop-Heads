@@ -1481,6 +1481,22 @@ const CONFIG = {
     summerCost: 20000,         // summer classes in the pros: this much ($)...
     summerXp: [-0.1, 4],       // ...and the summer's gym time: practice XP × (1 + this) for this many weeks of the next season
   },
+  rank: {                      // 3.0 (§4.1): rankings from how people play (164_rank.js), every week at each level; never from OVR
+    top: 100,                  // the lists: the top 100 players (and teams) of a level
+    nation: { hs: 140 },       // high school's nation: this many schools' starters beside your district (all four classes; college ranks the starters of all 64 programs, the PBL its league)
+    natMean: { hs: 7 },        // the nation's starters: this far over their class's mean OVR on average...
+    natSd: { hs: 8 },          // ...with this spread
+    oppSd: 6,                  // a nation player's weekly opponent: the level's mean OVR ± this (their schedule)
+    w: { ppg: 1, fg: 8, to: 0.3, win: 1.5, sos: 0.06 }, // ranking points: PPG + fg × (FG% − the level's) − to × turnovers a game + win × (win share − ½) + sos × (opponents' OVR − the level's mean): points a game first, the rest break ties (§11: the season's top scorer in the top 10 in 95% of seasons; a sweep over 185 high school and 300 college seasons: 97% and 100% here, 86% with sos 0.15 and fg 12)
+    fgPrior: 30,               // FG% leans on the level's with this many shots (one hot game isn't an efficient season)
+    winPrior: 2,               // the win share starts from ½ with this many games
+    preG: 0.5,                 // the preseason poll: its points weigh as much as this many games, fading as the season's games come in
+    schedPull: 0.4,            // a high school nation player's schedule: the varsity mean + this share of their edge over it (the best play the best: showcases, a strong school's schedule)
+    team: { win: 20, diff: 0.3, sos: 0.25 }, // team points: win × (win share − ½) + diff × (point margin a game) + sos × (opponents' OVR − the level's mean)
+    keep: 0.5,                 // a college program's standing at the season's end: this much of last year's plus the rest from its final team ranking (its stars follow; the PBL's franchises use franchise.keep)
+    histWeeks: 40,             // your weekly ranks kept for the season chart
+    to: { base: 1.6, han: 1.15 }, // a simmed line's turnovers: about base × (han − Handles ÷ 100) a game (a played game counts its own)
+  },
   records: {                   // V8 (2.0 §4.9): the records book (179_records.js)
     minToast: 3,               // a career high or a record under this isn't a toast (a first game's two steals isn't news)
     levels: {                  // the records you can break at each level: [value, holder, year] (invented names from before your time). 2.1 (W2): re-derived at the running clock's scale, each the higher of two lines: the best game that 1–5% of 400 simulated careers (typical and great) beat, and the best single game in the parity runs' engine games with the AI at your controls (about 6,500 for points, 930 for the rest). So a simmed career rarely breaks one (points in high school: 1–2.5%); a big night you play does 3.0 (§0.2): at the new pace (twice the points), each the best single game of 1,344–2,880 career games in the engine with the AI at your controls (the simulated careers' lines, ×1.74, are below them)
@@ -11478,7 +11494,7 @@ function hubTrainNotes(B, hs) { const out = ['Training happens by itself at ever
 function hubWeekLine(B) { const now = wkPlanNow(B), w = B.wk || {}; return (w.done ? 'THIS WEEK: ' + WEEK_PLAN_LABEL[w.done] + ' (DONE)' : 'THIS WEEK: ' + WEEK_PLAN_LABEL[now] + (now === 'auto' || now === 'focus' ? ' ' + RATING_SHORT[focusRating(w.k || (now === 'focus' ? B.focus : '') || 'shooting')] : '')) + ' · FATIGUE ' + Math.round(B.fatigue || 0) + (schoolOn(B) ? ' · ' + schoolGpaLine(B) : ''); } // V9: your GPA next to the eligibility line, always
 // 3.0 (§2.1): what HOME, LEAGUE, EVENTS and CAREER add to the hub's data (both careers).
 function hubHomeData(game, c, H) {
-  const K = careerKit(game); H.K = K; H.home = homeData(c); H.events = homeEvents(c); H.road = roadBanner(c);
+  const K = careerKit(game); H.K = K; H.c = c; H.home = homeData(c); H.events = homeEvents(c); H.road = roadBanner(c);
   const B = holderOf(c); H.planLine = H.opp && K ? wkPlanLine(K) : ''; H.planNote = B && B.planNote && B.planNote.s === c.season ? B.planNote.t : '';
   if (isPro(c)) { H.tableTitle = 'The PBL'; H.table = standingsSorted(c).map((id, i) => { const p = c.players[id], s = c.standings[id] || NO_STANDING; return { rank: i + 1, name: p ? p.name : '?', sub: p ? clubOf(p.club).abbr : '', wl: s.w + '-' + s.l, ovr: p ? recOvr(p) : null, me: id === c.meId }; }); }
   else if (c.league && c.stage !== 'combine') { const L = c.league; H.tableTitle = L.format === 'conf' ? 'The conference' : L.format === 'jv' ? 'JV' : L.format === 'district' ? 'The district' : 'The league'; H.table = amTable(c).map((r, i) => ({ rank: i + 1, name: r.team || r.name, sub: r.team ? r.name : '', wl: r.rec.w + '-' + r.rec.l, ovr: r.ovr, me: r.id === 'me' })); }
@@ -11552,7 +11568,7 @@ function amHub(game) {
   const scout = playing ? () => game.ui.push(amPregameScreen(game)) : null;
   const extra = hs ? btn('Recruiting', 0, 0, 0, 0, () => { c.offersSeen = (c.offers || []).filter(o => !o.pulled).length; game.ui.push(recBoardScreen(game)); }, { dot: () => (c.offers || []).filter(o => !o.pulled).length > (c.offersSeen || 0) }) : btn('The road', 0, 0, 0, 0, () => game.ui.push(roadScreen(game)));
   const careerLinks = () => [btn('Train', 0, 0, 0, 0, () => game.ui.push(focusPickerScreen(game, rebuild))), btn('Stats', 0, 0, 0, 0, () => game.ui.push(amHistoryScreen(game))), btn('Badges', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game, 'traits'))), btn('Items', 0, 0, 0, 0, () => game.ui.push(shopScreen(game, 'locker'))), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game))), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game))), btn('Records', 0, 0, 0, 0, () => game.ui.push(recordsBookScreen(game))), btn('News', 0, 0, 0, 0, () => { hubNewsSeen(c); game.ui.push(headlinesScreen(game)); }, { dot: () => hubNewsUnread(c) })].concat(ui.phone ? [btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })] : []);
-  const leagueLinks = () => [btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game))), btn('Standings', 0, 0, 0, 0, () => game.ui.push(amStandingsScreen(game)))].concat(c.stage === 'college' ? [btn('Pro stock', 0, 0, 0, 0, () => game.ui.push(draftStockScreen(game)))] : []).concat([btn('Colleges', 0, 0, 0, 0, () => game.ui.push(collegeBrowserScreen(game)))]).concat(ladderBtn());
+  const leagueLinks = () => chartLinks(game, c).concat(c.stage === 'college' ? [btn('Pro stock', 0, 0, 0, 0, () => game.ui.push(draftStockScreen(game)))] : []).concat([btn('Colleges', 0, 0, 0, 0, () => game.ui.push(collegeBrowserScreen(game)))]).concat(ladderBtn()); // 3.0 (§4.2): the charts first
   const eventLinks = () => [btn('Road to the League', 0, 0, 0, 0, () => game.ui.push(roadScreen(game)))].concat(hs && c.league && c.league.playoffs ? [btn('State bracket', 0, 0, 0, 0, () => game.ui.push(stateBracketScreen(game)))] : []);
   return hubScreen(game, { name: 'amhub', data: () => amHubData(game, c),
     tabs: {
@@ -11576,7 +11592,7 @@ function careerHub(game) {
   const scout = g && playsThisWeek(c) ? () => game.ui.push(pregameScreen(game, g)) : null;
   const office = btn('Office', 0, 0, 0, 0, () => { c.me.offersSeen = (c.me.offers || []).length; game.ui.push(managementScreen(game)); }, { sub: c.me.offers.length ? c.me.offers.length + ' offer' + (c.me.offers.length > 1 ? 's' : '') : '', dot: () => (c.me.offers || []).length > (c.me.offersSeen || 0) });
   const careerLinks = () => [btn('Train', 0, 0, 0, 0, () => game.ui.push(focusPickerScreen(game, rebuild))), btn('Player', 0, 0, 0, 0, () => game.ui.push(playerScreen(game))), office, btn('Badges', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game, 'traits'))), btn('Items', 0, 0, 0, 0, () => game.ui.push(shopScreen(game, 'locker'))), btn('Trophies', 0, 0, 0, 0, () => game.ui.push(trophyCaseScreen(game))), btn('Timeline', 0, 0, 0, 0, () => game.ui.push(timelineScreen(game))), btn('Records', 0, 0, 0, 0, () => game.ui.push(recordsBookScreen(game))), btn('News', 0, 0, 0, 0, () => { hubNewsSeen(c); game.ui.push(headlinesScreen(game)); }, { dot: () => hubNewsUnread(c) })].concat(ui.phone ? [btn('Codex', 0, 0, 0, 0, () => game.ui.push(statsGuideScreen(game))), btn('Settings', 0, 0, 0, 0, () => game.ui.push(settingsScreen(game))), btn('Main menu', 0, 0, 0, 0, () => { game.save.save(); game.ui.replace(mainMenu(game)); })] : [btn('Career menu', 0, 0, 0, 0, () => game.ui.push(careerMenuScreen(game)))]);
-  const leagueLinks = () => [btn('Team', 0, 0, 0, 0, () => game.ui.push(teamScreen(game))), btn('League', 0, 0, 0, 0, () => game.ui.push(leagueScreen(game))), btn('Franchise', 0, 0, 0, 0, () => game.ui.push(franchiseScreen(game, meOf(c).club)), { sub: 'owner · history' })].concat(c.playoffs ? [btn('Playoffs', 0, 0, 0, 0, () => game.ui.push(bracketScreen(game)), { sub: 'the bracket' })] : []).concat(ladderBtn());
+  const leagueLinks = () => chartLinks(game, c).concat([btn('League', 0, 0, 0, 0, () => game.ui.push(leagueScreen(game)))]).concat(ladderBtn()); // 3.0 (§4.2): the charts first (the franchise is on Team)
   const eventLinks = () => [btn('Road to the League', 0, 0, 0, 0, () => game.ui.push(roadScreen(game)))].concat(c.playoffs ? [btn('Playoff bracket', 0, 0, 0, 0, () => game.ui.push(bracketScreen(game)))] : []);
   return hubScreen(game, { name: 'career', data: () => proHubData(game, c),
     tabs: {
@@ -11712,6 +11728,7 @@ function resultFacts(c, rec) {
   for (const r of rec.recs || []) { const k = typeof r === 'object' ? r.k : r, v = typeof r === 'object' ? r.v : (c.me && c.me.records ? c.me.records[k] : ''); add('star', 'Career high: ' + v + ' ' + (REC_WORDS[k] || k), UI_CYAN); }
   for (const mv of out.learned) add('book', 'New move: ' + MOVE_NAMES[mv], UI_GREEN);
   if (out.ovr1 > out.ovr0) add('star', 'OVR ' + out.ovr0 + ' → ' + out.ovr1, UI_GREEN);
+  if (!rec.playoff) { const K = rkMeRow(c); if (K && (K.r || K.pv)) { const mv = rkMoveText(K.r, K.pv); add('star', K.r ? 'Ranked ' + rkText(K.r) + (mv && mv !== '–' ? ' (' + mv + ')' : '') + ' · ' + (K.lv === 'pro' ? 'the PBL' : K.lv === 'college' ? 'college' : 'the nation') : 'Out of the top ' + RK.top + ' this week', K.r && (!K.pv || K.r < K.pv) ? UI_GOLD : K.r ? UI_TEXT : UI_ORANGE); } } /* 3.0 (§4.1): this week's rank */
   if (pro && rec.pay != null) add('coin', (rec.playoff ? 'Playoff check ' : 'Game check ') + fmtMoney(rec.pay) + (rec.endorse ? ' · sponsors ' + fmtMoney(rec.endorse) : ''), UI_TEXT);
   const fg = pro ? rec.fameGain : null; if (fg) add('star', 'Fame ' + (fg > 0 ? '+' : '−') + Math.abs(fg) + ' (' + Math.round(B.fame || 0) + ')', fg > 0 ? UI_TEXT : UI_ORANGE); else if (!pro && rec.won && (B.fame || 0) > 0) add('star', 'Fame ' + Math.round(B.fame), UI_DIM);
   if (pro && rec.tv != null) add('star', 'National TV: fame ' + (rec.tv >= 0 ? '+' : '−') + Math.abs(rec.tv).toFixed(1) + ' (twice the usual)', rec.tv >= 0 ? UI_GOLD : UI_ORANGE);
@@ -12439,10 +12456,11 @@ function homeData(c) {
     const tour = L.format === 'district' ? 'THE STATE PLAYOFFS' : conf ? 'THE CONFERENCE TOURNAMENT' : L.format === 'jv' ? 'THE JV SEASON\'S END' : 'THE PLAYOFFS';
     out.next = po ? { label: L.done ? 'SEASON OVER' : (conf && po.round >= 31 ? 'THE NATIONAL TOURNAMENT' : tour.replace(/^THE /, '')), weeks: 0, now: !L.done } : { label: tour, weeks: Math.max(0, n - L.week) };
   } catch (e) { /* HOME's extras are decoration */ }
+  try { if (rkFill(c)) { out.rk = rkMeRow(c); out.oppNat = rkOppRank(c); } } catch (e) { /* (the rankings: decoration here too) */ } // 3.0 (§4.1): you and your team, ranked by how you play
   return out;
 }
 function nextEventText(N) { return !N ? '' : N.now ? N.label : N.weeks <= 0 ? N.label + ': THIS WEEK' : N.label + ' IN ' + N.weeks + ' WEEK' + (N.weeks === 1 ? '' : 'S'); }
-function seasonLineText(D) { return [D.week, D.rec ? D.rec : '', D.teamRank ? 'TEAM #' + D.teamRank : '', D.meRank ? 'YOU #' + D.meRank : ''].filter(Boolean).join(' · '); }
+function seasonLineText(D) { const K = D.rk; return [D.week, D.rec ? D.rec : '', K ? (K.jv ? 'JV' : 'TEAM ' + rkText(K.tr)) : '', K ? 'YOU ' + rkText(K.r) : ''].filter(Boolean).join(' · '); } // 3.0 (§4.1): your team's rank and yours (NR: not in the top 100)
 
 // --- HOME: layout ---
 function homeLayout(ui, box) {
@@ -12523,7 +12541,7 @@ function drawHomeCard(ctx, ui, H, D, C, t) {
   if (!O) { ui.heading(ctx, H.idleTitle || 'NO GAME', cx, top + (h - (P ? 40 : 4)) * 0.36, P ? 30 : 28, UI_TEXT, 'center', w - 40); if (H.idleText) { ctx.font = fontStr(P ? 18 : 15, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, H.idleText, cx, top + (h - 40) * 0.36 + 30, w - 60, P ? 24 : 21); } if (H.idleDraw) H.idleDraw(ctx, t); return; }
   ui.label(ctx, O.label || 'NEXT', cx, top + 18, P ? 15 : 13, H.bench ? UI_ORANGE : UI_CYAN, 'center', w - 30);
   const vs = 'vs ' + String(O.def.name || '').toUpperCase(), vsz = fitFont(ctx, vs, w - 60, P ? 28 : 30, true); kitStamp(ctx, vs, cx, top + 46, vsz, [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
-  const chips = []; if (D.oppRank) chips.push(['#' + D.oppRank + ' IN THE TABLE', 'rgba(8,12,36,0.85)', UI_TEXT, 'record']); if (H.oppCard && H.oppCard.ovr != null) chips.push(['OVR ' + H.oppCard.ovr, 'rgba(94,224,255,0.9)', UI_INK, 'ovr']);
+  const chips = []; if (D.oppNat) chips.push(['RANKED #' + D.oppNat, 'rgba(255,210,63,0.92)', UI_INK, 'rank']); else if (D.oppRank) chips.push(['#' + D.oppRank + ' IN THE TABLE', 'rgba(8,12,36,0.85)', UI_TEXT, 'record']); /* 3.0: the opponent's national rank first */ if (H.oppCard && H.oppCard.ovr != null) chips.push(['OVR ' + H.oppCard.ovr, 'rgba(94,224,255,0.9)', UI_INK, 'ovr']);
   if (H.spot) chips.push(['SPOT START', UI_GREEN, UI_INK]); if (H.bench) chips.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.playoff) chips.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.boss) chips.push(['BOSS', '#FFD23F', UI_INK]); if (O.where) chips.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); if (H.gpaWarn) chips.unshift([H.gpaWarn[0], H.gpaWarn[1], UI_INK]);
   const cs = P ? 14 : 12; ctx.font = fontStr(cs, true); let cw = chips.reduce((a, c) => a + ctx.measureText(c[0]).width + cs * 1.3 + 6, -6); while (cw > w - 30 && chips.length > 2) { chips.pop(); cw = chips.reduce((a, c) => a + ctx.measureText(c[0]).width + cs * 1.3 + 6, -6); }
   let px = cx - cw / 2; const py = top + 74; for (const ch of chips) { const cwi = kitChip(ctx, ch[0], px, py, { size: cs, fill: ch[1], color: ch[2], stroke: false }); if (ch[3]) statHot(ctx, ch[3], px, py - cs, cwi, cs * 2); px += cwi + 6; }
@@ -12536,14 +12554,14 @@ function drawHomeCard(ctx, ui, H, D, C, t) {
 }
 
 // --- LEAGUE: the table and the league's pages ---
-function leagueTabWidgets(game, box, links) { const ui = game.ui, P = ui.phone, out = [], x = box.x + (P ? 772 : 742) + 16, w = box.x + box.w - 16 - x, bh = P ? tapH(ui, 44) : 50, gap = 10, cols = P && links.length > 3 ? 2 : 1, cw = (w - gap * (cols - 1)) / cols; let y = box.y + (P ? 16 : 50); links.forEach((b, i) => out.push(Object.assign(b, { x: x + (i % cols) * (cw + gap), y: y + Math.floor(i / cols) * (bh + gap), w: cw, h: bh }))); return out; }
-function drawLeagueTab(ctx, ui, H, t, box) {
-  const P = ui.phone, lw = P ? 760 : 730, D = H.home || {}; kitPanel(ctx, box.x, box.y, lw, box.h); kitPanel(ctx, box.x + lw + 12, box.y, box.w - lw - 12, box.h); if (!P) kitHeader(ctx, 'The league', box.x + lw + 28, box.y + 26, box.w - lw - 56);
-  const x = box.x + 16, w = lw - 32; let y = box.y + (P ? 26 : 28); kitHeader(ctx, (H.tableTitle || 'Standings') + (D.week ? ' · ' + D.week : ''), x, y, w); y += P ? 36 : 32;
-  const rows = H.table || [], rh = P ? 34 : 28, n = Math.max(1, Math.floor((box.y + box.h - 16 - y) / rh)); let shown = rows.slice(0, n); const mi = rows.findIndex(r => r.me); if (mi >= n) shown[n - 1] = rows[mi];
-  ui.heading(ctx, '#', x, y, P ? 14 : 12, UI_CYAN); ui.heading(ctx, 'W-L', x + w - 80, y, P ? 14 : 12, UI_CYAN, 'right'); ui.heading(ctx, 'OVR', x + w, y, P ? 14 : 12, UI_CYAN, 'right'); y += rh;
-  for (const r of shown) { if (!r) continue; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.14)'; ctx.fillRect(x - 6, y - rh / 2, w + 12, rh); } ui.heading(ctx, String(r.rank), x, y, P ? 15 : 13, r.me ? UI_GOLD : UI_DIM); ui.label(ctx, r.name + (r.sub ? ' · ' + r.sub : ''), x + 44, y, P ? 16 : 13, r.me ? UI_GOLD : UI_TEXT, 'left', w - 44 - 170); ui.heading(ctx, r.wl, x + w - 80, y, P ? 15 : 13, r.me ? UI_GOLD : UI_TEXT, 'right'); ui.label(ctx, r.ovr != null ? String(r.ovr) : '', x + w, y, P ? 15 : 13, UI_DIM, 'right'); y += rh; }
-  if (!rows.length) ui.label(ctx, 'No table right now.', x, y, 14, UI_DIM);
+function leagueTabWidgets(game, box, links) { const ui = game.ui, P = ui.phone, out = []; if (P && links.length > 6) { const rest = links.slice(5); links = links.slice(0, 5).concat([btn('MORE…', 0, 0, 0, 0, () => game.ui.push(homeMoreScreen(game, rest.map(b => [b.label, b.onPress]))))]); } /* a phone: five doors and MORE… */ const x = box.x + (P ? 772 : 742) + 16, w = box.x + box.w - 16 - x, bh = P ? tapH(ui, 44) : 50, gap = 10, cols = links.length > (P ? 3 : 6) ? 2 : 1, cw = (w - gap * (cols - 1)) / cols; let y = box.y + (P ? 16 : 50); links.forEach((b, i) => out.push(Object.assign(b, { x: x + (i % cols) * (cw + gap), y: y + Math.floor(i / cols) * (bh + gap), w: cw, h: bh }))); return out; }
+function drawLeagueTab(ctx, ui, H, t, box) { // 3.0 (§4.2): the standings (W-L, PCT, streak) and where you're ranked; the charts behind the doors
+  const P = ui.phone, lw = P ? 760 : 730, D = H.home || {}, c = H.c; kitPanel(ctx, box.x, box.y, lw, box.h); kitPanel(ctx, box.x + lw + 12, box.y, box.w - lw - 12, box.h); if (!P) kitHeader(ctx, 'The charts', box.x + lw + 28, box.y + 26, box.w - lw - 56);
+  const x = box.x + 16, w = lw - 32; let y = box.y + (P ? 26 : 28); const pro = !!(c && isPro(c)), conf = pro && meOf(c) ? frConf(meOf(c).club) : null; let rows = []; try { rows = c ? standRows(c, conf) : []; } catch (e) { rows = []; }
+  kitHeader(ctx, (pro ? conf + ' conference' : H.tableTitle || 'Standings') + (D.week ? ' · ' + D.week : ''), x, y, w); y += P ? 30 : 26;
+  const me = c ? rkMeRow(c) : null, foot = me ? (P ? 44 : 36) : 0, rh = P ? 36 : 29, n = Math.max(1, Math.floor((box.y + box.h - 12 - foot - y) / rh) - 1); let shown = rows.slice(0, n); const mi = rows.findIndex(r => r.me); if (mi >= n) shown[n - 1] = rows[mi];
+  if (!rows.length) { ui.label(ctx, 'No table right now.', x, y + 10, 14, UI_DIM); } else chartTable(ctx, ui, { x, w }, y, [{ h: '#', w: P ? 48 : 40, v: r => r.rank, c: r => r.me ? UI_GOLD : UI_DIM }, { h: pro ? 'TEAM' : 'TEAM · PLAYER', w: 0, v: r => pro ? r.team : r.team + (r.player ? ' · ' + r.player : '') }, { h: 'W-L', w: P ? 90 : 74, al: 'r', v: r => r.w + '-' + r.l, bold: true }, { h: 'PCT', w: P ? 88 : 66, al: 'r', v: r => pct3(r.pct) }, { h: 'STRK', w: P ? 80 : 62, al: 'r', v: r => r.strk, c: r => /^W/.test(r.strk) ? UI_GREEN : /^L/.test(r.strk) ? UI_RED : UI_DIM }], shown, rh, { size: P ? 16 : 13 });
+  if (me) { const fy = box.y + box.h - foot / 2 - 6, mv = rkMoveText(me.r, me.pv), mt = rkMoveText(me.tr, me.tpv); ctx.fillStyle = 'rgba(8,12,36,0.6)'; ctx.fillRect(box.x + 8, fy - foot / 2 + 4, lw - 16, foot - 8); ui.heading(ctx, 'RANKED', x, fy, P ? 14 : 12, UI_CYAN, 'left', 100); const rw0 = rbDrawWidth(ctx, 'RANKED') + 14; ctx.font = fontStr(P ? 16 : 14, true); ui.label(ctx, rbFirstFit(ctx, ['You ' + rkText(me.r) + (mv && me.r ? ' ' + mv : '') + ' · your team ' + rkText(me.tr) + (mt && me.tr ? ' ' + mt : '') + ' · ' + (me.lv === 'pro' ? 'the PBL' : me.lv === 'college' ? 'college' : 'the nation'), 'You ' + rkText(me.r) + ' · your team ' + rkText(me.tr)], w - rw0), x + rw0, fy, P ? 16 : 14, UI_GOLD, 'left', w - rw0); statHot(ctx, 'rank', box.x + 8, fy - foot / 2 + 4, lw - 16, foot - 8); }
 }
 // --- EVENTS: the calendar and what's coming (3.0 §5's tournaments come in X6) ---
 function eventsTabWidgets(game, box, links) { const ui = game.ui, P = ui.phone, out = [], bh = P ? tapH(ui, 44) : 50, gap = 10, n = links.length; if (!n) return out; const w = (box.w - gap * (n - 1)) / n; links.forEach((b, i) => out.push(Object.assign(b, { x: box.x + i * (w + gap), y: box.y + box.h - bh, w, h: bh }))); return out; }
@@ -13493,7 +13511,7 @@ function finishWeek(c, rec) {
   if (pblOn(c)) { pblRacesWeek(c); try { lgTonightWeek(c); lgTradeWeek(c, rng); lgPowerUpdate(c); lgMeddleWeek(c, rng); } catch (e) { console.warn('[life] week', e && e.message); } } /* 2.1 (§3.2): the weekly MVP ladder; W6: a trade before the deadline, the power rankings */
   weeklyFinance(c, rec); weeklyEndorsementOffers(c);
   if (c.me.fame > CR.fame.decayAbove) c.me.fame -= CR.fame.decay * (c.me.fame - CR.fame.decayAbove);
-  c.week++; if (pblOn(c)) pblWeekNews(c); /* 2.1 (§3.2): the deadline, national TV */
+  rkProWeek(c); /* 3.0 (§4.1): the week's rankings */ c.week++; if (pblOn(c)) pblWeekNews(c); /* 2.1 (§3.2): the deadline, national TV */
   if (c.week === pblAllStarAt(c) && !c.allStar) { c.allStar = setupAllStar(c); if (!c.allStar.invited) finishAllStar(c, null); if (!c.allStar.invited1) allStar1v1Advance(c, true); } /* 2.1: the All-Star break before week 8's game */
   if (c.week >= c.schedule.length) { startPlayoffs(c); }
 }
@@ -13608,7 +13626,7 @@ function endSeason(c) {
   if (champ === c.meId) frCheckGoals(c, 'title'); /* F7 */ aw.stars = {}; for (const id of frIds()) aw.stars[id] = frStars(c, id); { let H = null; try { H = frSeasonHistory(c, champ, FM.name); aw.champRun = H.streak; } catch (e) { /* the history is decoration */ } if (champ === c.meId) frTitleEvents(c, H, FM); } /* V12 (Part 2 §6): the banner, the fans, the runs; your parade, ring and banner */ frSeasonEnd(c); /* F7: prestige follows the standings (aw.stars: this season's) */
   aw.mine = mine; c.history.unshift(aw); if (mine.length) (c.events || (c.events = [])).push({ kind: 'ceremony', title: 'AWARDS NIGHT', sub: 'The PBL · season ' + c.season, rows: proCeremonyRows(c, aw).concat(champ === c.meId ? [{ award: 'PBL Champion', name: meOf(c).name + ' · ' + clubOf(meOf(c).club).name, mine: true }] : []) }); /* V8 (2.0 §4.9): the awards ceremony */ mediaFill(c); for (const m of mine) tlAdd(c, m === 'Champion' ? 'title' : 'award', (m === 'Champion' ? 'PBL champion' : m) + ' · ' + clubOf(me.club).name);
   const s = c.stats[c.meId], st = c.standings[c.meId], g = Math.max(1, s.g);
-  c.me.seasonLog.unshift({ season: c.season, age: me.age, club: me.club, ovr: recOvr(me), g: s.g, w: st.w, l: st.l, ppg: +(s.pts / g).toFixed(1), rpg: +(s.reb / g).toFixed(1), spg: +(s.stl / g).toFixed(1), bpg: +(s.blk / g).toFixed(1), fg: s.fga ? Math.round(100 * s.fgm / s.fga) : 0, tp: s.tpa ? Math.round(100 * s.tpm / s.tpa) : 0, rank: standingsSorted(c).indexOf(c.meId) + 1, playoff: c.me.playoffResult || '—', awards: mine.slice(), ovr0: c.me.ovrSeasonStart, chW: c.chalRec && c.chalRec.season === c.season ? c.chalRec.w : 0, chL: c.chalRec && c.chalRec.season === c.season ? c.chalRec.l : 0, bench: c.me.benchSeason || 0 }); // V1 (§1.12); V12: bench weeks (a franchise player has none)
+  c.me.seasonLog.unshift({ season: c.season, age: me.age, club: me.club, ovr: recOvr(me), g: s.g, w: st.w, l: st.l, ppg: +(s.pts / g).toFixed(1), rpg: +(s.reb / g).toFixed(1), spg: +(s.stl / g).toFixed(1), bpg: +(s.blk / g).toFixed(1), fg: s.fga ? Math.round(100 * s.fgm / s.fga) : 0, tp: s.tpa ? Math.round(100 * s.tpm / s.tpa) : 0, rank: standingsSorted(c).indexOf(c.meId) + 1, playoff: c.me.playoffResult || '—', awards: mine.slice(), ovr0: c.me.ovrSeasonStart, chW: c.chalRec && c.chalRec.season === c.season ? c.chalRec.w : 0, chL: c.chalRec && c.chalRec.season === c.season ? c.chalRec.l : 0, bench: c.me.benchSeason || 0 }); Object.assign(c.me.seasonLog[0], rkSeasonEnd(c)); /* 3.0 (§4.1): the season's final ranks */ // V1 (§1.12); V12: bench weeks (a franchise player has none)
   if (pblOn(c)) { try { lgSeasonCareers(c, aw); aw.records = lgRecordsCheck(c); aw.camp = lgCampCheck(c, aw); aw.incentives = lgIncentivesPay(c, aw); } catch (e) { console.warn('[life] season end', e && e.message); } c.offseason = { v: 2, step: 0, awards: aw, prog: null, ret: null, rows: lgRowsSnapshot(c), ticker: [] }; return; } /* 2.1 (§3.3, W6): the offseason in seven steps */
   c.offseason = { step: 0, awards: aw, prog: null, moves: null, fa: null };
 }
@@ -13794,7 +13812,7 @@ function amSimPts(rng, SS, c, opp) {
 }
 function amSimScore(rng, a, b) { const aw = rng.next() < amWinP(a, b), W = Math.max(2, Math.round(CR.simWinPts * careerSecs() / 60 * (0.75 + 0.5 * rng.next()))); let lose = Math.floor(W * (0.35 + rng.next() * 0.55)); if (lose === 1) lose = W > 2 ? 2 : 0; return aw ? [W, lose] : [lose, W]; }
 function amOvrOf(c, id) { if (id === 'me') return amOvr(c); const o = amOppById(c, id); return o ? ovrOf(o.r, o.height) : 50; }
-function amSimWeek(c, rng, skipId) { if (c.league && c.league.rounds && c.league.rounds.length) return hsSimRound(c, rng); /* R5: the district's fixed rounds */ const others = rng.shuffle(c.league.opps.filter(o => o.id !== skipId)); for (let i = 0; i + 1 < others.length; i += 2) { const a = others[i], b = others[i + 1]; const sc = amSimScore(rng, ovrOf(a.r, a.height), ovrOf(b.r, b.height)); amRec(a.rec, sc[0], sc[1]); amRec(b.rec, sc[1], sc[0]); } }
+function amSimWeek(c, rng, skipId) { if (c.league && c.league.rounds && c.league.rounds.length) return hsSimRound(c, rng); /* R5: the district's fixed rounds */ const others = rng.shuffle(c.league.opps.filter(o => o.id !== skipId)); for (let i = 0; i + 1 < others.length; i += 2) { const a = others[i], b = others[i + 1]; const sc = amSimScore(rng, ovrOf(a.r, a.height), ovrOf(b.r, b.height)); amRec(a.rec, sc[0], sc[1]); amRec(b.rec, sc[1], sc[0]); rkAmPair(c, a, b, sc[0], sc[1]); } }
 function logPpgN(e) { return e ? (e.ppgN != null ? e.ppgN : e.ppg || 0) : 0; } // F5: a season's points a game per the old game length (older seasons were that length)
 function amSimSeries(c, rng, a, b) { return rng.next() < amWinP(amOvrOf(c, a), amOvrOf(c, b)) ? a : b; }
 function amStartPlayoffs(c, rng) {
@@ -13814,7 +13832,7 @@ function amAdvancePlayoffs(c, rng, won) {
 // ---------------- a game: results, stats and development ----------------
 function amApplyResult(c, opp, my, their, st, simmed) {
   const rng = amRng(c); const L = c.league; const won = my > their; const po = L.playoffs, poRound = po ? po.round : 0; const ovrBefore = amOvr(c); const spot = !!(c.team && !isStarter(c)); /* V5: a spot start */ /* poRound: the round played (advancing changes po.round) */ if (c.team) { if (won) c.team.w++; else c.team.l++; } // the team's record is yours
-  if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); // R6: marquee games count overall, not in the conference
+  if (!po) { rkFill(c); if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); rkAmGame(c, opp, my, their, st); rkAmWeek(c); /* 3.0 (§4.1): the week's rankings */ } else if (L.all) amRec(L.all, my, their); // R6: marquee games count overall, not in the conference
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0, marquee: !!opp.marquee });
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
   const grade = gradeFor(st, won, gameScale('pro')); /* V6: the grade pays XP (CR.gradeXp); the pro scale, like the league's lines */ L.games[L.games.length - 1].grade = grade; const slump = slumpAfterGame(c, grade); /* V6 (§1.2) */
@@ -13861,7 +13879,7 @@ function amSimBenchGame(c) {
   const opp = g.opp, rng = amRng(c), L = c.league, po = L.playoffs, poRound = po ? po.round : 0, stg = AMC.stages[c.stage] || AMC.stages.hs;
   const sc = amSimScore(rng, tmMateOvr(m) + trSimEdge(m, !!g.playoff), ovrOf(opp.r, opp.height) + trSimEdge(opp, !!g.playoff)); const my = sc[0], their = sc[1], won = my > their; mediaFill(c); fameWeek(c, c.fame, false, false); /* the teammate plays: no big performance from the bench */
   if (c.team) { if (won) c.team.w++; else c.team.l++; }
-  if (!po) { if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); } else if (L.all) amRec(L.all, my, their); if (L.format === 'conf') L.benchWeeks = (L.benchWeeks || 0) + 1; // R6: marquee games count overall; the portal counts bench weeks
+  if (!po) { rkFill(c); if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); rkAmGame(c, opp, my, their, null); rkAmWeek(c); /* 3.0 (§4.1): your team's game, the week's rankings */ } else if (L.all) amRec(L.all, my, their); if (L.format === 'conf') L.benchWeeks = (L.benchWeeks || 0) + 1; // R6: marquee games count overall; the portal counts bench weeks
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: poRound, bench: m.name, ineligible: inel, marquee: !!opp.marquee });
   newsAdd(c, (po ? 'Playoffs: ' : '') + teamShort(c.team.name) + ' (' + m.name + ') ' + (won ? 'beat ' : 'lost to ') + (opp.team ? teamShort(opp.team) + ' (' + opp.name + ')' : opp.name) + ' ' + Math.max(my, their) + '–' + Math.min(my, their) + '. ' + c.name + ' did not play' + (inel ? ' (academically ineligible).' : '.'), 'result');
   const ovr0 = amOvr(c), bd = benchDevelop(c); const wk = wkBenchWeek(c); hsGradeWeek(c); colAfterWeek(c, rng, opp, false, null, null); /* R6: NIL appearances */ if (inel) c.ineligible--; trustAfterWeek(c, wk.plan, wk.fatigueBefore); if (!inel) ladderBenchStory(c);
@@ -13886,7 +13904,8 @@ function amEndSeason(c, rng, champ) {
   for (const a of awards) { c.awards.push('Season ' + c.season + ': ' + a); if (a === 'District champion' || a === 'Conference champion' || a === 'Conference tournament champion') continue; /* its news and timeline came with the title */ newsAdd(c, c.name + (/champion/.test(a) ? ' and ' + (c.stage === 'college' ? c.college : c.school) + ' win the title!' : ': ' + a + '.'), 'award'); tlAdd(c, /champion/.test(a) ? 'title' : 'award', a + (c.stage === 'college' ? ' · ' + c.college : ' · ' + c.school)); }
   mediaFill(c); fameSeasonEnd(c);
   const fin = hsFinish(c), jv = c.seasonJv; c.log.push({ season: c.season, age: c.age, stage: c.stage, label: amStageLabel(c), w: L.me.w, l: L.me.l, rank, size, ppg: Math.round(ppg * 10) / 10, ppgN: Math.round(ppg / gameScale(c.stage) * 10) / 10, /* F5: per the old game length */ fg: Math.round(fg), ovr: amOvr(c), height: c.height, awards, champ: !!champ, squad: c.stage === 'hs' ? c.squad : undefined, finish: fin || undefined, jv: jv ? jv.w + '-' + jv.l : undefined, g: S.g, ovr0: c.ovrSeasonStart, chW: c.chalRec && c.chalRec.season === c.season ? c.chalRec.w : 0, chL: c.chalRec && c.chalRec.season === c.season ? c.chalRec.l : 0 }); // V1 (§1.12): games played, the OVR it started at, the challenges
-  const lines = [(fmt === 'jv' ? 'JV record ' : jv ? 'JV ' + jv.w + '-' + jv.l + ', called up · varsity ' : 'Record ') + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · ' + (fmt === 'district' ? 'STATE CHAMPIONS!' : fmt === 'conf' ? 'NATIONAL CHAMPIONS!' : 'CHAMPIONS!') : fin && (fmt === 'district' || fmt === 'conf') ? ' · ' + fin : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'];
+  const fr = rkSeasonEnd(c); Object.assign(c.log[c.log.length - 1], fr); /* 3.0 (§4.1): the season's final ranks */
+  const lines = [(fmt === 'jv' ? 'JV record ' : jv ? 'JV ' + jv.w + '-' + jv.l + ', called up · varsity ' : 'Record ') + L.me.w + '-' + L.me.l + ' · finished #' + rank + ' of ' + size + (champ ? ' · ' + (fmt === 'district' ? 'STATE CHAMPIONS!' : fmt === 'conf' ? 'NATIONAL CHAMPIONS!' : 'CHAMPIONS!') : fin && (fmt === 'district' || fmt === 'conf') ? ' · ' + fin : ''), awards.length ? 'Awards: ' + awards.join(', ') : 'No awards this season.', 'Season: ' + (Math.round(ppg * 10) / 10) + ' points per game · ' + Math.round(fg) + '% FG'].concat([rkSeasonLine(c, fr)].filter(Boolean));
   const grow = amOffseason(c, rng, lines); c.season++; lines.push(amScoutLine(c));
   const before = c.events.length; amAfterSeason(c, rng, lines);
   c.events.splice(before, 0, { kind: 'recap', title: 'SEASON ' + (c.season - 1) + ' RECAP', lines, grow }); const gc = amGrowthCard(c, grow); if (gc) c.events.splice(before + 1, 0, gc);
@@ -14116,7 +14135,7 @@ function frCheckGoals(c, why) {
 
 // ---------------- the season's end: prestige follows the standings ----------------
 function frSeasonEnd(c) {
-  const T = frTable(c), order = standingsSorted(c), n = order.length, champ = c.playoffs && c.playoffs.champion, before = {}; for (const id in T) before[id] = T[id].stars;
+  const T = frTable(c), order = rkProTeamOrder(c) /* 3.0 (§4.1): stars follow the team rankings */, n = order.length, champ = c.playoffs && c.playoffs.champion, before = {}; for (const id in T) before[id] = T[id].stars;
   for (let i = 0; i < n; i++) { const p = c.players[order[i]]; const F = p && T[p.club]; if (!F) continue; const fin = 1 - i / Math.max(1, n - 1) + (order[i] === champ ? FRN.titleBoost : 0); F.p = FRN.keep * F.p + (1 - FRN.keep) * fin; }
   frAssignStars(T, pblOn(c) ? FRN.eliteHold : 0); frSyncFacilities(c); const moved = []; /* (2.1: the elite tier holds through a down year) */
   for (const id in T) if (T[id].stars !== before[id]) { moved.push({ id, from: before[id], to: T[id].stars }); pushNews(c, 'The ' + clubOf(id).name + (T[id].stars > before[id] ? ' rise to ' : ' fall to ') + T[id].stars + '★.', 'league'); }
@@ -15385,6 +15404,244 @@ function wkSplitOf(c) { const B = holderOf(c), f = (B && wkFocusNow(B, wkRatings
 // The rating you've trained most lately (Auto moves around): the offseason's focus growth and the league's bonus XP go to it.
 function trainedFocusOf(B) { const N = (B && B.trainN) || {}; let best = null; for (const f in N) if (CR.trainFocus[f] && (!best || N[f] > N[best])) best = f; return best || (B && CR.trainFocus[B.focus] ? B.focus : 'shooting'); }
 function wkFocusMul(B) { return B && B.wk && B.wk.done === 'practice' ? WK.practiceFocusMul : 1; }
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 9r) — 3.0 (§4.1): rankings come from how people play. Every week each level ranks
+// its players (a top 100: high school's nation, college's 64 programs, the PBL) and its teams from the season's games:
+// players by points a game, efficiency (FG%, turnovers), wins and the opponents' strength; teams by record, point
+// margin and the opponents' strength. Never from a hidden OVR. In this 1v1 world a team plays its games through its
+// starter, so a level's pool is its teams' starters: your league's (their real games) and the nation's (a game a week
+// against a schedule's opponent, a stat line each). The PBL ranks its whole league from its own lines. A team's stars
+// follow its ranking at the season's end. The regular season counts; the playoffs and tournaments don't (yet).
+// c.rk = { v, lv, season, wk (the weeks ranked), nid, P: { id: player }, T: { id: team }, hist: [{ w, r, t }], last }
+// An amateur player: { n (name), tm (team id), k ('me' | 'd' your league | 'n' the nation), y (class year), o (the
+// nation's strength), h (height), st (style), e: { sho, fin, han, jmp } (their lines' shape), g, w, l, pts, pa, fgm,
+// fga, tpm, tpa, reb, stl, blk, to, os (opponents' strength, summed), pre (preseason points), r (rank, 0 unranked), pv
+// (last week's) }. A team: { n, pr (prestige 0–1), jv, g, w, l, pf, pa, os, pre, r, pv, stars }. A pro player or club:
+// { r, pv, pre, last } (their lines are the league's: c.stats, c.standings, c.results).
+// ============================================================================
+const RK = CONFIG.rank;
+const RK_TOWNS = ['Ambervale', 'Amberwick', 'Barrowmere', 'Bellcastle', 'Brackenmoor', 'Briarstone', 'Calderwood', 'Carrowgate', 'Copperdell', 'Dunmerrow', 'Eldermoor', 'Emberfield', 'Fallowmere', 'Fenwarden', 'Foxmarrow', 'Galewood', 'Glimmerford', 'Gravenhollow', 'Harrowmere', 'Hollowmarch', 'Ironmere', 'Juniperfell', 'Kestrelmoor', 'Larchvale', 'Lindenmere', 'Marrowgate', 'Mistral Bay', 'Mossbridge', 'Northmarrow', 'Oakenfold', 'Orrinwood', 'Pellmoor', 'Quillfield', 'Ravenmere', 'Redfern Hill', 'Rookhaven', 'Saltwren', 'Sablewood', 'Silvermarch', 'Stonewhistle', 'Tamsinford', 'Thistlemoor', 'Underfell', 'Valewarden', 'Westerholt', 'Whistledown', 'Wrenmarch', 'Yarrowdale']; // (invented: none is a real school)
+const RK_SUFFIX = ['High', 'Prep', 'Academy', 'Central', 'Christian', 'Tech'];
+const RK_LINE = ['g', 'w', 'l', 'pts', 'pf', 'pa', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk', 'to', 'os'];
+// The level a career ranks at now: 'hs', 'college' or 'pro' (null between them: the combine).
+function rkLevel(c) { if (!c) return null; if (isPro(c)) return 'pro'; return c.stage === 'hs' || c.stage === 'college' ? c.stage : null; }
+function rkRng(c, key) { return new RNG((hashString(((c && c.seed) >>> 0) + ':rk:' + key) >>> 0) || 11); } // (its own stream: the rankings never move a career's other dice)
+function rkZero(o) { for (const k of RK_LINE) o[k] = 0; return o; }
+// The ranking's state for this level and season (made, rolled over or backfilled as needed). null between levels.
+function rkFill(c) {
+  const lv = rkLevel(c); if (!lv) return c && c.rk && c.rk.v === 1 ? c.rk : null;
+  let R = c.rk; if (!R || typeof R !== 'object' || R.v !== 1) R = c.rk = { v: 1, lv: null, season: null, wk: 0, nid: 0, P: {}, T: {}, hist: [], last: null };
+  let fresh = false; if (R.lv !== lv) { rkNewLevel(c, R, lv); fresh = true; } else if (R.season !== c.season) { rkNewSeason(c, R); fresh = true; }
+  if (lv !== 'pro') { rkSyncLeague(c, R); if (fresh) rkBackfill(c, R); }
+  return R;
+}
+// A pool made mid-season (a save from before 3.0's rankings): your line and your league's records so far (a line a
+// game, turnovers estimated), and the nation's weeks played to catch up.
+function rkBackfill(c, R) {
+  const L = c.league; if (!L || !L.schedule) return; const weeks = L.playoffs || L.done ? L.schedule.length : L.week; if (!(weeks > 0) || R.wk >= weeks) return;
+  const rng = rkRng(c, c.season + ':backfill'), S = c.seasonStats || {}, me = R.P.me, mean = amStageMean(c) - (L.format === 'jv' ? HS.jvGap : 0);
+  if (me && S.g && !me.g) { for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) me[k] = S[k] || 0; me.g = S.g; me.w = S.w || 0; me.l = S.g - me.w; for (const x of L.games || []) { if (x.bench || x.po || x.before) continue; me.pa += x.their || 0; const o = amOppById(c, x.opp); me.os += o ? ovrOf(o.r, o.height) : mean; } if (!me.os) me.os = mean * me.g; for (let i = 0; i < me.g; i++) me.to += rkTo(rng, (c.r || {}).han || 50); }
+  const recT = (T, rec) => { if (!T || T.g || !rec) return; T.w = rec.w || 0; T.l = rec.l || 0; T.g = T.w + T.l; T.pf = rec.pf || 0; T.pa = rec.pa || 0; T.os = Math.round(mean * T.g); const s = []; for (let i = 0; i < T.g; i++) s.push(i < T.w ? 'W' : 'L'); T.res = rng.shuffle(s).join(''); }; /* (the order of an old save's results isn't known) */
+  for (const o of L.opps || []) { const p = R.P[o.id], rec = o.rec || {}, g = (rec.w || 0) + (rec.l || 0); if (!p || p.g || !g) continue; for (let i = 0; i < g; i++) rkAdd(p, rkLine(c, rng, p, o.id, Math.max(0, Math.round((rec.pf || 0) / g + rng.gauss() * 2))), i < (rec.w || 0), Math.round((rec.pa || 0) / g), mean); recT(R.T[p.tm], rec); }
+  recT(R.T[rkMyTeamId(c)], c.stage === 'college' ? L.all || L.me : L.me);
+  while (R.wk < weeks) { R.wk++; rkNationWeek(c, R, rkRng(c, c.season + ':' + R.wk + ':nation')); }
+  rkRank(c, R); rkHist(c, R);
+}
+// ---------------- the amateur pools ----------------
+function rkClassMean(lv, y, tierGap) { const M = AMC.stageMean; return lv === 'hs' ? M.hs + M.hsPerYear * (clamp(y, 1, 4) - 1) : M.college + M.collegePerYear * (clamp(y, 1, 4) - 1) + M.collegePerTier * (tierGap || 0); }
+// A nation player (the starter of a school or program): compact, no look (they show by name).
+function rkMakeNat(R, rng, lv, tid, y, ovr, used) {
+  const styles = Object.keys(AM_STYLES), st = rng.pick(styles), base = ARCHETYPES[st].base, avg = RATING_KEYS.reduce((a, k) => a + base[k], 0) / RATING_KEYS.length, r = {};
+  for (const k of RATING_KEYS) r[k] = clamp(Math.round(base[k] * ovr / avg + rng.gauss() * 6), CR.ratingMin, CR.ratingMax);
+  const h = Math.round(clamp(AMC.heightMean + rng.gauss() * 0.08 + (st === 'rimprotector' || st === 'postscorer' ? 0.07 : st === 'playmaker' || st === 'sharpshooter' ? -0.04 : 0) - (lv === 'hs' ? 0.04 : 0), 1.72, 2.2) * 100) / 100;
+  const id = 'n' + (R.nid = (R.nid || 0) + 1); R.P[id] = rkZero({ n: genName(rng, used, new Set()), tm: tid, k: 'n', y, o: Math.round(ovrOf(r, h)), h, st, e: { sho: r.sho, fin: r.fin, han: r.han, jmp: r.jmp }, pre: null, r: 0, pv: 0 }); return id;
+}
+function rkTeam(R, tid, n, extra) { let T = R.T[tid]; if (!T) T = R.T[tid] = rkZero(Object.assign({ n, pr: 0.5, jv: false, pre: null, r: 0, pv: 0, stars: 0 }, extra || {})); else if (n) T.n = n; return T; }
+function rkUsedNames(c, R) { const u = new Set([c.name]); for (const id in R.P) u.add(R.P[id].n); const L = c.league; if (L) for (const k of ['opps', 'nonconf']) for (const o of L[k] || []) u.add(o.name); return u; }
+function rkNewLevel(c, R, lv) {
+  if (R.lv) rkKeepLast(c, R); R.lv = lv; R.season = c.season; R.wk = 0; R.P = {}; R.T = {}; R.hist = [];
+  if (lv === 'pro') { rkProSeason(c, R); return; }
+  const rng = rkRng(c, lv + ':' + c.season), used = rkUsedNames(c, R);
+  if (lv === 'hs') { const names = [], seen = new Set(AM_SCHOOLS); for (let i = 0; names.length < RK.nation.hs && i < 4000; i++) { const nm = rng.pick(RK_TOWNS) + ' ' + rng.pick(RK_SUFFIX); if (!seen.has(nm)) { seen.add(nm); names.push(nm); } }
+    names.forEach((nm, i) => { const tid = 'h:' + nm, pr = Math.round(100 * clamp(0.5 + 0.18 * rng.gauss(), 0.05, 0.95)) / 100; rkTeam(R, tid, nm, { pr }); const y = 1 + (rng.next() < 0.12 ? 0 : rng.next() < 0.25 ? 1 : rng.next() < 0.45 ? 2 : 3); R.T[tid].sp = rkMakeNat(R, rng, 'hs', tid, y, rkClassMean('hs', y) + RK.natMean.hs + 6 * (pr - 0.5) + RK.natSd.hs * rng.gauss(), used); }); }
+  rkSeasonCast(c, R, rng); rkPreseason(c, R);
+}
+// A new season at the same level: the nation's players age (seniors graduate; a school's new starter is a younger
+// one), every line starts again, and last season's points become the preseason poll (halfway back to the middle).
+function rkNewSeason(c, R) {
+  rkKeepLast(c, R); R.season = c.season; R.wk = 0; R.hist = [];
+  if (R.lv === 'pro') { rkProSeason(c, R); return; }
+  const rng = rkRng(c, R.lv + ':' + c.season), used = rkUsedNames(c, R);
+  const L0 = R.L || rkLevelStats(R); for (const id of Object.keys(R.P)) { const p = R.P[id]; if (p.k === 'd') { delete R.P[id]; continue; } p.last = p.g ? Math.round(10 * rkPoints(p, L0)) / 10 : p.last; delete p.played; if (p.k === 'n' && R.lv === 'hs') { p.y++; p.o = Math.round(p.o + AMC.stageMean.hsPerYear + rng.gauss() * 1.5); } }
+  for (const tid in R.T) { const T = R.T[tid]; T.last = T.g ? Math.round(10 * rkTeamPoints(T, R.L || rkLevelStats(R))) / 10 : T.last; rkZero(T); T.r = 0; T.pv = 0; T.res = ''; }
+  if (R.lv === 'hs') for (const tid in R.T) { const T = R.T[tid], p = T.sp && R.P[T.sp]; if (!p) continue; if (p.y > 4) { delete R.P[T.sp]; const y = rng.next() < 0.6 ? 1 : 2; T.sp = rkMakeNat(R, rng, 'hs', tid, y, rkClassMean('hs', y) + RK.natMean.hs + 6 * (T.pr - 0.5) + RK.natSd.hs * rng.gauss(), used); } }
+  for (const id in R.P) { const p = R.P[id]; rkZero(Object.assign(p, { r: 0, pv: 0 })); }
+  if (R.lv === 'college') for (const id of Object.keys(R.P)) if (R.P[id].k === 'n') delete R.P[id]; /* college: every program's starter is new each season (as your conference's are) */
+  rkSeasonCast(c, R, rng); rkPreseason(c, R);
+}
+// This season's league: you, your league's starters ('d') and, in college, a starter for every other program.
+function rkSeasonCast(c, R, rng) {
+  R.P.me = rkZero(Object.assign(R.P.me || {}, { n: c.name, k: 'me', tm: rkMyTeamId(c), y: c.stageYear || 1, r: 0, pv: 0 }));
+  rkSyncLeague(c, R);
+  if (R.lv === 'college') { const mine = rkMyTeamId(c), used = rkUsedNames(c, R), myT = c.collegeTier || 0, L = c.league, inLeague = new Set(); if (L) for (const o of L.opps || []) if (o.prog) inLeague.add('c:' + o.prog);
+    for (const P of COLLEGES) { const tid = 'c:' + P.id; const T = rkTeam(R, tid, P.name, { pr: R.T[tid] ? R.T[tid].pr : Math.round(100 * colPrestige0(P)) / 100 }); if (tid === mine || inLeague.has(tid)) continue; const y = 1 + rng.int(4); T.sp = rkMakeNat(R, rng, 'college', tid, y, Math.round(clamp(amStageMean(c) + AMC.stageMean.collegePerTier * (P.tier - myT) + rng.gauss() * AMC.oppSd, 28, 94)), used); } }
+}
+function colPrestige0(P) { return clamp((P.stars - 1) / 4 * 0.8 + 0.1, 0, 1); }
+function rkMyTeamId(c) { if (c.stage === 'college') { const P = colProgOf(c); return 'c:' + (P ? P.id : String(c.college || 'you')); } return (c.squad === 'jv' ? 'j:' : 'h:') + (c.school || 'Your school'); }
+// Your league's teams and starters, as the league has them now (a JV call-up rebuilds it mid-season).
+function rkSyncLeague(c, R) {
+  const L = c.league; if (!L || !R.P.me) return; const jv = L.format === 'jv', mine = rkMyTeamId(c); R.P.me.tm = mine; R.P.me.n = c.name;
+  rkTeam(R, mine, c.stage === 'college' ? (colProgOf(c) || { name: c.college }).name : (c.school || 'Your school') + (jv ? ' JV' : ''), { jv });
+  for (const o of L.opps || []) { if (R.P[o.id]) continue; const tid = c.stage === 'college' ? 'c:' + (o.prog || o.team || o.id) : (jv ? 'j:' : 'h:') + (o.team || o.name); rkTeam(R, tid, o.team || o.name, { jv }); R.P[o.id] = rkZero({ n: o.name, tm: tid, k: 'd', y: c.stageYear || 1, h: o.height, st: o.style, jv, pre: null, r: 0, pv: 0 }); R.T[tid].sp = o.id; }
+  R.P.me.jv = jv;
+}
+// The preseason poll: last season's points (halfway back to the middle), or a newcomer's reputation (their expected
+// points against their schedule).
+function rkPreseason(c, R) {
+  const L = R.L = rkLevelStats(R), ex = []; for (const id in R.P) { const p = R.P[id]; if (id !== 'me' && p.last == null) { p.pre = Math.round(10 * rkExpect(c, R, p, id)) / 10; ex.push(p.pre); } } ex.sort((a, b) => a - b); if (!L.mid && ex.length) L.mid = ex[Math.floor(ex.length / 2)]; /* (the newcomers' middle, before anyone has played) */
+  for (const id in R.P) { const p = R.P[id]; if (p.last != null) p.pre = Math.round(10 * (0.5 * p.last + 0.5 * L.mid)) / 10; else if (id === 'me') p.pre = Math.round(10 * (L.mid - 2)) / 10; }
+  for (const tid in R.T) { const T = R.T[tid]; T.pre = Math.round(10 * (T.last != null ? 0.5 * T.last : RK.team.win * (T.pr - 0.5) * 0.5)) / 10; }
+  rkRank(c, R);
+}
+function rkOppMean(c, R, p) { if (p.k === 'n') { if (R.lv !== 'hs') return amStageMean(c); const T = R.T[p.tm], vm = rkClassMean('hs', 2.5); return vm + RK.schedPull * ((p.o || vm) - vm) + 6 * ((T && T.pr != null ? T.pr : 0.5) - 0.5); } return amStageMean(c) - (c.league && c.league.format === 'jv' ? HS.jvGap : 0); } // (a nation player's schedule: a varsity's, whatever their class; the best play the best (showcases, a strong school's schedule))
+function rkStrength(c, p, id) { if (id === 'me') return amOvr(c); if (p.k === 'n') return p.o; const o = amOppById(c, id); return o ? ovrOf(o.r, o.height) : rkOppMean(c, c.rk, p); }
+function rkExpect(c, R, p, id) { const W = CR.simWinPts * careerSecs() / 60, pw = amWinP(rkStrength(c, p, id), rkOppMean(c, R, p)); return RK.w.ppg * W * (pw + (1 - pw) * 0.625) + RK.w.win * (pw - 0.5) + RK.w.sos * (rkOppMean(c, R, p) - R.L.mean); }
+// ---------------- a game's line ----------------
+// A stat line for points pts from a player's shape (their ratings; a league opponent's from the league).
+function rkLine(c, rng, p, id, pts) {
+  let e = p.e, h = p.h; if (!e) { const o = id === 'me' ? null : amOppById(c, id); if (o) { e = { sho: o.r.sho, fin: o.r.fin, han: o.r.han, jmp: o.r.jmp }; h = o.height; } else e = { sho: 50, fin: 50, han: 50, jmp: 50 }; }
+  const st = amSimLine({ height: h || 1.9 }, rng, pts, e, 1); st.to = rkTo(rng, e.han); return st;
+}
+function rkTo(rng, han) { const lam = RK.to.base * clamp(RK.to.han - han / 100, 0.3, 1.2); let k = 0, p = Math.exp(-lam), s = p; const u = rng.next(); while (u > s && k < 8) { k++; p *= lam / k; s += p; } return k; } // (a Poisson count)
+function rkAdd(p, st, won, pa, opp) { p.g++; if (won) p.w++; else p.l++; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk', 'to']) p[k] += st[k] || 0; p.pa += pa; p.os += Math.round(opp); }
+function rkTeamAdd(T, pf, pa, opp) { if (!T) return; T.g++; if (pf > pa) T.w++; else T.l++; T.pf += pf; T.pa += pa; T.os += Math.round(opp); T.res = ((T.res || '') + (pf > pa ? 'W' : 'L')).slice(-40); } // (res: the season's results, for the streak and the last five)
+// ---------------- the hooks: your league's games and the week's end ----------------
+// Your regular-season game (st: your line; null when you were on the bench and a teammate played it).
+function rkAmGame(c, opp, my, their, st) {
+  try { const R = rkFill(c); if (!R || R.lv === 'pro' || !opp) return; rkSyncLeague(c, R); const rng = rkRng(c, c.season + ':' + R.wk + ':me'), me = R.P.me, T0 = !R.P[opp.id] && opp.prog ? R.T['c:' + opp.prog] : null, oid = T0 && T0.sp ? T0.sp : opp.id, op = R.P[oid], so = ovrOf(opp.r, opp.height), sm = st ? amOvr(c) : (rkMate(c) || so); /* (a marquee opponent plays as their program's starter) */ if (op && op.k === 'n') op.played = R.wk + 1; /* (their week's game is this one) */
+    if (st && me) rkAdd(me, Object.assign({}, st, { to: st.to != null ? st.to : rkTo(rng, (c.r || {}).han || 50) }), my > their, their, so);
+    if (op) rkAdd(op, rkLine(c, rng, op, oid, their), their > my, my, sm); rkTeamAdd(R.T[rkMyTeamId(c)], my, their, so); if (op) rkTeamAdd(R.T[op.tm], their, my, sm);
+  } catch (e) { console.warn('[rank] game', e && e.message); }
+}
+function rkMate(c) { try { const m = ladderStarterMate(c) || hsSlotMate(c); return m ? tmMateOvr(m) : null; } catch (e) { return null; } }
+// The rest of your league's round (a pair of league starters).
+function rkAmPair(c, A, B, sa, sb) {
+  try { const R = rkFill(c); if (!R || R.lv === 'pro') return; const pa = R.P[A.id], pb = R.P[B.id]; if (!pa || !pb) return; const rng = rkRng(c, c.season + ':' + R.wk + ':' + A.id), oa = ovrOf(A.r, A.height), ob = ovrOf(B.r, B.height);
+    rkAdd(pa, rkLine(c, rng, pa, A.id, sa), sa > sb, sb, ob); rkAdd(pb, rkLine(c, rng, pb, B.id, sb), sb > sa, sa, oa); rkTeamAdd(R.T[pa.tm], sa, sb, ob); rkTeamAdd(R.T[pb.tm], sb, sa, oa);
+  } catch (e) { console.warn('[rank] pair', e && e.message); }
+}
+// The week's end in an amateur league: the nation plays its game and everybody is ranked.
+function rkAmWeek(c) {
+  try { const R = rkFill(c); if (!R || R.lv === 'pro') return; const L = c.league; if (L && L.playoffs) return; R.wk++; rkNationWeek(c, R, rkRng(c, c.season + ':' + R.wk + ':nation')); rkRank(c, R); rkHist(c, R); } catch (e) { console.warn('[rank] week', e && e.message); }
+}
+function rkNationWeek(c, R, rng) {
+  for (const id in R.P) { const p = R.P[id]; if (p.k !== 'n' || p.played === R.wk) continue; const om = rkOppMean(c, R, p) + rng.gauss() * RK.oppSd, sc = amSimScore(rng, p.o, om); rkAdd(p, rkLine(c, rng, p, id, sc[0]), sc[0] > sc[1], sc[1], om); rkTeamAdd(R.T[p.tm], sc[0], sc[1], om); }
+}
+// ---------------- the ranking ----------------
+// The level's averages (FG%, opponents' strength) and its middle (the median ranking points so far).
+function rkLevelStats(R) { let m = 0, a = 0, os = 0, g = 0; for (const id in R.P) { const p = R.P[id]; m += p.fgm || 0; a += p.fga || 0; os += p.os || 0; g += p.g || 0; } const L = { fg: a > 50 ? m / a : 0.47, mean: g ? os / g : (R.lv === 'college' ? AMC.stageMean.college : R.lv === 'hs' ? AMC.stageMean.hs + 1.5 * AMC.stageMean.hsPerYear : 70), mid: 0 }; return L; }
+// A player's ranking points: PPG, efficiency, wins and the opponents' strength (the preseason poll's while the games are few).
+function rkPoints(p, L) {
+  const g = p.g || 0, pre = p.pre != null ? p.pre : L.mid || 0; if (!g) return pre;
+  const fg = ((p.fgm || 0) + L.fg * RK.fgPrior) / ((p.fga || 0) + RK.fgPrior), win = ((p.w || 0) + RK.winPrior / 2) / (g + RK.winPrior);
+  const cur = RK.w.ppg * (p.pts || 0) / g + RK.w.fg * (fg - L.fg) - RK.w.to * (p.to || 0) / g + RK.w.win * (win - 0.5) + RK.w.sos * ((p.os || 0) / g - L.mean);
+  const k = RK.preG / (RK.preG + g); return k * pre + (1 - k) * cur;
+}
+function rkTeamPoints(T, L) { const g = T.g || 0, pre = T.pre != null ? T.pre : 0; if (!g) return pre; const win = ((T.w || 0) + RK.winPrior / 2) / (g + RK.winPrior), cur = RK.team.win * (win - 0.5) + RK.team.diff * ((T.pf - T.pa) / g) + RK.team.sos * ((T.os || 0) / g - L.mean); const k = RK.preG / (RK.preG + g); return k * pre + (1 - k) * cur; }
+// Ranks every player (a player who hasn't played isn't ranked once the season starts) and every team (JV teams aren't).
+function rkRank(c, R) {
+  if (R.lv === 'pro') return rkProRank(c, R); const L = R.L = rkLevelStats(R), pts = {};
+  const P = Object.keys(R.P).filter(id => !R.P[id].jv && (R.wk === 0 ? R.P[id].pre != null : R.P[id].g > 0)); /* (JV players aren't ranked nationally) */ for (const id of P) pts[id] = rkPoints(R.P[id], L);
+  P.sort((a, b) => (pts[b] - pts[a]) || ((R.P[b].pts / Math.max(1, R.P[b].g)) - (R.P[a].pts / Math.max(1, R.P[a].g))) || (a < b ? -1 : 1)); L.mid = P.length ? pts[P[Math.floor(P.length / 2)]] : 0;
+  for (const id in R.P) { const p = R.P[id]; p.pv = p.r || 0; p.r = 0; p.pt = pts[id] != null ? Math.round(pts[id] * 10) / 10 : null; } P.forEach((id, i) => { R.P[id].r = i + 1; });
+  const T = Object.keys(R.T).filter(t => !R.T[t].jv && (R.wk === 0 || R.T[t].g > 0)), tp = {}; for (const t of T) tp[t] = rkTeamPoints(R.T[t], L);
+  T.sort((a, b) => (tp[b] - tp[a]) || (a < b ? -1 : 1)); for (const t in R.T) { const X = R.T[t]; X.pv = X.r || 0; X.r = 0; X.pt = tp[t] != null ? Math.round(tp[t] * 10) / 10 : null; } T.forEach((t, i) => { R.T[t].r = i + 1; });
+}
+function rkShown(r) { return r > 0 && r <= RK.top ? r : 0; }
+function rkHist(c, R) { const me = rkMeRow(c); R.hist.push({ w: R.wk, r: me ? me.r : 0, t: me ? me.tr : 0 }); if (R.hist.length > RK.histWeeks) R.hist.shift(); }
+// Last season's final ranks, kept for its review and charts.
+function rkKeepLast(c, R) { const me = rkMeRow(c); R.last = { season: R.season, lv: R.lv, r: me ? me.r : 0, t: me ? me.tr : 0, hist: (R.hist || []).slice() }; }
+// ---------------- the PBL: its own lines ----------------
+function rkProSeason(c, R) {
+  const L = R.L || { mid: 0 }; for (const id of Object.keys(R.P)) { const p = R.P[id]; p.last = p.pt != null ? p.pt : p.last; p.r = 0; p.pv = 0; }
+  for (const id of c.active || []) { const p = R.P[id] || (R.P[id] = { r: 0, pv: 0, pre: null }); p.pre = p.last != null ? 0.5 * p.last + 0.5 * (L.mid || 0) : null; }
+  for (const id of frIds()) { const T = R.T[id] || (R.T[id] = { r: 0, pv: 0, pre: null }); T.last = T.pt != null ? T.pt : T.last; T.pre = T.last != null ? 0.5 * T.last : null; T.r = 0; T.pv = 0; }
+}
+// A pro's line for the ranking: the league's season line plus the opponents' strength from the weeks' results.
+function rkProLines(c) {
+  const os = {}, pa = {}; for (let w = 0; w < (c.results || []).length && w < c.schedule.length; w++) for (const r of c.results[w] || []) { if (!c.players[r.h] || !c.players[r.a]) continue; os[r.h] = (os[r.h] || 0) + recOvr(c.players[r.a]); os[r.a] = (os[r.a] || 0) + recOvr(c.players[r.h]); pa[r.h] = (pa[r.h] || 0) + r.as; pa[r.a] = (pa[r.a] || 0) + r.hs; }
+  const out = {}; for (const id of c.active || []) { const s = c.stats[id], st = c.standings[id] || NO_STANDING; if (!s) continue; out[id] = { n: c.players[id].name, tm: c.players[id].club, k: id === c.meId ? 'me' : 'p', g: s.g, w: s.w || 0, l: s.l || 0, tw: st.w || 0, tl: st.l || 0, tf: st.pf || 0, ta: st.pa || 0, /* (a team's points for and against: not tpa, the threes) */ pts: s.pts, pa: pa[id] || st.pa || 0, fgm: s.fgm, fga: s.fga, tpm: s.tpm, tpa: s.tpa, reb: s.reb, stl: s.stl, blk: s.blk, to: s.to || 0, os: os[id] || 0 }; } return out;
+}
+function rkProRank(c, R) {
+  const X = rkProLines(c); let m = 0, a = 0, o = 0, g = 0; for (const id in X) { m += X[id].fgm; a += X[id].fga; o += X[id].os; g += X[id].g; } const L = R.L = { fg: a > 50 ? m / a : 0.47, mean: g ? o / g : 75, mid: 0 }, pts = {};
+  const P = Object.keys(X).filter(id => X[id].g > 0 || (R.P[id] && R.P[id].pre != null)); for (const id of P) pts[id] = rkPoints(Object.assign({ pre: R.P[id] ? R.P[id].pre : null }, X[id]), L);
+  P.sort((x, y) => (pts[y] - pts[x]) || (x < y ? -1 : 1)); L.mid = P.length ? pts[P[Math.floor(P.length / 2)]] : 0;
+  for (const id in R.P) { const p = R.P[id]; p.pv = p.r || 0; p.r = 0; } P.forEach((id, i) => { const p = R.P[id] || (R.P[id] = { pre: null }); p.r = i + 1; p.pt = Math.round(pts[id] * 10) / 10; });
+  const T = {}; for (const id in X) { const cl = X[id].tm; if (!cl) continue; T[cl] = { g: X[id].tw + X[id].tl, w: X[id].tw, l: X[id].tl, pf: X[id].tf, pa: X[id].ta, os: X[id].os, pre: R.T[cl] ? R.T[cl].pre : null }; } /* (a team's record is its slot's, bench weeks too; a player's is the games they played) */
+  const ids = Object.keys(T), tp = {}; for (const t of ids) tp[t] = rkTeamPoints(T[t], L); ids.sort((x, y) => (tp[y] - tp[x]) || (x < y ? -1 : 1));
+  for (const t in R.T) { R.T[t].pv = R.T[t].r || 0; R.T[t].r = 0; } ids.forEach((t, i) => { const X2 = R.T[t] || (R.T[t] = { pre: null }); X2.r = i + 1; X2.pt = Math.round(tp[t] * 10) / 10; });
+}
+// The PBL's week's end (finishWeek: the regular season's games are in).
+function rkProWeek(c) { try { if (!isPro(c) || c.phase !== 'regular') return; const R = rkFill(c); if (!R) return; R.wk++; rkProRank(c, R); rkHist(c, R); } catch (e) { console.warn('[rank] pro week', e && e.message); } }
+// The franchises in their team ranking's order, each as its league player (the order frSeasonEnd's stars follow).
+function rkProTeamOrder(c) { const R = rkFill(c); if (!R) return standingsSorted(c); const by = {}; for (const id of c.active) { const p = c.players[id]; if (p) by[p.club] = id; } const ids = Object.keys(R.T).filter(t => R.T[t].r > 0 && by[t]).sort((a, b) => R.T[a].r - R.T[b].r).map(t => by[t]); const rest = standingsSorted(c).filter(id => !ids.includes(id)); return ids.concat(rest); }
+// ---------------- what the screens read ----------------
+// Your row: { r (your rank, 0 unranked), pv, pt, tr (your team's), tpv, of (ranked players), tof } or null.
+function rkMeRow(c) {
+  const R = c && c.rk; if (!R || R.v !== 1) return null; const myId = R.lv === 'pro' ? c.meId : 'me', p = R.P[myId], tid = R.lv === 'pro' ? (meOf(c) || {}).club : rkMyTeamId(c), T = R.T[tid];
+  let of = 0, tof = 0; for (const id in R.P) if (R.P[id].r > 0) of++; for (const t in R.T) if (R.T[t].r > 0) tof++;
+  const cut = rkCutPoints(R); return { r: p ? rkShown(p.r) : 0, pv: p ? rkShown(p.pv) : 0, raw: p ? p.r || 0 : 0, pt: p ? p.pt : null, cut, jv: !!(p && p.jv), g: p && R.lv !== 'pro' ? p.g || 0 : null, tr: T ? rkShown(T.r) : 0, tpv: T ? rkShown(T.pv) : 0, of: Math.min(of, RK.top), tof: Math.min(tof, RK.top), lv: R.lv, wk: R.wk };
+}
+// The points the last ranked player (#100, or the last of a smaller pool) has: what it takes to be ranked.
+function rkCutPoints(R) { let best = null, br = 0; for (const id in R.P) { const p = R.P[id]; if (p.r > 0 && p.r <= RK.top && p.r > br && p.pt != null) { br = p.r; best = p.pt; } } return best; }
+// The players ranked (best first): rows { id, r, pv, n, team, g, w, l, ppg, fg, tp, rpg, spg, bpg, tpg, pt, me }.
+function rkPlayers(c) {
+  const R = rkFill(c); if (!R) return []; const X = R.lv === 'pro' ? rkProLines(c) : R.P, out = [];
+  for (const id in X) { const q = R.lv === 'pro' ? Object.assign({}, X[id], R.P[id] || {}) : X[id]; if (!(q.r > 0 && q.r <= RK.top)) continue; const g = Math.max(1, q.g || 0); out.push({ id, r: q.r, pv: q.pv || 0, n: q.n, team: rkTeamName(c, R, q.tm), tm: q.tm, g: q.g || 0, w: q.w || 0, l: q.l || 0, ppg: (q.pts || 0) / g, fg: q.fga ? q.fgm / q.fga : 0, tp: q.tpa ? q.tpm / q.tpa : 0, rpg: (q.reb || 0) / g, spg: (q.stl || 0) / g, bpg: (q.blk || 0) / g, tpg: (q.to || 0) / g, pt: q.pt, me: q.k === 'me', y: q.y, fga: q.fga || 0, tpa: q.tpa || 0 }); }
+  return out.sort((a, b) => a.r - b.r);
+}
+function rkTeamName(c, R, tm) { if (R.lv === 'pro') { const C = clubOf(tm); return C ? C.name : String(tm || ''); } const T = R.T[tm]; return T ? T.n : ''; }
+// The teams ranked: rows { id, r, pv, n, g, w, l, diff (a game), stars, pt, me }.
+function rkTeams(c) {
+  const R = rkFill(c); if (!R) return []; const mine = R.lv === 'pro' ? (meOf(c) || {}).club : rkMyTeamId(c), out = [];
+  if (R.lv === 'pro') { const X = rkProLines(c); for (const id in X) { const t = X[id].tm, T = R.T[t]; if (!T || !(T.r > 0 && T.r <= RK.top)) continue; const tg = X[id].tw + X[id].tl; out.push({ id: t, r: T.r, pv: T.pv || 0, n: rkTeamName(c, R, t), g: tg, w: X[id].tw, l: X[id].tl, diff: tg ? (X[id].tf - X[id].ta) / tg : 0, stars: frStars(c, t), pt: T.pt, me: t === mine }); } }
+  else for (const t in R.T) { const T = R.T[t]; if (!(T.r > 0 && T.r <= RK.top)) continue; out.push({ id: t, r: T.r, pv: T.pv || 0, n: T.n, g: T.g, w: T.w, l: T.l, diff: T.g ? (T.pf - T.pa) / T.g : 0, stars: T.stars || rkStarsOf(R, T), pt: T.pt, me: t === mine }); }
+  return out.sort((a, b) => a.r - b.r);
+}
+// A team's stars on the list: a college program's (its registry's, or where its rankings have moved it), a school's
+// from its prestige.
+function rkStarsOf(R, T) { if (R.lv === 'college') { const id = String(Object.keys(R.T).find(k => R.T[k] === T) || '').slice(2), P = colProg(id); return P ? colStarsNow(P) : 1; } const p = T.pr || 0; return p >= 0.8 ? 5 : p >= 0.62 ? 4 : p >= 0.42 ? 3 : p >= 0.25 ? 2 : 1; }
+// The season's leaders in a stat: { key: 'ppg' | 'fg' | 'tp' | 'rpg' | 'spg' | 'bpg' } (FG% and 3P% need their shots).
+function rkLeaders(c, key, n) {
+  const rows = rkPlayers(c).concat(rkUnranked(c)), minG = Math.max(1, Math.floor((c.rk ? c.rk.wk : 0) * 0.4)); const ok = r => r.g >= minG && (key === 'fg' ? r.fga >= 5 * r.g : key === 'tp' ? r.tpa >= 1.2 * r.g : true);
+  return rows.filter(ok).sort((a, b) => b[key] - a[key] || a.r - b.r).slice(0, n || 10);
+}
+function rkUnranked(c) { const R = c.rk; if (!R || R.lv === 'pro') return []; const out = []; for (const id in R.P) { const q = R.P[id]; if ((q.r > 0 && q.r <= RK.top) || !q.g || q.jv) continue; const g = q.g; out.push({ id, r: 9999, pv: 0, n: q.n, team: rkTeamName(c, R, q.tm), tm: q.tm, g, w: q.w, l: q.l, ppg: q.pts / g, fg: q.fga ? q.fgm / q.fga : 0, tp: q.tpa ? q.tpm / q.tpa : 0, rpg: q.reb / g, spg: q.stl / g, bpg: q.blk / g, tpg: q.to / g, pt: q.pt, me: q.k === 'me', fga: q.fga, tpa: q.tpa }); } return out; }
+// ---------------- the season's end ----------------
+// Final ranks for the season log ({ prk, trk }); a college program's prestige and stars follow its final team ranking.
+function rkSeasonEnd(c) {
+  try { const R = rkFill(c); if (!R) return {}; const me = rkMeRow(c) || {}; const out = { prk: me.r || 0, trk: me.tr || 0 };
+    if (R.lv === 'college') { const W = colWorld(c); if (!W.stars || typeof W.stars !== 'object') W.stars = {}; if (!W.pr || typeof W.pr !== 'object') W.pr = {}; const ids = Object.keys(R.T).filter(t => R.T[t].r > 0).sort((a, b) => R.T[a].r - R.T[b].r), n = ids.length;
+      ids.forEach((t, i) => { const id = t.slice(2), P = colProg(id); if (!P) return; const p0 = W.pr[id] != null ? W.pr[id] : colPrestige0(P); W.pr[id] = RK.keep * p0 + (1 - RK.keep) * (1 - i / Math.max(1, n - 1)); });
+      const dist = [1, 2, 3, 4, 5].map(s => COLLEGES.filter(P => P.stars === s).length), order = COLLEGES.map(P => P.id).sort((a, b) => ((W.pr[b] != null ? W.pr[b] : colPrestige0(colProg(b))) - (W.pr[a] != null ? W.pr[a] : colPrestige0(colProg(a)))) || (a < b ? -1 : 1)); let i = 0;
+      for (let s = 5; s >= 1; s--) for (let k = 0; k < dist[s - 1] && i < order.length; k++) W.stars[order[i++]] = s; }
+    if (R.lv === 'hs') for (const t in R.T) { const T = R.T[t]; if (T.jv || !(T.r > 0)) continue; const n = Object.keys(R.T).filter(k => R.T[k].r > 0).length; T.pr = Math.round(100 * clamp(0.6 * (T.pr || 0.5) + 0.4 * (1 - (T.r - 1) / Math.max(1, n - 1)), 0, 1)) / 100; T.stars = rkStarsOf(R, T); }
+    return out; } catch (e) { console.warn('[rank] season end', e && e.message); return {}; }
+}
+// A college program's stars now (its registry's, or where its rankings have moved it); colStarsNow: in this save.
+function colStarsOf(c, P) { if (!P) return 1; const W = c && c.cw; return W && W.stars && W.stars[P.id] ? W.stars[P.id] : P.stars; }
+function colStarsNow(P) { try { const d = HH.game.save.data; return colStarsOf(d.c1 || (d.career && d.career.amateur) || null, P); } catch (e) { return P ? P.stars : 1; } }
+// The recap's line for a season's final ranks (fr: rkSeasonEnd's).
+function rkSeasonLine(c, fr) { if (!fr || fr.prk == null) return ''; const where = c.stage === 'college' ? 'in college' : 'nationally'; return (fr.prk > 0 ? 'Ranked #' + fr.prk + ' ' + where : 'Not ranked ' + where) + (fr.trk > 0 ? ' · your team #' + fr.trk : ''); }
+// A results string's streak ('W3', 'L1', '–') and last five ('3-2').
+function rkStreak(res) { res = String(res || ''); if (!res) return '–'; const k = res[res.length - 1]; let n = 0; for (let i = res.length - 1; i >= 0 && res[i] === k; i--) n++; return k + n; }
+function rkLast5(res) { const s = String(res || '').slice(-5); if (!s) return '–'; const w = s.split('').filter(x => x === 'W').length; return w + '-' + (s.length - w); }
+// Your next opponent's rank (0: not in the top 100).
+function rkOppRank(c) { const R = c && c.rk; if (!R || R.v !== 1) return 0; if (isPro(c)) { const g = userGame(c), oid = g ? opponentOf(c, g) : null; return oid && R.P[oid] ? rkShown(R.P[oid].r) : 0; } const nx = amNext(c), o = nx && nx.opp; if (!o) return 0; let p = R.P[o.id]; if (!p && o.prog) { const T = R.T['c:' + o.prog]; p = T && T.sp ? R.P[T.sp] : null; } return p ? rkShown(p.r) : 0; }
+// The rank's text: '#12', or 'NR' (not ranked).
+function rkText(r) { return r > 0 ? '#' + r : 'NR'; }
+function rkMoveText(r, pv) { return !(r > 0) ? '' : !(pv > 0) ? 'NEW' : pv > r ? '▲' + (pv - r) : pv < r ? '▼' + (r - pv) : '–'; }
 
 // ============================================================================
 // SECTION: SAVE / PROGRESSION (part 5) — 3.0: fame (hype merged into it: one meter), confidence, the headlines,
@@ -17199,7 +17456,7 @@ function hsBuildLeague(c, rng, ffWeeks) {
   amAssignOppTeams(c, true);
   if (!(ffWeeks > 0)) hsPreGameCards(c);
   if (ffWeeks > 0) { const V = c.team, st = V ? (V.mates.slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a))[0] || null) : null;
-    for (let w = 0; w < ffWeeks && w < L.schedule.length; w++) { const o = amOppById(c, L.schedule[w]); if (o) { const sc = amSimScore(rng, st ? tmMateOvr(st) : mean, ovrOf(o.r, o.height)); amRec(L.me, sc[0], sc[1]); amRec(o.rec, sc[1], sc[0]); L.games.push({ opp: o.id, name: o.name, my: sc[0], their: sc[1], won: sc[0] > sc[1], po: 0, bench: st ? st.name : 'Varsity', before: true }); } L.week = w + 1; amSimWeek(c, rng, L.schedule[w]); } hsPreGameCards(c); }
+    for (let w = 0; w < ffWeeks && w < L.schedule.length; w++) { const o = amOppById(c, L.schedule[w]); if (o) { const sc = amSimScore(rng, st ? tmMateOvr(st) : mean, ovrOf(o.r, o.height)); amRec(L.me, sc[0], sc[1]); amRec(o.rec, sc[1], sc[0]); rkAmGame(c, o, sc[0], sc[1], null); L.games.push({ opp: o.id, name: o.name, my: sc[0], their: sc[1], won: sc[0] > sc[1], po: 0, bench: st ? st.name : 'Varsity', before: true }); } L.week = w + 1; amSimWeek(c, rng, L.schedule[w]); } hsPreGameCards(c); }
   return L;
 }
 // The circle method: every team plays every other once in five rounds, then again with home and away swapped.
@@ -17211,7 +17468,7 @@ function hsRoundRobin(ids, rng) {
   return { rounds: all, mine, home };
 }
 // The rest of the district's week (your pair is played or simmed on its own).
-function hsSimRound(c, rng) { const L = c.league, pairs = L.rounds[L.week - 1] || []; for (const [a, b] of pairs) { if (a === 'me' || b === 'me') continue; const A = amOppById(c, a), B = amOppById(c, b); if (!A || !B) continue; const sc = amSimScore(rng, ovrOf(A.r, A.height), ovrOf(B.r, B.height)); amRec(A.rec, sc[0], sc[1]); amRec(B.rec, sc[1], sc[0]); } }
+function hsSimRound(c, rng) { const L = c.league, pairs = L.rounds[L.week - 1] || []; for (const [a, b] of pairs) { if (a === 'me' || b === 'me') continue; const A = amOppById(c, a), B = amOppById(c, b); if (!A || !B) continue; const sc = amSimScore(rng, ovrOf(A.r, A.height), ovrOf(B.r, B.height)); amRec(A.rec, sc[0], sc[1]); amRec(B.rec, sc[1], sc[0]); rkAmPair(c, A, B, sc[0], sc[1]); } }
 // What makes this week's game special (the hub, the pregame card).
 function hsGameTag(c, week) { const L = c.league; if (!L || !L.format || L.playoffs) return ''; if (L.format === 'conf') { const o = amOppById(c, L.schedule[week]); return o && o.marquee ? 'marquee' : ''; } /* R6 */ if (week === L.seniorNight) return 'senior'; return ''; }
 function hsNextLabel(c, nx) {
@@ -17675,7 +17932,7 @@ function colShortName(n) { const p = String(n || '').split(' '); return p.length
 function colTierShort(P) { return P.academic ? 'Academic' : ['Small', 'Mid-major', 'Power', 'Blue blood'][clamp(P.tier, 0, 3)]; }
 function colBrowseState(game) { return game.colBrowse || (game.colBrowse = { page: 0 }); }
 // Every program, ranked: prestige (stars), then level (blue bloods first), then name.
-function colRankList() { return COLLEGES.slice().sort((a, b) => b.stars - a.stars || b.tier - a.tier || (a.name < b.name ? -1 : 1)); }
+function colRankList() { return COLLEGES.slice().sort((a, b) => colStarsNow(b) - colStarsNow(a) || b.tier - a.tier || (a.name < b.name ? -1 : 1)); } // (X4: a program's stars follow its rankings)
 // One program as a row: crest, name and place, conference and tier, prestige and miles, your interest and its stage (a
 // desktop row's columns: COLB_COLS, x from the row's left; a narrow row, the hub's: name, tier and miles, interest).
 // (On a desktop every small size draws the pixel font at about 12 px a character: the columns are sized for that.)
@@ -17686,7 +17943,7 @@ function drawColRow(ctx, ui, c, P, x, y, w, h, focused) {
   const cs = Ph ? Math.min(h - 26, 72) : Math.min(h - 12, 42); drawColCrest(ctx, P, x + 12, y + (h - cs * 18 / 16) / 2, cs); const tx = x + 24 + cs, y1 = y + h * 0.34, y2 = y + h * 0.72, gold = P.tier >= 3 || P.academic;
   if (Ph) {
     const rw = 196, nw = w - (tx - x) - rw - 16; ui.heading(ctx, P.name, tx, y + h * 0.32, 24, mine ? UI_GOLD : UI_TEXT, 'left', nw);
-    ctx.font = fontStr(18, true); const tl = colTierLabel(P) + ' · '; ui.label(ctx, tl, tx, y + h * 0.7, 18, UI_DIM, 'left', nw); const sw = Math.min(nw, ctx.measureText(tl).width); drawStarsTxt(ctx, P.stars, tx + sw, y + h * 0.7, 18, 'left'); ctx.font = fontStr(18, true); const stw = ctx.measureText('★★★★★').width;
+    ctx.font = fontStr(18, true); const tl = colTierLabel(P) + ' · '; ui.label(ctx, tl, tx, y + h * 0.7, 18, UI_DIM, 'left', nw); const sw = Math.min(nw, ctx.measureText(tl).width); drawStarsTxt(ctx, colStarsNow(P), tx + sw, y + h * 0.7, 18, 'left'); ctx.font = fontStr(18, true); const stw = ctx.measureText('★★★★★').width;
     if (c && tx + sw + stw + 16 + ctx.measureText('· ' + mi).width < x + w - rw) ui.label(ctx, '· ' + mi, tx + sw + stw + 10, y + h * 0.7, 18, UI_DIM, 'left', x + w - rw - (tx + sw + stw + 10));
     if (v != null) { ui.heading(ctx, String(v), x + w - 18, y + h * 0.34, 34, sc, 'right', rw - 20); if (sg) ui.label(ctx, sg, x + w - 18, y + h * 0.74, 17, sc, 'right', rw - 20); }
     else ui.label(ctx, mine ? 'YOUR PROGRAM' : COL_CONFS[P.conf].short, x + w - 18, y + h / 2, 18, mine ? UI_GOLD : UI_DIM, 'right', rw - 20);
@@ -17694,12 +17951,12 @@ function drawColRow(ctx, ui, c, P, x, y, w, h, focused) {
   }
   if (w < 700) { const rw = 150, aw = w - (tx - x) - rw - 24; /* a narrow row (the hub's RECRUIT tab) */
     ui.heading(ctx, P.name, tx, y1, 16, mine ? UI_GOLD : UI_TEXT, 'left', aw); ui.label(ctx, colTierShort(P) + (mi ? ' · ' + mi : ''), tx, y2, 12, gold ? UI_GOLD : UI_DIM, 'left', aw);
-    const rx = x + w - 14; if (v != null) { ui.heading(ctx, String(v), rx, y1, 18, sc, 'right', 60); drawStarsTxt(ctx, P.stars, rx - 60, y1, 13, 'right'); if (sg) ui.label(ctx, sg, rx, y2, 11, sc, 'right', rw); }
-    else { drawStarsTxt(ctx, P.stars, rx, y1, 13, 'right'); ui.label(ctx, mine ? 'YOUR PROGRAM' : COL_CONFS[P.conf].short, rx, y2, 11, mine ? UI_GOLD : UI_DIM, 'right', rw); }
+    const rx = x + w - 14; if (v != null) { ui.heading(ctx, String(v), rx, y1, 18, sc, 'right', 60); drawStarsTxt(ctx, colStarsNow(P), rx - 60, y1, 13, 'right'); if (sg) ui.label(ctx, sg, rx, y2, 11, sc, 'right', rw); }
+    else { drawStarsTxt(ctx, colStarsNow(P), rx, y1, 13, 'right'); ui.label(ctx, mine ? 'YOUR PROGRAM' : COL_CONFS[P.conf].short, rx, y2, 11, mine ? UI_GOLD : UI_DIM, 'right', rw); }
     return; }
   const C = COLB_COLS; ui.heading(ctx, P.name, x + C.a, y1, 16, mine ? UI_GOLD : UI_TEXT, 'left', C.aw); ui.label(ctx, colPlace(P), x + C.a, y2, 12, UI_DIM, 'left', C.aw);
   ui.label(ctx, COL_CONFS[P.conf].short, x + C.b, y1, 13, UI_TEXT, 'left', C.bw); ui.label(ctx, colTierShort(P), x + C.b, y2, 12, gold ? UI_GOLD : UI_DIM, 'left', C.bw);
-  drawStarsTxt(ctx, P.stars, x + C.c, y1, 14, 'left'); if (mi) ui.label(ctx, mi, x + C.c, y2, 12, UI_DIM, 'left', C.cw);
+  drawStarsTxt(ctx, colStarsNow(P), x + C.c, y1, 14, 'left'); if (mi) ui.label(ctx, mi, x + C.c, y2, 12, UI_DIM, 'left', C.cw);
   if (v != null) { ui.heading(ctx, String(v), x + C.d, y1, 18, sc, 'left', 60); if (sg) ui.label(ctx, sg, x + C.d, y2, 11, sc, 'left', C.dw); }
   else ui.label(ctx, mine ? 'YOUR PROGRAM' : '', x + C.d, y + h / 2, 12, UI_GOLD, 'left', C.dw);
 }
@@ -17744,7 +18001,7 @@ function colDrawHeader(ctx, ui, c, P, Ph) {
   const cs = Ph ? 92 : 100; drawColCrest(ctx, P, x + 14, y + (h - cs * 18 / 16) / 2, cs); const tx = x + 30 + cs, ink = luminance(c0) > 0.55 ? UI_INK : '#FFFFFF', tw = w - (tx - x) - (Ph ? 20 : 330);
   ui.heading(ctx, P.name, tx, y + (Ph ? 34 : 36), Ph ? 30 : 32, ink, 'left', tw); ui.label(ctx, colPlace(P) + ' · ' + COL_CONFS[P.conf].name, tx, y + (Ph ? 70 : 72), Ph ? 19 : 15, ink, 'left', tw);
   const chipY = y + (Ph ? 100 : 104); ctx.font = fontStr(Ph ? 17 : 13, true); const tl = colTierLabel(P); kitChip(ctx, tl, tx, chipY, { size: Ph ? 17 : 13, fill: P.tier >= 3 || P.academic ? 'rgba(255,210,63,0.95)' : 'rgba(10,14,40,0.85)', color: P.tier >= 3 || P.academic ? UI_INK : UI_TEXT, stroke: false });
-  const sx = tx + ctx.measureText(tl).width + (Ph ? 34 : 26); ctx.fillStyle = 'rgba(10,14,40,0.85)'; ctx.font = fontStr(Ph ? 20 : 16, true); const sw = ctx.measureText('★★★★★').width; ctx.beginPath(); roundRectPath(ctx, sx - 6, chipY - (Ph ? 14 : 11), sw + 12, Ph ? 28 : 22, 6); ctx.fill(); drawStarsTxt(ctx, P.stars, sx, chipY, Ph ? 20 : 16, 'left');
+  const sx = tx + ctx.measureText(tl).width + (Ph ? 34 : 26); ctx.fillStyle = 'rgba(10,14,40,0.85)'; ctx.font = fontStr(Ph ? 20 : 16, true); const sw = ctx.measureText('★★★★★').width; ctx.beginPath(); roundRectPath(ctx, sx - 6, chipY - (Ph ? 14 : 11), sw + 12, Ph ? 28 : 22, 6); ctx.fill(); drawStarsTxt(ctx, colStarsNow(P), sx, chipY, Ph ? 20 : 16, 'left');
   if (!Ph) { ui.label(ctx, 'ARENA', x + w - 20, y + 36, 11, ink, 'right', 300); ui.heading(ctx, P.arena, x + w - 20, y + 58, 15, ink, 'right', 300); }
 }
 // The page's sections (a phone shows one view at a time: chances, coach & school, team & history).
@@ -18237,6 +18494,226 @@ function proLegacyStart(save, c, rng) {
   c.legacyStart = LS.from || true; save.legacyStart = null;
   c.events.push({ kind: 'story', title: 'LEGACY START', lines: [LS.torch ? 'You learned the game from ' + (LS.from || 'a legend') + ', who took you under their wing at a summer clinic.' : 'You grew up in the ' + (LS.from ? LS.from + ' ' : '') + 'Youth Academy: better coaching from the first day.', /* V8: Passing the Torch */ 'Every rating’s ceiling is ' + (LS.caps || PR.legacyCaps) + ' higher.'] });
   return true;
+}
+
+// ============================================================================
+// SECTION: UI (part 9c) — 3.0 (§4.2): charts are first-class. The LEAGUE tab's doors open full-screen charts:
+// standings (W-L, PCT, games back, streak, the last five), rankings (the top 100 players and teams, ▲▼), leaders (PPG,
+// FG%, 3P%, RPG, SPG, BPG), brackets (every playoff), your team's page (its season, schedule and results, title odds,
+// titles by year) and your charts (your rank and your team's, week by week; PPG, OVR and rank by season).
+// ============================================================================
+// A chart screen's frame: the panel, a title and its line, tabs (a desktop's top right; a phone's bottom bar), pages
+// (◀ ▶), Find me and Back. o: { name, title, sub(S), tabs: [labels] | null, per(P, S) rows a page, count(S) rows in all,
+// find(S) your row's index (−1: not there), draw(ctx, ui, S, box) }. S: { tab, page, P }.
+function chartScreen(game, o) {
+  const ui0 = game.ui, P0 = ui0.phone, S = { tab: o.tab || 0, page: 0, P: P0 };
+  const per = () => Math.max(1, o.per ? o.per(P0, S) : 999), pages = () => Math.max(1, Math.ceil((o.count ? o.count(S) : 0) / per())), at = () => (o.find ? o.find(S) : -1);
+  const tabs = (o.tabs || []).map((t, i) => btn(t, 0, 0, 0, 0, () => { S.tab = i; S.page = 0; if (at() >= 0) S.page = Math.floor(at() / per()); sync(); }));
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()), prev = btn('◀', 0, 0, 0, 0, () => { S.page = Math.max(0, S.page - 1); sync(); }), next = btn('▶', 0, 0, 0, 0, () => { S.page = Math.min(pages() - 1, S.page + 1); sync(); });
+  const find = btn('Find me', 0, 0, 0, 0, () => { const i = at(); if (i >= 0) { S.page = Math.floor(i / per()); sync(); } });
+  const items = [back].concat(tabs, [prev, next, find]);
+  function sync() { S.page = clamp(S.page, 0, pages() - 1); prev.hidden = next.hidden = pages() < 2; prev.enabled = S.page > 0; next.enabled = S.page < pages() - 1; find.hidden = !o.find || at() < 0 || pages() < 2; tabs.forEach((b, i) => { b.primary = i === S.tab; });
+    if (P0) phoneBar(ui0, items, items.map(b => b === back ? 1 : b === prev || b === next ? 0.6 : b === find ? 1.1 : 1)); else { Object.assign(back, { x: 60, y: 646, w: 180, h: 46 }); let x = 1236; for (const b of [find, next, prev]) { if (b.hidden) continue; const w = b === find ? 150 : 64; x -= w; Object.assign(b, { x, y: 646, w, h: 46 }); x -= 10; } x = 1236; for (let i = tabs.length - 1; i >= 0; i--) { const w = Math.max(130, 22 * tabs[i].label.length + 26); x -= w; Object.assign(tabs[i], { x, y: 34, w, h: 44 }); x -= 8; } } }
+  if (at() >= 0) S.page = Math.floor(at() / per()); sync();
+  return { widgets: items, name: o.name, onBack() { game.ui.pop(); }, update() { prev.enabled = S.page > 0; next.enabled = S.page < pages() - 1; }, onResume() { sync(); },
+    draw(ctx, ui) {
+      const P = ui.phone, bot = P ? UI_H - tapH(ui, 44) - 24 : 700; ui.panel(ctx, 30, 20, 1220, bot - 20, UI_PANEL2);
+      ui.title(ctx, o.title, 60, P ? 58 : 66, P ? 34 : 36); const sub = o.sub ? o.sub(S) : ''; if (sub) { ctx.font = fontStr(P ? 16 : 14, false); ui.label(ctx, Array.isArray(sub) ? rbFirstFit(ctx, sub, 1160) : sub, 60, P ? 94 : 100, P ? 16 : 14, UI_DIM, 'left', 1160); }
+      if (pages() > 1) ui.label(ctx, 'PAGE ' + (S.page + 1) + ' / ' + pages(), P ? 1220 : 900, P ? 58 : 669, P ? 15 : 13, UI_DIM, 'right', 220);
+      const box = P ? { x: 50, y: 116, w: 1180, h: bot - 116 - 10 } : { x: 60, y: 124, w: 1160, h: 506 }; try { o.draw(ctx, ui, S, box); } catch (e) { ui.drawFault(e, o.name); }
+    } };
+}
+// A table: cols [{ h, w (0: takes what's left), al ('l', 'r', 'c'), v(r) its text (or its versions, longest first: the
+// first that fits), c(r) its color }], rows (r.me: yours,
+// highlighted), from y down in rows rh tall. opts: { size, line (draw a dashed line after this many rows) }.
+function chartTable(ctx, ui, box, y, cols, rows, rh, opts) {
+  opts = opts || {}; const P = ui.phone, fs = opts.size || (P ? 18 : 15), hs = P ? 14 : 12, fixed = cols.reduce((s, c) => s + (c.w || 0), 0), flex = Math.max(60, box.w - fixed), xs = []; let x = box.x;
+  for (const c of cols) { const w = c.w || flex; xs.push({ x, w }); x += w; }
+  cols.forEach((c, i) => { const X = xs[i], al = c.al || 'l'; ui.heading(ctx, c.h, al === 'r' ? X.x + X.w - 6 : al === 'c' ? X.x + X.w / 2 : X.x + 6, y, hs, UI_CYAN, al === 'r' ? 'right' : al === 'c' ? 'center' : 'left', X.w - 8); });
+  y += rh * 0.85; rows.forEach((r, k) => { const yy = y + k * rh; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(box.x, yy - rh / 2 + 1, box.w, rh - 2); } else if (k % 2) { ctx.fillStyle = 'rgba(255,255,255,0.035)'; ctx.fillRect(box.x, yy - rh / 2 + 1, box.w, rh - 2); }
+    if (opts.line != null && k === opts.line) { ctx.strokeStyle = 'rgba(255,214,63,0.5)'; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(box.x, yy - rh / 2); ctx.lineTo(box.x + box.w, yy - rh / 2); ctx.stroke(); ctx.setLineDash([]); }
+    cols.forEach((c, i) => { const X = xs[i], al = c.al || 'l', v0 = c.v(r), col = c.c ? c.c(r) : r.me ? UI_GOLD : UI_TEXT; ctx.font = fontStr(fs, !!c.bold); const t = Array.isArray(v0) ? rbFirstFit(ctx, v0, X.w - 10) : String(v0); (c.bold ? ui.heading : ui.label).call(ui, ctx, t, al === 'r' ? X.x + X.w - 6 : al === 'c' ? X.x + X.w / 2 : X.x + 6, yy, fs, col, al === 'r' ? 'right' : al === 'c' ? 'center' : 'left', X.w - 10); }); });
+  return y + rows.length * rh;
+}
+function moveCol(r) { const t = rkMoveText(r.r, r.pv); return t; }
+function moveColor(r) { const t = rkMoveText(r.r, r.pv); return t[0] === '▲' ? UI_GREEN : t[0] === '▼' ? UI_RED : t === 'NEW' ? UI_CYAN : UI_DIM; }
+const pct3 = v => (v >= 1 ? '1.000' : '.' + String(Math.round(v * 1000)).padStart(3, '0'));
+const pct1 = v => Math.round(v * 100) + '%';
+// ---------------- standings ----------------
+// The rows of your league's table (or, in the PBL, a conference's): { rank, team, player, w, l, pct, gb, strk, l5, diff, ovr, me }.
+function standRows(c, conf) {
+  if (isPro(c)) { const ids = standingsSorted(c).filter(id => c.players[id] && (!conf || frConf(c.players[id].club) === conf)); const res = {}; for (let w = 0; w < (c.results || []).length && w < c.schedule.length; w++) for (const r of c.results[w] || []) { if (r.p) continue; for (const id of [r.h, r.a]) res[id] = (res[id] || '') + (((id === r.h) === (r.hs > r.as)) ? 'W' : 'L'); }
+    const rows = ids.map((id, i) => { const s = c.standings[id] || NO_STANDING, p = c.players[id]; return { rank: i + 1, team: clubOf(p.club).name, abbr: clubOf(p.club).abbr, player: p.name, w: s.w, l: s.l, pct: s.w / Math.max(1, s.w + s.l), strk: s.strk ? (s.strk > 0 ? 'W' : 'L') + Math.abs(s.strk) : '–', l5: rkLast5(res[id]), diff: s.pf - s.pa, ovr: recOvr(p), me: id === c.meId }; }); return standGb(rows); }
+  const L = c.league; if (!L) return []; const R = rkFill(c);
+  const rows = amTable(c).map((r, i) => { const tid = r.id === 'me' ? rkMyTeamId(c) : R && R.P[r.id] ? R.P[r.id].tm : null, T = R && tid ? R.T[tid] : null; return { rank: i + 1, team: r.team ? teamShort(r.team) : r.name, player: r.team ? r.name : '', w: r.rec.w, l: r.rec.l, pct: r.rec.w / Math.max(1, r.rec.w + r.rec.l), strk: T ? rkStreak(T.res) : '–', l5: T ? rkLast5(T.res) : '–', diff: r.rec.pf - r.rec.pa, ovr: r.ovr, me: r.id === 'me' }; });
+  return standGb(rows);
+}
+function standGb(rows) { const lead = rows[0]; for (const r of rows) { const gb = lead ? ((lead.w - r.w) + (r.l - lead.l)) / 2 : 0; r.gb = gb <= 0 ? '–' : (gb % 1 ? gb.toFixed(1) : String(gb)); } return rows; }
+function standCols(P, full) { return [{ h: '#', w: P ? 50 : 40, v: r => r.rank, c: r => r.me ? UI_GOLD : UI_DIM }, { h: 'TEAM · PLAYER', w: 0, v: r => r.player ? [r.team + ' · ' + r.player, r.team + ' · ' + r.player.replace(/^(\S)\S*\s+/, '$1. '), r.team] : r.team }, { h: 'W-L', w: P ? 90 : 76, al: 'r', v: r => r.w + '-' + r.l, bold: true }, { h: 'PCT', w: P ? 90 : 70, al: 'r', v: r => pct3(r.pct) }, { h: 'GB', w: P ? 70 : 56, al: 'r', v: r => r.gb }, { h: 'STRK', w: P ? 80 : 64, al: 'r', v: r => r.strk, c: r => /^W/.test(r.strk) ? UI_GREEN : /^L/.test(r.strk) ? UI_RED : UI_DIM }, { h: 'L5', w: P ? 70 : 56, al: 'r', v: r => r.l5 }].concat(full ? [{ h: '+/-', w: 64, al: 'r', v: r => (r.diff > 0 ? '+' : '') + r.diff }, { h: 'OVR', w: 60, al: 'r', v: r => r.ovr != null ? r.ovr : '', c: () => UI_DIM }] : []); }
+function standingsChartScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const pro = isPro(c), L = !pro && c.league;
+  const cut = pro ? PBL.confSeeds : L && L.format === 'district' ? AMC.playoffSeeds : null;
+  return chartScreen(game, { name: 'standings', title: 'STANDINGS', tabs: pro && game.ui.phone ? PBL_CONFS.map(k => k.toUpperCase()) : null,
+    sub: () => pro ? 'The PBL · season ' + c.season + ' · the top ' + PBL.confSeeds + ' of each conference make the playoffs' : L ? L.name + ' · season ' + c.season + (L.format === 'jv' ? ' · no playoffs on JV' : L.format === 'conf' ? ' · everyone plays the conference tournament' : ' · the top ' + AMC.playoffSeeds + ' make the playoffs') : 'No league right now.',
+    draw(ctx, ui, S, box) { const P = ui.phone, rh = P ? 44 : 34;
+      if (pro && !P) { const w = (box.w - 30) / 2; PBL_CONFS.forEach((k, i) => { const b = { x: box.x + i * (w + 30), y: box.y, w, h: box.h }; ui.heading(ctx, k.toUpperCase(), b.x + 6, b.y + 6, 16, UI_GOLD, 'left', w); chartTable(ctx, ui, b, b.y + 36, standCols(false, false).map(col => col.h === 'TEAM · PLAYER' ? Object.assign({}, col, { h: 'TEAM', v: r => [r.team, r.abbr] }) : col), standRows(c, k), rh, { line: cut }); }); return; }
+      const rows = pro ? standRows(c, PBL_CONFS[S.tab] || 'East') : standRows(c); if (!rows.length) { ui.para(ctx, c.tryout && c.tryout.step !== 'done' ? 'Tryouts first: the league starts when the coach has picked varsity and JV.' : 'No league right now.', box.x, box.y + 20, 900, 17, UI_DIM); return; }
+      chartTable(ctx, ui, box, box.y + 6, standCols(P, !P && !pro).map(col => pro && col.h === 'TEAM · PLAYER' ? Object.assign({}, col, { h: 'TEAM', v: r => [r.team + ' · ' + r.player, r.team, r.abbr] }) : col), rows, rh, { line: cut }); } });
+}
+// ---------------- rankings ----------------
+function rankingsChartScreen(game, tab) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const lv = rkLevel(c) || (c.rk && c.rk.lv);
+  const rows = S => S.tab ? rkTeams(c) : rkPlayers(c), where = lv === 'pro' ? 'the PBL' : lv === 'college' ? 'college' : 'the nation';
+  return chartScreen(game, { name: 'rankings', title: 'RANKINGS', tab: tab || 0, tabs: ['PLAYERS', 'TEAMS'], per: P => P ? 8 : 13, count: S => rows(S).length, find: S => rows(S).findIndex(r => r.me),
+    sub: S => { const tail = ' · ' + where + (c.rk && c.rk.wk ? ' · week ' + c.rk.wk : ' · preseason'); return S.tab ? ['Teams: record first, then point margin and opponents' + tail, 'Teams: record, margin, opponents' + tail] : ['Players: points a game first, then FG%, turnovers, wins and opponents · never OVR' + tail, 'Points a game first, then FG%, turnovers, wins, opponents' + tail, 'Points a game first' + tail]; },
+    draw(ctx, ui, S, box) { const P = ui.phone, rh = P ? 44 : 34, all = rows(S), per = P ? 8 : 13, pg = all.slice(S.page * per, S.page * per + per);
+      if (!all.length) { ui.para(ctx, 'No rankings yet: they come with the season\'s first week.', box.x, box.y + 20, 900, 17, UI_DIM); return; }
+      const cols = S.tab ? [{ h: '#', w: P ? 60 : 50, v: r => r.r, bold: true, c: r => r.me ? UI_GOLD : UI_TEXT }, { h: '', w: P ? 70 : 56, al: 'c', v: moveCol, c: moveColor }, { h: 'TEAM', w: 0, v: r => [r.n, teamShort(r.n)] }, { h: '', w: P ? 80 : 70, v: r => r.stars ? r.stars + '★' : '', c: () => UI_GOLD }, { h: 'W-L', w: P ? 100 : 80, al: 'r', v: r => r.w + '-' + r.l, bold: true }, { h: '+/-', w: P ? 90 : 76, al: 'r', v: r => (r.diff > 0 ? '+' : '') + r.diff.toFixed(1) }, { h: 'POINTS', w: P ? 110 : 90, al: 'r', v: r => r.pt != null ? r.pt.toFixed(1) : '', c: () => UI_DIM }]
+        : [{ h: '#', w: P ? 60 : 50, v: r => r.r, bold: true, c: r => r.me ? UI_GOLD : UI_TEXT }, { h: '', w: P ? 70 : 56, al: 'c', v: moveCol, c: moveColor }, { h: 'PLAYER · TEAM', w: 0, v: r => [r.n + (r.me ? ' (you)' : '') + ' · ' + r.team, r.n + (r.me ? ' (you)' : '') + ' · ' + teamShort(r.team), r.n + (r.me ? ' (you)' : '')] }, { h: 'PPG', w: P ? 90 : 72, al: 'r', v: r => r.ppg.toFixed(1), bold: true }].concat(P ? [] : [{ h: 'FG%', w: 72, al: 'r', v: r => pct1(r.fg) }]).concat([{ h: 'W-L', w: P ? 100 : 76, al: 'r', v: r => r.w + '-' + r.l }, { h: 'POINTS', w: P ? 110 : 90, al: 'r', v: r => r.pt != null ? r.pt.toFixed(1) : '', c: () => UI_DIM }]);
+      const y = chartTable(ctx, ui, box, box.y + 6, cols, pg, rh); statHot(ctx, 'rank', box.x, box.y, box.w, y - box.y);
+      if (!S.tab) { const me = rkMeRow(c); if (me && !me.r) ui.label(ctx, me.jv ? 'You: JV games don\'t count nationally. Get called up to varsity.' : me.g === 0 ? 'You: not ranked until you play.' : 'You: not ranked · ' + (me.pt != null ? me.pt.toFixed(1) : '?') + ' points' + (me.cut != null ? ' · the #' + Math.min(RK.top, me.of) + ' has ' + me.cut.toFixed(1) : ''), box.x + 6, Math.min(box.y + box.h - 8, y + rh * 0.4), P ? 16 : 14, UI_GOLD, 'left', box.w - 12); }
+    } });
+}
+// ---------------- leaders ----------------
+const LEAD_CATS = [['ppg', 'PPG', v => v.toFixed(1)], ['fg', 'FG%', v => pct1(v)], ['tp', '3P%', v => pct1(v)], ['rpg', 'RPG', v => v.toFixed(1)], ['spg', 'SPG', v => v.toFixed(1)], ['bpg', 'BPG', v => v.toFixed(1)]];
+function leadersChartScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const lv = rkLevel(c) || (c.rk && c.rk.lv);
+  return chartScreen(game, { name: 'leaders', title: 'LEADERS', tabs: game.ui.phone ? LEAD_CATS.map(k => k[1]) : null, sub: () => (lv === 'pro' ? 'The PBL' : lv === 'college' ? 'College' : 'The nation') + ' · season ' + c.season + ' · FG% needs 5 shots a game, 3P% a three a game',
+    draw(ctx, ui, S, box) { const P = ui.phone, me = rkMeRow(c);
+      const panel = (cat, b, n) => { const [key, label, fmt] = cat, L = rkLeaders(c, key, n), mine = rkLeaders(c, key, 999).findIndex(r => r.me); kitPanel(ctx, b.x, b.y, b.w, b.h, 'rgba(8,12,36,0.55)'); ui.heading(ctx, label, b.x + 14, b.y + 22, P ? 18 : 16, UI_GOLD, 'left', 120);
+        const rh = P ? 40 : 30; L.forEach((r, i) => { const y = b.y + 54 + i * rh; if (r.me) { ctx.fillStyle = 'rgba(255,210,63,0.16)'; ctx.fillRect(b.x + 6, y - rh / 2 + 1, b.w - 12, rh - 2); } ui.label(ctx, (i + 1) + '. ' + r.n, b.x + 14, y, P ? 17 : 14, r.me ? UI_GOLD : UI_TEXT, 'left', b.w - 120); ui.heading(ctx, fmt(r[key]), b.x + b.w - 14, y, P ? 17 : 14, r.me ? UI_GOLD : UI_TEXT, 'right', 90); });
+        ui.label(ctx, mine >= 0 ? 'You: #' + (mine + 1) + (mine >= L.length ? ' · ' + fmt(rkLeaders(c, key, 999)[mine][key]) : '') : me && me.jv ? 'You: JV (not counted)' : 'You: not enough games yet', b.x + 14, b.y + b.h - 18, P ? 15 : 13, UI_DIM, 'left', b.w - 28); };
+      if (P) { panel(LEAD_CATS[S.tab], { x: box.x, y: box.y, w: box.w, h: box.h }, 8); return; }
+      const w = (box.w - 2 * 16) / 3, h = (box.h - 16) / 2; LEAD_CATS.forEach((cat, i) => panel(cat, { x: box.x + (i % 3) * (w + 16), y: box.y + Math.floor(i / 3) * (h + 16), w, h }, 5)); } });
+}
+// ---------------- brackets ----------------
+// The season's brackets so far: [{ label, open() }].
+function bracketList(game, c) {
+  const out = []; if (isPro(c)) { if (c.playoffs) out.push({ label: 'The playoffs', open: () => game.ui.push(bracketScreen(game)) }); return out; }
+  const L = c.league, po = L && L.playoffs; if (!po) return out;
+  if (L.format === 'district') { out.push({ label: 'District playoffs', open: () => game.ui.push(districtBracketScreen(game)) }); if (po.state) out.push({ label: 'State tournament', open: () => game.ui.push(stateBracketScreen(game)) }); }
+  if (L.format === 'conf') { if (po.conf) out.push({ label: 'Conference tournament', open: () => game.ui.push(collegeBracketScreen(game, 'conf')) }); if (po.nat) out.push({ label: 'National tournament', open: () => game.ui.push(collegeBracketScreen(game, 'nat')) }); }
+  return out;
+}
+function bracketWhen(c) { if (isPro(c)) return c.phase === 'regular' ? 'The playoffs start after week ' + c.schedule.length + ': the top ' + PBL.confSeeds + ' of each conference.' : ''; const L = c.league; if (!L) return 'No league right now.'; if (L.format === 'jv') return 'JV has no playoffs: win and you get called up to varsity.'; return (L.format === 'conf' ? 'The conference tournament' : 'The district playoffs') + ' start after week ' + L.schedule.length + ' (week ' + Math.min(L.schedule.length, L.week + 1) + ' now).'; }
+function bracketsScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const list = bracketList(game, c), ui0 = game.ui, P0 = ui0.phone;
+  const doors = list.map(b => btn(b.label, 0, 0, 0, 0, b.open, { primary: true })), back = btn('Back', 0, 0, 0, 0, () => game.ui.pop());
+  if (P0) { phoneGrid(ui0, doors, 60, 140, 1160, 2, 0, 12); phoneBar(ui0, [back], [1], 40, 300); } else { column(doors, 60, 150, 420, 56, 12); Object.assign(back, { x: 60, y: 646, w: 180, h: 46 }); }
+  return { widgets: doors.concat([back]), name: 'brackets', onBack() { game.ui.pop(); }, draw(ctx, ui) { const P = ui.phone, bot = P ? UI_H - tapH(ui, 44) - 24 : 700; ui.panel(ctx, 30, 20, 1220, bot - 20, UI_PANEL2); ui.title(ctx, 'BRACKETS', 60, P ? 58 : 66, P ? 34 : 36); ui.label(ctx, list.length ? 'This season\'s playoffs, round by round.' : bracketWhen(c), 60, P ? 94 : 104, P ? 17 : 15, UI_DIM, 'left', 1160); } };
+}
+// The district playoffs: the top four, the semifinals (1 v 4, 2 v 3) and the final.
+function districtBracketScreen(game) {
+  const c = amateurOf(game), back = btn('Back', 60, 646, 180, 46, () => game.ui.pop()); phoneBar(game.ui, [back], [1], 40, 300);
+  return { widgets: [back], name: 'districtbracket', onBack() { game.ui.pop(); }, draw(ctx, ui) {
+    const P = ui.phone, bot = P ? UI_H - tapH(ui, 44) - 24 : 700; ui.panel(ctx, 30, 20, 1220, bot - 20, UI_PANEL2); ui.title(ctx, 'DISTRICT PLAYOFFS', 60, P ? 58 : 66, P ? 34 : 36); const L = c && c.league, po = L && L.playoffs; if (!po || !po.seeds) { ui.para(ctx, 'The top ' + AMC.playoffSeeds + ' in the district play for its title.', 60, 120, 900, 17, UI_DIM); return; }
+    const nm = id => id === 'me' ? (c.school || 'You').replace(/ High$/, '') + ' (you)' : (o => o ? (o.team ? teamShort(o.team) : o.name) : '?')(amOppById(c, id)), sd = po.seeds, my = (L.games || []).filter(g => g.po === 1)[0], fin = (L.games || []).filter(g => g.po === 2)[0];
+    const semis = [[sd[0], sd[3]], [sd[1], sd[2]]], mine = semis.findIndex(p => p.includes('me')), win = (p, i) => i === mine ? (my ? (my.won ? 'me' : p.find(x => x !== 'me')) : null) : po.other || null;
+    const champ = po.champion || (fin ? (fin.won ? 'me' : fin.opp) : null), x1 = 80, x2 = 560, x3 = 960, top = P ? 150 : 170, gap = P ? 200 : 220, bw = 360, bh = P ? 64 : 56;
+    const slot = (t, x, y, w, dim) => { kitPanel(ctx, x, y - bh / 2, w, bh, 'rgba(8,12,36,0.8)'); ui.label(ctx, t || 'TBD', x + 14, y, P ? 18 : 16, t ? (dim ? UI_DIM : t.includes('(you)') ? UI_GOLD : UI_TEXT) : UI_DIM, 'left', w - 28); };
+    kitHeader(ctx, 'Semifinals', x1, top - 40, bw); kitHeader(ctx, 'Final', x2, top - 40, bw); kitHeader(ctx, 'Champion', x3, top - 40, 240);
+    semis.forEach((p, i) => { const y = top + i * gap * 1.1, w = win(p, i); slot('#' + (i === 0 ? 1 : 2) + ' ' + nm(p[0]), x1, y, bw, w && w !== p[0]); slot('#' + (i === 0 ? 4 : 3) + ' ' + nm(p[1]), x1, y + bh + 10, bw, w && w !== p[1]); slot(w ? nm(w) : '', x2, top + gap * 0.55 + (i ? bh + 10 : 0), bw, champ && w && champ !== w); });
+    slot(champ ? nm(champ) : '', x3, top + gap * 0.55 + (bh + 10) / 2, 240, false); } };
+}
+// ---------------- your team's page ----------------
+// Title odds for an amateur team (yours): its chance to win the district's or the conference's way to the title from
+// here, run 200 times with the league's strengths (the rest of the season, then the playoffs' rounds).
+function amTitleOdds(c) {
+  try { const L = c.league; if (!L || L.format === 'jv' || L.done) return L && L.done ? (c.titles && L.champ ? 1 : 0) : null; const po = L.playoffs; const me = isStarter(c) ? amOvr(c) : (rkMate(c) || amOvr(c)), mean = amStageMean(c), rng = rkRng(c, 'odds:' + c.season + ':' + L.week + ':' + (po ? po.round : 0)), runs = 200;
+    const rounds = L.format === 'conf' ? [[3, 0], [3, 2], [3, 4], [6, 4], [6, 5], [6, 6], [6, 7], [6, 7], [6, 7]] : [[2, 0], [2, 1], [4, 2], [4, 3], [4, 4], [4, 5]]; // (rounds left: [ how many, the opponents' edge over the level's mean ])
+    if (po) { const done = po.round >= 31 ? 3 + (po.round - 31) : po.round >= 21 ? po.round - 21 : po.round >= 3 ? 2 + (po.round - 3) : po.round - 1; let p = 1; for (let i = done; i < rounds.length; i++) p *= amWinP(me, mean + rounds[i][1]); return po.champion ? (po.champion === 'me' ? 1 : 0) : p; }
+    let win = 0; const opps = L.opps.map(o => ({ id: o.id, s: ovrOf(o.r, o.height), w: o.rec.w })); for (let k = 0; k < runs; k++) { const W = {}; for (const o of opps) W[o.id] = o.w; let mw = L.me.w;
+      for (let w = L.week; w < L.schedule.length; w++) { const oid = L.schedule[w], o = opps.find(x => x.id === oid); if (o && rng.next() < amWinP(me, o.s)) mw++; else if (o) W[o.id]++; for (const p of (L.rounds && L.rounds[w]) || []) { if (p[0] === 'me' || p[1] === 'me') continue; const a = opps.find(x => x.id === p[0]), b = opps.find(x => x.id === p[1]); if (a && b) { if (rng.next() < amWinP(a.s, b.s)) W[a.id]++; else W[b.id]++; } } }
+      const ahead = opps.filter(o => W[o.id] > mw).length; if (L.format !== 'conf' && ahead >= AMC.playoffSeeds) continue; let ok = true; for (const r of rounds) if (rng.next() >= amWinP(me, mean + r[1])) { ok = false; break; } if (ok) win++; }
+    return win / runs; } catch (e) { return null; }
+}
+function teamPageScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const pro = isPro(c), me = rkMeRow(c), ui0 = game.ui, P0 = ui0.phone;
+  const back = btn('Back', 0, 0, 0, 0, () => game.ui.pop()), extra = [btn(pro ? 'The franchise' : 'Roster', 0, 0, 0, 0, () => game.ui.push(pro ? franchiseScreen(game, meOf(c).club) : teamScreen(game)))]; const items = [back].concat(extra);
+  if (P0) phoneBar(ui0, items, [1, 1.4], 40, 760); else { Object.assign(back, { x: 60, y: 646, w: 180, h: 46 }); Object.assign(extra[0], { x: 260, y: 646, w: 240, h: 46 }); }
+  return { widgets: items, name: 'teampage', onBack() { game.ui.pop(); }, draw(ctx, ui) {
+    const P = ui.phone, bot = P ? UI_H - tapH(ui, 44) - 24 : 700; ui.panel(ctx, 30, 20, 1220, bot - 20, UI_PANEL2);
+    const club = pro ? meOf(c).club : null, name = pro ? frFullName(club) : c.stage === 'college' ? ((colProgOf(c) || { name: c.college }).name) : (c.school || 'Your school') + (c.squad === 'jv' ? ' JV' : '');
+    ui.title(ctx, name.toUpperCase(), 60, P ? 58 : 66, P ? 32 : 34); const stars = pro ? frStars(c, club) : c.stage === 'college' ? colStarsOf(c, colProgOf(c)) : null;
+    const rec = pro ? (c.standings[c.meId] || NO_STANDING) : c.league ? (c.league.all || c.league.me) : null, odds = pro ? (() => { const O = frOddsSoon(c); return O && O.byClub ? O.byClub[club] : null; })() : amTitleOdds(c);
+    let cx = 60; const cy = P ? 100 : 106, chip = (t, fill, col) => { cx += kitChip(ctx, t, cx, cy, { size: P ? 16 : 14, fill, color: col || UI_INK, stroke: false }) + 10; };
+    if (stars) chip(stars + '★', 'rgba(255,210,63,0.92)'); if (rec) chip(rec.w + '-' + rec.l, 'rgba(94,224,255,0.9)'); if (me) chip('TEAM ' + rkText(me.tr) + (rkMoveText(me.tr, me.tpv) && me.tpv ? ' ' + rkMoveText(me.tr, me.tpv) : ''), 'rgba(8,12,36,0.9)', UI_TEXT); if (odds != null) chip('TITLE ODDS ' + (odds < 0.01 && odds > 0 ? '<1' : Math.round(100 * odds)) + '%', 'rgba(76,224,122,0.9)');
+    // the schedule and results
+    const lx = 60, lw = P ? 600 : 560, top = P ? 140 : 146; kitHeader(ctx, 'Schedule and results', lx, top, lw); const rows = teamSchedule(c), rh = P ? 38 : 30, n = Math.floor((bot - 20 - top - 30) / rh);
+    const first = clamp(rows.findIndex(r => !r.res) - Math.floor(n / 2), 0, Math.max(0, rows.length - n)); rows.slice(first, first + n).forEach((r, i) => { const y = top + 30 + i * rh; ctx.font = fontStr(P ? 17 : 14, false); ui.label(ctx, rbFirstFit(ctx, [r.label, r.label.replace(' · from the bench', ' · bench'), r.label.replace(' · from the bench', '')], lw - 150), lx, y, P ? 17 : 14, r.now ? UI_GOLD : UI_TEXT, 'left', lw - 150); ui.heading(ctx, r.res || '', lx + lw, y, P ? 17 : 14, /^W/.test(r.res || '') ? UI_GREEN : /^L/.test(r.res || '') ? UI_RED : UI_DIM, 'right', 150); });
+    // your season and the titles by year
+    const rx = P ? 700 : 660, rw = 1220 - rx; kitHeader(ctx, 'Your season', rx, top, rw); const st = teamSeasonLine(c); ui.para(ctx, st, rx, top + 30, rw, P ? 17 : 15, UI_TEXT, 'left', 3);
+    const ty = top + (P ? 140 : 120); kitHeader(ctx, 'Titles by year', rx, ty, rw); const bars = teamTitles(c), won = bars.filter(b => b.v > 0).length; if (!bars.length || !won) ui.label(ctx, !bars.length ? 'No seasons yet.' : 'No titles yet in ' + bars.length + ' season' + (bars.length > 1 ? 's' : '') + ' here.', rx, ty + 30, P ? 16 : 14, UI_DIM, 'left', rw); else barChart(ctx, rx + 10, ty + 24, rw - 20, Math.max(60, bot - 60 - ty - 24), bars, { max: 1, col: 'rgba(91,143,230,0.5)' });
+  } };
+}
+// Your team's games: [{ label, res, now }].
+function teamSchedule(c) {
+  if (isPro(c)) { const out = []; for (let w = 0; w < c.schedule.length; w++) { const g = (c.schedule[w] || []).find(x => x.h === c.meId || x.a === c.meId), r = (c.results[w] || []).find(x => !x.p && (x.h === c.meId || x.a === c.meId)); if (!g) continue; const opp = g.h === c.meId ? g.a : g.h, P = c.players[opp]; const won = r ? (r.h === c.meId) === (r.hs > r.as) : null; out.push({ label: 'W' + (w + 1) + ' ' + (g.h === c.meId ? 'vs ' : '@ ') + (P ? clubOf(P.club).name : '?'), res: r ? (won ? 'W ' : 'L ') + (r.h === c.meId ? r.hs + '–' + r.as : r.as + '–' + r.hs) : '', now: w === c.week }); } return out; }
+  const L = c.league; if (!L) return []; const reg = (L.games || []).filter(x => !x.po); return L.schedule.map((id, i) => { const o = amOppById(c, id), g = reg[i]; return { label: (i + 1) + '. ' + (L.home && L.home.length ? (L.home[i] ? 'vs ' : '@ ') : '') + (o ? (o.team ? teamShort(o.team) : o.name) : '?') + (o && o.marquee ? ' ★' : '') + (g && g.bench ? ' · from the bench' : ''), res: g ? (g.before ? 'before you' : (g.won ? 'W ' : 'L ') + g.my + '–' + g.their) : '', now: i === L.week && !L.playoffs }; }).concat((L.games || []).filter(x => x.po).map(g => ({ label: 'Playoffs · ' + (g.name || '?'), res: (g.won ? 'W ' : 'L ') + g.my + '–' + g.their })));
+}
+function teamSeasonLine(c) {
+  if (isPro(c)) { const s = c.stats[c.meId] || emptySeasonStats(), g = Math.max(1, s.g); return s.g ? 'You: ' + (s.pts / g).toFixed(1) + ' PPG · ' + pct1(s.fga ? s.fgm / s.fga : 0) + ' FG · ' + (s.reb / g).toFixed(1) + ' RPG in ' + s.g + ' games' : 'You haven\'t played a game yet this season.'; }
+  const S = c.seasonStats || { g: 0 }, g = Math.max(1, S.g || 0); return S.g ? 'You: ' + (S.pts / g).toFixed(1) + ' PPG · ' + pct1(S.fga ? S.fgm / S.fga : 0) + ' FG · ' + (S.reb / g).toFixed(1) + ' RPG in ' + S.g + ' games' + (c.team && c.team.mates ? ' · ' + c.team.mates.length + ' teammates behind you on the depth chart' : '') : 'You haven\'t played a game yet this season.';
+}
+// Titles by year: your franchise's (every season it has, the PBL's), or your teams' while you've played for them.
+function teamTitles(c) {
+  if (isPro(c)) { const F = frTable(c)[meOf(c).club], T = (F && F.titles) || [], s0 = Math.max(1, c.season - 11); const out = []; for (let s = s0; s <= c.season; s++) out.push({ label: String(frYear(s)).slice(-2), v: T.some(t => t.s === s) ? 1 : 0, hi: T.some(t => t.s === s && t.me) }); return out; }
+  return (c.log || []).slice(-12).map(l => ({ label: 'S' + l.season, v: l.champ ? 1 : 0, hi: !!l.champ }));
+}
+// ---------------- your charts ----------------
+// Your seasons for the career charts: [{ label, ppg, ovr, rank }] (rank 0: not ranked), oldest first, this one last.
+function myCareerPoints(game, c) {
+  const a = amateurOf(game) || (game.save.data.c1 || null), out = []; const amLog = (a && a.log) || (c && c.amateur && c.amateur.log) || [];
+  for (const l of amLog) out.push({ label: (l.stage === 'college' ? 'C' : 'H') + (l.season), ppg: l.ppg, ovr: l.ovr, rank: l.prk || 0 });
+  if (isPro(c)) { for (const l of (c.me.seasonLog || []).slice().reverse()) out.push({ label: 'P' + l.season, ppg: l.ppg, ovr: l.ovr, rank: l.prk || 0 }); const s = c.stats[c.meId], me = rkMeRow(c); if (s && s.g && c.phase !== 'offseason') out.push({ label: 'NOW', ppg: +(s.pts / s.g).toFixed(1), ovr: recOvr(meOf(c)), rank: me ? me.r : 0, now: true }); }
+  else if (c) { const S = c.seasonStats, me = rkMeRow(c); if (S && S.g) out.push({ label: 'NOW', ppg: +(S.pts / S.g).toFixed(1), ovr: amOvr(c), rank: me ? me.r : 0, now: true }); }
+  return out.slice(-14);
+}
+function myChartsScreen(game) {
+  const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game);
+  return chartScreen(game, { name: 'mycharts', title: 'YOUR CHARTS', tabs: game.ui.phone ? ['SEASON', 'CAREER'] : null, sub: () => 'Your rank and your team\'s, week by week · and season by season',
+    draw(ctx, ui, S, box) { const P = ui.phone, R = c.rk, H = R && R.lv === rkLevel(c) ? R.hist || [] : [], last = !H.length && R && R.last ? R.last.hist || [] : null, hist = H.length ? H : last || [], car = myCareerPoints(game, c);
+      const season = b => { kitHeader(ctx, (H.length ? 'This season' : last && last.length ? 'Last season' : 'This season') + ' · your rank and your team\'s', b.x, b.y, b.w); if (!hist.length) { ui.label(ctx, 'Your weekly ranks start with the season\'s first week.', b.x, b.y + 40, P ? 16 : 14, UI_DIM, 'left', b.w); return; }
+        const r = hist.map(h => h.r > 0 ? h.r : null), t = hist.map(h => h.t > 0 ? h.t : null), lo = 1, hi = Math.max(10, ...r.concat(t).filter(v => v != null)); lineChart(ctx, b.x + 46, b.y + 34, b.w - 70, b.h - 70, [{ pts: t, col: UI_CYAN, width: 2 }, { pts: r, col: UI_GOLD }], { inv: true, lo, hi: Math.min(RK.top, Math.ceil(hi / 10) * 10), labels: hist.map(h => 'W' + h.w) });
+        ui.label(ctx, '— your team', b.x + b.w, b.y, P ? 15 : 13, UI_CYAN, 'right', 170); ctx.font = fontStr(P ? 15 : 13, false); ui.label(ctx, '— you', b.x + b.w - rbDrawWidth(ctx, '— your team') - 24, b.y, P ? 15 : 13, UI_GOLD, 'right', 90); if (r.every(v => v == null)) ui.label(ctx, 'You\'re not in the top ' + RK.top + ' yet (gaps: not ranked).', b.x + 46, b.y + b.h - 16, P ? 15 : 13, UI_DIM, 'left', b.w - 60); };
+      const career = b => { const w = (b.w - 2 * 20) / 3, labels = car.map(p => p.label); [['PPG by season', car.map(p => p.ppg), UI_GOLD, false], ['OVR by season', car.map(p => p.ovr), UI_GREEN, false], ['Rank by season', car.map(p => p.rank > 0 ? p.rank : null), UI_CYAN, true]].forEach(([t, pts, col, inv], i) => { const x = b.x + i * (w + 20); kitHeader(ctx, t, x, b.y, w); if (car.length < 1 || pts.every(v => v == null)) { ui.label(ctx, inv ? 'No ranked season yet.' : 'No seasons yet.', x, b.y + 40, P ? 15 : 13, UI_DIM, 'left', w); return; } lineChart(ctx, x + 40, b.y + 34, w - 56, b.h - 70, [{ pts, col }], { inv, lo: inv ? 1 : undefined, hi: inv ? Math.min(RK.top, Math.max(10, ...pts.filter(v => v != null))) : undefined, labels, fmt: v => inv ? '#' + Math.round(v) : String(Math.round(v)) }); }); };
+      if (P) { if (S.tab === 0) season(box); else career(box); return; }
+      season({ x: box.x, y: box.y, w: box.w, h: box.h * 0.48 }); career({ x: box.x, y: box.y + box.h * 0.54, w: box.w, h: box.h * 0.46 }); } });
+}
+// A line chart of one or more series over the same x labels (a season's weeks, a career's seasons). series: [{ pts:
+// [v or null (a gap)], col, width }]; opts: { lo, hi, inv (ranks: 1 at the top), step, labels, fmt, k (0 → 1: the
+// lines draw themselves), last (false: no value at the last point) }.
+function lineChart(ctx, x, y, w, h, series, opts) {
+  opts = opts || {}; const all = []; for (const S of series) for (const v of S.pts) if (v != null && isFinite(v)) all.push(v);
+  const n = Math.max(1, ...series.map(S => S.pts.length)), k = opts.k == null ? 1 : opts.k; let fmt = opts.fmt;
+  let lo = opts.lo != null ? opts.lo : all.length ? Math.min(...all) : 0, hi = opts.hi != null ? opts.hi : all.length ? Math.max(...all) : 1; if (hi - lo < 1e-6) { lo -= 1; hi += 1; }
+  const step = opts.step || niceStep((hi - lo) / 4), y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi / step) * step; if (!fmt) fmt = step < 1 ? (v => v.toFixed(1)) : (v => String(Math.round(v))); lo = opts.inv ? Math.max(1, Math.min(lo, y0 || 1)) : y0; hi = y1;
+  const px = i => x + (n === 1 ? w / 2 : i / (n - 1) * w), py = v => { const f = (clamp(v, lo, hi) - lo) / Math.max(1e-6, hi - lo); return opts.inv ? y + f * h : y + h - f * h; };
+  ctx.save(); ctx.font = fontStr(11, false); ctx.textBaseline = 'middle';
+  const ticks = []; for (let v = y0; v <= hi + 1e-6; v += step) ticks.push(Math.max(lo, v)); if (opts.inv && !ticks.includes(lo)) ticks.unshift(lo);
+  for (const v of ticks) { const yy = py(v); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke(); ctx.textAlign = 'right'; ctx.fillStyle = UI_DIM; ctx.fillText(opts.inv ? '#' + Math.round(v) : fmt(v), x - 6, yy); }
+  const lab = opts.labels || []; ctx.textAlign = 'center'; const every = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(w / 46)))); for (let i = 0; i < n; i++) if (lab[i] != null && (i % every === 0 || i === n - 1)) { ctx.fillStyle = UI_DIM; ctx.fillText(String(lab[i]), px(i), y + h + 14); }
+  const upto = k * Math.max(1, n - 1);
+  for (const S of series) { ctx.strokeStyle = S.col || UI_GOLD; ctx.lineWidth = S.width || 3; ctx.lineJoin = 'round'; ctx.beginPath(); let on = false;
+    for (let i = 0; i < S.pts.length; i++) { const v = S.pts[i]; if (v == null || !isFinite(v) || i > upto + 1e-6) { on = false; continue; } if (on) ctx.lineTo(px(i), py(v)); else { ctx.moveTo(px(i), py(v)); on = true; } }
+    ctx.stroke(); for (let i = 0; i < S.pts.length; i++) { const v = S.pts[i]; if (v == null || !isFinite(v) || i > upto + 1e-6) continue; ctx.fillStyle = S.col || UI_GOLD; ctx.beginPath(); ctx.arc(px(i), py(v), i === S.pts.length - 1 ? 5 : 3.5, 0, TAU); ctx.fill(); }
+    if (opts.last !== false) { let i = S.pts.length - 1; while (i >= 0 && (S.pts[i] == null || !isFinite(S.pts[i]))) i--; if (i >= 0 && i <= upto + 1e-6) { ctx.font = fontStr(12, true); ctx.fillStyle = S.col || UI_GOLD; const right = i > n / 2, v = S.pts[i], ly = py(v) - 14 < y + 4 ? py(v) + 16 : py(v) - 14; ctx.textAlign = right ? 'right' : 'left'; ctx.fillText(opts.inv ? '#' + Math.round(v) : fmt(v), px(i) + (right ? -8 : 8), ly); } } }
+  ctx.restore(); return { lo, hi, px, py };
+}
+// 1, 2 or 5 × a power of ten: a gridline step for a range.
+function niceStep(r) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1e-9, r)))), f = r / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+// Bars by year (titles): items [{ label, v, hi (yours) }].
+function barChart(ctx, x, y, w, h, items, opts) {
+  opts = opts || {}; const n = Math.max(1, items.length), max = Math.max(opts.max || 1, ...items.map(t => t.v || 0)), gap = w / n, bw = Math.max(4, Math.min(36, gap * 0.7));
+  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.stroke(); ctx.font = fontStr(11, false); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const every = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(w / 40))));
+  items.forEach((t, i) => { const cx = x + gap * (i + 0.5), bh = (t.v || 0) / max * (h - 18); if (bh > 0) { ctx.fillStyle = t.hi ? UI_GOLD : opts.col || '#5B8FE6'; ctx.fillRect(Math.round(cx - bw / 2), Math.round(y + h - bh), Math.round(bw), Math.round(bh)); } if (i % every === 0 || t.hi) { ctx.fillStyle = t.hi ? UI_GOLD : UI_DIM; ctx.fillText(String(t.label), cx, y + h + 14); } });
+  ctx.restore();
+}
+// The LEAGUE tab's chart doors (both careers): Rankings, Leaders, Standings, Brackets, Team, My charts.
+function chartLinks(game, c) {
+  const br = () => { const L = bracketList(game, c); if (L.length === 1) L[0].open(); else game.ui.push(bracketsScreen(game)); };
+  return [btn('Rankings', 0, 0, 0, 0, () => game.ui.push(rankingsChartScreen(game))), btn('Leaders', 0, 0, 0, 0, () => game.ui.push(leadersChartScreen(game))), btn('Standings', 0, 0, 0, 0, () => game.ui.push(standingsChartScreen(game))), btn('Brackets', 0, 0, 0, 0, br), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamPageScreen(game))), btn('My charts', 0, 0, 0, 0, () => game.ui.push(myChartsScreen(game)))];
 }
 
 // ============================================================================
@@ -18945,6 +19422,7 @@ function guideEntries(game, topic) {
     add('Career games', fmtClock(careerSecs()) + ' · ' + P_.shotClock + ' s shot clock', ['One period of ' + fmtClock(careerSecs()) + ' (Settings → Gameplay), and a tie goes to sudden-death overtime: the next basket wins.', 'The game clock runs through dead balls and inbounds until the last ' + CONFIG.rules.runningStopS + ' s of a period, so a one-minute game takes about 70–80 s and runs about 12–18 points a side.', 'After a basket or a dead ball the ball comes back in just past half court with the defender set in front: no walk up the floor. Shots fall a little more often than in Quick Play (more in high school).', 'In those last seconds and in overtime it stops on dead balls, and waits while the ball is brought up (at most ' + P_.holdMaxS + ' s) and while a shot is up until the last ' + P_.flightStopUntil + ' s (buzzer beaters stay); it dims while it waits.', 'The shot clock is ' + P_.shotClock + ' seconds, and waits while the ball is brought up after an inbound, a rebound or a steal (Quick Play keeps the normal shot clock).']); /* W10: 2.1's running clock (§1.8) */
     add('Road to the League', R ? R.n + ' of ' + R.total : '', (R && R.next ? [['Next: ' + R.next.label.toLowerCase() + '. ' + R.line, UI_CYAN]] : []).concat(['Eleven milestones from varsity to the Hall of Fame; THE goal is a 5★ team. Each one pays: cash, a level for your badge nearest its next one, or a free level of an item that shows on your player. EVENTS (and HOME, after high school) open them all.']));
     add('The week', '', ['PLAY is the game, then one result screen (the score, your line, the XP bar, the rewards), then HOME. SIM is one line, then HOME. At most two screens between games: a decision comes as a message, at most one a week (an urgent one, like a trade offer, comes at once).', 'Your plan runs by itself at every game: Auto, Focus, Rest or Study. Over ' + WK.restAt + ' fatigue the week rests on its own.']);
+    add('Rankings', '', ['Every week each level ranks its players and its teams from the season\'s games, never from OVR. A player: points a game first; then FG% and turnovers, wins and the opponents\' strength break the ties. A team: its record first, then its point margin and its opponents. The lists show the top ' + RK.top + ' (NR: not in it), with ▲▼ for the move since last week.', 'High school ranks the nation (your district and its best prospects), college all ' + COLLEGES.length + ' programs, the PBL its league. JV games don\'t count nationally. A college program\'s stars and a PBL franchise\'s follow its final team ranking. LEAGUE has the charts: rankings, leaders, standings, brackets, your team and your own charts.']);
     add('Sim to next event', '', ['Sims your weeks (your plan, then the game) and stops before a big game (the Boss, the playoffs, a spot start, the national TV game), for an injury, or for anything that can\'t wait. Sim to end of season stops only for those and before the playoffs. Either ends in one line on HOME; its news is in the headlines.']);
     add('Playing time', c && c.team ? '#' + ladderRank(c) + ' on the depth chart' : '', ['Only the top rung plays. Benched, you can challenge the starter once a week (your practice): win a game to ' + TM.challengeTarget + ' and you start.', TM.spotAfter + ' bench weeks in a row and the next game is a spot start; an A or B in it moves you up a rung. A pro may ask for a trade after ' + TM.tradeBenchWeeks + ' bench weeks in a season.', 'Teammates challenge you less: never in a season\'s first ' + TM.chalFirstWeeks + ' weeks, at most once every ' + TM.chalGap + ', and only from within ' + TM.chalWithin + ' OVR of you.']);
     add('Ceremonies and records', '', ['Awards night closes a season you won something in. The All-Star reveal comes before the weekend, and a Hall of Fame career ends with its induction.', 'THE RECORD BOOK (on the ME tab) keeps your best game at each level and the state, college and PBL records. Break one and a gold toast says so, and the book keeps your name on it.']); // V8 (2.0 §4.9)
@@ -19097,7 +19575,8 @@ const STAT_TIPS = {
   gpa: ['GPA', 'money', () => 'Under ' + HS.gpaMin.toFixed(1) + ' you can\'t play. Study weeks raise it; every game week takes ' + HS.gpaDrift + ' off.'],
   odds: ['TITLE ODDS', 'team', () => 'Your chance at the title: the rest of the season and the playoffs played ' + FRN.oddsRuns + ' times.'],
   value: ['YOUR VALUE', 'team', () => 'OVR + fame / ' + FRN.fameDiv + ' + playoff wins. A franchise calls when it reaches its bar.'],
-  record: ['THE SEASON', 'season', () => 'The week, your record, your team\'s place in the table and yours. The table sorts by wins, then by the points margin.'],
+  record: ['THE SEASON', 'season', () => 'The week, your record, your team\'s national rank and yours (the top ' + RK.top + '; NR: not in it yet). Ranks come from how you play, every week.'],
+  rank: ['RANKINGS', 'season', () => 'Every week, from the season\'s games, never OVR. A player: points a game, plus FG% and turnovers, wins and the opponents\' strength as tiebreaks. A team: its record, then its point margin and its opponents. The top ' + RK.top + ' show; ▲▼ is the move since last week. JV games don\'t count nationally.'],
   plan: ['THE WEEKLY PLAN', 'season', () => 'Auto trains the cheapest next +1 of your style\'s ratings; Focus one rating you pick; Rest takes ' + WK.restFatigue + ' fatigue off; Study raises your GPA. It runs by itself at every game and stays until you change it. Over ' + WK.restAt + ' fatigue the week rests on its own.'],
   eta: ['+1 IN ABOUT N WEEKS', 'season', () => 'What a typical week puts into the rating (training and games), against the XP its next point costs. The rating you train fills fastest; a point costs more the higher it is, and ' + CR.potMul + '× past your hidden potential.'],
 };
