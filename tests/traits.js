@@ -65,7 +65,7 @@ const { launch, openPage, runner } = require('./lib');
     if (r.shown !== 1 || r.gone !== 0) throw new Error('the banner'); if (!r.lines.some(l => /^Clutch: \+[0-9.]+ make/.test(l))) throw new Error('no Clutch line: ' + r.lines.join(' | '));
   });
   await step('cards and chips: a tap on your badge chip on the hub opens its card; a mouse resting on it shows the card; the Codex lists all 17 (yours at their level, the rest LOCKED with your count toward Lv1)', async () => {
-    await ev(() => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Chip Test', look: PRESET_LOOKS[5], number: 8, style: 'shooter', seed: 4321, traits: ['streaky', 'iceveins'] }); g.save.data.c1 = a; a.events.length = 0; g.hubTab = 'me'; g.ui.clearTo(amHub(g)); });
+    await ev(() => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Chip Test', look: PRESET_LOOKS[5], number: 8, style: 'shooter', seed: 4321, traits: ['streaky', 'iceveins'] }); g.save.data.c1 = a; a.events.length = 0; g.hubTab = 'career'; g.ui.clearTo(amHub(g)); }); /* 3.0: your badges are on CAREER */
     await page.waitForTimeout(500);
     const hot = await ev(() => { const s = HH.game.ui.screen, h = (s._hots || []).find(x => x.info && x.info.trait === 'streaky'); if (!h) return null; const ui = HH.game.ui; return { x: ui.ox + (h.x + h.w / 2) * ui.scale, y: ui.oy + (h.y + h.h / 2) * ui.scale }; });
     if (!hot) throw new Error('no chip on the hub');

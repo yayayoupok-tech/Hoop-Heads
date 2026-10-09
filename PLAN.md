@@ -380,7 +380,14 @@ and the Front Office stay; old saves load with what's removed taken out (`x30Mig
 items, levels 1–5, prices by stage) and §6.3's earned badges (17, Lv1–Lv3, each with its deed) landed here; X7 adds
 the tournament items. Decisions are already short messages. Titles (0.78 a career) and the Hall of Fame (13%) are over
 target with the badges' levels: X10. Eight older tests still drive removed flows; they're rewritten with X3, X8 and X9.
-**X3 — The Retro Bowl home, the weekly loop, messages and practice** — §2–3.
+**X3 — The Retro Bowl home, the weekly loop, messages and practice** *(done)* — §2–3: HOME with five tabs along the
+bottom (HOME, LEAGUE, EVENTS, CAREER, STORE); PLAY → one result screen → HOME, SIM → a toast, the season's end one
+review screen (`tests/loop.js`: at most 2 screens between games on PLAY, 1 on SIM, at every level); events sorted
+into info (rewards and headlines), messages (one a week), urgent ones, moments and the season; a plan that sticks
+(Auto, Focus, Rest, Study; Rest over fatigue 70), training at every game, +1 steps, "+1 in about N weeks", an
+optional 30 s drill worth up to +50%; `xpEarn` 9 → 2.3 keeps X2's curve within a point to 25 (two higher after: X10).
+The overflow audit (`tests/screens30.js`, on `tests/auditkit.js`) covers every new screen at a desktop, a phone and
+1.25× text; later milestones add theirs.
 **X4 — Rankings and charts** — §4.1–4.2.
 **X5 — Teammates, lower leagues, transfers and PBL team life** — §4.3–4.5.
 **X6 — Tournaments, rewards and difficulty** — §5.
@@ -407,6 +414,8 @@ node tests/loadlag.js              # loading lag at 4× and 1× CPU: every scree
 node tests/modes.js                # every mode to its end (M9)
 node tests/oldsaves.js             # every fixture save reloaded and played on (M9)
 node tests/phoneaudit.js [dir]     # phone tap targets, overlaps and text size on 65 screens (M9)
+node tests/loop.js                 # 3.0: the weekly loop's screens between games at each level (§2.2)
+node tests/screens30.js [dir]      # 3.0: the overflow audit of the 3.0 screens at a desktop, a phone and 1.25× text (§11)
 node tests/gate.js [n] [hn]        # the §2 Legends View gate: mirror, Legend vs Pro and the harness in both layouts (L1)
 node tests/tojpeg.js <dir>         # milestone screenshots: PNG → JPEG
 ```

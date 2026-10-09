@@ -211,6 +211,8 @@ node tests/recruit21.js            # 2.1's recruiting game: interest, offers, sp
 node tests/parity.js [12] [seed]   # your simmed points against your played points (the AI at your controls), every level within 10%
 node tests/pace.js [8] [seed]      # 3.0 (§0.2): career games played in the engine: 12–18 points a side, 70–80 s a game, at every level
 node tests/memory.js [50] [--phone]   # 3.0 (§0.1): 50 career games against new opponents: memory within +150 MB of the level after game 5
+node tests/loop.js                 # 3.0 (§2.2): a season's weeks at each level through the real screens: at most 2 screens between games on PLAY, 1 on SIM; the plan and the messages
+node tests/screens30.js [dir] [--only=desktop|phone|desktop125|phone125]   # 3.0 (§11): the overflow audit of the 3.0 screens (HOME's tabs, results, messages…) at a desktop, a phone and 1.25× text
 node tests/effort.js [200] [seed] [par]   # the career policies: plays well + good choices vs sims everything, never opening a menu,
                                    # a smart spender (legacy, 5★ teams, titles, money left over)
 node tests/traitbalance.js [n] [seed] [par]                      # every badge forced on n careers: legacy against the median

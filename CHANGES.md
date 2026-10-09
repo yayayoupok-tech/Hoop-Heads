@@ -3,6 +3,149 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X3 (3.0) — the Retro Bowl home, the weekly loop, messages and practice
+
+The request's §2–3: one HOME with five tabs, PLAY → one result screen → HOME, SIM → a toast, messages that say one
+thing and wait their turn, and a practice plan that sticks so training happens by itself. Quick checks for this
+milestone: the new `tests/loop.js` and `tests/screens30.js`, and `tests/smoke.js`, `tests/flow.js`, `tests/shop.js`,
+`tests/traits.js`, `tests/playtest3.js`, `tests/pbl21.js`, `tests/oldsaves.js` (42 of 42 fixtures) and the career
+simulator (40 careers, seeds 1 and 2).
+
+### HOME (§2.1)
+
+Both careers open on HOME. Five tabs run along the bottom on a desktop and a phone (keys 1–5):
+
+| Tab | What's on it |
+| --- | --- |
+| **HOME** | the next game: both players' cards, the opponent's place in the table and OVR, a big **PLAY** and **SIM** (a desktop adds the Scout report: the pregame opens only when you ask for it); Sim to next event, Sim to end of season; the season line (week X of Y · record · TEAM #n · YOU #n); the standings' top five and your team; the next event with a countdown; recruiting (high school) or the Road to the League (college, the pros); the headlines; the weekly plan in one row. A phone keeps PLAY, SIM and MORE… (the sims, the scout report, the drill) |
+| **LEAGUE** | your team and the depth chart, the standings, the colleges or the franchises |
+| **EVENTS** | the season's calendar, the Road to the League and what's coming up |
+| **CAREER** | your seven ratings, each with "+1 in about N weeks", your badges first, then you; Train, Stats, Badges, Items, Trophies, Timeline, Records, News and the Office (the pros). A phone shows five and MORE… |
+| **STORE** | the store's three doors: Shop, Your locker, Extras |
+
+- "YOU #n" ranks you by OVR among the table's players until X4's rankings. The crew's report on HOME is X8's.
+- The header keeps the Codex (?), Settings and the menu (≡); an old save's tab (play, train, me, team, shop, recruit)
+  opens its new home (`HUB_TAB_OLD`).
+- The headlines on HOME show whole headlines only (two lines at most, the newest that fits), a new one on top every 4 s.
+- The standings' rows shorten a name that doesn't fit (the school and the player, then the player's initial, then the
+  school) instead of cutting it (`rbFirstFit`).
+
+### The loop (§2.2)
+
+- **PLAY** is the game, then **one result screen** (`gameResultScreen`, both careers): the score and grade, five stat
+  tiles, the bar of the rating you trained toward its next +1 with its ETA, your rating gains, and REWARDS (a badge, a
+  Road goal, a record, a new move, your OVR, pay, fame), then HOME. Hurt, slumping or tired: the right column says so.
+- **SIM** is a toast (the score, your line, the first reward and how many more), then HOME. Sim to next event and Sim
+  to end of season end in a toast too (the record, points a game, what stopped the run).
+- **The season's end** is one screen, the Season review (`seasonReviewScreen`): titles, the recap, your awards, a
+  growth spurt, your OVR by season and your card; Awards night and the parade are buttons, not stops.
+- The offseason's own screens (a contract, free agency) aren't between games and aren't counted.
+- The toast wraps (three lines at most), sits over a hub's tab bar and stays up longer when it says more
+  (2.2 s, +0.03 s a character past 40, at most 5 s).
+
+### Messages (§2.3)
+
+Every queued event has a class (`EV_CLASS`, `evClass`):
+
+| Class | Kinds | Where it goes |
+| --- | --- | --- |
+| info | a badge's level, a Road goal, a teammate's challenge, a note, the All-Star picks… (every kind not below) | the result's REWARDS (or the SIM toast) and the headlines; no screen |
+| message | a choice card, an NIL deal, an agent, a shoe deal, a trade request, an owner's meddling | the inbox, **one a week** (`evNextMessage`): one line, one icon, two or three buttons |
+| urgent | a trade offer, a rebuild's offer, the coaching carousel, any message flagged urgent or arriving in a pro's offseason | at once, as a message |
+| moment | your genes, Signing Day's commitment, All-Star weekend | its own screen |
+| season | the recap, awards night, the parade, the ring, the banner, a growth spurt | the Season review |
+
+- A message that waited past its season (an NIL deal, a trade request, an owner's meddling) is dropped.
+- A teammate's challenge for your spot is simmed and reported (a headline), no screen.
+- The agent's pitch is one line now (the buttons carry the deal).
+- The message box measures its lines on the screen's own canvas (the text size, the pixel floor) and grows for them:
+  four lines of message, three of detail, two of each button's note.
+
+### Practice (§3)
+
+- **The plan** is one row on HOME: **Auto** (your best-value rating), **Focus** (one rating, the focus picker), **Rest**
+  (−25 fatigue), **Study** (GPA +0.3). It stays until you change it. Over fatigue 70 the week turns to Rest by itself
+  (the plan comes back once you're under it); under the GPA line it's Study (the coach's rule).
+- **Training happens by itself** at every game (played or simmed): the week's training XP goes to its rating
+  (`simSessionXp` 10 × the age multiplier, coach trust, badges and gear; the pros × facilities and the system), and the
+  game's own XP pays the trained rating its share × 1.4 (`practiceFocusMul`). There's no Practice screen, no intensity
+  and no load cap.
+- **Auto** trains the cheapest next +1 among your play style's ratings (once they're all at their ceilings, the
+  cheapest of the rest). Not the cheapest of all seven: the XP curve makes a neglected rating so cheap that Auto
+  pumped it, and the simulator's players reached OVR 90 by 25.
+- **+1 steps** (`xpStep` 5 → 1): a rating rises one point at a time. Teammates keep 2.x's 5-point summer step
+  (`TM.growStep` 5).
+- **At the ceiling** the Focus moves to Auto's pick and says so (a headline and a note on HOME).
+- **"+1 in about N weeks"** for every rating, on CAREER and in the focus picker (there, the time if you trained it):
+  each rating's XP a week is a running average (`rateKeep` 0.35 of the newest week).
+- **The weekly drill** (optional, 30 s, once a week, skippable forever in Settings): its score adds up to +50% to that
+  week's training XP (`drill: { seconds: 30, bonus: 0.5, great }`; the great scores are 2.x's halved for 30 s:
+  shooting 12, handles 22, finishing 27, defense 7). It replaces 2.x's 60 s drill and its flat XP.
+- **The summer's growth** follows the rating you trained most (`trainKeep` 0.97 a week), not Auto's pick of the day.
+- **Film weeks are gone:** opening an opponent's scouting report studies them (Film Junkie's deed, once a week:
+  +1.5 Defense and Shooting against them at Lv1), and the store's film session gives its +3 for this week's opponent.
+
+| Constant | Was | Now | Why |
+| --- | --- | --- | --- |
+| `xpStep` | 5 | 1 | §3: +1 steps |
+| `xpEarn` | 9 | 2.3 | Auto trains your cheapest style rating every week where 2.x's default trained one rating however high it was; at 9 Auto careers peaked at OVR 83 and won 3.6 titles; at 2.3 they follow X2's curve (below) |
+| `week.drill` | `drillXp` [30, 120], `drillSeconds` 60, `drillGreat` | `{ seconds: 30, bonus: 0.5, great }` | §3: an optional 30 s drill worth up to +50% of the week |
+| `week.intensity`, `loadCap`, `loadFatigue`, `loadDrillRef` | light/normal/hard, 1.25, 8, 0.5 | — | one tap, never useless: no intensity, no load |
+| `week.rateKeep`, `week.trainKeep` | — | 0.35, 0.97 | the ETA's running average; what you trained lately |
+| `TM.growStep` | (`xpStep`) | 5 | teammates keep their summer step |
+| Film Junkie | `film` (Film weeks), `filmXp` 0.5 | `studied` 1.5, deed: opponents studied | Film weeks are gone |
+
+### Old saves
+
+A save's plan maps to the new four (practice → focus, film → auto); its intensity is reset; a week already done as
+Film counts as trained; its `xpBy` folds into the new running averages; its hub tab opens its new home. 42 of 42
+fixtures load and play on (`oldsaves.js`).
+
+### Tests
+
+- **New:** `tests/loop.js` (§2.2, §11 "screens between games"): a scripted season at each level through the real
+  screens, PLAY and SIM weeks alternating, counting every screen between two games, plus the practice and message
+  rules. A season's first 12 weeks at each level, PLAY and SIM weeks alternating:
+
+  | Level | Screens between games on a PLAY week: most · mean | On a SIM week: most · mean | What they were |
+  | --- | --- | --- | --- |
+  | High school | 1 · 1.00 | 1 · 0.17 | the result 6, the Season review 1 |
+  | College | 2 · 1.17 | 0 · 0.00 | the result 6, a message 1 |
+  | The pros | 2 · 1.17 | 1 · 0.17 | the result 6, messages 2 |
+
+  The practice checks: a Focus holds three weeks, ratings rise in +1 steps, fatigue over 70 rests the week, a great
+  drill adds +50% (28 XP), a Focus at its ceiling hands over with a note ("Shooting reached its ceiling (95): your
+  Focus moves to Handles."), and the ETA reads. The message checks: a badge and a call-up arrive as rewards and
+  headlines; two decisions wait in the inbox and show a week apart.
+- **New:** `tests/screens30.js` (§11's overflow audit): HOME and its five tabs in each career, MORE…, the focus picker,
+  the drill's result, three result screens, the Season review, the recruiting board, five messages and the SIM toast,
+  at a desktop (1280×720), a phone (844×390) and both at 1.25× text: 148 screens, none flagged. Its checks moved from
+  `phoneaudit.js` into `tests/auditkit.js` (tap targets, overlaps, cut text, text over text, two screens at once, art
+  over text, legibility); each later milestone adds its screens.
+- **Updated:** `smoke.js`, `flow.js`, `shop.js`, `traits.js`, `playtest3.js`, `oldsaves.js` and `careersim.js` drive the
+  new HOME, plans and loop.
+- **Still to update for the full suite (X11):** `phoneaudit.js` (onto `auditkit.js`), `polish.js`, `loadlag.js`,
+  `recruit21.js`, `colleges.js`, `school.js`, `life21.js`, `improve21.js`, `climb.js` (the drill's flat XP and the load
+  cap), `modes.js` (the Practice screen), `gameplay.js` (the film room), `proteams.js` and `fullcareer.js` (the new hub's
+  buttons).
+
+### The career simulator (40 careers)
+
+| | X2 (seed 1) | X3, seed 1 | X3, seed 2 |
+| --- | --- | --- | --- |
+| median OVR at 17 / 21 / 25 / 29 | 56 / 64 / 68 / 69 | 56 / 65 / 69 / 71 | 56 / 65 / 69 / 71 |
+| peak OVR (median) | 69 | 71 | 71 |
+| a 5★ team (target 15–25%) | 15% | 23% | 20% |
+| titles a career (0.2–0.4) | 0.78 | 0.93 | 0.25 |
+| Hall of Fame (3–8%) | 13% | 15% | 10% |
+| legacy (median) | 57 | 47 | 44 |
+| stuck careers | 0 | 0 | 0 |
+| weeks trained · rested · studied | — | 95% · 1% · 3% | 95% · 1% · 4% |
+
+The curve holds within a point to 25 and runs two points higher after (the summer's growth now follows the rating you
+trained, and every week trains); titles swing with a few dynasties at 40 careers (0.93 and 0.25 on two seeds). §9's
+progression tuning (X10) sets the curve and the titles with every system in.
+
 ## X2 (3.0) — removals and save migration
 
 The request's §1: the story campaign, press conferences, rivals, rarity, recruiting busywork, hype as a second meter and

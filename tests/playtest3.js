@@ -26,7 +26,7 @@ const { launch, openPage, runner } = require('./lib');
       out.tryout = sims(); hsSimTryout(c); c.events.length = 0; out.free = sims(); hsSummerStart(c); out.summer = sims();
       g.ui.clearTo(amHub(g)); simAheadFromHub(g, 'big', () => amHub(g)); out.after = g.ui.screen.name; return out; });
     const want = (k, rx) => { if (!r[k].some(l => rx.test(l))) throw new Error(k + ': ' + JSON.stringify(r[k])); };
-    if (r.tryout.length) want('tryout', /^Finish tryouts first \(off\)$/); want('summer', /^Pick your summer first \(off\)$/); want('free', /^Sim to next big moment$/);
+    if (r.tryout.length) want('tryout', /^Finish tryouts first \(off\)$/); want('summer', /^Pick your summer first \(off\)$/); want('free', /^Sim to next event$/); /* 3.0 (§2.2) */
     if (r.after !== 'amhub') throw new Error('a blocked run opened ' + r.after);
     return 'tryouts ' + JSON.stringify(r.tryout) + ' · summer ' + JSON.stringify(r.summer);
   }, P);
@@ -64,7 +64,7 @@ const { launch, openPage, runner } = require('./lib');
   // §1.12: the Road banner's lines don't touch, cards fit names, facilities, skills
   for (const phone of [false, true]) await R.step('Road to the League banner (§1.12, ' + (phone ? 'phone' : 'desktop') + '): its text rows never touch or overlap', async () => {
     const Q = phone ? await openPage(b, { phone: true, wait: 900 }) : P;
-    const r = await Q.ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data; s.c1 = amCreate(s, { name: 'Road Test', look: PRESET_LOOKS[2], number: 2, style: 'shooter', seed: 31 }); s.c1.events.length = 0; hsSimTryout(s.c1); s.c1.events.length = 0; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); g.ui.trans = null;
+    const r = await Q.ev(() => { localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const s = g.save.data; s.c1 = amCreate(s, { name: 'Road Test', look: PRESET_LOOKS[2], number: 2, style: 'shooter', seed: 31 }); s.c1.events.length = 0; hsSimTryout(s.c1); s.c1.events.length = 0; g.hubTab = 'events'; /* 3.0: the banner is on EVENTS */ g.ui.clearTo(amHub(g)); g.ui.trans = null;
       const w = g.ui.screen.widgets.find(x => x.label === 'Road to the League'); const k = g.ctx.canvas.height / 720; RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { var B = RBF.boxes || []; RBF.boxes = null; }
       const M = g.ui._lastM || null; const inB = B.filter(x => /ROAD TO THE LEAGUE|^NEXT:|^On JV|^Tryouts|National rank|EVERY MILESTONE/.test(x.t)); return inB.map(x => ({ t: x.t.slice(0, 24), y: x.y, h: x.h, x: x.x, w: x.w, cut: !!x.cut })); });
     if (phone) await Q.context.close();

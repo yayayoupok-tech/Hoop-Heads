@@ -1,6 +1,6 @@
 // Old saves: every fixture in tests/fixtures (saves written by earlier builds, from the first 1v1 career to R10) is
 // loaded through a page reload, continued from the main menu and played on through the real screens: weeks with
-// rotating Practice / Rest / Film plans, messages (3.0: no press room or story), recruiting and commitment day, the combine and the pro offers
+// rotating plans (3.0: Auto / Rest / Focus / Study), messages (3.0: no press room or story), recruiting and commitment day, the combine and the pro offers
 // (the draft before F7), the All-Star weekend, the playoffs, the offseason and a new contract. Then the hub's pages are
 // opened and, when the save has one, the classic team league plays two games. Fails on any page error, frame exception,
 // NaN in the save, or a screen the driver cannot move past. Usage: node tests/oldsaves.js [actions per save,
@@ -17,7 +17,7 @@ const FIX = path.join(__dirname, 'fixtures');
     if (/^(combine|draft|commitday|title-parade|title-ring|title-banner)$/.test(s.name) && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal (V12: commitment day, a title's parade, ring and banner)
     const W = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && (w.kind === 'button' || (w.kind === 'custom' && w.onPress))); const by = re => W.find(w => re.test(w.label || ''));
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
-    const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
+    const a = g.save.data.c1, c = g.save.data.career, plans = ['auto', 'rest', 'focus', 'auto', 'study']; /* 3.0 (§3): the standing plans */
     switch (s.name) {
       case 'title': g.ui.clearTo(mainMenu(g)); break; // the title after a reload
       case 'tip': pr(by(/^GOT IT$/)); break; // R10: a first-time tip
@@ -39,7 +39,8 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
       case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^Opt in · /) || by(/^Skip to the end$/) || by(/^(Last day: take the best|Wait a day|Next day)$/) || by(/^Stay$/) || W.find(w => w.camp && !w.primary) || by(/^START SEASON/) || by(/^RETIRE/)); break; // 2.1 (W6): the seven steps: an option, the week's days, a rebuild's call (stay), the camp's goals
       case 'ladderevent': pr(by(/^SIM IT$/) || by(/^Continue$/)); break; // R4: a teammate's challenge
-      case 'roadcard': case 'simsummary': pr(by(/^(Continue|CONTINUE)$/) || W.find(w => w.primary)); break; // V5: a Road to the League milestone, a sim-ahead summary
+      case 'roadcard': case 'simsummary': case 'seasonreview': case 'drillpost': pr(by(/^(Continue|CONTINUE)$/) || W.find(w => w.primary)); break; // V5: a Road to the League milestone, a sim-ahead summary; 3.0: the season's review, a drill's result
+      case 'focuspick': case 'homemore': case 'recboard': pr(by(/^Back$/)); break; // 3.0: the focus picker, HOME's MORE…, the recruiting board
       case 'benchres': case 'ladderres': pr(by(/^CONTINUE$/)); break; // R4: a week on the bench, a challenge's result
       case 'ladder': pr(by(/^Back$/)); break;
       case 'tryout': pr(by(/^SIM IT$/)); break; // R5: tryouts (both parts simmed)
@@ -71,7 +72,7 @@ const FIX = path.join(__dirname, 'fixtures');
       if (hasCareer) for (let i = 0; i < MAX; i++) { last = await act(i); n++; if (i % 4 === 3) await wait(30); if (last === 'legacy') break; if (P.errors.length) break; }
       await wait(200); const after = await summary();
       // the hub's pages draw on the migrated save
-      const pages = await ev(() => { const g = HH.game, d = g.save.data, out = []; const pro = d.career && d.career.phase !== 'retired' && !d.career.retired && !d.career.done, /* (W5: a career that retired on the way) */ am = d.c1 && !d.c1.handedOff; if (!pro && !am) return out; g.ui.clearTo(pro ? careerHub(g) : amHub(g)); const list = pro ? [leagueScreen, playerScreen, managementScreen, headlinesScreen, trophyCaseScreen, timelineScreen, practiceScreen, filmRoomScreen] : [amStandingsScreen, amHistoryScreen, headlinesScreen, trophyCaseScreen, timelineScreen, practiceScreen, filmRoomScreen]; for (const f of list) { const sc = f(g); out.push(sc.name); g.ui.push(sc); g.ui.update(1 / 60, g.input); g.ui.draw(g.ctx || g.canvas.getContext('2d'), g.canvas.width, g.canvas.height); g.ui.pop(); } return out; });
+      const pages = await ev(() => { const g = HH.game, d = g.save.data, out = []; const pro = d.career && d.career.phase !== 'retired' && !d.career.retired && !d.career.done, /* (W5: a career that retired on the way) */ am = d.c1 && !d.c1.handedOff; if (!pro && !am) return out; g.ui.clearTo(pro ? careerHub(g) : amHub(g)); const list = pro ? [leagueScreen, playerScreen, managementScreen, headlinesScreen, trophyCaseScreen, timelineScreen, focusPickerScreen] : [amStandingsScreen, amHistoryScreen, headlinesScreen, trophyCaseScreen, timelineScreen, focusPickerScreen, recBoardScreen]; /* 3.0: the focus picker and the recruiting board (no practice screen or film room) */ for (const f of list) { const sc = f(g); out.push(sc.name); g.ui.push(sc); g.ui.update(1 / 60, g.input); g.ui.draw(g.ctx || g.canvas.getContext('2d'), g.canvas.width, g.canvas.height); g.ui.pop(); } return out; });
       // F1: the classic team league is gone from the game; a save that had one keeps its data untouched
       const tc = await ev(() => { const d = HH.game.save.data; return d.teamCareer ? (Array.isArray(d.teamCareer.results) ? d.teamCareer.results.length : -1) : null; });
       await wait(300); const nan = await nanScan(); const fx = await P.frameErrors();
