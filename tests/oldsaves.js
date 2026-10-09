@@ -1,6 +1,6 @@
 // Old saves: every fixture in tests/fixtures (saves written by earlier builds, from the first 1v1 career to R10) is
 // loaded through a page reload, continued from the main menu and played on through the real screens: weeks with
-// rotating Practice / Rest / Film plans, the press room, recruiting and commitment day, the combine and the pro offers
+// rotating Practice / Rest / Film plans, messages (3.0: no press room or story), recruiting and commitment day, the combine and the pro offers
 // (the draft before F7), the All-Star weekend, the playoffs, the offseason and a new contract. Then the hub's pages are
 // opened and, when the save has one, the classic team league plays two games. Fails on any page error, frame exception,
 // NaN in the save, or a screen the driver cannot move past. Usage: node tests/oldsaves.js [actions per save,
@@ -15,14 +15,12 @@ const FIX = path.join(__dirname, 'fixtures');
   const act = (i) => ev(i => {
     const g = HH.game; g.ui.update(1 / 60, g.input); const s = g.ui.screen; if (!s) throw new Error('no screen');
     if (/^(combine|draft|commitday|title-parade|title-ring|title-banner)$/.test(s.name) && s.onTap) { s.onTap(0, 0); s.update(0.1, {}); } // skip the reveal (V12: commitment day, a title's parade, ring and banner)
-    if (s.name === 'dialog' && s.finish) s.finish(); // R9: type the page out (a choice shows once its text is done)
     const W = (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && (w.kind === 'button' || (w.kind === 'custom' && w.onPress))); const by = re => W.find(w => re.test(w.label || ''));
     const pr = w => { if (!w) throw new Error('stuck on ' + s.name + ' [' + W.map(x => x.label).join(' | ') + ']'); w.onPress(); };
     const a = g.save.data.c1, c = g.save.data.career, plans = ['practice', 'rest', 'film', 'practice', 'study'];
     switch (s.name) {
       case 'title': g.ui.clearTo(mainMenu(g)); break; // the title after a reload
       case 'tip': pr(by(/^GOT IT$/)); break; // R10: a first-time tip
-      case 'traitpick': pr(W.find(w => /^Take /.test(w.label || ''))); break; // V3: the third trait (1,000 career points): take the first offer
       case 'menu': pr(by(/CONTINUE CAREER/)); break;
       case 'whatsnew': if ((g.save.__wn = (g.save.__wn || 0) + 1) > 1) throw new Error('What\'s new came back'); pr(by(/^Got it$/)); break; // V13 (2.0 §5): a save from before 2.0 sees What's new once
       case 'amhub': if (a && !a.decision && a.stage !== 'combine') a.plan = plans[i % plans.length]; if (a && a.plan === 'study') { a.plan = 'practice'; if (a.stage === 'hs' && !(a.wk && a.wk.done)) wkStudy(a); } /* R5: a Study week now and then */ pr(by(/^(CHOOSE YOUR COLLEGE|SIGNING DAY|DRAFT DECISION|TURN PRO\?|TRANSFER PORTAL|DRAFT COMBINE|PRO COMBINE|YOUR SUMMER|TRYOUTS)$/) || by(/^SIM( THE GAME)?$/)); break; /* R6: the transfer portal */
@@ -35,9 +33,8 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'amdecision': pr(W.find(w => w.primary) || W[0]); break;
       case 'combine': case 'draft': pr(by(/^(PRO OFFERS|DRAFT NIGHT|START YOUR PRO CAREER)$/)); break;
       case 'prooffers': pr(by(/^SIGN WITH THE /)); break; // F7: the first offer
-      case 'press': pr(by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break;
-      case 'dialog': pr(by(/^▼$/) || by(/^CONTINUE$/) || W[i % Math.max(1, W.length)]); break; // R9: a dialogue card (page, continue or a choice)
-      case 'amevent': case 'rivalmoment': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres':
+      case 'message': pr(W[i % Math.max(1, W.length)]); break; // 3.0 (§2.3): a message: one of its buttons, in turn
+      case 'amevent': case 'commitday': case 'amresult': case 'result': case 'allstarres': case 'allstar1v1res': case 'practiceres':
         pr(by(/^(Continue|CONTINUE|BACK TO THE HUB|BACK TO THE WEEKEND)$/) || W.find(w => w.primary)); break;
       case 'allstarweekend': pr(by(/^Sim the contest$/) || by(/^Sim it$/) || by(/^DONE$/)); break;
       case 'offseason': pr(by(/^CONTINUE$/) || W.find(w => w.fa || /^(Re-sign|Sign with|Your club|Big market|Starts you|Offer)|★ · −?\$/.test(w.label || '')) /* F7: a free-agency offer reads 'Club 4★ · $5M × 4' */ || by(/^Opt in · /) || by(/^Skip to the end$/) || by(/^(Last day: take the best|Wait a day|Next day)$/) || by(/^Stay$/) || W.find(w => w.camp && !w.primary) || by(/^START SEASON/) || by(/^RETIRE/)); break; // 2.1 (W6): the seven steps: an option, the week's days, a rebuild's call (stay), the camp's goals
@@ -57,8 +54,7 @@ const FIX = path.join(__dirname, 'fixtures');
       case 'ceremony': case 'allstarpick': case 'hofinduction': case 'title-parade': case 'title-ring': case 'title-banner': pr(by(/^CONTINUE$/)); break; // V8: the ceremonies; V12: a title's parade, ring and banner
       case 'franchise': case 'bracket': pr(by(/^Back$/)); break; // V12
       case 'tradecompare': pr(by(/^Stay$/)); break; // V12
-      case 'storysofar': case 'records': pr(by(/^Back$/)); break; // V8
-      case 'recap': pr(by(/^CONTINUE$/)); break; // 2.1 (§4.3): "Previously on Hoop Heads"
+      case 'records': pr(by(/^Back$/)); break; // V8
       default: throw new Error('the driver does not know screen ' + s.name);
     }
     return g.ui.screen ? g.ui.screen.name : '(none)';

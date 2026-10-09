@@ -48,11 +48,11 @@ const { launch, openPage, runner } = require('./lib');
   // §1.11: a record shows once, as a toast at the hub's foot, never over other screens
   await R.step('records (§1.11): a NEW RECORD toast waits for the hub, shows once at its foot, and is never drawn over another screen', async () => {
     await fresh(712); const r = await ev(() => { const g = HH.game, ui = g.ui, inp = g.input, c = g.save.data.c1; REC_TOASTS.length = 0; ui.toastT = 0;
-      const dlg = textEventScreen(g, { title: 'A DIALOG', lines: ['Over the hub.'] }, () => ui.pop()); ui.clearTo(amHub(g)); ui.push(dlg); ui.trans = null;
+      const dlg = msgScreen(g, c, { title: 'A DIALOG', lines: ['Over the hub.'] }, () => ui.pop()); ui.clearTo(amHub(g)); ui.push(dlg); ui.trans = null;
       REC_TOASTS.push('STATE RECORD: 40 points (Test, 39)'); for (let i = 0; i < 30; i++) ui.update(0.05, inp); const onDialog = { left: REC_TOASTS.length, kind: ui.toastKind, t: ui.toastT };
       ui.pop(); ui.trans = null; for (let i = 0; i < 3; i++) ui.update(0.05, inp); const onHub = { left: REC_TOASTS.length, kind: ui.toastKind, text: ui.toast };
       RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { var B = RBF.boxes || []; RBF.boxes = null; } const tb = B.find(x => /STATE RECORD/.test(x.t)); const k = g.ctx.canvas.height / 720;
-      ui.push(textEventScreen(g, { title: 'ANOTHER', lines: ['x'] }, () => ui.pop())); ui.trans = null; ui.update(0.05, inp); const away = ui.toastT;
+      ui.push(msgScreen(g, c, { title: 'ANOTHER', lines: ['x'] }, () => ui.pop())); ui.trans = null; ui.update(0.05, inp); const away = ui.toastT;
       return { onDialog, onHub, y: tb ? tb.y / k : null, away, H: g.ctx.canvas.height / k }; });
     if (r.onDialog.left !== 1 || r.onDialog.kind === 'record' && r.onDialog.t > 0) throw new Error('shown over a dialog: ' + JSON.stringify(r.onDialog));
     if (r.onHub.left !== 0 || r.onHub.kind !== 'record') throw new Error('not shown on the hub: ' + JSON.stringify(r.onHub));

@@ -3,6 +3,159 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X2 (3.0) — removals and save migration
+
+The request's §1: the story campaign, press conferences, rivals, rarity, recruiting busywork, hype as a second meter and
+the old staff menu go; the headlines, Road to the League goals, the Codex and the Front Office stay; old saves drop what's
+gone without a word. The page is 14% smaller (`index.html` 3.11 → 2.67 MB, 22,065 → 19,552 lines; 17 source parts
+deleted). Quick checks for this milestone: `tests/smoke.js`, `tests/flow.js`, `tests/shop.js`, `tests/traits.js`,
+`tests/traitbalance.js`, `tests/oldsaves.js` (every fixture), `tests/pbl21.js`, `tests/playtest3.js` and the career
+simulator (40 careers).
+
+### What's gone
+
+| Removed | What it was | Now |
+| --- | --- | --- |
+| **The story campaign** | the chapters and their hooks in every week, the cast and relationship meters, dialogue scenes and typewriter cards, the side arcs (booster, cameras, journalist, family, sibling, best friend, mentor), "Story so far", "Previously on", the cutscene backgrounds, story XP, the endings and epilogues, the school's exam week and major choice, the trait story beats | a decision is a **message** (§2.3, early): one icon, one line (a smaller second one when it needs it), two or three buttons, no portraits, no typewriter (`msgScreen`, `msgChoose`); the coaching carousel's offer is one. The headlines, the trophy case, the timeline and All-Star weekend stay |
+| **Press conferences** | the press room after big games and its answers (humble, confident, trash talk) with their effects on hype, trust and grudges | nothing: fame comes from performance (wins, big nights, highlights, playoffs, awards) |
+| **Rivals** | your personal rival, rival moments and rival games, the PBL's rivalry weeks (`rivalryWeek`, double fame), "rival wants this spot", opponents' fire and grudges, the rival in recruiting | nothing. The PBL's schedule is a shuffled round robin (the circle method) with no rivalry pairs |
+| **Rarity** | Common/Rare/Epic/Legendary on items and traits, the store's random weekly stock and featured deals, signature collabs, random trait rolls, the third and hidden traits | items have **levels 1–5** in a fixed store (below); traits are **badges** earned by doing their thing (below) |
+| **Recruiting busywork** | send film, emails, coach calls, monthly action points (and interest fading without them), the College Browser's search keyboard and filter screens | camps ($250, once a program), unofficial visits (a free week) and official visits (by invitation, five at most) stay; interest you earn doesn't fade; the college list is all 64 programs ranked, no search or filters. §8's rework is X9 |
+| **Hype** | a second popularity meter (0–10, later 0–100) next to fame | one **Fame** meter, 0–100 (below) |
+| **The old staff menu** | staff in the Front Office with star tiers and hidden effects ("+15% XP in two skills", injury, fatigue, slump and agent multipliers), their raises, poaching and scandals | gone from play; an old save's staff wait in the save for your crew (§7, X8) |
+
+### Fame: one meter
+
+- **An old save's fame** is the larger of its fame and its hype (hype on the old 0–10 scale × 10), at most 100. The
+  press room's, rivals' and story's fields go with it (`MD_GONE`).
+- **Where hype counted, fame counts:** the franchise value a team wants before it offers a deal (`fameDiv` 20 → 12: fame
+  ÷ 20 + hype ÷ 30 before, both together now), the All-Star 1v1 fan vote (`fameVote` 0.15 → 0.25: hype's 0.1 added), the
+  home crowd, and the PBL's national TV game (fame moves × `tvFame` 2 that week; it was hype × 2).
+- Beating the Boss: fame +3 (was hype +3). Fame from a decommitment, a camp's showcase, lifestyle buys and the charity
+  event is unchanged.
+
+### Badges (were traits; §6.3 lands here)
+
+Seventeen badges, **earned, never rolled**: each unlocks (Lv1) by doing its thing and levels up (Lv2, Lv3) the same way.
+No rarity, no downside, no picks: a new career has none. Each level adds half the Lv1 numbers (`levelUp` 0.5: Lv2 ×1.5,
+Lv3 ×2). A badge's card shows its deed and your count toward the next level; the Codex's Badges page lists all 17 (yours
+at their level, the rest LOCKED with your count, a long count in thousands); the hub shows your badges as chips (a tap
+opens the card, a resting mouse shows it). A played game's results list the **badges that helped**.
+
+The deeds (`traits.list[id].deed`: what counts, then the counts for Lv1 / Lv2 / Lv3), calibrated on the career
+simulator's deed totals at retirement (40 careers): the everyday badges at Lv1 in high school or college, Lv2 near a
+career's median, Lv3 near its 90th percentile; the big ones (Iron Man, Late Bloomer, Freak Athlete, Generational,
+Unbreakable, Ice Veins) at Lv1 from about the 60th percentile.
+
+| Badge | Counts | Lv1 / Lv2 / Lv3 | Career at retirement: median (10th–90th) |
+| --- | --- | --- | --- |
+| Gym Rat | Practice weeks | 40 / 160 / 250 | 244 (238–268) |
+| Streaky | hot games (8+ makes) | 25 / 80 / 135 | 91 (38–133) |
+| Glue Guy | wins | 30 / 115 / 165 | 118 (84–180) |
+| Fast Twitch | ankle-breakers | 50 / 110 / 200 | 113 (83–202) |
+| Quick Study | moves learned | 2 / 4 / 6 | 1 (0–5) |
+| Clutch | clutch makes | 40 / 230 / 450 | 243 (130–643) |
+| Iron Man | healthy games | 220 / 270 / 320 | 246 (222–320) |
+| Floor General | games without a turnover (5+ shots) | 10 / 30 / 80 | 28 (8–83) |
+| Showman | highlights | 60 / 350 / 480 | 359 (255–539) |
+| Paint Protector | blocks | 25 / 85 / 150 | 85 (51–164) |
+| Late Bloomer | overall (your best) | 72 / 76 / 80 | 69 (67–75) |
+| Sharpshooter | threes made | 40 / 170 / 300 | 174 (138–294) |
+| Film Junkie | Film weeks | 10 / 40 / 65 | 42 (25–85) |
+| Freak Athlete | dunks | 200 / 280 / 360 | 217 (172–362) |
+| Generational | career points | 4,200 / 4,800 / 5,400 | 3,693 (2,884–5,087) |
+| Unbreakable | games played | 280 / 310 / 340 | 248 (225–323) |
+| Ice Veins | clutch makes (further up) | 330 / 450 / 600 | 243 (130–643) |
+
+- **A hot game** is 8 made shots again (`hotMakes` 5 → 8: about a 16-point night at the new pace). **A clean game** needs
+  5 shots and no turnover.
+- **Old saves:** a save's traits (its signature, its third and a found hidden one) become badges at their saved level
+  (the old Legendary ones, Generational, Unbreakable and Ice Veins, at Lv3); an unfound hidden trait is dropped; the
+  deeds start from what the save knows (games, wins, points) and can level a badge at once. Generated players get one
+  Lv1 badge from the everyday ones, seeded by their id (the Boss keeps its top badge).
+- **The Boss** (one a season, the best regular-season opponent from week 2; there's no rival to skip now) carries
+  Generational, Unbreakable or Ice Veins at Lv3 for the season.
+- **Road to the League:** a goal's trait reward is now a level for your badge nearest its next one (or its unlock).
+- Per career (the simulator, 40 careers): 5.2 badges at the draft, 13.5 at retirement (7.2 at Lv2 or Lv3, 1.9 at Lv3).
+  Every career earns Clutch, Sharpshooter, Gym Rat, Film Junkie, Glue Guy, Paint Protector, Showman, Late Bloomer and
+  Fast Twitch; Generational 15%, Unbreakable 23%, Ice Veins 28%.
+
+### The store (§6.1 lands here)
+
+A **fixed catalogue of twelve items**, levels 1–5, bought and upgraded with cash, the same every week:
+
+| Item | Slot | Each level |
+| --- | --- | --- |
+| Court shoes | shoes | Speed +1 (Lv5: Jump +1 too) |
+| Grip socks | socks | Jump +1 (Lv5: Speed +1) |
+| Shooter's sleeve | sleeve | Shooting +1 (Lv5: Finishing +1) |
+| Headband | head | Finishing +1 (Lv5: Strength +1) |
+| Wristbands | wrist | Handles +1 (Lv5: Shooting +1) |
+| Shooting machine, dribble goggles, plyo box, weighted vest, slide sled | training | practice XP in its rating +5% (Lv5 +25%, the cap) |
+| Recovery boots | recovery | 1 less fatigue after every game |
+| Knee brace | recovery | injury risk −8% (Lv5 −40%) |
+
+- Gear still adds **at most +4 to any one rating** (`gear.cap`), everything you wear together, and only in games (your
+  OVR and value don't change).
+- **Prices** come from one table (`gear.price`) by the stage you're at when you pay; a level costs [Lv1 (to buy), Lv2,
+  Lv3, Lv4, Lv5]: high school $60 / 100 / 160 / 250 / 400, college $600 / 1,000 / 1,600 / 2,500 / 4,000, the pros
+  $10K / 25K / 60K / 150K / 400K.
+- The store shows six items a page, each with its next step (Buy, Upgrade to Lv n, Maxed out), its effect in plain
+  words and a try-on at the next level; the locker shows what you own. Each item's icon grows a band and a color by level.
+- **Old saves** (§1's rule): an item that had a rarity is its item at the rarity's level (common Lv1, rare Lv2, epic
+  Lv3, legendary or a signature collab Lv4), or at its own level when that was higher; a family the store no longer
+  carries merges into the item in its slot (spring tops → court shoes, the mouthguard → the headband, the agility ladder
+  → the plyo box…); two of one item keep the higher level. What you wore stays on.
+- A Road goal's gear reward is a free level of its item (Lv1 when it's new), worn at once.
+
+### Old saves: `x30Migrate`
+
+Runs on every load after the older migrations. It drops the story's, the press room's and the rivals' fields from both
+careers (`saga`, `arc`, `story`, `social`, `family`, `rival`, `grudge`, `boast`, `pressGap`, `storyXp` and the rest of
+`X30_GONE`), the opponents' fire and grudges, the recruiting record's action points, film and rival, and every queued
+event of a removed kind (press, rival, trait picks, staff, scenes; a choice card stays only for the coaching carousel);
+fame takes hype in (above); traits become badges and gear becomes items (above). A save from before 3.0 that already had
+its first growth spurt keeps it without the story's flag.
+
+### Tests
+
+- **Deleted** (what they tested is gone): `story.js`, `story21.js`, `pressbalance.js`, `hypebalance.js`, `rarity.js`,
+  `staff.js`, `staffbalance.js`.
+- **Rewritten:** `shop.js` (the twelve items, levels, prices by stage, the +4 cap, no rarity anywhere, old gear's
+  levels), `traits.js` (deeds, levels, cards and chips, the Codex page, old saves' traits), `traitbalance.js` (what each
+  badge is worth at each level), and the removal checks in `smoke.js`, `flow.js` and `pbl21.js` (each removed screen,
+  function and config block is gone; old saves load without them).
+- **Updated:** `careersim.js` (badge and deed totals, one fame meter; its Film weeks go to the playoffs and Boss games),
+  `oldsaves.js` (42 of 42 fixtures), `playtest3.js`.
+- **`traitbalance.js`** (each badge forced at Lv1 from the first week, 600 careers a badge on seeds 1–3, the great
+  policy): the badges together are worth +70% legacy (a median of 136 against 80 with none); one badge from the start
+  moves it −4% to +25% (Generational +25%, Ice Veins and Late Bloomer +8%). Glue Guy and Iron Man read −4%, past the
+  test's −3% line but inside its noise: the median's standard error at 600 careers is about 2.2%, and on seed 1 alone
+  they read −7% and −10%, on seeds 2–3 about −1%. Neither has a downside left; X7 looks at the badges again.
+- Sim ahead names what stopped a run when it's the season's awards night, a trade offer, an injury or a title parade
+  (they read "news"), and a career started with Late Bloomer no longer runs 2.1's creation code for it (it crashed:
+  the badge has no downside to apply).
+- **Still to update for the full suite (X11):** `phoneaudit.js`, `polish.js`, `loadlag.js`, `recruit21.js`,
+  `colleges.js`, `school.js`, `life21.js` and `improve21.js` still drive the story, the press room, the staff menu or
+  the recruiting actions. The flows they test are rebuilt in X3 (the home and the weekly loop), X8 (the crew) and X9
+  (recruiting), so they're rewritten with those.
+
+### The career simulator (40 careers, seed 1)
+
+| | X1 | X2 |
+| --- | --- | --- |
+| a 5★ team (target 15–25%) | 13% | 15% |
+| titles a career (0.2–0.4) | 0.57 | 0.78 |
+| Hall of Fame (3–8%) | 8% | 13% |
+| peak OVR (median) | 70 | 69 |
+| legacy (median) | 48 | 57 |
+| stuck careers | 0 | 0 |
+
+Badges at Lv2 and Lv3 are stronger than the traits they replace, and a career earns more of them, so titles and the
+Hall of Fame went up (with only the Lv1 calibration, 3.7 badges at Lv2+ and 0.1 at Lv3: titles 0.55, Hall of Fame 8%,
+legacy 56). Titles were already over the 2.1 target in X1; §9's progression tuning (X10) sets them, with the effort
+targets.
+
 ## X1 (3.0) — critical fixes: the memory leak and the scoring pace
 
 The request "Hoop Heads 3.0: the Retro Bowl rework" starts with its §0, two fixes, before anything is removed or

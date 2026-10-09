@@ -188,21 +188,16 @@ node tests/fullcareer.js [--phone] [--jump]  # one whole career through the scre
                                    # at each level); --jump plays a high school game, then the dev menu's Jump to pro, then the pros
 node tests/fixes.js                # 2.0's must-fix bugs that need a page (ONLY=<regex> runs matching steps)
 node tests/steals.js               # steal consistency: every STEAL callout and stat is a real change of possession
-node tests/rarity.js               # trait rarity: every generated player's trait rolled at 55/28/13/4
 node tests/boxscore.js             # box-score invariants over 2,000 simmed games (3PM ≤ 3PA ≤ FGA, points add up)
 node tests/perf4x.js [--phone-only] # frame times at 4× CPU throttling (phone and desktop) with forced dunks and blocks
 node tests/loadlag.js [--rate=4,1] [--only=startup|career|pro|quick] [--phone]   # loading lag: every screen change and game load at 4× and 1× CPU, a table, fails on any miss
-node tests/traits.js               # the traits: numbers by rarity, levels, the third trait, cards and the Codex page
+node tests/traits.js               # the badges (3.0 §6.3): their numbers, deeds and levels, cards and chips, the Codex page, old saves
 node tests/gameplay.js             # scouting, bots playing to their card, signature moves, overtime, the phone buttons
 node tests/flow.js                 # the career flow: pace, the week, playing time, the Road, sim ahead, the five-tab hub
 node tests/climb.js                # the climb's rules: the XP curve, hidden potential, grades, setbacks, 5★ scarcity
 node tests/difficulty.js           # Part 2's §1.1 table: 600 careers on 3 seeds, a typical and a great policy (2.1 §3.7's bands for the great one: a 5★ team 35–55%, 1–2 titles; the Hall of Fame at other lines too)
-node tests/story.js                # the saga: arcs, flags, meters, every ending reachable, the Story so far, ceremonies
-node tests/story21.js              # 2.1's chapters: the engine, chapters 1–12 over simulated careers (high school, Signing Day's paths, college, the pro versions, the Decision and Rookie, a whole career to its ending, the paths to the endings, an early retirement), the cast (your sibling, Coach Adeyinka), two story screens in a row at most, every scene a choice, flags through a reload, old saves, the Story screen, "Previously on Hoop Heads", the cutscenes
 node tests/school.js               # GPA and school: offers, exams, eligibility, scholarships, tuition, majors
-node tests/staff.js                # your staff: hiring, contracts, effects, poaching and scandals
-node tests/staffbalance.js [n] [seed] [par] [--policy=typical]   # staff spending against none, each role alone
-node tests/shop.js                 # the shop: slots, rarities, levels, the +4 cap (property test), the storefront, try-on
+node tests/shop.js                 # the store (3.0 §6.1): twelve items, levels 1–5, prices by stage, the +4 cap (property test), no rarity, try-on, old gear
 node tests/proteams.js             # pro teams: identity, title odds, playoffs and the Finals, rings, banners, dynasties
 node tests/pbl21.js                # 2.1's PBL: sixteen franchises in two conferences, owners, GMs, coach systems and fit, rosters, payroll, chemistry, team strength, the fifteen weeks and their key weeks, the conference playoffs, the award races, the benches' offseason, a 2.0 save's expansion, the screens
 node tests/life21.js               # 2.1's offseason and league life: the seven steps, the free agency week (offers by day, the agent's counter, over-cap and cheap owners), options, the no-trade clause and incentives, the trade window and rebuilds, training camp, AI trades, retirements and rookies (your old teammates), title windows and hunger, the GOAT ladder and records, PBL Tonight, power rankings and the TV game, a meddler's beats, the value meter, W5 saves, the screens
@@ -218,9 +213,7 @@ node tests/pace.js [8] [seed]      # 3.0 (§0.2): career games played in the eng
 node tests/memory.js [50] [--phone]   # 3.0 (§0.1): 50 career games against new opponents: memory within +150 MB of the level after game 5
 node tests/effort.js [200] [seed] [par]   # the career policies: plays well + good choices vs sims everything, never opening a menu,
                                    # a smart spender (legacy, 5★ teams, titles, money left over)
-node tests/traitbalance.js [n] [seed] [par]                      # every trait forced on n careers: legacy against the median
-node tests/pressbalance.js [n] [seed] [par]                      # "always X" in the press room (the four answers) on the same careers
-node tests/hypebalance.js [n] [seed] [par]                       # chase hype against stay quiet on the same careers
+node tests/traitbalance.js [n] [seed] [par]                      # every badge forced on n careers: legacy against the median
 node tests/gen_oldsaves.js [dir]   # rebuilds the old-build fixtures by running earlier builds from git history
 node tests/beforeafter.js <dir>    # pairs shots/audit with a fresh shots.js run into shots/before-after/
 node tests/artlab.js <m> <round>   # Art Lab + in-match screenshots → shots/<m>/round-<round>/

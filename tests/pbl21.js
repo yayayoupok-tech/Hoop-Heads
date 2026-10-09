@@ -1,7 +1,7 @@
 // 2.1 §3.1–3.2 (W5): the PBL, engineered. Sixteen franchises in two conferences (the four newest with their identity);
 // owners (win-now, patient, cheap, meddlers), the GM's style, the coach's system and your fit; rosters (a starter and
 // four on the bench with contracts), payroll against the soft cap and the tax line, chemistry, team strength in the
-// simulated games and the odds; the fifteen-week calendar (rivalry week, the All-Star break, the trade deadline, the
+// simulated games and the odds; the fifteen-week calendar (the All-Star break, the trade deadline, the
 // national TV game); the conference playoffs (best of 3, the Finals best of 5); the award races (the weekly MVP ladder,
 // the Sixth Man); the benches' offseason; a 2.0 save's expansion; the screens.
 // node tests/pbl21.js   (ONLY=<regex> runs the matching steps)
@@ -19,7 +19,7 @@ window.tSmall = g => { const ui = g.ui, s = ui.screen; return (s.widgets || []).
 // Every new or changed PBL screen, drawn once each: [name, faults].
 window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = tPro(77, 92); tSim(save, c => c.week >= 3);
   const look = (name, open) => { g.ui.clearTo(careerHub(g)); open(); const s = g.ui.screen; if (s.update) s.update(0.016, {}); const F = tFaults(g).concat(phone ? tSmall(g).map(x => 'SMALL ' + x) : []); if (F.length) bad.push(name + ': ' + F.slice(0, 3).join(' | ')); };
-  g.hubTab = 'play'; look('hub play (rivalry week next)', () => {}); g.hubTab = 'team'; look('hub team', () => {});
+  g.hubTab = 'play'; look('hub play', () => {}); g.hubTab = 'team'; look('hub team', () => {});
   for (const [i, nm] of [[0, 'standings'], [1, 'franchises'], [3, 'schedule'], [6, 'history'], [8, 'races']]) look('league ' + nm, () => { g.leagueTab = { tab: i, player: 0 }; g.ui.push(leagueScreen(g)); });
   look('bracket (projected)', () => g.ui.push(bracketScreen(g))); look('codex', () => g.ui.push(statsGuideScreen(g, 'team')));
   for (const id of ['monarchs', 'foxes', 'falcons', meOf(c).club]) { look('franchise ' + id, () => { g.frTab = { tab: 0 }; g.ui.push(franchiseScreen(g, id)); }); look('franchise ' + id + ' history', () => { g.frTab = { tab: 1 }; g.ui.push(franchiseScreen(g, id)); }); }
@@ -35,9 +35,9 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
   const b = await launch(); const R = runner('pbl21');
   const P = await openPage(b, { wait: 900 }); const { ev } = P; await ev(src => { (0, eval)(src); }, LIB);
 
-  await R.step('sixteen franchises in two conferences of eight, every rival pair inside one; the four newest (Foxes, Falcons, Tigers, Rockets) have a city, a crest, an owner, a market, a legend and a founding year, and no titles before your career', () => ev(() => {
+  await R.step('sixteen franchises in two conferences of eight (3.0: no rivals); the four newest (Foxes, Falcons, Tigers, Rockets) have a city, a crest, an owner, a market, a legend and a founding year, and no titles before your career', () => ev(() => {
     const bad = [], ids = frIds(); if (ids.length !== 16) bad.push(ids.length + ' franchises');
-    for (const k of PBL_CONFS) { const L = frConfIds(k); if (L.length !== 8) bad.push(k + ' ' + L.length); for (const id of L) if (frConf(frRivalId(id)) !== k) bad.push(id + ' rival in the other conference'); }
+    for (const k of PBL_CONFS) { const L = frConfIds(k); if (L.length !== 8) bad.push(k + ' ' + L.length); }
     if (new Set(PBL_CONFS.flatMap(k => frConfIds(k))).size !== 16) bad.push('conferences overlap');
     for (const id of ['foxes', 'falcons', 'tigers', 'rockets']) { const I = FR_INFO[id], T = TEAMS.find(t => t.id === id); if (!T || !I || !I.city || !I.founded || !I.legends.length || I.titles !== 0) bad.push(id + ' identity'); const M = FR_CREST_MARK[id]; if (!M || M.length !== 10 || M.some(r => r.length !== 10)) bad.push(id + ' crest'); if (!FR_OWNER_WORD[I.owner[1]]) bad.push(id + ' owner'); if (frHistory().byId[id].length) bad.push(id + ' history'); if (!CLUB_COURT[id]) bad.push(id + ' court'); }
     const kinds = {}; for (const id of ids) kinds[FR_INFO[id].owner[1]] = (kinds[FR_INFO[id].owner[1]] || 0) + 1; if (!kinds.meddler) bad.push('no meddlers');
@@ -76,18 +76,17 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
     return bad.length ? Promise.reject(new Error(bad.join('; '))) : 'systems ' + [...sysSeen].join('/') + ' · Iso fit ' + gr.pct + ' vs ' + po.pct + ' · trust ' + t1 + ' vs ' + t0 + ' · practice ×' + mulIn.toFixed(2);
   }), P);
 
-  await R.step('the calendar: fifteen weeks, everyone plays everyone once, home games 7–8 each; week 4 pairs every rival; the All-Star weekend comes before week 8\'s game; trades, requests and calls close after week 10; the TV game (week 13) doubles the hype; a rivalry-week win adds fame', () => ev(() => {
+  await R.step('the calendar: fifteen weeks, everyone plays everyone once, home games 7–8 each (3.0: no rivalry week); the All-Star weekend comes before week 8\'s game; trades, requests and calls close after week 10; the TV game (week 13) doubles the fame', () => ev(() => {
     const bad = [], save = HH.game.save.data;
     for (const seed of [41, 42]) { const c = tPro(seed); const seen = new Set(), home = {}; for (const wk of c.schedule) { if (wk.length !== 8) bad.push('week of ' + wk.length); for (const g of wk) { const k = [g.h, g.a].sort().join('|'); if (seen.has(k)) bad.push('a repeat'); seen.add(k); home[g.h] = (home[g.h] || 0) + 1; } }
-      if (seen.size !== 120) bad.push('pairs ' + seen.size); if (Object.values(home).some(n => n < 7 || n > 8)) bad.push('home ' + JSON.stringify(Object.values(home)));
-      if (!c.schedule[PBL.rivalryWeek - 1].every(g => frIsRivalry(c.players[g.h].club, c.players[g.a].club))) bad.push('rivalry week'); }
+      if (seen.size !== 120) bad.push('pairs ' + seen.size); if (Object.values(home).some(n => n < 7 || n > 8)) bad.push('home ' + JSON.stringify(Object.values(home))); }
+    if ('rivalryWeek' in PBL || typeof frIsRivalry === 'function') bad.push('a rivalry week');
     const c = tPro(43, 80); c.me.tradeSeason = -9; tSim(save, c => c.week >= PBL.allStarWeek - 1); if (!c.allStar || c.allStar.week !== PBL.allStarWeek - 1) bad.push('All-Star at ' + (c.allStar && c.allStar.week));
     tSim(save, c => c.week >= PBL.deadlineWeek - 1); const openAt10 = pblDeadlineOpen(c); tSim(save, c => c.week >= PBL.deadlineWeek); if (!openAt10 || pblDeadlineOpen(c) || proTradeOpen(c) || proTradeOfferCheck(c)) bad.push('deadline ' + openAt10 + '/' + pblDeadlineOpen(c));
-    if (!c.news.some(n => /trade deadline has passed/.test(n.t)) || !c.news.some(n => /Rivalry week/.test(n.t))) bad.push('key-week news');
-    tSim(save, c => c.week >= PBL.tvWeek - 1); c.me.hype = 40; const S0 = JSON.stringify(save.career); const r = simUserGame(save); const h1 = save.career.me.hype; save.career = JSON.parse(S0); const keep = PBL.tvWeek; PBL.tvWeek = 99; const r0 = simUserGame(save); const h0 = save.career.me.hype; PBL.tvWeek = keep; save.career.events.length = 0; /* the same game, once on national TV and once not */
-    if (!r || r.tv == null || !r0 || r0.tv != null) bad.push('the TV note'); else if (Math.abs((h1 - 40) - 2 * (h0 - 40)) > 0.25 && h1 > 0.5 && h1 < MD.hypeMax - 0.5) bad.push('tv ' + (h1 - 40).toFixed(1) + ' vs twice ' + (h0 - 40).toFixed(1));
-    const c2 = tPro(44, 95); tSim(save, c => c.week >= PBL.rivalryWeek - 1); const f0 = c2.me.fame; const r2 = simUserGame(save); c2.events.length = 0; if (r2 && r2.win && !r2.rivalryWin) bad.push('rivalry win without the fame'); if (r2 && r2.rivalryWin && !(c2.me.fame > f0)) bad.push('no fame');
-    return bad.length ? Promise.reject(new Error(bad.join('; '))) : '120 pairs a season · the All-Star weekend before week ' + PBL.allStarWeek + ' · the deadline after week ' + PBL.deadlineWeek + ' · the TV game\'s hype ' + (h1 - 40).toFixed(1) + ' (off TV ' + (h0 - 40).toFixed(1) + ') · rivalry win ' + !!(r2 && r2.rivalryWin);
+    if (!c.news.some(n => /trade deadline has passed/.test(n.t)) || c.news.some(n => /Rivalry week/.test(n.t))) bad.push('key-week news');
+    tSim(save, c => c.week >= PBL.tvWeek - 1); c.me.fame = 40; const S0 = JSON.stringify(save.career); const r = simUserGame(save); const h1 = save.career.me.fame; save.career = JSON.parse(S0); const keep = PBL.tvWeek; PBL.tvWeek = 99; const r0 = simUserGame(save); const h0 = save.career.me.fame; PBL.tvWeek = keep; save.career.events.length = 0; /* the same game, once on national TV and once not */
+    if (!r || r.tv == null || !r0 || r0.tv != null) bad.push('the TV note'); else if (Math.abs((h1 - 40) - 2 * (h0 - 40)) > 0.25 && h1 > 0.5 && h1 < MD.fameMax - 0.5) bad.push('tv ' + (h1 - 40).toFixed(1) + ' vs twice ' + (h0 - 40).toFixed(1));
+    return bad.length ? Promise.reject(new Error(bad.join('; '))) : '120 pairs a season · the All-Star weekend before week ' + PBL.allStarWeek + ' · the deadline after week ' + PBL.deadlineWeek + ' · the TV game\'s fame ' + (h1 - 40).toFixed(1) + ' (off TV ' + (h0 - 40).toFixed(1) + ')';
   }), P);
 
   await R.step('the playoffs: the top four of each conference, 1–4 and 2–3 (best of 3); each conference final hosted by the better seed; the Finals best of 5 hosted by the better record (games 1, 3, 5) with a louder crowd (simulated and played); your result reads the round', () => ev(() => {

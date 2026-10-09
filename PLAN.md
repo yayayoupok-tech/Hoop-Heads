@@ -374,9 +374,12 @@ game's presentation hooks; the worker's sheets and shoe bakes were never pruned;
 pictures are closed and their outside holders paint again) and the scoring pace (12–18 points a side in a 70–80 s game:
 a half-court restart after a basket or a dead ball, shorter beats, a 6 s shot clock and a make bonus by level; the
 sims refitted to it) (`tests/memory.js`, `tests/pace.js`, `tests/parity.js`).
-**X2 — Removals and save migration** — §1: the story, press conferences, rivals, rarity, recruiting busywork, hype
-(Fame instead) and the old staff menu go; rarity becomes levels, traits become badges; news, Road goals, the Codex and
-the Front Office stay; old saves load with what's removed taken out.
+**X2 — Removals and save migration** *(done)* — §1: the story, press conferences, rivals, rarity, recruiting busywork,
+hype (Fame instead) and the old staff menu go; rarity becomes levels, traits become badges; news, Road goals, the Codex
+and the Front Office stay; old saves load with what's removed taken out (`x30Migrate`). §6.1's fixed store (twelve
+items, levels 1–5, prices by stage) and §6.3's earned badges (17, Lv1–Lv3, each with its deed) landed here; X7 adds
+the tournament items. Decisions are already short messages. Titles (0.78 a career) and the Hall of Fame (13%) are over
+target with the badges' levels: X10. Eight older tests still drive removed flows; they're rewritten with X3, X8 and X9.
 **X3 — The Retro Bowl home, the weekly loop, messages and practice** — §2–3.
 **X4 — Rankings and charts** — §4.1–4.2.
 **X5 — Teammates, lower leagues, transfers and PBL team life** — §4.3–4.5.
@@ -385,7 +388,8 @@ the Front Office stay; old saves load with what's removed taken out.
 **X8 — Your crew** — §7.
 **X9 — Recruiting** — §8.
 **X10 — Progression tuning** — §9.
-**X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed.
+**X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed; the README's
+feature list rewritten for 3.0 (it still describes 2.1's story, press room, rarities and staff).
 
 ## Testing every milestone
 
