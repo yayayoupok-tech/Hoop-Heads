@@ -554,9 +554,14 @@ const CONFIG = {
     runningStopS: 10,          // ...until the last this-many seconds of a period; there (and in overtime) it stops on dead balls as before
   },
   pace: {                      // V5 (2.0 §4.7): career games (match option pace) score more a minute. 2.1 (§1.8): with the running clock (rules.runningClock) 6–10 a side in a one-minute game (12–20 with the clock stopping); the holds below stop the game clock only in the last rules.runningStopS seconds and overtime
-    shotClock: 8,              // the career's shot clock (s; Quick Play keeps rules.shotClock)
-    madeBeat: 0.45,            // the beat after a make before the inbound (s; rules.madeBasketBeat 0.8)
-    deadBeat: 0.6,             // ...after a violation or a turnover (s; rules.violationBeat 1.0)
+    shotClock: 6,              // the career's shot clock (s; Quick Play keeps rules.shotClock; 3.0 §0.2: was 8)
+    madeBeat: 0.25,            // the beat after a make before the restart (s; rules.madeBasketBeat 0.8; 3.0 §0.2: was 0.45)
+    deadBeat: 0.4,             // ...after a violation or a turnover (s; rules.violationBeat 1.0; 3.0: was 0.6)
+    pregameBeat: 0.6,          // 3.0 (§0.2): the beat before the tip (s; rules.pregameBeat 1.2)
+    makeAdd: { hs: 0.20, college: 0.11, pro: 0.06 }, // 3.0 (§0.2): every field goal's make chance in a career game, plus this by level (not free throws; the lower levels miss more, so they get more)
+    advance: true,             // 3.0 (§0.2): after a make or a dead ball the ball restarts just past half court (doAdvance), not under the basket
+    advanceX: 0.6,             // ...this far past the half-court line (m)
+    advanceGap: 1.6,           // ...with the defender this far in front of the ball (m)
     holdToHalf: true,          // both clocks wait after an inbound until the ball crosses half court...
     holdAll: true,             // ...and after a rebound or a steal in the backcourt...
     holdMaxS: 4,               // ...for at most this long (s), so nobody stalls in the backcourt
@@ -825,8 +830,8 @@ const CONFIG = {
     gameSecs: 60,              // F5: every career game is one timed period this long (s) (the user: "games shouldn't be this long, like 1 min")
     gameSecsOptions: [60, 120, 180], // ...Settings → Gameplay → Career game length
     otSecs: 30,                // ...and a tie goes to a sudden-death overtime this long (the first basket wins; another one if nobody scores)
-    simWinPts: 8.9,            // simulated amateur games: the winner's points in a 60 s game (the engine's AI vs AI average; the loser's is about 5.7) (2.1: was 16.0 before the running clock; V5: 8.4 before the pace rules)
-    paceMul: 0.91,             // V5 (2.0 §4.7): a paced career game scores this many times the old engine's per-minute points; per-game numbers fitted to the old formats scale by it (gameScale). 2.1 (§1.8): the running clock scored 0.57× (1.98 → 1.13); §1.3, sim/play parity: the pro sim then scored 1.24× the engine's games for the same matchups (200 games), so 1.13 ÷ 1.24
+    simWinPts: 15.7,           // simulated amateur games: the winner's points in a 60 s game (the engine's AI vs AI average; the loser's is about two thirds of it) (3.0 §0.2: 8.9 before the new pace; 2.1: 16.0 before the running clock; V5: 8.4 before the pace rules)
+    paceMul: 1.58,             // V5 (2.0 §4.7): a paced career game scores this many times the old engine's per-minute points; per-game numbers fitted to the old formats scale by it (gameScale). 2.1 (§1.8): the running clock scored 0.57× (1.98 → 1.13); §1.3, sim/play parity: the pro sim then scored 1.24× the engine's games for the same matchups (200 games), so 1.13 ÷ 1.24 = 0.91. 3.0 (§0.2): the new pace scores 1.74× (the league model's 7.9 a side against the engine's 13.7 over 2,880 pro games), so 1.58
     otSimEdge: 0.5,            // simulated pro overtime (one basket): this share of the better player's whole-game edge (one-minute games tie 14% of the time, the old ones 3.5%)
     simRefSecs: { hs: 119, college: 169, pro: 240 }, // the game clock that scores like each old format (first to 15, first to 21, two 2:00 halves): per-game numbers fitted to those scale by length ÷ this
     playoffSeeds: 8,           // players who make the playoffs (V12, Part 2 §6: the top 8: quarterfinals, semifinals, the Finals; was 4)
@@ -974,7 +979,7 @@ const CONFIG = {
     stageMean: { hs: 44, hsPerYear: 5, college: 59, collegePerYear: 3, collegePerTier: 2 }, // opponent OVR mean by level and year (R6: college 61 → 59; the new season adds marquee games at +3 and a tournament field up to +7, and at 61 the career simulator's teams won 38% of their games)
     oppSd: 5.5,                // opponent OVR spread
     winScale: 5.5,             // simulated games: win chance = 1 / (1 + e^(−ΔOVR / winScale))
-    simNoise: 2.9,             // 2.1 (§1.3): a simmed amateur game of yours: each side's points noise in a one-minute game (× √minutes; your engine games' spread around league.ptsMeAm)
+    simNoise: 5.1,             // 2.1 (§1.3): a simmed amateur game of yours: each side's points noise in a one-minute game (× √minutes; 3.0 §0.2: 2.9 → 5.1 at the new pace; your engine games' spread around league.ptsMeAm)
     playoffSeeds: 4,           // players who make the playoffs
     summerFocus: [[22, 10], [27, 5]], // offseason: focus ratings grow this much up to these ages
     summerBody: 5,             // strength and hops fill out by this much each summer...
@@ -994,8 +999,8 @@ const CONFIG = {
     marginW: { sho: 0.795, fin: 0.086, han: 0.370, spd: -0.158, jmp: 1.032, def: 0.541, str: -0.025, h: 8.74, wing: 7.58 }, // point margin per attribute point, per meter of height, per unit of wingspan ratio
     pts: { c: 26.86, o_sho: 0.463, o_fin: 0.214, o_han: 0.638, o_spd: 0.231, o_jmp: 0.928, o_def: -0.243, o_str: 0.075, d_sho: -0.332, d_fin: 0.139, d_han: 0.279, d_spd: 0.380, d_jmp: -0.098, d_def: -0.781, d_str: 0.096, h: 2.68, oh: -6.18 }, // points scored from own (o_) and opponent (d_) attributes
     ptsNoise: 6.5,             // points noise per side (fitted residual)
-    ptsMe: { c: 9.077, o_sho: 0.211, o_fin: 0.131, o_han: 0.227, o_spd: 0.214, o_jmp: 0.24, o_def: -0.145, o_str: -0.072, d_sho: -0.148, d_fin: 0.057, d_han: 0.029, d_spd: 0.126, d_jmp: -0.053, d_def: -0.239, d_str: -0.118, h: 3.691, oh: -5.944 }, // 2.1 (§1.3, sim/play parity): your points in a pro game you play, a one-minute game's (× minutes): fitted by least squares to 3,840 sides of 1,920 career games in the engine (Legends View, the running clock, Pro vs Pro); a simmed game of yours moves both scores to it (the margin stays the model's)
-    ptsMeAm: { c: -5.042, o_sho: 0.384, o_fin: 0.252, o_han: 0.39, o_spd: 0.226, o_jmp: 0.379, o_def: -0.04, o_str: 0.121, d_sho: -0.162, d_fin: -0.097, d_han: 0.096, d_spd: -0.009, d_jmp: -0.126, d_def: -0.299, d_str: -0.113, h: 6.795, oh: -3.578, hs: 0.986 }, // ...and in an amateur game (hs: + this in high school), fitted to 1,800 of your high school and college games in the engine (their bots on the career's tier shift)
+    ptsMe: { c: 1.808, o_sho: 1.105, o_fin: 0.013, o_han: 0.06, o_spd: -0.064, o_jmp: 0.705, o_def: -0.035, o_str: -0.582, d_sho: 0.074, d_fin: 0.246, d_han: 0.002, d_spd: -0.016, d_jmp: -0.021, d_def: -0.193, d_str: -0.35, h: 9.473, oh: -6.915 }, // 2.1 (§1.3, sim/play parity): your points in a pro game you play, a one-minute game's (× minutes), fitted by least squares to career games in the engine with the AI at your controls (Legends View, the running clock); a simmed game of yours moves both scores to it (the margin stays the model's). 3.0 (§0.2): refitted to the new pace's 5,760 sides of 2,880 games (13.3 a side; 2.1: 7.5)
+    ptsMeAm: { c: -18.339, o_sho: 1.286, o_fin: 0.164, o_han: 0.417, o_spd: 0.36, o_jmp: 1.309, o_def: 0.081, o_str: -0.046, d_sho: -0.284, d_fin: -0.211, d_han: -0.078, d_spd: -0.28, d_jmp: -0.085, d_def: -0.754, d_str: -0.369, h: 13.611, oh: -2.008, hs: 3.315 }, // ...and in an amateur game (hs: + this in high school), fitted to your high school and college games in the engine (their bots on the career's tier shift). 3.0 (§0.2): refitted to 2,784 games at the new pace (13.7 a game; 2.1: 6.7)
     styleMe: { postscorer: 0.93 }, // 2.1 (§1.3): your fitted points × this for your play style (a post scorer's back-downs score less in the engine than their ratings say: 7–14% over in four sets of 900–1,900 games)
     homeEdge: 0.5,             // home court edge (points)
     poHomeEdge: 0.5,           // V12 (Part 2 §6): the home edge in a playoff game (the higher seed hosts games 1 and 3)
@@ -1691,10 +1696,10 @@ const CONFIG = {
   },
   records: {                   // V8 (2.0 §4.9): the records book (179_records.js)
     minToast: 3,               // a career high or a record under this isn't a toast (a first game's two steals isn't news)
-    levels: {                  // the records you can break at each level: [value, holder, year] (invented names from before your time). 2.1 (W2): re-derived at the running clock's scale, each the higher of two lines: the best game that 1–5% of 400 simulated careers (typical and great) beat, and the best single game in the parity runs' engine games with the AI at your controls (about 6,500 for points, 930 for the rest). So a simmed career rarely breaks one (points in high school: 1–2.5%); a big night you play does
-      hs: { pts: [18, 'Dell Marlow', 1994], reb: [10, 'Augie Pratt', 1987], stl: [3, 'Ronnie Vale', 2003], blk: [2, 'Teo Brandt', 1999], tpm: [2, 'Sully Okafor', 2011] },
-      college: { pts: [20, 'Marcus Ferrell', 1991], reb: [9, 'Big Lou Haskins', 1983], stl: [2, 'Danny Cruz', 2005], blk: [5, 'Isaiah Penn', 1996], tpm: [2, 'Corey Lam', 2014] },
-      pro: { pts: [20, 'Jalen Whitfield', 1989], reb: [9, 'Moses Grant', 1979], stl: [3, 'Rico Baines', 2002], blk: [3, 'Andre Kovac', 1997], tpm: [3, 'Nate Sorensen', 2016] },
+    levels: {                  // the records you can break at each level: [value, holder, year] (invented names from before your time). 2.1 (W2): re-derived at the running clock's scale, each the higher of two lines: the best game that 1–5% of 400 simulated careers (typical and great) beat, and the best single game in the parity runs' engine games with the AI at your controls (about 6,500 for points, 930 for the rest). So a simmed career rarely breaks one (points in high school: 1–2.5%); a big night you play does 3.0 (§0.2): at the new pace (twice the points), each the best single game of 1,344–2,880 career games in the engine with the AI at your controls (the simulated careers' lines, ×1.74, are below them)
+      hs: { pts: [35, 'Dell Marlow', 1994], reb: [13, 'Augie Pratt', 1987], stl: [3, 'Ronnie Vale', 2003], blk: [6, 'Teo Brandt', 1999], tpm: [9, 'Sully Okafor', 2011] },
+      college: { pts: [36, 'Marcus Ferrell', 1991], reb: [12, 'Big Lou Haskins', 1983], stl: [3, 'Danny Cruz', 2005], blk: [6, 'Isaiah Penn', 1996], tpm: [8, 'Corey Lam', 2014] },
+      pro: { pts: [39, 'Jalen Whitfield', 1989], reb: [12, 'Moses Grant', 1979], stl: [4, 'Rico Baines', 2002], blk: [6, 'Andre Kovac', 1997], tpm: [9, 'Nate Sorensen', 2016] },
     },
   },
   dev: {                       // development switches (the R-pass build): off in the release
@@ -1839,6 +1844,8 @@ const ART = {
   bucketKeepUp: 1.15,          // V2: a player keeps their face cache size while 2× the head is at most this much over it...
   bucketKeepDown: 0.6,         // ...and at least this share of it
   cacheDesktop: 48,          // LRU size for face canvases on desktop
+  cacheMB: 16,               // 3.0 (X1): ...and at most this many MB of face pictures on each side (a portrait's face is big: the bake worker's portraits kept 48 of them, 26 MB), never fewer than cacheMin
+  cacheMin: 32,              // 3.0 (X1): faces always kept whatever their size (a game uses about 28)
   cachePhone: 40,            // LRU size on coarse-pointer (touch) devices (V2: was 24; a match uses ~28: 7 expressions per player for the sprites, the score bug's, the jumbotron's and the reflections'; each eviction was a canvas dropped and a face repainted mid-play)
   canvasW: 1.7,              // face canvas width in head widths (room for hair volume); the head's center sits on a pixel edge in the middle (L14: the mirror axis)
   canvasH: 2.15,             // face canvas height in head widths
@@ -2564,6 +2571,10 @@ function drawChains(ctx, H, spec, pts, front, minLw, black) {
 }
 // --- the face cache (LRU) ---
 const _faceCache = new Map(); let _facePaintMs = 0, _faceFrame = -1;
+let _facePx = 0; function facePxOf(e) { return e ? ((e.canvas && e.canvas.width * e.canvas.height) || 0) + ((e.front && e.front.width * e.front.height) || 0) : 0; }
+// 3.0 (X1): a face into the cache (cap: its count), then the least recently used out while over the count or the bytes.
+function faceCachePut(k, e, cap) { const o = _faceCache.get(k); if (o) { _facePx -= facePxOf(o); _faceCache.delete(k); } _faceCache.set(k, e); _facePx += facePxOf(e); while (_faceCache.size > 1 && (_faceCache.size > cap || (_faceCache.size > ART.cacheMin && _facePx * 4 > ART.cacheMB * 1e6))) faceCacheDrop(); }
+function faceCacheDrop() { const k0 = _faceCache.keys().next().value, e = _faceCache.get(k0); _faceCache.delete(k0); _facePx -= facePxOf(e); if (e) { bmGrave(e.canvas); bmGrave(e.front); } } // 3.0 (X1): the least recently used face goes (a worker's picture: closed at the next game)
 function faceCacheCap() { try { if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return ART.cachePhone; } catch (e) { /* no matchMedia */ } return ART.cacheDesktop; }
 function faceBucket(targetPx) { for (const b of ART.buckets) if (b >= targetPx) return b; return ART.buckets[ART.buckets.length - 1]; }
 // §L14 build one half and mirror it: a layer's right half is kept, copied as it is and mirrored about the pixel edge at
@@ -2585,7 +2596,7 @@ function mirrorInPlace(g, ox) { const c = g.canvas, H = c.height; g.save(); g.se
 function getFaceCanvas(L, expr, age, bucket, team, force, front, brows) {
   const tk = (L.acc.headband || L.hair === 8 || L.hair === 9) ? (team ? team[0] + team[1] : '') : '';
   const key = lookKey(L) + '|' + expr + '|' + ageStageOf(age) + '|' + bucket + '|' + tk + (front ? '|front' : '') + (brows ? '|b' : ''); const hit = _faceCache.get(key); if (BAKE_TOUCH.on) BAKE_TOUCH.faces.add(key);
-  if (hit) { _faceCache.delete(key); _faceCache.set(key, hit); return hit; }
+  if (hit && bmLive(hit.canvas)) { _faceCache.delete(key); _faceCache.set(key, hit); return hit; } if (hit) { _facePx -= facePxOf(hit); _faceCache.delete(key); } // (3.0: a freed face is painted again)
   // painting budget: past it, reuse any cached expression of this face for one more frame
   const frame = (typeof performance !== 'undefined' ? Math.floor(performance.now() / 16) : 0); if (frame !== _faceFrame) { _faceFrame = frame; _facePaintMs = 0; }
   if (!force && _facePaintMs > ART.paintBudgetMs) { const pre = lookKey(L) + '|'; for (const [k, v] of _faceCache) if (k.startsWith(pre)) return v; }
@@ -2599,10 +2610,10 @@ function getFaceCanvas(L, expr, age, bucket, team, force, front, brows) {
   if (brows) { g.save(); g.setTransform(bucket, 0, 0, bucket, ox, oy); g.lineJoin = 'round'; g.lineCap = 'round'; drawEyesLive(g, L, expr, 1, 0, 0.5, 1e-9, bucket, age2, undefined, dx / bucket, 'brows'); g.restore(); } // V2: a match sprite's brows, painted once (they only change with the expression)
   let fcv = null; if (P.hs === 12) { s = symScratch(W, Hh, ox, oy, bucket); if (paintHairFront(s, P, 12)) { fcv = document.createElement('canvas'); fcv.width = W; fcv.height = Hh; mirrorHalf(fcv.getContext('2d'), s.canvas, ox, 0); } }
   const entry = { canvas: cv, front: fcv, ox, oy, px: bucket, slide: dx / bucket };
-  _faceCache.set(key, entry); const cap = faceCacheCap(); while (_faceCache.size > cap) _faceCache.delete(_faceCache.keys().next().value);
+  faceCachePut(key, entry, faceCacheCap());
   _facePaintMs += performance.now() - t0; return entry;
 }
-function clearFaceCache() { _faceCache.clear(); _faceWarmed.clear(); _faceWarmQ.length = 0; } // the warm-up forgets too, so the next match re-warms
+function clearFaceCache() { _faceCache.clear(); _facePx = 0; _faceWarmed.clear(); _faceWarmQ.length = 0; } // the warm-up forgets too, so the next match re-warms
 // §9 warm-up: the first time a live player's face is drawn at a size, every expression of it is queued and painted one per
 // frame inside the paint budget, so the first dunk, yell or laugh of a match never paints on the spot.
 const _faceWarmQ = [], _faceWarmed = new Set();
@@ -2905,8 +2916,8 @@ function drawHand(ctx, T, h, far, lw, kit, wrist, part) {
 // ART.rtLod.shoeX× the sprite's paint size) turned with the foot: about 24 paths a shoe become one image.
 const _shoeBakes = new Map();
 function drawSneaker(ctx, foot, far, lw, kit) {
-  if (RT.lodPaint && ART.rtLod.shoe) { try { const M = ctx.getTransform(), sc = Math.max(Math.hypot(M.a, M.b), Math.hypot(M.c, M.d)); if (sc > 8 && sc < 4000) { const R = Math.pow(2, Math.ceil(Math.log2(sc * (ART.rtLod.shoeX || 1)) * 2) / 2), lwq = Math.round(lw * R * 2) / (R * 2), key = [kit.shoe, kit.shoeAccent, kit.sole, kit.emblem ? 1 : 0, far ? 1 : 0, lwq, R].join('|'); let B = _shoeBakes.get(key); // (the line width to half a baked pixel: a small player's width follows its depth)
-    if (!B) { const L = ART.shoeLen, pad = 4 * lwq + 0.01, x0 = -0.45 * L - pad, y0 = -(ART.shoeH + 0.06) - pad, w = 1.3 * L + 2 * pad, h = ART.shoeH + 0.09 + 2 * pad, c = document.createElement('canvas'); c.width = Math.ceil(w * R); c.height = Math.ceil(h * R); const g = c.getContext('2d'); g.setTransform(R, 0, 0, R, -x0 * R, -y0 * R); drawSneakerPaint(g, { x: 0, y: 0, r: 0 }, far, lwq, kit); B = { c, x0, y0, w: c.width / R, h: c.height / R }; if (_shoeBakes.size > 48) _shoeBakes.delete(_shoeBakes.keys().next().value); _shoeBakes.set(key, B); }
+  if (RT.lodPaint && ART.rtLod.shoe) { try { const M = ctx.getTransform(), sc = Math.max(Math.hypot(M.a, M.b), Math.hypot(M.c, M.d)); if (sc > 8 && sc < 4000) { const R = Math.pow(2, Math.ceil(Math.log2(sc * (ART.rtLod.shoeX || 1)) * 2) / 2), lwq = Math.round(lw * R * 2) / (R * 2), key = [kit.shoe, kit.shoeAccent, kit.sole, kit.emblem ? 1 : 0, far ? 1 : 0, lwq, R].join('|'); let B = _shoeBakes.get(key); if (B) { _shoeBakes.delete(key); _shoeBakes.set(key, B); } /* 3.0 (X1): least recently used first out */ // (the line width to half a baked pixel: a small player's width follows its depth)
+    if (!B) { const L = ART.shoeLen, pad = 4 * lwq + 0.01, x0 = -0.45 * L - pad, y0 = -(ART.shoeH + 0.06) - pad, w = 1.3 * L + 2 * pad, h = ART.shoeH + 0.09 + 2 * pad, c = document.createElement('canvas'); c.width = Math.ceil(w * R); c.height = Math.ceil(h * R); const g = c.getContext('2d'); g.setTransform(R, 0, 0, R, -x0 * R, -y0 * R); drawSneakerPaint(g, { x: 0, y: 0, r: 0 }, far, lwq, kit); B = { c, x0, y0, w: c.width / R, h: c.height / R }; while (_shoeBakes.size >= ((typeof CONFIG !== 'undefined' && CONFIG.bake && CONFIG.bake.shoeN) || 32)) { const k0 = _shoeBakes.keys().next().value, B0 = _shoeBakes.get(k0); _shoeBakes.delete(k0); if (B0 && B0.c) { B0.c.width = 0; B0.c.height = 0; } } _shoeBakes.set(key, B); } /* 3.0 (X1): CONFIG.bake.shoeN on each side; the evicted canvas emptied at once */
     ctx.save(); ctx.translate(foot.x, -foot.y); ctx.rotate(-(foot.r || 0)); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = ART.rtLod.shoeQ || 'low'; ctx.drawImage(B.c, B.x0, B.y0, B.w, B.h); ctx.restore(); return; } } catch (e) { /* the painted shoe below */ } }
   drawSneakerPaint(ctx, foot, far, lw, kit);
 }
@@ -3499,10 +3510,11 @@ function drawGhost(ctx, cam, s, H, col, al) {
 // ============================================================================
 Object.assign(ART, {
   rbPxPerScale: 11,            // a font size of this many device px draws at 1× (8 px caps): 22 px → 2×, 44 px → 4×
-  rbCacheN: 900,               // rendered strings kept (LRU)
+  rbCacheN: 300,               // rendered strings kept (LRU) 3.0 (X1): was 900 (a small canvas a string on each side: its context and surface cost more than its pixels)
   rbStripCols: 16,             // V15: a style's glyph strip: letters a row
   rbStripMaxK: 120,            // V15: a size whose strip would be bigger than this many thousand pixels has none: its strings are painted from their letters' runs
   rbAtlasN: 1500,              // V15: strings kept in the bake worker's atlases (the least recently used goes first)
+  rbAtlasMB: 8,                // 3.0 (X1): ...and at most this many MB of atlases (an atlas lives while any of its strings does: 961 strings held 426 atlases, 20 MB)
   rbRunsMax: 4,                // V15: a string this short in a style with no strip yet (a jersey's letter or number) is painted from its runs, no strip made
   rbAtlasBatch: 80,            // V15: new strings sent to the worker in one batch (one atlas)
   rbLineGap: 2,                // extra font pixels between wrapped lines (body text)
@@ -3625,17 +3637,19 @@ const RBL = { q: new Map(), on: true, pend: new Set(), batch: 0, dry: false };
 // V15: with a bake worker, a new string's picture is made there: the strings first seen in a frame go in one batch and
 // come back as one atlas (an ImageBitmap; nothing is drawn into it after, so it is never copied) with each string's
 // rectangle. Until then the string is drawn from its strip. No canvas is made on the main thread for a string.
-const RBA = new Map();
+const RBA = new Map(), RBA_N = new Map(); let _rbaPx = 0; // 3.0 (X1): an atlas → how many kept strings use it; the kept atlases' pixels
+function rbaPut(sk, e) { if (RBA.has(sk)) rbaDrop(sk); RBA.set(sk, e); const n = RBA_N.get(e.bm) || 0; if (!n) _rbaPx += (e.bm.width * e.bm.height) || 0; RBA_N.set(e.bm, n + 1); }
+function rbaDrop(sk) { const e = RBA.get(sk); RBA.delete(sk); if (!e) return; const n = (RBA_N.get(e.bm) || 1) - 1; if (n > 0) { RBA_N.set(e.bm, n); return; } RBA_N.delete(e.bm); _rbaPx -= (e.bm.width * e.bm.height) || 0; bmGrave(e.bm); } // (its last string gone: the atlas is closed at the next game)
 function rbAtlasTick() {
   if (!RBL.q.size || BAKE.st !== 'ready') return; // (a worker on its way: the strings wait for it)
   const items = []; for (const [sk, a] of RBL.q) { RBL.q.delete(sk); if (RBL.pend.has(sk) || RBA.has(sk)) continue; RBL.pend.add(sk); items.push([sk, a[0], a[1], a[2], a[3]]); if (items.length >= ART.rbAtlasBatch) break; }
   if (!items.length) return;
-  const done = res => { for (const it of items) RBL.pend.delete(it[0]); if (!res || !res.bm) return; for (const [sk, x, y, w, h] of res.rects) RBA.set(sk, { bm: res.bm, x, y, w, h }); while (RBA.size > ART.rbAtlasN) RBA.delete(RBA.keys().next().value); };
+  const done = res => { for (const it of items) RBL.pend.delete(it[0]); if (!res || !res.bm) return; for (const [sk, x, y, w, h] of res.rects) rbaPut(sk, { bm: res.bm, x, y, w, h }); while (RBA.size && (RBA.size > ART.rbAtlasN || _rbaPx * 4 > ART.rbAtlasMB * 1e6)) rbaDrop(RBA.keys().next().value); }; /* 3.0 (X1): the least recently used strings go until the count and the bytes fit */
   if (!bakeAsk('text', 'txt|' + (++RBL.batch), { items, mode: RT.mode }, -1, done)) /* (first in the queue: until it comes, the strings are drawn a letter at a time every frame) */ for (const it of items) { RBL.pend.delete(it[0]); RBL.q.set(it[0], [it[1], it[2], it[3], it[4]]); }
 }
 // In the worker: a batch's strings packed in rows into one atlas.
 function rbAtlasBake(items) {
-  const dims = items.map(it => [Math.max(1, (rbWidth(it[1]) + 2 * it[4]) * it[3]), (10 + 2 * it[4]) * it[3]]), W = Math.max(1024, ...dims.map(d => d[0])), rects = []; let x = 0, y = 0, rowH = 0;
+  const dims = items.map(it => [Math.max(1, (rbWidth(it[1]) + 2 * it[4]) * it[3]), (10 + 2 * it[4]) * it[3]]), W = Math.max(Math.min(1024, dims.reduce((a, d) => a + d[0] + 1, 0)), ...dims.map(d => d[0])), rects = []; /* 3.0 (X1): as wide as its strings (a batch of one short string was 1024 px wide) */ let x = 0, y = 0, rowH = 0;
   for (let i = 0; i < items.length; i++) { const [w, h] = dims[i]; if (x + w > W && x > 0) { x = 0; y += rowH + 1; rowH = 0; } rects.push([items[i][0], x, y, w, h]); x += w + 1; rowH = Math.max(rowH, h); }
   const at = bakeOC(W, Math.max(1, y + rowH)), g = at.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   for (let i = 0; i < items.length; i++) rbPaintAt(g, items[i][1], items[i][2], items[i][3], items[i][4], rects[i][1], rects[i][2]); // (V15 fix 5: each string straight into the atlas: no canvas of its own)
@@ -4504,7 +4518,7 @@ class Match {
     this.mode = o.mode || '1v1'; this.perSide = this.mode === '5v5' ? 5 : this.mode === '3v3' ? 3 : (this.mode === '2v2' ? 2 : 1);
     this.ruleset = o.ruleset || 'arcade'; this.halfCourt = this.ruleset === 'half' && this.perSide === 1; this.arcade = this.ruleset === 'arcade' || this.ruleset === 'half';
     const hc = o.half || {}; this.makeItTakeIt = this.halfCourt && !!hc.makeItTakeIt; this.pointBase = this.halfCourt && hc.scoring === '1s2s' ? 1 : 2; this.mustClear = -1; // street half court: winner's ball, 1s and 2s, clear after a stop
-    this.playoff = !!o.playoff; this.boss = !!o.boss; /* V4: the season's Boss */ this.tv = !!o.tv; /* 2.1 (W6): national TV */ this.pace = o.pace ? CONFIG.pace : null; this.clockHold = false; this.clockHoldT = 0; /* V5 (2.0 §4.7): a career game's pace */ this.format = o.format || { type: 'first', target: CONFIG.rules.targetScore, winBy2: false };
+    this.playoff = !!o.playoff; this.boss = !!o.boss; /* V4: the season's Boss */ this.tv = !!o.tv; /* 2.1 (W6): national TV */ this.pace = o.pace ? CONFIG.pace : null; this.stage = o.stage || null; /* 3.0 (§0.2): a career game's level */ this.clockHold = false; this.clockHoldT = 0; /* V5 (2.0 §4.7): a career game's pace */ this.format = o.format || { type: 'first', target: CONFIG.rules.targetScore, winBy2: false };
     this.courtId = o.court || 'blacktop'; this.headless = !!o.headless; this.practice = o.practice || null; this.tutorial = o.tutorial || null; this.contest3 = o.contest3 || null; this.drill = o.drill && !o.contest3 && this.halfCourt ? Object.assign({ kind: 'offense', attack: 0 }, o.drill) : null; // a 60 s career drill: one side attacks every possession
     this.controlMode = o.controlMode || 'ball'; this.adaptive = !!o.adaptive; this.difficulty = o.difficulty || 'pro'; this.charges = o.charges != null ? !!o.charges : CONFIG.rules.charges;
     this.time = 0; this.stepCount = 0; this.phase = 'pregame'; this.phaseT = 0; this.period = 1; this.periods = 2; this.gameClock = 0; this.shotClock = CONFIG.rules.shotClock; this.clockRunning = false; this.overtime = 0;
@@ -5081,6 +5095,8 @@ function gradeOf(err, w) { const a = Math.abs(err); return a <= w ? 0 : a <= w *
 
 // Make probability. Returns {P, green, base}.
 const _mp = { P: 0, green: false, base: 0 };
+// 3.0 (§0.2): a career game's make bonus by its level (CONFIG.pace.makeAdd; a level the table doesn't name takes the pros')
+function paceMakeAdd(m) { const A = m && m.pace && m.pace.makeAdd; if (typeof A === 'number') return A; if (!A) return 0; const v = A[m.stage]; return v != null ? v : (A.pro || 0); }
 function makeProbability(p, type, zone, grade, contest, opts) {
   const A = p.attrs; let P, base; opts = opts || {};
   const staminaMul = p.tired ? SH.lowStaminaMul : 1, fireMul = p.onFire > 0 ? SH.onFireMul : 1;
@@ -5091,6 +5107,7 @@ function makeProbability(p, type, zone, grade, contest, opts) {
   else if (type === 'hook') { base = SH.hookBase; P = base * (1 - SH.hookContest * contest) * (SH.ratingBase + SH.ratingSlope * (0.75 * A.fin + 0.25 * A.sho)); }
   else { base = SH.base[zone][grade]; P = base * (1 - SH.contestPenalty * contest * Math.max(0.3, SH.shotmakingBase - SH.shotmakingSlope * A.sho)) * (SH.jumperRatingBase + SH.jumperRatingSlope * A.sho); if (opts.stepback) P -= SH.stepbackPenalty; if (opts.fade) P *= SH.fadeMakeMul; }
   P *= staminaMul * fireMul * trShotMul(p, type); if (p.def && p.def.crowd) P += p.def.crowd; // R8: your hype's home crowd (career games)
+  if (p.match && p.match.pace && type !== 'ft') P += paceMakeAdd(p.match); // 3.0 (§0.2): a career game's shots fall a little more often (12-18 points a side in a minute)
   _mp.green = false;
   if ((type === 'jumper' || type === 'ft') && grade === 0 && contest < SH.greenMaxContest && (zone === 'mid' || zone === 'three')) { P = 1; _mp.green = true; }
   _mp.P = clamp(P, SH.pMin, _mp.green ? 1 : SH.pMax); _mp.base = base; return _mp;
@@ -6308,13 +6325,13 @@ function updateRules(m, dt) {
   if (m.tutorial && m.phase === 'live') { updateLive(m, dt); return; }
   runningClockTick(m, dt); // 2.1 (§1.8)
   switch (m.phase) {
-    case 'pregame': if (m.phaseT >= RU.pregameBeat) { if (m.halfCourt) doCheckBall(m, m.drill ? m.drill.attack : m.rng.int(2)); else startTipoff(m); } break;
+    case 'pregame': if (m.phaseT >= (m.pace ? m.pace.pregameBeat : RU.pregameBeat)) { if (m.halfCourt) doCheckBall(m, m.drill ? m.drill.attack : m.rng.int(2)); else startTipoff(m); } break;
     case 'check': if (m.phaseT >= RU.checkBeat) { goLive(m); m.bus.emit('CHECKED', { team: m.possession }); } break;
     case 'tipoff': updateTipoff(m, dt); break;
     case 'live': updateLive(m, dt); break;
-    case 'madebasket': if (m.phaseT >= (m.pace ? m.pace.madeBeat : RU.madeBasketBeat) + m.replayHold) doInbound(m); break; // V5: a career game restarts quicker
-    case 'violation': if (m.phaseT >= (m.pace ? m.pace.deadBeat : RU.violationBeat)) doInbound(m); break;
-    case 'foul': if (m.phaseT >= RU.foulBeat) { if (m.pendingFT) startFreeThrows(m); else doInbound(m); } break;
+    case 'madebasket': if (m.phaseT >= (m.pace ? m.pace.madeBeat : RU.madeBasketBeat) + m.replayHold) doRestart(m); break; // V5: a career game restarts quicker
+    case 'violation': if (m.phaseT >= (m.pace ? m.pace.deadBeat : RU.violationBeat)) doRestart(m); break;
+    case 'foul': if (m.phaseT >= RU.foulBeat) { if (m.pendingFT) startFreeThrows(m); else doRestart(m); } break;
     case 'freethrow': updateFreeThrow(m, dt); break;
     case 'periodend': if (m.phaseT >= RU.periodEndBeat + m.replayHold) endPeriod(m); break;
     case 'halftime': if (m.phaseT >= RU.halftimeBeat) startSecondHalf(m); break;
@@ -6463,6 +6480,22 @@ function doInbound(m) {
   goLive(m); m.bus.emit('INBOUND', { team, player: p }); m.bus.emit('POSSESSION_CHANGE', { team, player: p, how: 'inbound' });
 }
 
+// 3.0 (§0.2): a career game's restart after a make or a dead ball (pace.advance): the new offense takes the ball just
+// past half court, its defender set between the ball and the hoop, live at once: no walk up from the baseline. Elsewhere
+// (Quick Play, half court, a drill) the inbound under the basket as before.
+function doRestart(m) {
+  if (!(m.pace && m.pace.advance) || m.halfCourt || m.drill || m.tutorial) { doInbound(m); return; }
+  const team = m.pendingInbound >= 0 ? m.pendingInbound : m.rng.int(2); m.pendingInbound = -1; m.replayHold = 0; doAdvance(m, team);
+}
+function doAdvance(m, team) {
+  const P = m.pace, hoop = m.hoopFor(team), dir = sgn(hoop.x - COURT_L / 2) || 1, x = COURT_L / 2 + dir * LX(P.advanceX);
+  const place = (q, qx, face) => { q.x = qx; q.y = 0; q.vx = 0; q.vy = 0; q.grounded = true; q.setState('move'); q.facing = face; q.zTarget = 0.5; q.z = 0.5; q.pickedUp = false; if (q.brain) { q.brain.intent = null; q.brain.commitT = 0; q.brain.holdShoot = false; q.brain.holdPass = false; } };
+  const mates = m.teams[team].players; let hp = mates[0], bd = 99; for (const q of mates) { const d = Math.abs(q.x - x); if (d < bd && !q.inState('knocked')) { bd = d; hp = q; } }
+  place(hp, x, dir); let k = 0; for (const q of m.players) if (q !== hp) { if (q.team === team) place(q, x - dir * LX(1.5 + k++), dir); else place(q, x + dir * LX(P.advanceGap), -dir); }
+  freezeBall(m); m.ball.x = hp.x + dir * 0.3; m.ball.y = RU.inboundTossHeight; m.ball.z = hp.z; m.ball.setOwner(hp); hp.dribble.side = dir;
+  m.possession = team; m.shotClock = shotClockLen(m); m.inboundHoldT = 0; m.inboundPlayer = null; /* (no hold: holding the gap walked the defender back with a drive, 20% fewer points) */ m.clockHold = false; m.posStartT = m.time; m.teams[team].possessions++;
+  goLive(m); m.bus.emit('INBOUND', { team, player: hp, advance: true }); m.bus.emit('POSSESSION_CHANGE', { team, player: hp, how: 'inbound' });
+}
 // Street half court: every possession starts with a check ball at the top, the defender between the ball and the hoop.
 function doCheckBall(m, team) {
   const hoop = HOOPS[1], dir = sgn(COURT_L / 2 - hoop.x) || -1, hp = m.teams[team].players[0], x = hoop.x + dir * RU.checkDist;
@@ -7705,12 +7738,16 @@ function fanAtlasFor(venue, home, away) {
   let pc = null, part = null; const start = () => { const c = document.createElement('canvas'); c.width = N * CW; c.height = P * CH; return { c, g: c.getContext('2d'), i: 0 }; };
   const fanAt = S => { const g = S.g, i = S.i++; for (let p = 0; p < P; p++) { g.save(); g.beginPath(); g.rect(i * CW, p * CH, CW, CH); g.clip(); g.translate(i * CW + CW / 2, p * CH + CH - 1); try { paintFan(g, fans[i], p); } catch (e) { /* a fan never breaks the atlas */ } g.restore(); } };
   function* finish(S) { const c = S.c; let cv = c; try { const c2 = document.createElement('canvas'); c2.width = c.width; c2.height = c.height; const g2 = c2.getContext('2d'); if ('filter' in g2) { g2.filter = 'saturate(' + ART.crowdSat + ') contrast(' + ART.crowdContrast + ')'; for (let p = 0; p < P; p += 2) { const h = Math.min(2, P - p) * CH; g2.drawImage(c, 0, p * CH, c.width, h, 0, p * CH, c.width, h); if (p + 2 < P) yield; } g2.filter = 'none'; cv = c2; } } catch (e) { /* no canvas filters: the atlas stays as painted */ } // L17 (V15: two pose rows a step: the filter is per pixel)
-    if (!pc) pc = { canvas: cv, raw: c }; part = null; }
+    if (!pc) { pc = { canvas: cv, raw: c }; fanAtlasPainted(A); } part = null; }
   const paint = () => { if (pc) return pc; const S = part || start(); while (S.i < N) fanAt(S); const it = finish(S); while (!it.next().done); return pc; };
   function* paintSteps() { if (pc) return; const S = part || (part = start()); while (S.i < N && !pc) { fanAt(S); yield; } if (!pc) yield* finish(S); }
-  A = { get canvas() { return paint().canvas; }, get raw() { return paint().raw; }, painted: () => !!pc, paintSteps, w: CW, h: CH, n: N, fans, home: fans.map((f, i) => f.side === 0 ? i : -1).filter(i => i >= 0), away: fans.map((f, i) => f.side === 1 ? i : -1).filter(i => i >= 0), neutral: fans.map((f, i) => f.side === 2 ? i : -1).filter(i => i >= 0) };
+  A = { get canvas() { return paint().canvas; }, get raw() { return paint().raw; }, painted: () => !!pc, paintSteps, release() { pc = null; part = null; }, /* 3.0 (X1): its pixels go (painted again if anything draws from it) */ w: CW, h: CH, n: N, fans, home: fans.map((f, i) => f.side === 0 ? i : -1).filter(i => i >= 0), away: fans.map((f, i) => f.side === 1 ? i : -1).filter(i => i >= 0), neutral: fans.map((f, i) => f.side === 2 ? i : -1).filter(i => i >= 0) };
   if (_fanAtlases.size > 6) _fanAtlases.clear(); _fanAtlases.set(key, A); return A;
 }
+// 3.0 (X1): an atlas's pixels are two canvases of 3.5 MB; only the last CONFIG.bake.fanN painted keep them (a career
+// meets a new crowd every week: a new opponent's colors), the rest are painted again if anything draws from them.
+const _fanPainted = [];
+function fanAtlasPainted(A) { const i = _fanPainted.indexOf(A); if (i >= 0) _fanPainted.splice(i, 1); _fanPainted.push(A); while (_fanPainted.length > ((CONFIG.bake && CONFIG.bake.fanN) || 2)) { const o = _fanPainted.shift(); try { o.release(); } catch (e) { /* never mind */ } } }
 // One fan in one pose, drawn with the cell's bottom center at the origin (+y down).
 function paintFan(g, F, pose) {
   const out = 'rgba(14,10,26,0.92)', up = pose === FAN_POSE.stand || pose === FAN_POSE.cheer, b = up ? -12 : 0, R = F.big ? ART.fanHeadRBig : ART.fanHeadR; g.scale(F.sc, F.sc); g.lineJoin = 'round'; g.lineCap = 'round';
@@ -7885,7 +7922,7 @@ Object.assign(ART, {
 // --- the floor texture, baked once per venue and colors ---
 const _floorTex = new Map();
 function floorTexture(kind, home, courtId) {
-  const key = kind + '|' + home.join() + '|' + courtId + '|' + LAY.id + (RT.painting ? '|rt' : ''); let T = _floorTex.get(key); if (T) return T; // the court lines follow the layout (R1: a pixel bake gets stepped light pools)
+  const key = kind + '|' + home.join() + '|' + courtId + '|' + LAY.id + (RT.painting ? '|rt' : ''); let T = _floorTex.get(key); if (T) { _floorTex.delete(key); _floorTex.set(key, T); return T; } // the court lines follow the layout (R1: a pixel bake gets stepped light pools)
   const PX = ART.floorPxPerM, X0 = WALL_L - 3, X1 = WALL_R + 3, Wm = X1 - X0, D = floorDepthOf(); const c = RT.painting ? rtCanvas(1, 1) : document.createElement('canvas'); c.width = Math.ceil(Wm * PX); c.height = Math.ceil(D * PX); const g = c.getContext('2d');
   let s = hashString(key); const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; const X = x => (x - X0) * PX, H_ = c.height;
   const street = kind === 'street', lg = kind === 'legends', bright = LAY.legends && !street, base = lg ? ART.lgFloor : (VENUE_STYLE[courtId] && VENUE_STYLE[courtId].floor) || (kind === 'hs' ? '#E3B87C' : kind === 'college' ? '#C98B4A' : street ? '#3A3A44' : '#C98B4A'); // §5: honey maple in the Legends Arena
@@ -7912,7 +7949,7 @@ function floorTexture(kind, home, courtId) {
   const gl = g.createLinearGradient(0, 0, 0, H_); gl.addColorStop(0, 'rgba(0,0,0,0.22)'); gl.addColorStop(0.25, 'rgba(0,0,0,0)'); gl.addColorStop(0.4, 'rgba(255,255,255,' + (kind === 'hs' ? 0.04 : street ? 0.02 : 0.09) + ')'); gl.addColorStop(1, 'rgba(255,255,255,0.02)'); g.fillStyle = gl; g.fillRect(0, 0, c.width, H_);
   // worn patches on the blacktop
   if (street) { g.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(0,0,0,' + (0.1 + rnd() * 0.25) + ')'; g.fillRect(rnd() * c.width, rnd() * H_, 10 + rnd() * 40, 2 + rnd() * 5); } g.globalCompositeOperation = 'source-over'; g.fillStyle = base; }
-  T = { canvas: c, x0: X0, x1: X1 }; if (_floorTex.size > 8) _floorTex.clear(); _floorTex.set(key, T); return T;
+  T = { canvas: c, x0: X0, x1: X1 }; while (_floorTex.size >= 4) _floorTex.delete(_floorTex.keys().next().value); /* 3.0 (X1): the least recently used goes (was 9 kept, then all cleared) */ _floorTex.set(key, T); return T;
 }
 function floorDepthOf() { return LAY.legends ? ART.lgFloorDepthM : ART.floorDepthM; }
 function floorBandOf(cam) { const b = cam.sy(-floorDepthOf()); return { top: cam.sy(0), bottom: LAY.legends ? Math.max(b, cam.H + 2) : b }; }
@@ -8109,7 +8146,7 @@ Object.assign(ART, {
   rtBlendErr: 420,             // pixelize: a pixel this far (weighted RGB²) from its palette color is an edge blend and joins a neighbouring region
   rtInner: 0.32,               // selective inner lines: an opaque pixel whose 4-neighbour is this much lighter (luma 0–1) darkens a step...
   rtInnerMix: 0.4,             // ...by mixing this much toward the ink before re-quantizing
-  rtPortraitN: 240,            // V15: pixel portraits kept (the least recently used goes first; it used to empty itself at 160)
+  rtPortraitN: 120,            // V15: pixel portraits kept (the least recently used goes first; it used to empty itself at 160) 3.0 (X1): was 240 (a career meets a new face a week)
   figCelFps: 12,               // V15: a celebration in a menu (the shop's preview) is pictured at this many frames a second
   rtOpenWait: 2,               // V15: a game's first frames (under its opening wipe) paint no player: the scene, then the score bug, then one player a frame
   rtOpenPoses: 60,             // V15: the bake worker plays a game's first this-many frames (1 s at 60 Hz) and paints every pose in them for both players' sheets
@@ -8360,31 +8397,33 @@ function rtCharSpriteCached(cam, p, alpha, ball, team, opts, own, ballPaintFor, 
   const C = RT.cache || (RT.cache = new WeakMap()); let c = C.get(p); if (!c) { c = { last: null, poses: null, kit: null }; C.set(p, c); }
   const x = lerp(p.px != null ? p.px : p.x, p.x, alpha) + (p._pushX || 0), y = lerp(p.py != null ? p.py : p.y, p.y, alpha), z = lerp(p.pz != null ? p.pz : p.z, p.z, alpha);
   const ax = Math.round(cam.sx(x)), ay = Math.round(cam.sy(y + ((p.anim && p.anim.lift) || 0), z)), sc = cam.scale(z), hz = ART.rtPoseHzBy[clamp(Math.max(RT.level, (RT.fg || 0) - 1), 0, 3)]; // (V2: a frame guard two levels down slows the poses too)
-  const key = p.state + '|' + p.facing + '|' + (own ? 1 : 0) + '|' + (opts.replay ? 1 : 0) + '|' + RT.ss + '|' + RT.k + '|' + (p.hidden ? 1 : 0) + '|' + (p.controlled ? 1 : 0), L = c.last;
-  const kit = (team && team.colors ? team.colors.join('') : '') + '|' + (team && team.pattern || '') + '|' + RT.ss + '|' + RT.k; if (c.kit !== kit) { c.poses = rtSheet(p, kit); c.kit = kit; } // new colors or a new pixel size: another sheet (V15: a player's sheet is kept across games: rtSheet)
+  const key = p.state + '|' + p.facing + '|' + (own ? 1 : 0) + '|' + (opts.replay ? 1 : 0) + '|' + RT.ss + '|' + RT.k + '|' + (p.hidden ? 1 : 0) + '|' + (p.controlled ? 1 : 0);
+  const kit = (team && team.colors ? team.colors.join('') : '') + '|' + (team && team.pattern || '') + '|' + RT.ss + '|' + RT.k; if (c.kit !== kit || (c.poses && c.poses.freed)) { c.poses = rtSheet(p, kit); c.kit = kit; } // new colors or a new pixel size: another sheet (V15: a player's sheet is kept across games: rtSheet)
+  const L = c.last && bmLive(c.last.r && c.last.r.spr) ? c.last : (c.last = null); // 3.0 (X1): a last picture freed with its sheet (a new look, new gear, a new pixel size: the old sheet just went) is painted again
   const ride = r => ({ spr: r.spr, X: ax + r.dx, Y: ay + r.dy, head: r.head, gm: r.gm, P: r.P, k: r.k, cached: true });
   if (RT.job && RT.frame - RT.job.frame > 3) RT.job = null; // (a half paint nobody finished: a player gone, a new match)
   if (RT.job && RT.job.c === c && RT.paintFrame !== RT.frame) { // V2: this player's split paint, begun last frame, finishes first
     const J = RT.job; RT.job = null; const w0 = RT.work, t0 = performance.now(); let r = null; try { r = J.finish(); } catch (e) { reportFrameError(e); } RT.work = w0 + performance.now() - t0; RT.paintFrame = RT.frame;
-    if (r && r.spr) { const rec = { spr: r.spr, dx: r.X - J.ax, dy: r.Y - J.ay, head: r.head, gm: r.gm, P: r.P, k: r.k }; if (J.pk && c.kit === J.kit) { c.poses.set(J.pk, rec); if (c.poses.size > ART.rtPoseCacheN) c.poses.delete(c.poses.keys().next().value); } c.last = { key: J.key, t: J.t, sc: J.sc, r: rec }; if (RT.audit) RT.audit.push(rec.spr); return ride(rec); }
+    if (r && r.spr) { const rec = { spr: r.spr, dx: r.X - J.ax, dy: r.Y - J.ay, head: r.head, gm: r.gm, P: r.P, k: r.k }; if (J.pk && c.kit === J.kit) { c.poses.set(J.pk, rec); if (c.poses.size > ART.rtPoseCacheN) poseDrop(c.poses); } c.last = { key: J.key, t: J.t, sc: J.sc, r: rec }; if (RT.audit) RT.audit.push(rec.spr); return ride(rec); }
     if (L) return ride(L.r); }
   const all = RT.bakeAll, same = L && L.key === key && t >= L.t && Math.abs(sc - L.sc) < L.sc * 0.015, age = same ? t - L.t : 1e9; // (all: the bake worker's dry run paints every new pose, at every frame)
   if (same && age < 1 / hz && !all) { if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); }
   const P = poseFor(p, alpha, ball), kk = sc * drawHeightOf(p), pk = rtPoseKey(p, P, kk, own, ball, alpha, opts); RT.poseLook = (RT.poseLook || 0) + 1;
-  const hit = pk && c.poses.get(pk); if (hit) { c.poses.delete(pk); c.poses.set(pk, hit); c.last = { key, t, sc, r: hit }; RT.poseHits = (RT.poseHits || 0) + 1; if (RT.audit) RT.audit.push(hit.spr); return ride(hit); }
+  let hit = pk && c.poses.get(pk); if (hit && !bmLive(hit.spr)) { c.poses.delete(pk); hit = null; } if (hit) { c.poses.delete(pk); c.poses.set(pk, hit); c.last = { key, t, sc, r: hit }; RT.poseHits = (RT.poseHits || 0) + 1; if (RT.audit) RT.audit.push(hit.spr); return ride(hit); }
   if (L && (RT.paintFrame === RT.frame || RT.job) && !all) { if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); } // one paint a frame (and none while a split one is half done): this one waits a frame
   if (!L && game && game.wipe && (RT.paintFrame === RT.frame || RT.frame - (RT.matchFrame0 || 0) < ART.rtOpenWait)) return null; // V15: under a game's opening wipe a player with no picture yet waits (none on its first frames, then one a frame)
   if (RT.pre < 0) { RT.pre = performance.now() - RT.t0; RT.preAvg = RT.preAvg == null ? RT.pre : RT.preAvg * 0.95 + RT.pre * 0.05; } // V2: how heavy this frame already is (the crowd's redraw, a bake) against the usual
   if (L && !all && (c.waits || 0) < ART.rtPaintWaits && (RT.crowdFrame === RT.frame || RT.pre > RT.preAvg * ART.rtHeavyFrame + 1)) { c.waits = (c.waits || 0) + 1; if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); } // ...a heavy one lets the repaint wait a frame
   c.waits = 0;
-  let into = null; if (pk && c.poses.size >= ART.rtPoseCacheN) { const k0 = c.poses.keys().next().value, old = c.poses.get(k0); c.poses.delete(k0); if ((!L || L.r !== old) && old.spr && typeof old.spr.getContext === 'function') into = old.spr; } // V2: the pose that leaves the cache lends its canvas to this one (V15: not a worker's picture: an ImageBitmap can't be painted into)
+  let into = null; if (pk && c.poses.size >= ART.rtPoseCacheN) { const k0 = c.poses.keys().next().value, old = c.poses.get(k0); c.poses.delete(k0); if ((!L || L.r !== old) && old.spr && typeof old.spr.getContext === 'function') into = old.spr; else if (old) bmGrave(old.spr); /* 3.0 (X1): a worker's picture is closed at the next game */ } // V2: the pose that leaves the cache lends its canvas to this one (V15: not a worker's picture: an ImageBitmap can't be painted into)
   const split = !!L && !all && Math.max(RT.level, (RT.fg || 0) - 1) >= ART.rtSplitFrom; // V2: a slow device splits a repaint over two frames (the player rides their last sprite in between)
   let r = null; const w0 = RT.work, t0 = performance.now(); RT.lodPaint = true; try { r = rtCharSprite(cam, p, alpha, ball, team, Object.assign({}, opts, { pose: P, noTrail: true, spriteOwner: pk ? {} : p, into, split }), 1, ballPaintFor); } finally { RT.lodPaint = false; RT.work = w0 + performance.now() - t0; } if (!r) { c.last = null; return null; }
   if (split) { RT.job = { finish: r.finish, c, pk, key, t, sc, ax, ay, kit, frame: RT.frame }; RT.paintFrame = RT.frame; RT.repaints = (RT.repaints || 0) + 1; if (RT.audit) RT.audit.push(L.r.spr); return ride(L.r); } // (ART.rtLod: cheaper ways to the same pixels; V2: the guard counts the whole paint, not only the pixel passes)
   RT.paintFrame = RT.frame; RT.repaints = (RT.repaints || 0) + 1; const rec = { spr: r.spr, dx: r.X - ax, dy: r.Y - ay, head: r.head, gm: r.gm, P: r.P, k: r.k };
-  if (pk) { c.poses.set(pk, rec); if (c.poses.size > ART.rtPoseCacheN) c.poses.delete(c.poses.keys().next().value); }
+  if (pk) { c.poses.set(pk, rec); if (c.poses.size > ART.rtPoseCacheN) poseDrop(c.poses); }
   c.last = { key, t, sc, r: rec }; return r;
 }
+function poseDrop(M) { const k0 = M.keys().next().value; bmGrave((M.get(k0) || {}).spr); M.delete(k0); } // 3.0 (X1): the least recently used pose goes (a worker's picture: closed at the next game)
 // Draws a character sprite into the world buffer (identity transform, world px). Guard level 3: every other frame
 // reuses last frame's sprite.
 function rtDrawCharacter(g, cam, p, alpha, ball, team, opts, ballPaintFor) {
@@ -8467,7 +8506,7 @@ function rtRenderMatch(game, ctx, m, alpha, env) {
   RT.k = k; RT.f = game.dpr / k; RT.W = W; RT.H = H; RT.frame++; RT.work = 0; RT.ballBox = null; RT.ss = ART.rtSuperMatch; RT.fg = (env && env.guard) || 0; RT.t0 = performance.now(); RT.pre = -1; /* V2: 2× in a match (an exact box filter on the cheapest path), never switched mid-match (a switch repainted every face) */
   const g = rtBuffer(W, H), cam = RT.cam.sync(game.cam, RT.f, W, H); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.imageSmoothingEnabled = false; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
   try { drawMatchScene(g, Object.assign({}, env, { cam, W, H, retro: RT }), m, alpha); } catch (e) { reportFrameError(e); }
-  if (m && !m._f0) { m._f0 = true; RT.matchFrame0 = RT.frame; } if (m && m._warm !== RT.k + '|' + RT.ss + '|' + H) { m._warm = RT.k + '|' + RT.ss + '|' + H; try { rtWarmMatch(m, cam); } catch (e) { reportFrameError(e); } } // V2: the first frame (and a new world size: the guard's lower resolution) paints every face and ball frame (one face is 60 ms on a slow phone)
+  if (m && !m._f0) { m._f0 = true; RT.matchFrame0 = RT.frame; } if (RT.sheetsDue && m && !IS_BAKE_WORKER && RT.frame - RT.matchFrame0 >= 2) try { sheetsPruneNow(); } catch (e) { RT.sheetsDue = false; reportFrameError(e); } /* 3.0 (X1): the game's third frame: its players' sheets are touched, the rest can go */ if (m && m._warm !== RT.k + '|' + RT.ss + '|' + H) { m._warm = RT.k + '|' + RT.ss + '|' + H; try { rtWarmMatch(m, cam); } catch (e) { reportFrameError(e); } } // V2: the first frame (and a new world size: the guard's lower resolution) paints every face and ball frame (one face is 60 ms on a slow phone)
   ctx.save(); ctx.setTransform(k, 0, 0, k, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(RT.buf, 0, 0); ctx.restore();
   rtGuard(RT.work, game.input && game.input.hasTouch);
 }
@@ -8532,8 +8571,8 @@ function rtVenueKeyOf(V, cam, m) {
   return { mid, pan, padY: 8, key: [cam.W, cam.H, cam.ppm.toFixed(3), cam.oy - (cam.shy || 0), V.kind, m.courtId, m.halfCourt ? 1 : 0, LAY.id, V.home.join(), V.away.join(), pan.toFixed(2)].join('|') };
 }
 function rtVenueBakes(V, cam, m) {
-  const K = rtVenueKeyOf(V, cam, m); if (V._rt && V._rt.key === K.key) return V._rt;
-  { const hit = rtVenueCacheGet(K.key); if (hit) { V._rt = hit; return hit; } } /* V15 (fix 1): a venue is baked once a session (the worker's bake, or this one) */
+  const K = rtVenueKeyOf(V, cam, m); if (V._rt && V._rt.key === K.key && rtVenueLive(V._rt)) return V._rt;
+  { const hit = rtVenueCacheGet(K.key); if (hit && rtVenueLive(hit)) { V._rt = hit; return hit; } } /* V15 (fix 1): a venue is baked once a session (the worker's bake, or this one) */
   const it = rtVenueBakeGen(V, cam, m, K, RT.snapT || (RT.snapT = { keys: new Int32Array(1 << 18), cnt: new Int32Array(1 << 18) })); let r; do r = it.next(); while (!r.done); return r.value;
 }
 // The bake as steps (V15, fix 4's fallback: a bake sliced over frames yields between its layers and inside each snap).
@@ -8591,7 +8630,7 @@ function rtBodyBand(V, g, b) {
 // the venue's grade and each row's shade folded into the colors), always outlined ---
 function rtFanAtlas(V, fh, shade) {
   if (RT.fanPlan) { RT.fanPlan.push([fh, shade]); return { canvas: null, w: 1, h: 1 }; } // (V15: the fallback's plan of which atlases a view draws)
-  const fhI = Math.max(8, Math.round(fh)), key = fhI + '|' + shade.toFixed(3); const R = V._rt; let F = R && R.fans.get(key); if (F) return F;
+  const fhI = Math.max(8, Math.round(fh)), key = fhI + '|' + shade.toFixed(3); const R = V._rt; let F = R && R.fans.get(key); if (F && !bmLive(F.canvas)) { R.fans.delete(key); F = null; } if (F) return F;
   const it = rtFanAtlasGen(V, R, fh, shade); let r; do r = it.next(); while (!r.done); return r.value;
 }
 // The atlas as steps (V15, fix 4's fallback: a fan a step).
@@ -8602,7 +8641,7 @@ function* rtFanAtlasGen(V, R, fh, shade) {
   for (let i = 0; i < A.n; i++) { const Fn = A.fans[i]; const cols = [ART.inkLine, Fn.skin[0], Fn.skin[1], Fn.skin[2], Fn.shirt, shadeHex(Fn.shirt, -0.16), Fn.team ? (Fn.shirt === Fn.team[0] ? Fn.team[1] : Fn.team[0]) : '#F3F0FF', Fn.hairC, ink(Fn.hairC), Fn.capC, '#FAF8F4', '#1A1020', '#3B0E1D', '#F3F0FF', '#D46272', '#15151E', '#9FE3FF', '#E63946', '#FFD23F', '#2A2A36', '#EDE6DA', '#141018'];
     const pal = rtPalette('fan|' + A.fans.length + '|' + i + '|' + cols.join(), cols); const u32 = new Uint32Array(pal.n); for (let k = 0; k < pal.n; k++) { const hx = rgbToHex(pal.rgb[k * 3], pal.rgb[k * 3 + 1], pal.rgb[k * 3 + 2]), gc = k === 0 ? hx : rtGrade(hx, sat, lum), q = hexToRgb(gc); u32[k] = (255 << 24 | q[2] << 16 | q[1] << 8 | q[0]) >>> 0; }
     for (let p = 0; p < 6; p++) { const spr = pixelize(src, i * A.w, p * A.h, A.w, A.h, A.h / fhI, pal, { u32, into: rtPxTmp() }); g.drawImage(spr, i * (fw + 2), p * (fhI + 2)); yield; } }
-  const F = { canvas: c, w: fw + 2, h: fhI + 2 }; if (R) R.fans.set(key, F); return F;
+  const F = { canvas: c, w: fw + 2, h: fhI + 2 }; if (R) { R.fans.set(key, F); rtVenueGrew(R); } return F;
 }
 // V15 (fix 4's fallback): the fan atlases a view draws, as [fh, shade] pairs (its rows drawn through a stand-in context).
 function rtFanPlan(V, cam, m) {
@@ -8747,7 +8786,7 @@ const _rtPortraitLook = new WeakMap(); // V2: a match player's normalized look a
 function rtPortrait(def, colors, size, expr, opts) {
   def = def || {}; size = Math.max(8, Math.round(size)); let LL = opts && opts.stable ? _rtPortraitLook.get(def) : null; if (!LL || LL.look !== def.look || LL.name !== def.name) { const L0 = normLook(def.look, def.name); LL = { look: def.look, name: def.name, L: L0, lk: lookKey(L0) }; if (opts && opts.stable) _rtPortraitLook.set(def, LL); }
   const L = LL.L, age = def.age || 24; expr = EXPRS.includes(expr) ? expr : 'neutral'; opts = opts || {};
-  const key = rtPortraitKey(L, age, colors, size, expr, opts, LL.lk); if (BAKE_TOUCH.on) BAKE_TOUCH.pts.add(key); let c = _rtPortraits.get(key); if (c) return c;
+  const key = rtPortraitKey(L, age, colors, size, expr, opts, LL.lk); if (BAKE_TOUCH.on) BAKE_TOUCH.pts.add(key); let c = _rtPortraits.get(key); if (c && bmLive(c)) return c; if (c) _rtPortraits.delete(key); /* (3.0: a freed portrait is painted again) */
   const ss = size > ART.rtPortraitBig ? 2 : 3, S = size * ss, g = rtScratch(S, S); const col = colors || ['#3D6EA8', '#F3F0FF']; /* a big face (the face editor) supersamples 2× to stay quick while a slider moves */
   try { if (!opts.headOnly) { g.fillStyle = col[0]; g.beginPath(); g.moveTo(S * 0.1, S); g.quadraticCurveTo(S * 0.5, S * 0.66, S * 0.9, S); g.fill(); g.strokeStyle = col[1]; g.lineWidth = S * 0.04; g.beginPath(); g.moveTo(S * 0.36, S * 0.86); g.quadraticCurveTo(S * 0.5, S * 0.96, S * 0.64, S * 0.86); g.stroke(); }
     let eyes = null; drawFace(g, L, S * 0.5, S * 0.52, S * 0.52, opts.dir === -1 ? -1 : 1, expr, { name: def.name, age, team: colors, noBlink: true, force: true, eyeHook: e => { eyes = e; } });
@@ -8756,7 +8795,7 @@ function rtPortrait(def, colors, size, expr, opts) {
     const spr = pixelize(g.canvas, 0, 0, S, S, ss, pal, { inner: false, post, into: rtPxTmp() }); c = document.createElement('canvas'); c.width = size; c.height = size; const cg = c.getContext('2d');
     if (opts.bg !== false) { cg.fillStyle = shadeHex(col[0], -0.45); cg.fillRect(0, 0, size, size); cg.fillStyle = shadeHex(col[0], -0.25); cg.fillRect(0, 0, size, Math.round(size * 0.55)); }
     cg.drawImage(spr, 0, 0, size, size, 0, 0, size, size); } catch (e) { reportFrameError(e); c = c || document.createElement('canvas'); }
-  if (_rtPortraits.size > ART.rtPortraitN) _rtPortraits.delete(_rtPortraits.keys().next().value); _rtPortraits.set(key, c); return c;
+  if (_rtPortraits.size > ART.rtPortraitN) { const k0 = _rtPortraits.keys().next().value; bmGrave(_rtPortraits.get(k0)); _rtPortraits.delete(k0); } _rtPortraits.set(key, c); return c;
 }
 // --- menus (§1.2: every character looks the same everywhere): one sprite pixel = the UI's pixel size k ---
 function uiRetro() { return RT.mode !== 'smooth'; }
@@ -8831,7 +8870,13 @@ Object.assign(CONFIG, { bake: {
   warmSliceMs: 24,           // without a worker: the game's bakes run this long a frame behind the Warming up bar (nothing else runs then)
   venueMB: 64,               // the venue bake cache's pixels (MB; the least recently used venue goes first)...
   venueMBPhone: 32,          // ...on a touch screen
-  sheetN: 6,                 // sprite sheets kept for players outside a career week (Quick 1v1, practice, last week's opponents)
+  venueMBWorker: 24,         // 3.0 (X1): ...in the bake worker (it keeps a game's venue for the game's second dry run; the page keeps the session's)
+  fanN: 2,                   // 3.0 (X1): crowd atlases kept painted on each side (fanAtlasPainted)
+  sheetN: 6,                 // sprite sheets kept for players outside a career week (Quick 1v1, practice, last week's opponents); 3.0 (X1): the cap on both sides, the page's and the worker's
+  mineN: 2,                  // 3.0 (X1): your own sprite sheets kept on each side (your latest looks; a new look's sheet replaces the old one)
+  shoeN: 32,                 // 3.0 (X1): baked shoes kept on each side (the least recently used goes first; was 48, first in first out)
+  graveN: 2048,              // 3.0 (X1): pictures dropped by a cache waiting to be closed at the next game (weak references: they never keep a picture alive)
+  doneN: 24,                 // 3.0 (X1): games whose warm paints are remembered (the set grew a game at a time)
 } });
 const IS_BAKE_WORKER = typeof HH_WORKER !== 'undefined' && !!HH_WORKER;
 const UIZ = { k: 1 }; // the screen transition's pop (0.8 → 1.06 → 1): baked pictures are sized for the settled screen and scaled with it
@@ -8925,10 +8970,14 @@ const BAKE_JOBS = {
   face: a => { const e = getFaceCanvas(a.L, a.expr, a.age, a.bucket, a.team, true, !!a.front, !!a.brows); return { bm: bakeBM(e.canvas), front: e.front ? bakeBM(e.front) : null, ox: e.ox, oy: e.oy, px: e.px, slide: e.slide }; },
   match: a => bakeMatchDry(a),
   poses: a => bakePosesDry(a),
+  prune: a => { sheetsPrune(new Set(a.keep || [])); return { sheets: RT_SHEETS.size }; }, // 3.0 (X1): the page pruned its sheets: the worker keeps the same ones
+  stats: () => bakeCacheStats(), // 3.0 (X1): what each side's caches hold (tests/memory.js)
+  gc: () => { try { if (typeof self.gc === 'function') self.gc(); } catch (e) { /* not exposed */ } return {}; }, // (a test's forced collection, with --js-flags=--expose-gc)
 };
 function bakeWorkerMain() {
   self.onmessage = e => { const m = e.data || {}; _bakeTr = []; const t0 = performance.now(); let res = null, err = null;
-    try { if (m.a && m.a.mode) RT.mode = m.a.mode; res = BAKE_JOBS[m.kind](m.a || {}); } catch (x) { err = String(x && x.stack || x); _bakeTr = []; }
+    RT.jobN = (RT.jobN || 0) + 1; try { if (m.a && m.a.mode) RT.mode = m.a.mode; res = BAKE_JOBS[m.kind](m.a || {}); } catch (x) { err = String(x && x.stack || x); _bakeTr = []; }
+    if (BAKE_HEAVY[m.kind]) try { sheetsPrune(null); } catch (x) { /* never mind */ } /* 3.0 (X1): the caps after every game's dry run (the worker's sheets were never pruned: 40 MB a new opponent) */
     try { self.postMessage({ id: m.id, res, err, ms: performance.now() - t0 }, _bakeTr); } catch (x) { self.postMessage({ id: m.id, res: null, err: 'post: ' + String(x && x.message || x), ms: 0 }); } };
   self.postMessage({ ready: true });
 }
@@ -8949,25 +8998,26 @@ function figureSprite(a) {
 function figureGet(a, key) {
   let r = _figs.get(key); if (r) { _figs.delete(key); _figs.set(key, r); return r; }
   if (bakePending(key)) return null;
-  const put = res => { if (!res || !res.bm) return; _figs.set(key, { spr: res.bm, X: res.X, Y: res.Y }); while (_figs.size > CONFIG.bake.figN) _figs.delete(_figs.keys().next().value); };
+  const put = res => { if (!res || !res.bm) return; _figs.set(key, { spr: res.bm, X: res.X, Y: res.Y }); figsTrim(); };
   if (bakeAsk('figure', key, a, 0, put)) return null;
   if (!bakeSyncOk()) return null; try { r = figureSprite(a); } catch (e) { reportFrameError(e); } if (!r) return null; // (the fallback: painted here, one a frame)
-  _figs.set(key, r); while (_figs.size > CONFIG.bake.figN) _figs.delete(_figs.keys().next().value); return r;
+  _figs.set(key, r); figsTrim(); return r;
 }
 // A figure for the hub or a card that is likely next (the player's own, the next opponent): asked for ahead (pri 2).
 function figurePrebake(def, kit, size, expr, facing, pose, ctxH) {
   try { const T = 1, k = rtGridK(ctxH || (RBF.mainCanvas && RBF.mainCanvas.height) || 720, RT.mode === 'sharp'), dpr = (typeof game !== 'undefined' && game) ? game.dpr : 1; const sc = (typeof game !== 'undefined' && game && game.ui) ? game.ui.scale * dpr : 1, f = sc * T / k;
-    const a = figureArgs(def, kit, size, expr, facing, 0, pose, null, f), key = figureKey(a); if (!_figs.has(key)) bakeAsk('figure', key, a, 2, res => { if (res && res.bm) { _figs.set(key, { spr: res.bm, X: res.X, Y: res.Y }); while (_figs.size > CONFIG.bake.figN) _figs.delete(_figs.keys().next().value); } }); } catch (e) { /* a guess */ }
+    const a = figureArgs(def, kit, size, expr, facing, 0, pose, null, f), key = figureKey(a); if (!_figs.has(key)) bakeAsk('figure', key, a, 2, res => { if (res && res.bm) { _figs.set(key, { spr: res.bm, X: res.X, Y: res.Y }); figsTrim(); } }); } catch (e) { /* a guess */ }
 }
 
+function figsTrim() { while (_figs.size > CONFIG.bake.figN) { const k0 = _figs.keys().next().value; bmGrave((_figs.get(k0) || {}).spr); _figs.delete(k0); } } // 3.0 (X1)
 // --- portraits: the cached picture, asked of the worker when missing ---
 function rtPortraitGet(def, colors, n, expr, opts) {
   def = def || {}; opts = opts || {}; expr = EXPRS.includes(expr) ? expr : 'neutral'; let LL = opts.stable ? _rtPortraitLook.get(def) : null; if (!LL || LL.look !== def.look || LL.name !== def.name) { const L0 = normLook(def.look, def.name); LL = { look: def.look, name: def.name, L: L0, lk: lookKey(L0) }; if (opts.stable) _rtPortraitLook.set(def, LL); }
-  n = Math.max(8, Math.round(n)); const key = rtPortraitKey(LL.L, def.age || 24, colors, n, expr, opts, LL.lk); const hit = _rtPortraits.get(key); if (hit) return { spr: hit, key };
+  n = Math.max(8, Math.round(n)); const key = rtPortraitKey(LL.L, def.age || 24, colors, n, expr, opts, LL.lk); const hit = _rtPortraits.get(key); if (hit && bmLive(hit)) return { spr: hit, key }; if (hit) _rtPortraits.delete(key); /* (3.0: a freed portrait is asked for again) */
   if (bakePending('pt|' + key)) return { spr: null, key };
   const o = {}; for (const k of ['bg', 'headOnly', 'dir']) if (opts[k] != null) o[k] = opts[k];
   const a = { def: { name: def.name, look: def.look, age: def.age }, colors: colors || null, n, expr, opts: o, mode: RT.mode };
-  if (bakeAsk('portrait', 'pt|' + key, a, 0, res => { if (res && res.bm) { if (_rtPortraits.size > ART.rtPortraitN) _rtPortraits.delete(_rtPortraits.keys().next().value); _rtPortraits.set(key, res.bm); } })) return { spr: null, key };
+  if (bakeAsk('portrait', 'pt|' + key, a, 0, res => { if (res && res.bm) { if (_rtPortraits.size > ART.rtPortraitN) { const k0 = _rtPortraits.keys().next().value; bmGrave(_rtPortraits.get(k0)); _rtPortraits.delete(k0); } _rtPortraits.set(key, res.bm); } })) return { spr: null, key };
   if (!bakeSyncOk()) return { spr: null, key }; return { spr: rtPortrait(def, colors, n, expr, opts), key }; // (the fallback)
 }
 // The stand-in while a portrait is baking: its background and a head-and-shoulders silhouette, on the device grid.
@@ -8982,7 +9032,7 @@ function rtPortraitHolder(ctx, colors, X, Y, D, opts) {
 const _backs = new Map();
 function kitBackdropGet(W_, H_, dpr, k) {
   const key = 'back|' + W_ + 'x' + H_ + '|' + dpr + '|' + k; const hit = _backs.get(key); if (hit) return hit; if (bakePending(key)) return null;
-  if (bakeAsk('backdrop', key, { W: W_, H: H_, dpr, k, mode: RT.mode }, 0, res => { if (res && res.bm) { if (_backs.size > 3) _backs.clear(); _backs.set(key, res.bm); } })) return null;
+  if (bakeAsk('backdrop', key, { W: W_, H: H_, dpr, k, mode: RT.mode }, 0, res => { if (res && res.bm) { if (_backs.size > 3) { for (const b of _backs.values()) bmGrave(b); _backs.clear(); } _backs.set(key, res.bm); } })) return null;
   if (!bakeSyncOk()) return null; const c = kitBackdropBake(W_, H_, dpr, k); _backs.set(key, c); return c;
 }
 
@@ -8990,11 +9040,13 @@ function kitBackdropGet(W_, H_, dpr, k) {
 // (the venue, its colors, the camera's scale and the screen's size), up to CONFIG.bake.venueMB of pixels ---
 const RT_VENUES = new Map(); let _rtVenuePx = 0;
 function rtVenuePx(R) { let n = 0; const add = c => { if (c && c.width) n += c.width * c.height; }; add(R.A); add(R.B1); add(R.B2); for (const c of R.C || []) if (c) add(c.spr); if (R.fans) for (const F of R.fans.values()) add(F.canvas); return n; }
+function rtVenueGrew(R) { if (RT_VENUES.get(R.key) !== R) return; const px = rtVenuePx(R); if (px > (R._px || 0)) { _rtVenuePx += px - (R._px || 0); R._px = px; } } // 3.0 (X1): its fans' atlases, painted after it went in, counted once they outgrow the guess
+function rtVenueLive(R) { for (const x of [R.A, R.B1, R.B2]) if (x && !bmLive(x)) return false; return true; } // 3.0 (X1): an old game's venue whose layers were closed (its world drawn again later) is baked again
 function rtVenueCacheGet(key) { const R = RT_VENUES.get(key); if (!R) return null; RT_VENUES.delete(key); RT_VENUES.set(key, R); return R; }
 function rtVenueCachePut(R) {
   if (!R || !R.key) return; const old = RT_VENUES.get(R.key); if (old) { _rtVenuePx -= old._px || 0; RT_VENUES.delete(R.key); } R._px = rtVenuePx(R) + 400 * 200 * 8; /* (+ the fans' rows not baked yet) */ RT_VENUES.set(R.key, R); _rtVenuePx += R._px;
   let touch = false; try { touch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { /* desktop */ }
-  const cap = (touch ? CONFIG.bake.venueMBPhone : CONFIG.bake.venueMB) * 1e6 / 4; while (_rtVenuePx > cap && RT_VENUES.size > 1) { const k0 = RT_VENUES.keys().next().value; _rtVenuePx -= RT_VENUES.get(k0)._px || 0; RT_VENUES.delete(k0); }
+  const cap = (IS_BAKE_WORKER ? CONFIG.bake.venueMBWorker : touch ? CONFIG.bake.venueMBPhone : CONFIG.bake.venueMB) * 1e6 / 4; while (_rtVenuePx > cap && RT_VENUES.size > 1) { const k0 = RT_VENUES.keys().next().value, R0 = RT_VENUES.get(k0); _rtVenuePx -= R0._px || 0; RT_VENUES.delete(k0); if (R0.fromWorker) { for (const x of [R0.A, R0.B1, R0.B2]) bmGrave(x); for (const c of R0.C || []) if (c) bmGrave(c.spr); for (const F of (R0.fans ? R0.fans.values() : [])) if (F) bmGrave(F.canvas); } } /* 3.0 (X1): a worker's venue layers are closed at the next game */
 }
 
 // --- a game's bakes (V15 fix 2): the worker plays the game's first frames from its options (the same code, an offscreen
@@ -9032,13 +9084,13 @@ function nextGameOpts(game) {
 }
 function bakeNextCareerGame(game, pri) { try { const n = nextGameOpts(game); if (n) bakeNextGame(game, n[0], pri, n[1]); } catch (e) { /* a guess */ } }
 function bakeMatchInstall(res, sig) {
-  if (!res) { BAKE_M.done.set(sig, 0); return; }
+  if (!res) { BAKE_M.done.set(sig, 0); return; } if (res._in) return; res._in = true; /* 3.0 (X1): a job asked for twice answers each asker with the same pictures: installed once (the copies freed below are only what the page already had) */
   if (res.venue) { const v = res.venue; const R = { key: v.key, padY: v.padY, pads: v.pads, bx: v.bx, padX: v.padX, A: v.A, B1: v.B1, B2: v.B2, C: v.C, fans: new Map(v.fans), ms: v.ms, fromWorker: true }; rtVenueCachePut(R); }
-  for (const [k, e] of res.faces || []) if (!_faceCache.has(k)) { _faceCache.set(k, e); const cap = faceCacheCap() + 24; while (_faceCache.size > cap) _faceCache.delete(_faceCache.keys().next().value); } // (+24: a game's faces never push out each other)
-  for (const [k, c] of res.balls || []) if (!RT.balls.has(k)) RT.balls.set(k, c);
-  for (const [k, c] of res.pts || []) if (!_rtPortraits.has(k)) _rtPortraits.set(k, c);
+  for (const [k, e] of res.faces || []) if (!_faceCache.has(k)) faceCachePut(k, e, faceCacheCap() + 24); else { bmFree(e && e.canvas); bmFree(e && e.front); } /* (3.0: a face the page has already: the copy goes) */ // (+24: a game's faces never push out each other)
+  for (const [k, c] of res.balls || []) if (!RT.balls.has(k)) RT.balls.set(k, c); else bmFree(c);
+  for (const [k, c] of res.pts || []) if (!_rtPortraits.has(k)) _rtPortraits.set(k, c); else bmFree(c);
   bakeSheetsInstall(res.sheets); // the opening's poses (V15 fix 3: the sheets)
-  BAKE_M.done.set(sig, performance.now()); while (BAKE_M.done.size > 24) BAKE_M.done.delete(BAKE_M.done.keys().next().value);
+  BAKE_M.done.set(sig, performance.now()); while (BAKE_M.done.size > CONFIG.bake.doneN) BAKE_M.done.delete(BAKE_M.done.keys().next().value);
 }
 // V15: the main thread's first paint of a player in a game is its painter's first run (the worker paints a game's
 // opening), three times a warm paint at 4x CPU: on the card or the hub, once the game's bakes are in, each player is
@@ -9075,7 +9127,7 @@ function* bakeMatchSteps(game, lowRes) { // (lowRes: the frame guard's last leve
 // Runs a fallback bake for up to ms; true when it's done.
 function bakeStepsRun(W8, ms) { const t0 = performance.now(); try { while (performance.now() - t0 < ms) if (W8.gen.next().done) return true; } catch (e) { reportFrameError(e); return true; } return false; }
 // Poses from the worker into the players' sheets (a sheet in use is the same Map: a game in progress finds them at once).
-function bakeSheetsInstall(sheets) { for (const [k, poses] of sheets || []) { let S = RT_SHEETS.get(k); if (!S) { S = { poses: new Map(), mine: false, week: RT.sheetWeek, used: performance.now() }; RT_SHEETS.set(k, S); } for (const [pk, r] of poses) if (!S.poses.has(pk)) S.poses.set(pk, r); while (S.poses.size > ART.rtPoseCacheN) S.poses.delete(S.poses.keys().next().value); } }
+function bakeSheetsInstall(sheets) { if (!sheets || sheets._in) return; sheets._in = true; for (const [k, poses] of sheets) { let S = RT_SHEETS.get(k); if (!S) { S = { poses: new Map(), mine: false, week: RT.sheetWeek, used: performance.now() }; RT_SHEETS.set(k, S); } for (const [pk, r] of poses) if (!S.poses.has(pk)) S.poses.set(pk, r); else bmFree(r && r.spr); /* (3.0: a pose the page has already: the copy goes) */ while (S.poses.size > ART.rtPoseCacheN) { const k0 = S.poses.keys().next().value; bmGrave((S.poses.get(k0) || {}).spr); S.poses.delete(k0); } } }
 // The Warming up bar: the matchup and a bar while the worker finishes the game's bakes.
 function drawWarming(ctx, game, el) {
   const W_ = game.W, H_ = game.H, m = game.match; ctx.fillStyle = '#0A0F2E'; ctx.fillRect(0, 0, W_, H_);
@@ -9133,16 +9185,61 @@ function rtSheetMine(p) { return !!(p && (p.isHuman || (p.def && p.def.isMe))); 
 function rtSheet(p, kit) {
   let id = ''; try { id = JSON.stringify(normLook(p.look, p.name)) + '|' + p.name + '|' + (p.height || 0).toFixed(3) + '|' + visualScaleOf(p).toFixed(3) + '|' + ageStageOf(p.def && p.def.age); } catch (e) { return new Map(); }
   const key = id + '|' + kit; let S = RT_SHEETS.get(key); if (!S) { S = { poses: new Map(), mine: false, week: RT.sheetWeek }; RT_SHEETS.set(key, S); }
-  S.week = RT.sheetWeek; S.used = performance.now(); if (rtSheetMine(p) && !S.mine) { S.mine = true; for (const [k, T] of RT_SHEETS) if (T !== S && T.mine && T.name === p.name) RT_SHEETS.delete(k); } S.name = p.name; /* (a new look or new gear: your old sheet goes) */
+  S.week = RT.sheetWeek; S.used = performance.now(); S.job = RT.jobN || 0; if (rtSheetMine(p) && !S.mine) { S.mine = true; for (const [k, T] of [...RT_SHEETS]) if (T !== S && T.mine && T.name === p.name) { RT_SHEETS.delete(k); sheetFree(T); } } S.name = p.name; /* (a new look or new gear: your old sheet goes) */
   return S.poses;
 }
-// At a game's start: the career week it belongs to; last week's opponents' sheets go (and the oldest past sheetN outside a career).
+// At a game's start: the career week it belongs to. 3.0 (X1): the prune itself waits for the game's third frame
+// (sheetsPruneNow, from rtRenderMatch), when its players have touched their sheets: the next game's sheets the worker
+// baked on the hub (installed under last week's mark) used to go at the tip-off, and their poses were painted again.
 function sheetsForMatch(game, m) {
   const a = amateurOf(game), c = !a ? careerOf(game) : null, k = game.after && game.after.kind, inCareer = CAREER_KINDS.includes(k);
   const wk = inCareer && a ? 'am|' + a.stage + '|' + a.season + '|' + (a.league ? a.league.week : -1) : inCareer && c ? 'pro|' + c.season + '|' + c.week : 'free'; RT.sheetWeek = wk;
-  for (const [key, S] of RT_SHEETS) if (!S.mine && S.week !== wk && S.week !== 'free') RT_SHEETS.delete(key);
-  const free = [...RT_SHEETS].filter(([, S]) => !S.mine && S.week === 'free').sort((x, y) => x[1].used - y[1].used); while (free.length > CONFIG.bake.sheetN) RT_SHEETS.delete(free.shift()[0]);
+  RT.matchGen = (RT.matchGen || 0) + 1; RT.sheetsDue = true;
 }
+// 3.0 (X1, the memory leak: 40 MB a new opponent, 4.3 GB over a played career). The page and the bake worker each kept a
+// player's painted poses (up to ART.rtPoseCacheN a sheet), and only the page ever pruned: the worker held every opponent's
+// sheet it had baked. Now the page prunes (last week's opponents; then the caps: CONFIG.bake.mineN of yours and sheetN
+// others, the least recently used first out), frees what went (an ImageBitmap closed, a canvas emptied), closes the
+// pictures other caches dropped since the last game (the graveyard) and sends the worker the keys it kept; the worker
+// keeps the same (and the caps after each game it bakes).
+function sheetsPruneNow() {
+  RT.sheetsDue = false; const wk = RT.sheetWeek;
+  for (const [key, S] of [...RT_SHEETS]) if (!S.mine && S.week !== wk && S.week !== 'free') { RT_SHEETS.delete(key); sheetFree(S); } // last week's opponents
+  sheetsPrune(null); bmGraveFlush(); bakeBroadcast('prune', { keep: [...RT_SHEETS.keys()] });
+}
+// The caps (keep: the page's sheets, in the worker; the sheets of the worker's last job stay too: the next game's, which
+// the page may not have yet).
+function sheetsPrune(keep) {
+  const fresh = (RT.jobN || 0) - 1, mine = [], other = [];
+  for (const [k, S] of [...RT_SHEETS]) { if (keep && !keep.has(k) && !(IS_BAKE_WORKER && (S.job || 0) >= fresh)) { RT_SHEETS.delete(k); sheetFree(S); continue; } (S.mine ? mine : other).push([k, S]); }
+  const cut = (L, n) => { if (L.length <= n) return; L.sort((x, y) => (y[1].used || 0) - (x[1].used || 0)); for (const [k, S] of L.slice(n)) { RT_SHEETS.delete(k); sheetFree(S); } };
+  cut(mine, CONFIG.bake.mineN); cut(other, CONFIG.bake.sheetN);
+}
+function sheetFree(S) { if (!S || !S.poses) return; for (const r of S.poses.values()) bmFree(r && r.spr); S.poses.clear(); S.poses.freed = true; } // (freed: a player still holding the sheet takes a new one)
+// --- 3.0 (X1): pictures that leave a cache are freed, not left for the garbage collector. A pruned sheet's go at once
+// (its players are gone). A picture another cache drops (a pose, a face, a portrait, a figure, a venue's layers, a text
+// atlas, a panel, a button, a card, a backdrop, a silhouette) goes to the graveyard as a weak reference and is closed
+// at the next game's prune (every screen was torn down at its start), unless a cache still shows it (a text atlas
+// other strings share, a figure's placeholder). ---
+const RT_GRAVE = [];
+function bmIs(x) { return typeof ImageBitmap !== 'undefined' && x instanceof ImageBitmap; }
+function bmLive(x) { return !!x && x.width > 0 && x.height > 0; } // 3.0 (X1): not freed (a closed picture or an emptied canvas is 0 × 0): a holder outside the caches checks before it draws
+function bmFree(x) { try { if (!x) return; if (bmIs(x)) x.close(); else if (typeof x.getContext === 'function' && x.width > 0) { x.width = 0; x.height = 0; } } catch (e) { /* freed already */ } }
+function bmGrave(x) { if (!bmIs(x) || typeof WeakRef !== 'function') return; RT_GRAVE.push({ ref: new WeakRef(x), gen: RT.matchGen || 0 }); if (RT_GRAVE.length > CONFIG.bake.graveN) RT_GRAVE.splice(0, RT_GRAVE.length - CONFIG.bake.graveN); }
+function bmShown(b) { try { for (const e of RBA.values()) if (e && e.bm === b) return true; for (const r of _figSlot.values()) if (r && r.spr === b) return true; } catch (e) { return true; } return false; }
+function bmGraveFlush() { const gen = RT.matchGen || 0; let n = 0; const keep = []; for (const G of RT_GRAVE) { if (G.gen >= gen) { keep.push(G); continue; } const b = G.ref.deref(); if (!b) continue; if (bmShown(b)) { keep.push(G); continue; } try { b.close(); n++; } catch (e) { /* closed already */ } } RT_GRAVE.length = 0; RT_GRAVE.push(...keep); RT.graveClosed = (RT.graveClosed || 0) + n; return n; }
+// 3.0 (X1): a question for both workers (their caches' sizes, a forced collection: tests/memory.js); the answers in lane order.
+function bakeAskBoth(kind, a, cb) {
+  const ws = [BAKE.st === 'ready' ? BAKE.w : null, BAKE.ui && BAKE.ui.st === 'ready' ? BAKE.ui.w : null], out = [null, null]; let left = 0;
+  ws.forEach((w, i) => { if (!w) return; left++; const id = BAKE.id++, key = kind + '|both|' + id, J = { kind, key, a: a || {}, pri: -9, cbs: [r => { out[i] = r; if (--left === 0) cb(out); }], at: performance.now(), id, lane: i, sent: performance.now() };
+    BAKE.keys.set(key, J); BAKE.fly.set(id, J); try { w.postMessage({ id, kind, a: a || {} }); } catch (e) { BAKE.fly.delete(id); BAKE.keys.delete(key); left--; } });
+  if (!left) cb(out);
+}
+// The page's message to both workers (no answer: its id is 0).
+function bakeBroadcast(kind, a) { if (IS_BAKE_WORKER) return; for (const w of [BAKE.st === 'ready' ? BAKE.w : null, BAKE.ui && BAKE.ui.st === 'ready' ? BAKE.ui.w : null]) if (w) try { w.postMessage({ id: 0, kind, a }); } catch (e) { /* the worker is gone */ } }
+// What the caches hold, on this side (the page or a worker).
+function bakeTextStats() { const B = new Set(); for (const e of RBA.values()) if (e && e.bm) B.add(e.bm); let px = 0; for (const b of B) px += (b.width * b.height) || 0; return { texts: RBA.size, textAtlases: B.size, textMB: Math.round(px * 4 / 1e5) / 10 }; } // 3.0 (X1)
+function bakeCacheStats() { let poses = 0; for (const S of RT_SHEETS.values()) poses += S.poses.size; return { sheets: RT_SHEETS.size, poses, shoes: _shoeBakes.size, faces: _faceCache.size, portraits: _rtPortraits.size, balls: RT.balls ? RT.balls.size : 0, venues: RT_VENUES.size, venueMB: Math.round(_rtVenuePx * 4 / 1e6), figs: _figs.size, grave: RT_GRAVE.length, closed: RT.graveClosed || 0, ...bakeTextStats(), fans: _fanPainted.length, floors: _floorTex.size, heapMB: (typeof performance !== 'undefined' && performance.memory) ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null }; }
 
 // --- the pro offers' title odds (V15): each is a dry run of the pro career the offer starts (a league built and a
 // season simulated many times), 50 ms on a fast desktop: the worker runs them while the combine plays ---
@@ -9235,7 +9332,7 @@ FXSystem.prototype.drawRetro = function (g, cam) {
 };
 // Wire gameplay events to sound, FX, camera, callouts and posters. Nothing here touches gameplay.
 function attachPresentation(m, game) {
-  const bus = m.bus, fx = game.fx, au = game.audio, cam = game.cam, world = game.world;
+  const bus = m.bus, fx = game.fx, au = game.audio, cam = game.cam; // (3.0 X1: game.world is read at each event, never kept: a kept world was the game before's, which held that game, whose hooks held the world before it: every game of the session stayed in memory)
   const humanTeam = m.humanTeam; const isHumanSide = t => t === humanTeam;
   bus.on('DRIBBLE_BOUNCE', e => au.bounce(e.speed));
   bus.on('BALL_BOUNCE', e => { au.bounce(e.impact); if (e.impact > 3) fx.spawn('dust', e.x, 0.05, m.ball.z, 3, 'rgba(243,240,255,0.5)'); });
@@ -9250,7 +9347,7 @@ function attachPresentation(m, game) {
   bus.on('SHOT_RELEASED', s => { if (s.type !== 'ft') m.ring = { p: s.shooter, c: s.contest, t: m.time }; /* V4 (2.0 §3): the contest ring */ if (s.type === 'dunk') return; au.noise(0.06, 0.08, { filter: 'highpass', freq: 3000 }); if (s.grade === 0 && s.shooter === m.human) au.perfect(); /* V4 (§6): a perfect release chimes */ });
   bus.on('SIGNATURE', e => pushCallout(m, SIG_MOVE_CALLOUT[e.move] || 'SIGNATURE', '#FFD23F', false, true)); // V4: a signature move's name (small)
   bus.on('SCORE', e => {
-    world.crowdHype = Math.min(1, world.crowdHype + 0.6); au.crowdSwell(e.dunk || e.three ? 0.6 : 0.35, 0.8);
+    game.world.crowdHype = Math.min(1, game.world.crowdHype + 0.6); au.crowdSwell(e.dunk || e.three ? 0.6 : 0.35, 0.8);
     if (e.shot && e.shot.flavor === 'swish' && !e.dunk) { au.swish(); if (e.three || e.shot.green) pushCallout(m, e.shot.green ? 'GREEN' : 'SPLASH', CALLOUT.make); }
     else if (e.shot && e.shot.flavor === 'bank') { au.swish(); }
     if (e.shot && e.shot.type === 'hook' && !e.practice) pushCallout(m, 'HOOK', CALLOUT.make); else if (e.shot && e.shot.fade && !e.practice && !e.three) pushCallout(m, 'FADEAWAY', CALLOUT.make);
@@ -9260,16 +9357,16 @@ function attachPresentation(m, game) {
     if (e.player && e.player.onFire > 0) { fx.spawn('flame', e.hoop.x, RIM_Y, 0.5, 12, ['#FF8A2A', '#FFD23F']); }
   });
   bus.on('MISS', e => { if (e.shot && e.reason !== 'block' && (e.shot.grade === 1 || e.shot.grade === 0) && (e.shot.flavor === 'rimOut' || e.shot.flavor === 'backRim')) { au.oooh(); } if (e.type === 'dunk') { cam.addTrauma(0.2); } });
-  bus.on('BLOCK', e => { au.swat(); vibrate('block', m); fx.hitStop(CONFIG.fx.hitStop.block); /* V4: the swat */ pushCallout(m, 'REJECTED', CALLOUT.defense); cam.addTrauma(0.45); cam.addPunch(); fx.spawn('impact', m.ball.x, m.ball.y, m.ball.z, 1, '#FFFFFF'); game.input.rumble(0.6, 0.4, 150); world.crowdHype = Math.min(1, world.crowdHype + 0.5); au.crowdSwell(0.5, 0.6); });
+  bus.on('BLOCK', e => { au.swat(); vibrate('block', m); fx.hitStop(CONFIG.fx.hitStop.block); /* V4: the swat */ pushCallout(m, 'REJECTED', CALLOUT.defense); cam.addTrauma(0.45); cam.addPunch(); fx.spawn('impact', m.ball.x, m.ball.y, m.ball.z, 1, '#FFFFFF'); game.input.rumble(0.6, 0.4, 150); game.world.crowdHype = Math.min(1, game.world.crowdHype + 0.5); au.crowdSwell(0.5, 0.6); });
   bus.on('GOALTEND', e => { pushCallout(m, 'GOALTEND', CALLOUT.defense); au.whistle(); });
   bus.on('INTERFERENCE', e => { pushCallout(m, 'INTERFERENCE', CALLOUT.defense); au.whistle(); });
-  bus.on('CHARGE', e => { au.whistle(); pushCallout(m, 'CHARGE', CALLOUT.defense, true); cam.addTrauma(0.3); fx.spawn('impact', (e.player.x + e.defender.x) / 2, e.defender.y + e.defender.height * 0.55, e.defender.z, 1, '#FFFFFF'); fx.spawn('puff', e.defender.x, 0.06, e.defender.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); au.stumble(); world.crowdHype = Math.min(1, world.crowdHype + 0.4); au.crowdSwell(0.4, 0.6); });
+  bus.on('CHARGE', e => { au.whistle(); pushCallout(m, 'CHARGE', CALLOUT.defense, true); cam.addTrauma(0.3); fx.spawn('impact', (e.player.x + e.defender.x) / 2, e.defender.y + e.defender.height * 0.55, e.defender.z, 1, '#FFFFFF'); fx.spawn('puff', e.defender.x, 0.06, e.defender.z, CONFIG.fx.dustPerLanding, ['#D9C9A8', '#E8DCC4', '#CDB892'], { spreadY: 0.04 }); au.stumble(); game.world.crowdHype = Math.min(1, game.world.crowdHype + 0.4); au.crowdSwell(0.4, 0.6); });
   bus.on('STEAL', e => { au.steal(); vibrate('steal', m); /* V4: its own sound */ pushCallout(m, e.intercept ? 'PICKED' : 'STEAL', CALLOUT.defense); fx.spawn('dust', e.player.x, 0.05, e.player.z, 4, 'rgba(243,240,255,0.5)'); });
   bus.on('SWIPE', e => au.noise(0.05, 0.08, { filter: 'highpass', freq: 4000 }));
   bus.on('POKE', e => { au.noise(0.04, 0.1, { filter: 'bandpass', freq: 2600 }); game.input.rumble(0.2, 0.1, 60); }); // V1: the deflection's tick (the steal, if any, sounds when the defense has it)
   bus.on('POKED', e => { au.poked(); /* V4: a tick unlike the steal's */ pushCallout(m, 'POKED', '#9BA3C7', false, true); }); // V1 (§1.1): a small callout and no stat
-  bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
-  bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ au.stinger('big'); world.crowdHype = 1; au.crowdSwell(1, 1.5); });
+  bus.on('ANKLE_BREAK', e => { fx.hitStop(CONFIG.fx.hitStop.ankle); fx.slowMo(CONFIG.ankle.slowMoS); pushCallout(m, 'ANKLES', CALLOUT.ankles); au.stinger('ankle'); au.stumble(); cam.addTrauma(0.3); fx.spawn('dust', e.victim.x, 0.05, e.victim.z, 8, 'rgba(243,240,255,0.6)', { spread: 0.6 }); game.world.crowdHype = 1; au.crowdSwell(0.7, 1); if (e.sit) fx.posterRequest = { headline: 'ANKLES', sub: e.player.name.toUpperCase() + ' × ' + e.victim.nick.toUpperCase(), freeze: false }; });
+  bus.on('POSTERIZE', e => { pushCallout(m, 'POSTERIZED', CALLOUT.make, true); fx.slowMo(CONFIG.fx.slowMo.duration); fx.radialBlur(e.player.hoop ? e.player.hoop.x : m.ball.x, RIM_Y, 0.5); fx.posterRequest = { headline: 'POSTERIZED', sub: e.player.name.toUpperCase() + ' ON ' + e.victim.nick.toUpperCase(), freeze: true, delay: CONFIG.fx.slowMo.duration }; /* the card waits for the slow motion */ e.player.stats.posters++; if (game.save.data.settings.autoReplay) m.replayRequested = true; /* F3: automatic replays are a setting (off: they stopped play for 5 s) */ au.stinger('big'); game.world.crowdHype = 1; au.crowdSwell(1, 1.5); });
   bus.on('TRAIT_FX', e => { trBannerPush(m, e); const txt = e.big && TRAIT_FX_TEXT[e.id]; if (txt) pushCallout(m, txt, traitFrame(e.id)); }); // R3: a trait kicking in; V3 (§2.3): a banner under the HUD (Takeover gets a callout too)
   bus.on('HEAT_ON', e => { pushCallout(m, 'ON FIRE', CALLOUT.make, true); au.stinger('fire'); fx.spawn('flame', e.player.x, e.player.y + 1, e.player.z, 16, ['#FF8A2A', '#FFD23F', '#FF4FA3'], { spread: 0.6, spreadY: 1 }); });
   bus.on('SHOVE', e => { au.shove(); cam.addTrauma(0.2); fx.spawn('dust', e.victim.x, 0.3, e.victim.z, 4, 'rgba(243,240,255,0.5)'); });
@@ -9281,7 +9378,7 @@ function attachPresentation(m, game) {
   bus.on('TIPOFF_TOSS', e => au.whistle());
   bus.on('PERIOD_END', e => { au.buzzer(); if (m.period === 1 && m.periods === 2 && m.overtime === 0) pushCallout(m, 'HALFTIME', CALLOUT.call); });
   bus.on('OVERTIME', e => pushCallout(m, 'NEXT BASKET WINS', CALLOUT.call, true)); // V4: overtime is sudden death in every ruleset
-  bus.on('FINAL', e => { au.buzzer(); pushCallout(m, 'FINAL', CALLOUT.call, true); const wt = m.teams[e.winner]; if (wt && !m.practice && !m.contest3 && !m.drill) { const wc = wt.colors || ['#FFD23F', '#F3F0FF']; fx.spawn('confetti', cam.x.x, 7, 0.5, CONFIG.fx.confettiCount, [wc[0], wc[1], shadeHex(wc[0], 0.35), mixHex(wc[1], '#FFFFFF', 0.3)], { spread: cam.W / Math.max(20, cam.ppm || 60) + 2, spreadY: 2.5 }); } /* 120 pieces in the winner's colors (§5) */ if (e.winner === humanTeam) { au.stinger('win'); world.crowdHype = 1; au.crowdSwell(1, 2); } else if (humanTeam >= 0 && !m.practice && !m.contest3 && !m.drill) au.stinger('loss'); }); // R10: a win and a loss sound different
+  bus.on('FINAL', e => { au.buzzer(); pushCallout(m, 'FINAL', CALLOUT.call, true); const wt = m.teams[e.winner]; if (wt && !m.practice && !m.contest3 && !m.drill) { const wc = wt.colors || ['#FFD23F', '#F3F0FF']; fx.spawn('confetti', cam.x.x, 7, 0.5, CONFIG.fx.confettiCount, [wc[0], wc[1], shadeHex(wc[0], 0.35), mixHex(wc[1], '#FFFFFF', 0.3)], { spread: cam.W / Math.max(20, cam.ppm || 60) + 2, spreadY: 2.5 }); } /* 120 pieces in the winner's colors (§5) */ if (e.winner === humanTeam) { au.stinger('win'); game.world.crowdHype = 1; au.crowdSwell(1, 2); } else if (humanTeam >= 0 && !m.practice && !m.contest3 && !m.drill) au.stinger('loss'); }); // R10: a win and a loss sound different
   bus.on('CONTEST_POINTS', e => { if (e.pts > 1) pushCallout(m, 'MONEY BALL', CALLOUT.make); au.ui('coin'); });
   bus.on('CONTEST_END', e => { au.buzzer(); pushCallout(m, 'TIME', CALLOUT.call, true); });
   bus.on('PHASE', e => { if (e.phase === 'tipoff') pushCallout(m, m.overtime ? 'OVERTIME' : 'TIP-OFF', CALLOUT.call); });
@@ -9687,7 +9784,7 @@ function uiLayer(ctx, key, x, y, w, h, paint) {
 // pictures are kept up to ART.uiPanelCacheMP million pixels, the least recently used going first.
 const _panels = new Map(), _panelLater = new Map(); let _panelPx = 0;
 function kitPanelPic(w, h, fill, opts, sx, sy, into) { const c = into || document.createElement('canvas'); c.width = Math.ceil((w + 4) * sx) + 2; c.height = Math.ceil((h + 7) * sy) + 2; const g = c.getContext('2d'); g.setTransform(sx, 0, 0, sy, 1, 1); kitPanelPaint(g, 0, 0, w, h, fill, opts); return c; } // (V15: the bake worker makes the same picture)
-function kitPanelPut(key, c) { const old = _panels.get(key); if (old) _panelPx -= old.width * old.height; _panels.set(key, c); _panelPx += c.width * c.height; while (_panelPx > ART.uiPanelCacheMP * 1e6 && _panels.size > 1) { const k0 = _panels.keys().next().value, c0 = _panels.get(k0); _panelPx -= c0.width * c0.height; _panels.delete(k0); } return c; }
+function kitPanelPut(key, c) { const old = _panels.get(key); if (old) _panelPx -= old.width * old.height; _panels.set(key, c); _panelPx += c.width * c.height; while (_panelPx > ART.uiPanelCacheMP * 1e6 && _panels.size > 1) { const k0 = _panels.keys().next().value, c0 = _panels.get(k0); _panelPx -= c0.width * c0.height; _panels.delete(k0); bmGrave(c0); } return c; }
 function kitPanelBake(key, w, h, fill, opts, sx, sy) { return kitPanelPut(key, kitPanelPic(w, h, fill, opts, sx, sy)); }
 function kitPanelLaterTick(budgetMs) { if (!_panelLater.size) return; const t0 = performance.now(); for (const [key, a] of _panelLater) { _panelLater.delete(key); if (!_panels.has(key)) kitPanelBake(key, ...a); if (performance.now() - t0 > budgetMs) break; } }
 // A panel's picture: asked of the bake worker (or made here later without one).
@@ -9773,7 +9870,7 @@ function kitButtonPaint(ctx, ww, hh, lip, disabled, primary, hot) {
 // (Five shapes, a gradient and a glow each frame were a quarter of a hub frame's raster at 4x CPU.)
 const _btns = new Map(), _btnLater = new Map(); let _btnPx = 0;
 function kitButtonPic(ww, hh, lip, disabled, primary, hot, sx, sy, into) { const P = Math.ceil(22 + 4 * Math.max(sx, sy)), c = into || document.createElement('canvas'); c.width = Math.ceil(ww * sx) + 2 * P; c.height = Math.ceil(hh * sy) + 2 * P; const g = c.getContext('2d'); g.setTransform(sx, 0, 0, sy, c.width / 2, c.height / 2); kitButtonPaint(g, ww, hh, lip, disabled, primary, hot); return c; }
-function kitButtonPut(key, c) { const old = _btns.get(key); if (old) _btnPx -= old.width * old.height; _btns.set(key, c); _btnPx += c.width * c.height; while (_btnPx > ART.uiBtnCacheMP * 1e6 && _btns.size > 1) { const k0 = _btns.keys().next().value, c0 = _btns.get(k0); _btnPx -= c0.width * c0.height; _btns.delete(k0); } return c; }
+function kitButtonPut(key, c) { const old = _btns.get(key); if (old) _btnPx -= old.width * old.height; _btns.set(key, c); _btnPx += c.width * c.height; while (_btnPx > ART.uiBtnCacheMP * 1e6 && _btns.size > 1) { const k0 = _btns.keys().next().value, c0 = _btns.get(k0); _btnPx -= c0.width * c0.height; _btns.delete(k0); bmGrave(c0); } return c; }
 function kitButtonLaterTick(budgetMs) { if (!_btnLater.size) return; const t0 = performance.now(); for (const [key, a] of _btnLater) { _btnLater.delete(key); if (!_btns.has(key)) kitButtonPut(key, kitButtonPic(...a)); if (performance.now() - t0 > budgetMs) break; } }
 // Draws the body from its picture (false: the caller paints it; its picture is asked of the bake worker, or queued).
 function kitButtonCached(ctx, w, s, rest, disabled, primary, hot) {
@@ -9895,7 +9992,7 @@ function cardKeyOf(P, w, h, res, pix, floor) { return [P.key || P.name, lookKey(
 function cardGet(P, w, h, res, pix, floor) {
   const key = cardKeyOf(P, w, h, res, pix, floor), hit = _cards.get(key); if (hit) { _cards.delete(key); _cards.set(key, hit); return { c: hit, key: 'card|' + key }; } if (bakePending('card|' + key)) return { c: null, key: 'card|' + key };
   const Pc = {}; for (const k in P) { const v = P[k]; if (typeof v !== 'function') Pc[k] = v; }
-  if (bakeAsk('card', 'card|' + key, { P: Pc, w, h, res, pix, floor, mode: RT.mode }, 0, r => { if (r && r.bm) { _cards.set(key, r.bm); while (_cards.size > ART.cardCacheN) _cards.delete(_cards.keys().next().value); } })) return { c: null, key: 'card|' + key };
+  if (bakeAsk('card', 'card|' + key, { P: Pc, w, h, res, pix, floor, mode: RT.mode }, 0, r => { if (r && r.bm) { _cards.set(key, r.bm); while (_cards.size > ART.cardCacheN) { const k0 = _cards.keys().next().value; bmGrave(_cards.get(k0)); _cards.delete(k0); } } })) return { c: null, key: 'card|' + key };
   if (!bakeSyncOk()) return { c: null, key: 'card|' + key }; return { c: cardBake(P, w, h, res, pix, floor), key: 'card|' + key };
 }
 function cardHolder(ctx, P, X, Y, W, H) { const col = P.colors || ['#2A3570', '#F3F0FF']; ctx.fillStyle = shadeHex(col[0], -0.5); ctx.fillRect(X, Y, W, H); ctx.fillStyle = shadeHex(col[0], -0.3); ctx.fillRect(X + 3, Y + 3, W - 6, Math.round(H * 0.6)); }
@@ -11421,7 +11518,7 @@ const _silhouettes = new Map();
 // V15: a silhouette is baked by the worker (silhouetteGet: null until it comes; the reveal draws nothing in its place).
 function silhouetteGet(def, size, color, pose) {
   const key = lookKey(normLook(def.look, def.name)) + '|' + def.height + '|' + size + '|' + color + '|' + (pose || ''); const c = _silhouettes.get(key); if (c) return c; if (bakePending('sil|' + key)) return null;
-  if (bakeAsk('silhouette', 'sil|' + key, { def: { name: def.name, look: def.look, height: def.height, age: def.age, attrs: def.attrs || {} }, size, color, pose: pose || null }, 0, r => { if (r && r.bm) { r.bm.anchor = r.anchor; if (_silhouettes.size > 24) _silhouettes.clear(); _silhouettes.set(key, r.bm); } })) return null;
+  if (bakeAsk('silhouette', 'sil|' + key, { def: { name: def.name, look: def.look, height: def.height, age: def.age, attrs: def.attrs || {} }, size, color, pose: pose || null }, 0, r => { if (r && r.bm) { r.bm.anchor = r.anchor; if (_silhouettes.size > 24) { for (const b of _silhouettes.values()) bmGrave(b); _silhouettes.clear(); } _silhouettes.set(key, r.bm); } })) return null;
   return bakeSyncOk() ? silhouetteOf(def, size, color, pose) : null;
 }
 function silhouetteOf(def, size, color, pose) {
@@ -12396,7 +12493,7 @@ function drawCalendar(ctx, ui, cal, x, y, w, h, t) {
     const fs = P ? 14 : 11, top = ty + fs * 0.75 + 3; ui.heading(ctx, tl.wk, tx + 6, top, fs, tl.current ? UI_GOLD : UI_DIM, 'left', tw * 0.5); if (tl.home != null) ui.heading(ctx, tl.home ? 'H' : 'A', tx + tw - 6, top, fs, UI_DIM, 'right');
     const ps = Math.min(th * 0.42, tw * 0.44), pyy = ty + fs + 7; if (tl.def) { try { drawPortrait(ctx, tl.def, tl.colors, tx + 6, pyy, ps, tl.result === 'L' ? 'focused' : 'neutral'); } catch (e) { /* a missing face is a blank square */ } } else { ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(tx + 6, pyy, ps, ps); }
     const rx = tx + 6 + ps + 5, rw = tx + tw - 5 - rx; if (tl.stars) { ui.heading(ctx, tl.stars + '★', rx, pyy + ps * 0.3, P ? 15 : 12, UI_GOLD, 'left', rw); statHot(ctx, 'stars', rx - 2, pyy, rw + 4, ps * 0.55); } if (tl.ovr) ui.label(ctx, String(tl.ovr), rx, pyy + ps * 0.76, P ? 14 : 11, UI_TEXT, 'left', rw);
-    const by = ty + th - (P ? 14 : 11), ct = tl.result ? tl.result + ' ' + tl.score : tl.tag || ''; let cs = P ? 12 : 10; ctx.font = fontStr(cs, true); while (cs > 7 && ctx.measureText(ct).width > tw - 4 - cs * 1.3) { cs--; ctx.font = fontStr(cs, true); } if (tl.result) kitChip(ctx, tl.result + ' ' + tl.score, tx + tw / 2, by, { size: cs, align: 'center', fill: tl.bench ? 'rgba(160,160,180,0.85)' : tl.result === 'W' ? 'rgba(76,224,122,0.85)' : 'rgba(255,90,90,0.85)', color: UI_INK, stroke: false, maxW: tw - 2 }); else if (tl.tag) { const tg = ctx.measureText(tl.tag).width <= tw - 4 - cs * 1.3 ? tl.tag : tl.tagShort; /* V5: the short form when the pixel font can't shrink enough (none: no chip) */ if (tg) kitChip(ctx, tg, tx + tw / 2, by, { size: cs, align: 'center', fill: tl.tagCol || UI_CYAN, color: UI_INK, stroke: false, maxW: tw - 2 }); } }); /* (a bench week's result is grey: the team played) */
+    const by = ty + th - (P ? 14 : 11); let ct = tl.result ? tl.result + ' ' + tl.score : tl.tag || '', cs = P ? 12 : 10; const fits = () => ctx.measureText(ct).width <= tw - 4 - cs * 1.3; ctx.font = fontStr(cs, true); while (cs > 7 && !fits()) { cs--; ctx.font = fontStr(cs, true); } if (tl.result && !fits()) { ct = tl.result + tl.score; if (!fits()) ct = tl.score; } /* 3.0 (§0.2): twice the points: W 24-22, then W24-22, then 24-22 (the chip's color says which) */ if (tl.result) kitChip(ctx, ct, tx + tw / 2, by, { size: cs, align: 'center', fill: tl.bench ? 'rgba(160,160,180,0.85)' : tl.result === 'W' ? 'rgba(76,224,122,0.85)' : 'rgba(255,90,90,0.85)', color: UI_INK, stroke: false, maxW: tw - 2 }); else if (tl.tag) { const tg = ctx.measureText(tl.tag).width <= tw - 4 - cs * 1.3 ? tl.tag : tl.tagShort; /* V5: the short form when the pixel font can't shrink enough (none: no chip) */ if (tg) kitChip(ctx, tg, tx + tw / 2, by, { size: cs, align: 'center', fill: tl.tagCol || UI_CYAN, color: UI_INK, stroke: false, maxW: tw - 2 }); } }); /* (a bench week's result is grey: the team played) */
 }
 const CAL_TAGS = { rival: ['RIVAL', 'rgba(255,90,90,0.95)', 'RIV'], boss: ['BOSS', '#FFD23F', 'BOSS'], rivalry: ['RIVALRY', 'rgba(255,138,42,0.95)', 'RIVALS'], senior: ['SENIORS', '#B48CFF', 'SR'], marquee: ['MARQUEE', '#5EE0FF', 'MARQ'], playoffs: ['PLAYOFF', '#FFD23F', null], allstar: ['ALL-STAR', '#5EE0FF', 'ASB'], deadline: ['DEADLINE', '#B48CFF', 'DEAD'], tv: ['NATIONAL TV', '#FF6FB5', 'TV'] }; // 2.1 (§3.2): the PBL's key weeks // [chip, color, the short chip for a narrow tile (null: the tile's PO says it)]
 function calTag(k) { const v = CAL_TAGS[k]; return v ? { tag: v[0], tagCol: v[1], tagShort: v[2] } : {}; }
@@ -13264,7 +13361,7 @@ function careerMatchOpts(c, save, g, forSim) {
   const opp = opponentOf(c, g); const sameClub = c.players[opp].club === meOf(c).club; const G = mdGame(c.me, opp, opp === c.rivalId, g.h === c.meId); // R8: hype (the home crowd, a keyed defense), a trash-talked opponent, a fired-up rival
   const mine = matchTeamDef(c, c.meId, false, { week: true, oppId: opp, crowd: G.crowd + pblFinalsCrowd(c, g) }), theirs = matchTeamDef(c, opp, sameClub, { fire: G.ovr }); // teammates at the same club: the visitor wears the alternate kit
   const hp = c.players[g.h], court = frArena(hp ? hp.club : meOf(c).club); // the home club's arena (V13: the Pro Arena or the Foundry), dressed in its colors (§4: venue by level)
-  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), pace: true, /* V5 (2.0 §4.7) */ court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff) + G.tier, playoff: !!g.playoff, boss: !forSim && proIsBoss(c, opp), tv: !g.playoff && pblOn(c) && pblWeekKey(c, c.week + 1) === 'tv', /* 2.1 (§3.5, W6): the national TV game's intro */ ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band (V4: the Boss's game says so at tip-off)
+  return { homeSide: g.h === c.meId ? 0 : 1, mode: '1v1', teams: [mine, theirs], humanTeam: forSim ? -1 : 0, humanPlayerIndex: 0, difficulty: forSim ? 'pro' : save.settings.difficulty, teamDifficulties: forSim ? ['pro', 'pro'] : null, ruleset: !forSim && save.settings.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), pace: true, /* V5 (2.0 §4.7) */ stage: 'pro', /* 3.0 (§0.2) */ court, seed: (c.seed * 97 + c.season * 1009 + c.week * 131 + (g.series ? (g.series.wa + g.series.wb) * 7 : 0)) >>> 0, controlMode: 'lock', adaptive: false, layout: save.settings && save.settings.camera === 'classic' ? 'classic' : 'legends', opponentTierShift: forSim ? 0 : careerTierShift('pro', 1, recOvr(meOf(c)), recOvr(c.players[opp]), !!g.playoff) + G.tier, playoff: !!g.playoff, boss: !forSim && proIsBoss(c, opp), tv: !g.playoff && pblOn(c) && pblWeekKey(c, c.week + 1) === 'tv', /* 2.1 (§3.5, W6): the national TV game's intro */ ballSkin: c.me.cosmetics.ballskin || 0 }; // career games never rubber-band (V4: the Boss's game says so at tip-off)
 }
 
 // ---------------- the fast league model: AI-vs-AI games in a millisecond ----------------
@@ -13909,7 +14006,7 @@ function amMatchOpts(game, c, opp, playoff) {
   let B = { id: 'amopp', name: opp.name, abbr: a2, colors: oc, pattern: opp.pattern || 'solid', personality: archPersonality(opp.style), blurb: '', players: [amOppDef(opp, G.ovr)] };
   if (S.colorblind) { const r = colorblindTeams(A, B); A = r[0]; B = r[1]; }
   const shift = careerTierShift(c.stage, c.stageYear, amOvr(c), ovrOf(opp.r, opp.height), playoff) + G.tier;
-  return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, playoff: !!playoff, ruleset: S.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), /* F5: one minute */ pace: true, /* V5 (2.0 §4.7): the 8 s shot clock, quick restarts */ boss: amIsBoss(c, opp), /* V4 */ court: amCourtFor(c, playoff), seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: false, ballSkin: 0 }; // career games never rubber-band
+  return { mode: '1v1', teams: [A, B], humanTeam: 0, humanPlayerIndex: 0, difficulty: S.difficulty, opponentTierShift: shift, playoff: !!playoff, ruleset: S.careerCourt === 'half' ? 'half' : 'arcade', half: { scoring: '2s3s', makeItTakeIt: false }, format: careerFormat(), /* F5: one minute */ pace: true, /* V5 (2.0 §4.7): the career's shot clock, quick restarts */ stage: c.stage, /* 3.0 (§0.2): the level's make bonus (CONFIG.pace.makeAdd) */ boss: amIsBoss(c, opp), /* V4 */ court: amCourtFor(c, playoff), seed: ((c.seed >>> 0) + c.season * 7919 + (c.league ? c.league.week * 131 + c.league.games.length * 17 : 0)) >>> 0, controlMode: 'lock', adaptive: false, ballSkin: 0 }; // career games never rubber-band
 }
 
 // ---------------- saves from the first 1v1 career build (engine-scale attributes, five styles) ----------------
@@ -19633,7 +19730,7 @@ function guideEntries(game, topic) {
   }
   if (topic === 'season') { // V5 (2.0 §4.1, §4.2, §4.6, §4.7): the career's rhythm
     const P_ = CONFIG.pace, R = c ? roadBanner(c) : null;
-    add('Career games', fmtClock(careerSecs()) + ' · ' + P_.shotClock + ' s shot clock', ['One period of ' + fmtClock(careerSecs()) + ' (Settings → Gameplay), and a tie goes to sudden-death overtime: the next basket wins.', 'The game clock runs through dead balls and inbounds until the last ' + CONFIG.rules.runningStopS + ' s of a period, so a one-minute game takes about 70–80 s and runs about 6–10 points a side.', 'In those last seconds and in overtime it stops on dead balls, and waits while the ball is brought up (at most ' + P_.holdMaxS + ' s) and while a shot is up until the last ' + P_.flightStopUntil + ' s (buzzer beaters stay); it dims while it waits.', 'The shot clock is ' + P_.shotClock + ' seconds, and waits while the ball is brought up after an inbound, a rebound or a steal (Quick Play keeps the normal shot clock).']); /* W10: 2.1's running clock (§1.8) */
+    add('Career games', fmtClock(careerSecs()) + ' · ' + P_.shotClock + ' s shot clock', ['One period of ' + fmtClock(careerSecs()) + ' (Settings → Gameplay), and a tie goes to sudden-death overtime: the next basket wins.', 'The game clock runs through dead balls and inbounds until the last ' + CONFIG.rules.runningStopS + ' s of a period, so a one-minute game takes about 70–80 s and runs about 12–18 points a side.', 'After a basket or a dead ball the ball comes back in just past half court with the defender set in front: no walk up the floor. Shots fall a little more often than in Quick Play (more in high school).', 'In those last seconds and in overtime it stops on dead balls, and waits while the ball is brought up (at most ' + P_.holdMaxS + ' s) and while a shot is up until the last ' + P_.flightStopUntil + ' s (buzzer beaters stay); it dims while it waits.', 'The shot clock is ' + P_.shotClock + ' seconds, and waits while the ball is brought up after an inbound, a rebound or a steal (Quick Play keeps the normal shot clock).']); /* W10: 2.1's running clock (§1.8) */
     add('Road to the League', R ? R.n + ' of ' + R.total : '', (R && R.next ? [['Next: ' + R.next.label.toLowerCase() + '. ' + R.line, UI_CYAN]] : []).concat(['Eleven milestones from varsity to the Hall of Fame; THE goal is a 5★ team. Each one pays: cash, a level for your signature trait, or a free piece of gear that shows on your player. Tap the banner on the hub to see them all.']));
     add('Sim to next big moment', '', ['Sims your weeks (your auto plan, then the game) and stops before a big game (your rival, the Boss, the playoffs, a spot start) or after a big moment: an injury, an offer or a decision, a level-up, a story beat, a milestone, the season\'s end.', 'Sim the rest of the season stops only for injuries, offers and decisions, and the playoffs. Quick results (Settings → Gameplay) turns a routine SIM into one line on the hub.']);
     add('Playing time', c && c.team ? '#' + ladderRank(c) + ' on the depth chart' : '', ['Only the top rung plays. Benched, you can challenge the starter once a week (your practice): win a game to ' + TM.challengeTarget + ' and you start.', TM.spotAfter + ' bench weeks in a row and the next game is a spot start; an A or B in it moves you up a rung. A pro may ask for a trade after ' + TM.tradeBenchWeeks + ' bench weeks in a season.', 'Teammates challenge you less: never in a season\'s first ' + TM.chalFirstWeeks + ' weeks, at most once every ' + TM.chalGap + ', and only from within ' + TM.chalWithin + ' OVR of you.']);
@@ -21773,7 +21870,7 @@ class Game {
   // ---- match lifecycle ----
   startMatch(opts, after) {
     this.guard.matchStart(performance.now()); this.guard.hold(CONFIG.perf.holdSeconds); opts.dev = true; matchOptsFinal(this, opts, after); this.bake = graphicsMode(this) !== 'smooth' ? { sig: bakeMatchSig(this, opts), opts: bakeOptsCopy(opts), low: null, t: 0 } : null; /* V15: the game's bakes, by what its pictures depend on */ this.match = new Match(opts); this.after = after || { kind: 'quick' }; this.matchOpts = opts; this.mode = 'match'; this.paused = false; this.acc = 0; this.postgameOpened = false; this.endSeq = null; this.replayPlayer = null; this.reel = null; this.posterShow = null; this.posterPending = null;
-    const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true; this.world = new WorldRenderer();
+    const m = this.match; m.replay = new ReplayRecorder(m); m.posterCards = []; this.world = new WorldRenderer(); /* 3.0 (X1): the game's own world before its presentation hooks */ attachPresentation(m, this); for (const p of m.players) if (p.def && p.def.isMe) p.isHuman = true;
     this.cam.zoom.x = 1; this.cam.zoom.v = 0; this.cam.punch = 0; this.cam.trauma = 0; /* V15: a game starts on a settled camera (its baked layers are keyed on its scale) */ if (this.warming && this.warming.gen) this.warming.gen.return(); this.warming = null; this.openN = 0; sheetsForMatch(this, m); if (this.bake && bakeLive() && !BAKE_M.done.has(this.bake.sig)) { this.warming = { t0: performance.now() }; bakeMatchRequest(this, this.bake.opts, 0, false); } /* V15 (fix 2): bakes the hub or the card didn't finish: a short Warming up bar */ else if (this.bake && !bakeLive()) this.warming = { t0: performance.now(), gen: bakeMatchSteps(this) }; /* (fix 4's fallback: no worker, the bakes in slices behind the bar) */ this.fx.pool.clear(); this.fx.hitStopMs = 0; this.fx.slowMoT = 0; this.fx.posterRequest = null; this.fx.blur = null; this.posterPending = null;
     this.cam.snapTo(m.ball.x); this.cam.fixed = null; this.ui.stack.length = 0; this.input.takeUI(); this.audio.setBeat(false); if (this.audio.ok) this.audio.startCrowd();
     this.input.touch.visible = this.input.hasTouch; this.tutorial = opts.tutorial ? { step: 0, f: { moved: 0, jumps: 0, shots: 0, goodShots: 0, fakes: 0, afterFake: 0, crossovers: 0, steals: 0, blocks: 0, fades: 0, hooks: 0, t: 0 }, stepT: 0, lastX: 0 } : null;

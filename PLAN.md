@@ -359,6 +359,34 @@ can touch, again on the final build); every target table printed in `CHANGES.md`
 §3.7, §4.4, Part 2's §1.1 and 2.0's §7 tests); version 2.1 with What's new in 2.1 and the README; the artifact
 republished.
 
+## Hoop Heads 3.0 (X1–X11): the Retro Bowl rework
+
+The request "Hoop Heads 3.0: the Retro Bowl rework". A new direction that overrides the earlier requests where they
+disagree: no story; a lean, replayable career in the spirit of Retro Bowl (a fast weekly loop, clear charts and
+rankings, real tournaments, upgrades that matter); the code kept ready for a mobile app with optional purchases (a
+disabled store stub, no real payments, no paid random rewards, nothing that can't be earned by playing). Its rules: one
+`index.html`, renderers never throw, a commit per milestone, old saves migrate, quick checks per milestone and the full
+suite once at the end, the career 1v1 only with no arcade extras, the PBL invented with invented teams and countries'
+names only.
+
+**X1 — Critical fixes** *(done)* — §0: the memory leak (every game of a session stayed in memory through the previous
+game's presentation hooks; the worker's sheets and shoe bakes were never pruned; caches without a byte cap; evicted
+pictures are closed and their outside holders paint again) and the scoring pace (12–18 points a side in a 70–80 s game:
+a half-court restart after a basket or a dead ball, shorter beats, a 6 s shot clock and a make bonus by level; the
+sims refitted to it) (`tests/memory.js`, `tests/pace.js`, `tests/parity.js`).
+**X2 — Removals and save migration** — §1: the story, press conferences, rivals, rarity, recruiting busywork, hype
+(Fame instead) and the old staff menu go; rarity becomes levels, traits become badges; news, Road goals, the Codex and
+the Front Office stay; old saves load with what's removed taken out.
+**X3 — The Retro Bowl home, the weekly loop, messages and practice** — §2–3.
+**X4 — Rankings and charts** — §4.1–4.2.
+**X5 — Teammates, lower leagues, transfers and PBL team life** — §4.3–4.5.
+**X6 — Tournaments, rewards and difficulty** — §5.
+**X7 — Items and badges** — §6.
+**X8 — Your crew** — §7.
+**X9 — Recruiting** — §8.
+**X10 — Progression tuning** — §9.
+**X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed.
+
 ## Testing every milestone
 
 ```

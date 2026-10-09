@@ -7,14 +7,14 @@ const { launch, openPage, runner } = require('./lib');
   const browser = await launch(); const R = runner('flow'); const D = await openPage(browser, { road: true }); const { ev } = D; const step = (n, f) => R.step(n, f, D);
   const newAm = (seed, style) => ev(([seed, style]) => { const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Flow Test', look: PRESET_LOOKS[seed % 16], number: 4, style: style || 'slasher', seed, seasonLength: 11, gameLength: 120 }); g.save.data.c1 = a; a.events.length = 0; hsAutoResolve(a); a.events.length = 0; return true; }, [seed, style]);
 
-  await step('pace (§4.7, 2.1 §1.8): career games score 6–10 a side in a one-minute running-clock game at the gate\'s efficiency; the shot clock waits while the ball is brought up, the game clock only in the last 10 s; Quick Play keeps its rules', () => ev(() => {
+  await step('pace (§4.7, 2.1 §1.8, 3.0 §0.2): career games score 10–18 a side in a one-minute running-clock game at the gate\'s efficiency (tests/pace.js: 12–18 in real careers); the shot clock waits while the ball is brought up, the game clock only in the last 10 s; Quick Play keeps its rules', () => ev(() => {
     const games = 60, pts = [], poss = []; let sc = 0;
     for (let i = 0; i < games; i++) { const R_ = fullRoster('legends'); const A = teamWithRoster(teamDef('legends')), B = teamWithRoster(teamDef('legends')); A.players = [R_[i % R_.length]]; B.players = [R_[(i * 7 + 3) % R_.length]]; B.abbr += '2';
       const m = new Match({ mode: '1v1', teams: [A, B], difficulty: 'pro', ruleset: 'arcade', format: careerFormat(), seed: 7000 + i, humanTeam: -1, headless: true, dev: true, controlMode: 'lock', adaptive: false, layout: 'legends', pace: true });
       if (i === 0) { m.bus.on('INBOUND', () => { sc = Math.max(sc, m.shotClock); }); } let n = 0; while (!m.ended && n < 120 * 60 * 10) { simStep(m, STEP); n++; }
       if (m.invariantCount) throw new Error('invariants: ' + Object.values(m.invariantFails).join('; ')); pts.push(m.teams[0].score, m.teams[1].score); poss.push(m.teams[0].possessions, m.teams[1].possessions); }
     const avg = a => a.reduce((s, v) => s + v, 0) / a.length, ppS = avg(pts), ppp = avg(pts) / avg(poss);
-    if (!(ppS >= 6 && ppS <= 10)) throw new Error('points a side ' + ppS.toFixed(1) + ' (6–10)'); if (!(ppp >= 0.95 && ppp <= 1.25)) throw new Error('PPP ' + ppp.toFixed(3) + ' (0.95–1.25)');
+    if (!(ppS >= 10 && ppS <= 18)) throw new Error('points a side ' + ppS.toFixed(1) + ' (10–18)'); if (!(ppp >= 0.95 && ppp <= 1.5)) throw new Error('PPP ' + ppp.toFixed(3) + ' (0.95–1.5)'); /* 3.0: the half-court restart and the career's make bonus (2.1: 6–10 a side, PPP 0.95–1.25) */
     if (sc !== CONFIG.pace.shotClock) throw new Error('the career shot clock is ' + sc);
     // the shot clock waits while the ball is brought up after an inbound; the game clock runs through it (2.1: the running
     // clock) until the last rules.runningStopS seconds, and waits there
@@ -28,10 +28,10 @@ const { launch, openPage, runner } = require('./lib');
   }));
   await step('the sims at the new pace: an amateur winner scores CR.simWinPts; pro box scores scale with gameScale (×CR.paceMul)', () => ev(() => {
     const rng = new RNG(9); let w = 0, l = 0; const N = 2000; for (let i = 0; i < N; i++) { const s = amSimScore(rng, 60, 60); w += Math.max(s[0], s[1]); l += Math.min(s[0], s[1]); }
-    const wa = w / N, la = l / N; if (Math.abs(wa - CR.simWinPts) > 1.5) throw new Error('winner ' + wa.toFixed(2) + ' vs ' + CR.simWinPts); if (!(la > 4 && la < 7.5)) throw new Error('loser ' + la.toFixed(2)); /* 2.1: the running clock's scale (7–12 before) */
+    const wa = w / N, la = l / N; if (Math.abs(wa - CR.simWinPts) > 1.5) throw new Error('winner ' + wa.toFixed(2) + ' vs ' + CR.simWinPts); if (!(la > 0.45 * CR.simWinPts && la < 0.8 * CR.simWinPts)) throw new Error('loser ' + la.toFixed(2)); /* 3.0: about two thirds of the winner's (2.1: 4–7.5 at the running clock's scale; 7–12 before) */
     if (Math.abs(gameScale('pro') - careerSecs() * CR.paceMul / CR.simRefSecs.pro) > 1e-9) throw new Error('gameScale');
     const c = testProLeague(17); const r2 = careerRng(c); let p = 0, k = 0; for (let i = 0; i < 300; i++) { const ids = c.active; const a = ids[i % ids.length], b = ids[(i * 5 + 1) % ids.length]; if (a === b) continue; const r = simBox(c, a, b, r2); p += r.hs + r.as; k += 2; }
-    const pa = p / k; if (!(pa >= 5 && pa <= 13)) throw new Error('pro sim points a side ' + pa.toFixed(1)); /* 2.1: the running clock's scale (9–22 before) */ return 'amateur ' + wa.toFixed(1) + '/' + la.toFixed(1) + ' · pro ' + pa.toFixed(1);
+    const pa = p / k; if (!(pa >= 9 && pa <= 20)) throw new Error('pro sim points a side ' + pa.toFixed(1)); /* 3.0 (§0.2): 12–18 a side at the new pace (2.1's running clock: 5–13; 9–22 before) */ return 'amateur ' + wa.toFixed(1) + '/' + la.toFixed(1) + ' · pro ' + pa.toFixed(1);
   }));
   await step('fatigue (§4.2): it builds half as fast; over 70 the week defaults to Rest; a standing Rest ends once you\'re fresh', () => ev(() => {
     if (WK.fatiguePerGame !== 5 || WK.fatigueOt !== 1.5 || WK.intensity.hard.fatigue !== 3) throw new Error('builders not halved');

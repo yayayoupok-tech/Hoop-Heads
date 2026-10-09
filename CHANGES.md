@@ -3,6 +3,107 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X1 (3.0) — critical fixes: the memory leak and the scoring pace
+
+The request "Hoop Heads 3.0: the Retro Bowl rework" starts with its §0, two fixes, before anything is removed or
+added. Quick checks for this milestone: `tests/memory.js` and `tests/pace.js` (new), `tests/parity.js`, `tests/smoke.js`,
+`tests/playtest3.js`, `tests/pbl21.js`, `tests/league30.js` and every Codex page at the audit's six sizes.
+
+### §0.1: memory
+
+A census of every live canvas and picture, on the page and in both bake workers, by the code that made it, and heap
+snapshots of the page, found five things growing with every game, not one:
+
+1. **Every game of a session stayed in memory.** A game's presentation hooks (the crowd's hype on a basket) kept the
+   world they were made with, and `Game.startMatch` made them before it made the new world, so each game's hooks held
+   the previous game's world, its venue (the back buffer, the crowd's layers, the nets) and that game, whose hooks held
+   the one before (four venues alive after four games). The new world is made first and the hooks read `game.world`
+   when they fire: one game alive at a time.
+2. **The worker's sprite sheets and shoe bakes were never pruned** (the request's diagnosis). The page sends the worker
+   the sheets it keeps whenever it prunes; `sheetN` (6) and the new `mineN` (2, your latest looks) hold on both sides;
+   the worker also prunes after every game's dry run. Shoe bakes are an LRU of 32 on each side (`shoeN`; they were
+   first in, first out at 48 on the page and never pruned in the worker).
+3. **Caches with a count but no byte cap.** Text atlases are as wide as their strings (a batch of one short string was
+   1024 px wide) and keep at most `rbAtlasMB` 8 MB (961 strings held 426 atlases, 20 MB); faces keep at most
+   `cacheMB` 16 MB a side, never fewer than `cacheMin` 32 (the UI worker's portrait faces were 26 MB); a crowd's atlas
+   (two 3.5 MB canvases) keeps its pixels for the last `fanN` 2 crowds painted (the worker kept seven, 49 MB); the
+   worker's venue cache is `venueMBWorker` 24 MB (it only needs a game's venue for the game's second dry run; the page
+   keeps the session's 64 MB) and counts a venue's crowd atlases once they're painted; floor textures are an LRU of 4
+   (nine, then all cleared); rendered strings `rbCacheN` 900 → 300 and portraits `rtPortraitN` 240 → 120 on each side.
+4. **Evicted pictures are closed** (`close()` on every ImageBitmap a cache drops): a pruned sheet's at once; a cache's
+   evictions (a pose, a face, a portrait, a figure, a venue's layers, a text atlas, a panel, a button, a card, a
+   backdrop, a silhouette) go to a graveyard of weak references closed at the next game's prune, unless something still
+   shows them. A copy the worker sends of a picture the page already has is closed on arrival, and a result installed
+   twice (two askers of one job) is installed once (the second install used to close the first one's pictures).
+5. **Holders outside the caches check before they draw:** a player's last sprite, a sheet's poses, an old game's venue
+   layers and crowds, a portrait and a face are painted again if their picture was freed (an old game's world drawn
+   again, or your old sheet freed by a new look or a new pixel size in the same frame, used to throw "the image source
+   is detached").
+
+`tests/memory.js` (new): a pro career plays 50 games against new opponents (each with a new look and name), the way a
+person plays them: the hub (the next game's bakes), TIP OFF, 2.5 s of the game on screen, the rest fast-forwarded, the
+result, back to the hub. After each game it reads the resident memory of the browser's renderer and GPU processes after
+a memory-pressure signal (the browser purges what it only caches) and a forced collection on the page and in both
+workers, and prints each side's caches. The frame guard is pinned at full quality (the fast-forward's long frames made
+it switch pixel sizes, so a game's second set of sheets and venues read as growth).
+
+| Build | Games | The level after game 5 | After the last game | Growth (target: +150 MB at most) | Trend |
+| --- | --- | --- | --- | --- | --- |
+| 2.1 (before), desktop 1280×720 | 20 | 776 MB | 1,314 MB | ✗ +538 MB | 35.9 MB a game |
+| 3.0, desktop 1280×720 | 50 | 663 MB | 728 MB | ✓ +65 MB | |
+| 3.0, desktop 1280×720 | 100 | 663 MB | 767 MB | ✓ +103 MB (the highest level on the way +138) | 0.8 MB a game |
+| 3.0, phone 844×390 at 2× | 30 | 689 MB | 778 MB | ✓ +89 MB | 2.7 MB a game |
+
+A level is the median of three readings in a row (the level after game 5: games 4–6; after the last game: the last
+three): one reading moves up to ±60 MB with what the allocator holds on to, while the canvases, pictures and heaps on
+each side stay flat (a census of every live canvas and picture, and memory-infra dumps, between games 6 and 30: +36 MB,
+mostly the caches above filling to their caps). By game 50 the level is flat (games 40–100: 760–790 MB).
+
+### §0.2: the scoring pace
+
+Career games (the `pace` option; Quick Play, half court and drills keep their rules):
+
+- **A half-court restart.** After a make, a violation, a turnover or a non-shooting foul the new offense takes the ball
+  0.6 m past half court with its defender 1.6 m in front, live at once (`doAdvance`): no walk up from the baseline. (A
+  0.5 s hold of the defender's gap was tried and dropped: it walked the defender back with a drive, 20% fewer points.)
+- **Shorter beats:** after a make 0.45 → 0.25 s, after a dead ball 0.6 → 0.4 s, before the tip 1.2 → 0.6 s.
+- **The career's shot clock 8 → 6 s.**
+- **A make bonus by level** on every field goal (not free throws): high school +0.20, college +0.11, the pros +0.06
+  (`pace.makeAdd`). The lower levels miss more (and their games had fewer possessions), so they get more.
+
+`tests/pace.js` (new): the career simulator's careers (two of each play style, seed 7), the first 20 high school, 20
+college and 40 pro games of each played in the engine with the AI at your controls (the career's own match options,
+finalized like a played game). Target: 12–18 points a side (each level's mean) in a 70–80 s game (each level's median).
+
+| Level | Games | You | Opponent | A side (12–18) | Sides in 12–18 | Length, mean / median (70–80 s) | Overtime | 2.1 (before): a side, length |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| High school | 160 | 13.7 | 12.5 | ✓ 13.1 | 41% | 72.8 / ✓ 72.5 s | 3% | 6.4, 73.2 s |
+| College | 153 | 13.6 | 12.9 | ✓ 13.2 | 42% | 74.6 / ✓ 73.4 s | 6% | 6.9, 74.1 s |
+| The pros | 320 | 13.5 | 14.5 | ✓ 14.0 | 46% | 75.6 / ✓ 75.0 s | 6% | 8.3, 74.6 s |
+
+The playtest's played games: 8–8 in the pros, 7–2 in high school.
+
+**The sims follow** (§1.3's sim/play parity, 2.1): your simmed points come from linear models fitted to the engine
+(`league.ptsMe`, `league.ptsMeAm`), refitted to 5,760 pro sides and 2,784 amateur games at the new pace (3 × 24
+careers); `career.paceMul` 0.91 → 1.58 (the league model's 7.9 a side against the engine's 13.7: every per-game number
+on `gameScale` follows: the league's box scores, grades, highlights, college stock, the MVP race; the margins and the
+noise scale with the points, so every win probability is unchanged); `career.simWinPts` 8.9 → 15.7 (the amateur
+league's winners); `amateur.simNoise` 2.9 → 5.1 (the refit's residual); the records book at the new scale (each level's
+best single game in those engine games: points 35/36/39, rebounds 13/12/12, steals 3/3/4, blocks 6/6/6, threes
+9/8/9). `tests/parity.js` (12 careers, seed 7, fresh):
+
+| Level | Games | Played | Simmed | Simmed / played (0.90–1.10) | 2.1: played / simmed |
+| --- | --- | --- | --- | --- | --- |
+| High school | 240 | 12.48 | 13.49 | ✓ 1.081 | 6.21 / 6.64 |
+| College | 228 | 12.98 | 13.06 | ✓ 1.006 | 6.85 / 7.14 |
+| The pros | 480 | 13.05 | 13.25 | ✓ 1.016 | 7.49 / 7.55 |
+
+By play style 0.98–1.12 (a post scorer 1.12, a slasher 1.08; a rough read at two careers a style). Games won, played
+against simmed: amateur 54% / 53%, pro 39% / 41%.
+
+The season calendar's result chips shrink to "W24-22", then "24-22" when a tile is narrow (the chip's color says which);
+the Codex's Career games page says 12–18 a side and describes the restart.
+
 ## Hoop Heads 2.1 (W1–W10): the report
 
 The request "Hoop Heads 2.1: playtest fixes, real recruiting, a deeper PBL, and an actual story", in ten milestones,
