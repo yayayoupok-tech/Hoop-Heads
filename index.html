@@ -946,8 +946,8 @@ const CONFIG = {
     capMin: 40,                // lowest ceiling
     pot: { mean: 76, sd: 6, spread: 4, min: 60, max: 95 }, // V6 (§1.2): your hidden potential in each skill (Shooting, Finishing, Handles, Defense): a talent roll (sd) shared by the four plus spread each, mean ± (min, max); past it every +1 costs × CR.potMul. Speed, Hops and Strength keep their genetic caps
     genesOdds: 0.3,            // chance of gifted genes: Speed, Hops and Strength bases +5
-    stages: { hs: { label: 'High school', league: 'Metro High School 1v1 League', size: 8, target: 15, court: 'gym', away: 'fieldhouse', years: 4 }, college: { label: 'College', league: 'Collegiate 1v1 Conference', size: 8, target: 21, court: 'college', away: 'pavilion', years: 4 }, overseas: { label: 'Overseas League', league: 'Overseas League', size: 12, target: 21, court: 'fieldhouse', away: 'pavilion', years: 2 } }, // leagues (3.0: a season abroad, CONFIG.overseas) (players, first-to score); V13 (2.0 §6): court at home, away on the road and in the playoffs
-    stageMean: { hs: 44, hsPerYear: 5, college: 59, collegePerYear: 3, collegePerTier: 2 }, // opponent OVR mean by level and year (R6: college 61 → 59; the new season adds marquee games at +3 and a tournament field up to +7, and at 61 the career simulator's teams won 38% of their games)
+    stages: { hs: { label: 'High school', league: 'Metro High School 1v1 League', size: 8, target: 15, court: 'gym', away: 'fieldhouse', years: 4 }, college: { label: 'College', league: 'Collegiate 1v1 Conference', size: 8, target: 21, court: 'college', away: 'pavilion', years: 4 }, overseas: { label: 'Overseas League', league: 'Overseas League', size: 12, target: 21, court: 'fieldhouse', away: 'pavilion', years: 2 }, juco: { label: 'JUCO', league: 'JUCO Conference', size: 12, target: 21, court: 'fieldhouse', away: 'gym', years: 2 } }, // leagues (3.0: a season abroad, CONFIG.overseas) (players, first-to score); V13 (2.0 §6): court at home, away on the road and in the playoffs
+    stageMean: { hs: 44, hsPerYear: 5, college: 59, collegePerYear: 3, collegePerTier: 2, juco: 52, jucoPerYear: 3 }, // opponent OVR mean by level and year (R6: college 61 → 59; the new season adds marquee games at +3 and a tournament field up to +7, and at 61 the career simulator's teams won 38% of their games)
     oppSd: 5.5,                // opponent OVR spread
     winScale: 5.5,             // simulated games: win chance = 1 / (1 + e^(−ΔOVR / winScale))
     simGameXp: 0.24,           // X5 (3.0): a simmed amateur game's XP × this (on top of xpGame.simmed). A simmed line had no turnovers, so from V6 to X4 every one graded F (×0.3, and a slump); graded properly they average ×1.27, and this keeps their XP where the balance was set (X10 tunes progression)
@@ -1161,6 +1161,7 @@ const CONFIG = {
     ],
     bar: 93,                   // at the end of your amateur years a scouts' score under this brings no PBL offers: you play a season abroad (the career simulator's careers scored 89–109 at the combine: this sends about one in five)
     you: { mean: 63, perYear: 2 }, // your seasons abroad: the opponents' OVR mean (and the second season's step)
+    youth: { mean: 52, perYear: 4, pay: 0.25 }, // X9 (3.0 §8): straight from Signing Day (no offer) or junior college: a youth contract, against the clubs' young players (this OVR mean, + perYear the second season), for this share of the signing bonus
     top: 3,                    // finish in the top 3 of its table (or win its final four) and the PBL calls...
     seasons: 2,                // ...and after a second season it calls anyway (1★)
     boost: 6,                  // a top-3 season adds this to the scouts' score
@@ -1196,7 +1197,7 @@ const CONFIG = {
     stateGap: 2,               // the other district champions sit this far over the level's mean OVR (± the usual spread): a player well above the level wins state often, an average one rarely
     seniorConf: 2,             // senior night: confidence + this before your last regular-season home game
     classSize: 3000,           // recruiting: the national class you are ranked in...
-    recruitMean: 59,           // ...whose recruiting scores spread around this mean (the career simulator's median senior is about #300: a 3-to-4-star)...
+    recruitMean: 60.5,         // ...whose recruiting scores spread around this mean (the career simulator's median senior is about #300: a 3-to-4-star). X9 (3.0 §8): 59 → 60.5 with the player ranking's part (recruiting.play: a typical senior +1.8): the typical career's stars stay put, a ranked player rises, an unranked one falls...
     recruitSd: 7,              // ...with this standard deviation
     classAdj: 5,               // a younger player's recruiting score is projected + this per year before the senior year
     stars: [30, 300, 1000, 2000], // national rank cutoffs for 5, 4, 3 and 2 stars (everyone else is 1 star)
@@ -1271,10 +1272,10 @@ const CONFIG = {
   },
   recruiting: {                // 2.1 (§2.2–2.7): the recruiting game (165_recgame.js). Tuned so §2.7's offers by stars come out: an analytic first pass, then the career simulator's typical recruit (tests/careersim.js --hsOnly --spread=12)
     fit: { c0: 4.0, c1: 0.45, c2: 0.265, worse: 0.577, better: [0.25, 0.4, 8.6, 3.8] }, // a program's typical recruit is national rank 10^(c0 − c1·prestige − c2·tier) (blue bloods 9, a 3★ power program 132, a 1★ small school 3,500); its fit with you 100·e^(−(d/s)²), d = log10(your projected rank ÷ that), s = worse when you rank below it, better[tier] when above (small schools barely reach up; power programs and blue bloods want anyone better)
-    hazard: [0.012, 0.03, 0.10, 0.64], // a program with a spot and interest 70+ offers this week with chance 1 − e^(−h), h = hazard[tier] × (interest − 70) / 30 (blue bloods decide fast; the others choose among many; set with the career simulator's typical recruit, --hsOnly --spread=12, 3 × 300 careers: §2.7's offers by stars)
+    hazard: [0.024, 0.036, 0.16, 0.64], // a program with a spot and interest 70+ offers this week with chance 1 − e^(−h), h = hazard[tier] × (interest − 70) / 30 (blue bloods decide fast; the others choose among many; set with the career simulator's typical recruit, --hsOnly --spread=12, 3 × 300 careers: §2.7's offers by stars). X9 (3.0 §8): [0.012, 0.03, 0.10, 0.64] → this: the Top 50 get 8+ offers (85% → 91%), a 3★ 2–4 (2.3 → 3.1), a 2★ more than one
     above: 2,                  // ...and × (1 + above × how much better than its usual recruit you are, in powers of ten of the national rank, at most one): a program jumps on a recruit above its level
     projYear: 6,               // the scouts project a younger player's recruiting score + this a year left (about what a player gains a year in the career simulator: 5 for those who finish 2★, 8 for 4★s; the national rank you see projects hs.classAdj)
-    committedMul: 0.5,         // after your verbal commitment elsewhere, other programs offer at this share of the rate (and their interest stops rising)
+    committedMul: 1,           // after your verbal commitment elsewhere, other programs offer at this share of the rate (and their interest stops rising). X9 (3.0 §8: offers arrive by themselves): 0.5 → 1
     earnedMax: 40,             // interest earned with one program (camps and visits) is at most this (3.0: it doesn't fade)
     comp: 2, compMax: 6,       // competition for the spot: comp × (the recruits still chasing it rated under you − those rated over you), at most ±compMax
     injuryGames: 4, injuryWeeks: 3, injuryKeep: 80, // an injury of injuryGames+ games: a warning, and after injuryWeeks more weeks out, programs under injuryKeep interest pull their offers
@@ -1287,6 +1288,11 @@ const CONFIG = {
     carousel: 0.15,            // §2.5: the chance your committed program's coach leaves for another job before Signing Day (a program's dice, rolled once a career: an official visit can hint at it)
     flip: { fame: 8, trust: 10, friendly: 0.25, hurt: 10, like: 5 }, // §2.5: a decommitment: fame −fame, −trust with your next coach when you arrive; most programs' earned interest −hurt (they don't love a flip), a friendly share of them +like (and they keep recruiting you while you're committed)
     prep: { winShare: 0.7, minGames: 4, bonus: 6 }, // §2.6: a prep year (no offers at Signing Day): dominate (this win share after minGames) and the scouts add at least `bonus` to your recruiting score, and as much as a star more takes
+    play: { rank: 3 },         // X9 (3.0 §8: interest comes from how you play): a player ranked #r in the nation (the X4 player ranking, this season's or the last) adds rank × (101 − r) / 100 to the recruiting score (#1: +3, #50: +1.5)
+    scouts: { n: { po: 3, state: 4, final: 5, senior: 2, boss: 2, ranked: 2 }, min: 25, win: 1, byGrade: { 'A+': 5, A: 5, 'B+': 3, B: 3, C: 1, D: -1, F: -2 } }, // X9 (§8): scouts at big games (high school, from the sophomore year): this many programs (interest min+) come to a playoff game, a state game, the state final, senior night, the Boss or a ranked opponent; your grade moves their interest this much (+win for a win)
+    summer: { n: { aau1: 3, aau2: 3, aau3: 4, camp: 4, u17: 4, hsnat: 4, allam: 5 }, byPlace: [[1, 8], [2, 6], [4, 5], [99, 3]], nearMi: 900, aau3: 300, scoutLv: 3 }, // X9 (§8): the programs at each high school event (n: the summer's, the HS Nationals, the All-American Game); playing in one moves their interest by your place (the first row it reaches); the Grassroots Finals invite a top-aau3 recruit (4★) or a ranked player, the Elite Camp the top 60; a scout at Lv scoutLv+ gets you into both
+    juco: { offers: [[3, 3, 2], [6, 2, 1], [9, 1, 0]], years: 2, gpa: 2.5 }, // X9 (§8): junior college (167_juco.js), the road with no offer: after a JUCO season, offers by your finish (rows [the place it reaches, offers, the top tier]: a top-3 finish brings three, one from a power program); two seasons at most; the credits make your GPA at least `gpa`
+    hold: { int: 90, weeks: 4 }, // X9 (§8): a program holds a spot for a top target through Signing Day (you rate at or above its usual recruit, or its interest is int+ when it offers): no spot warning, no pull for a filled spot; a program whose last spot could go within `weeks` game weeks warns you with the deadline
   },
   pro: {                       // R7 (§3.6, §3.7): contracts you negotiate, free agency, trade requests, what money buys, the epilogue
     xpBase: 0.85,              // all your pro XP × this: a career that spends sensibly (a trainer by pay, nutrition from 29, promised starts) won 1.6 pro titles with a 28% Hall of Fame at 1.0; at 0.85, over 120 careers, 1.08 and 16%
@@ -9529,7 +9535,7 @@ function creditsScreen(game) {
 const TIPS = {
   'hs-week': ['YOUR WEEK', ['HOME is your week: the next game (PLAY or SIM), the season, the table, the next event and the headlines. Five tabs along the bottom: HOME, LEAGUE, EVENTS, CAREER, STORE; keys 1 to 5 switch them, and a dot means something new.', 'The plan row trains you by itself at every game: AUTO (your best-value rating), FOCUS (one you pick), REST or STUDY. It stays until you change it, and over ' + CONFIG.week.restAt + ' fatigue the week rests on its own. The DRILL (optional, ' + CONFIG.week.drill.seconds + ' s) adds up to +' + Math.round(CONFIG.week.drill.bonus * 100) + '%.', 'SIM is one line, then HOME. Your GPA must stay at 2.0 or better, or you sit.']],
   'ladder': ['THE DEPTH CHART', ['Five on every team: the starter plays the week\'s game, the other four play the league below (JV, the Reserve League, the Development League). Not starting, you play there yourself.', 'The chart follows form, the last ' + CONFIG.team.depth.games + ' games\' points: a bench player ahead of the starter ' + CONFIG.team.depth.weeks + ' weeks running takes the spot.', 'Coach trust grows with wins and good weeks: it adds practice XP, a little form, and a good word with recruiters and scouts.']],
-  'recruiting': ['RECRUITING', ['From your junior year, a program with interest 70+ and a scholarship spot open offers some week. An offer holds no spot: whoever commits first gets it.', 'A warning comes before any pull: grades, a long injury, a filled spot. Commit (a program\'s page) and one of its spots is yours.', 'Signing Day, after your senior season, is binding.']], // 2.1 (§2.2–2.5)
+  'recruiting': ['RECRUITING', ['From your junior year, a program with interest 70+ and a scholarship spot open offers some week. It holds a spot for a top target; for the rest, whoever commits first gets it.', 'A warning comes before any pull: grades, a long injury, a filled spot (with the deadline). Commit (a program\'s page) and one of its spots is yours.', 'Signing Day, after your senior season, is binding.']], // 2.1 (§2.2–2.5)
   'colleges': ['THE COLLEGES', ['All 64 programs, ranked: open one for its page (the coach, the depth chart you would join, academics, history and your chances there).', 'Interest (0 to 100) grows with your recruit score, camps and visits: 70+ is offer range from your junior year.']],
   'recactions': ['REACHING OUT', ['A camp costs money and shows a program what you can do; an unofficial visit costs the week; official visits (five) are weekends on campus.', 'A verbal commitment isn\'t binding, but it takes a spot and the other programs stop rising.']], // 3.0 (§1): no film, emails, calls or monthly points
   'signing': ['SIGNING DAY', ['Binding: the program you sign with is where you play. Your commitment comes first; any live offer can be signed (no flip cost today).', 'No offers? Walk on where your GPA meets the line (no scholarship, the bottom of the depth chart), or take a prep year (once).']], // 2.1 (§2.5–2.6) // 2.1 (§2.1)
@@ -11598,14 +11604,14 @@ function amHubData(game, c) {
   if (o) { const oppDef = { name: o.name, look: o.look, height: o.height, attrs: {} }; H.oppRec = o; H.opp = { def: oppDef, h: o.height, playoff: !!nx.playoff, label: L.format ? hsNextLabel(c, nx) : nx.playoff ? (nx.playoff === 1 ? 'PLAYOFF SEMIFINAL' : 'CHAMPIONSHIP FINAL') : 'NEXT · GAME ' + (L.week + 1) + ' OF ' + L.schedule.length + ' · ' + fmtClock(careerSecs()) + ' GAME' };
     H.gpaWarn = schoolGpaWarn(c); /* 2.1 (§1.5) */ H.myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age, sub: c.stage === 'college' ? c.college : c.school + (c.squad === 'jv' ? ' JV' : '') };
     H.oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '', trait: badgeShow(o), trT: o.tr || null };
-    H.opp.pers = scoutOf(o).pers; H.opp.boss = amIsBoss(c, o);
+    H.opp.pers = scoutOf(o).pers; H.opp.boss = amIsBoss(c, o); H.opp.scouts = c.stage === 'hs' ? recScoutsNext(c, nx) : null; /* X9 (3.0 §8): scouts at a big game */
     H.scout = scoutLine(myR, effRatings(o.r, o.height), c.height, o.height, 'They');
     const inel = c.ineligible > 0, sm = amPlaysNow(c, nx) ? null : ladderStarterMate(c) || (inel ? hsSlotMate(c) : null);
     if (nx.ll) { const st = ladderStarterMate(c), lw = llName(c, true); H.ll = { name: llName(c), short: lw, rank: ladderRank(c), starter: st ? st.name : '' }; H.opp.label = lw.toUpperCase() + ' · GAME ' + (L.week + 1) + ' · YOU\'RE #' + ladderRank(c) + (st ? ' · ' + st.nick.toUpperCase() + ' STARTS' : ''); H.myCard.sub = (c.stage === 'college' ? c.college : c.school) + ' ' + lw; H.oppCard.sub = (o.team || '') + ' · ' + o.rec.w + '-' + o.rec.l; H.scout = 'Outplay ' + (st ? st.name : 'the starter') + ' ' + TM.depth.weeks + ' weeks running and you start.'; } /* 3.0 (§4.3): your game in the league below */
     if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = inel ? 'INELIGIBLE · ' + c.ineligible + ' GAME' + (c.ineligible > 1 ? 'S' : '') + ' · ' + sm.nick.toUpperCase() + ' PLAYS' : 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: inel ? 'plays for you' : 'starts this week' }; H.scout = inel ? 'Study weeks raise your GPA; you are eligible again after these games.' : sm.name + ' starts the playoffs: the depth chart is set until next season.'; } }
   else if (c.summer && c.summer.pending) { H.idleTitle = 'YOUR SUMMER'; H.idleText = 'Pick your events (the AAU circuit, and the Elite Camp or the U17 World Cup if invited), then a skills camp, rest or a job.'; } /* 3.0 (X6): the summer's events */
   else if (c.tryout && c.tryout.step !== 'done') { H.idleTitle = 'TRYOUTS'; H.idleText = 'Your place on the depth chart (the starter plays varsity, the rest JV): a 60-second shootout, then a 1v1 against a senior. Play them or sim them.'; }
-  else { H.idleTitle = c.stage === 'combine' ? 'THE PRO COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then three franchises make offers. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? (c.decision.signing ? (c.decision.none ? 'Signing Day, and no scholarship offers: walk on somewhere, or ' + (c.decision.prepOk ? 'a prep year.' : 'turn pro.') : 'Signing Day: sign with one of the programs that offered you. It\'s binding.') : 'Offers are in. Pick where you play next.') : c.decision.kind === 'portal' ? 'You sat most of the season. Transfer to a program that starts you, stay, or declare.' : 'Turn pro, or stay in school? Pro interest: ' + amProStars(c) + '★ franchises.') : ''; }
+  else { H.idleTitle = c.stage === 'combine' ? 'THE PRO COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then three franchises make offers. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? (c.decision.juco ? (c.decision.none ? 'Your JUCO season is over and no program offered: ' + (c.decision.more ? 'another JUCO season, ' : '') + 'a walk-on or a club abroad.' : 'Your JUCO season is over: transfer offers are in. Sign one to join as a ' + ((c.juco && c.juco.seasons) >= 2 ? 'junior.' : 'sophomore.')) : c.decision.signing ? (c.decision.none ? 'Signing Day, and no scholarship offers: a walk-on, ' + (c.decision.prepOk ? 'a prep year, ' : '') + 'junior college or a club abroad.' : 'Signing Day: sign with one of the programs that offered you. It\'s binding.') : 'Offers are in. Pick where you play next.') : c.decision.kind === 'portal' ? 'You sat most of the season. Transfer to a program that starts you, stay, or declare.' : 'Turn pro, or stay in school? Pro interest: ' + amProStars(c) + '★ franchises.') : ''; }
   if (L && c.stage !== 'combine' && L.format === 'conf') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1, po = L.playoffs; H.headline = 'Conference ' + L.me.w + '-' + L.me.l + ' (#' + rank + ' of ' + L.size + ') · overall ' + L.all.w + '-' + L.all.l + (po && !L.done ? (po.round >= 31 ? ' · national tournament' : ' · conference tournament') : '') + ' · pro interest ' + amProStars(c) + '★'; }
   else if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = (L.format === 'jv' ? 'JV ' : '') + 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + (L.size || stg.size) + (L.playoffs && !L.done ? (L.playoffs.round >= 3 ? ' · at state' : ' · in the playoffs') : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
   H.trainNotes = hubTrainNotes(c, c.stage === 'hs'); H.ladder = hubLadderRows(c, c.name, amOvr(c)); H.ladderNotes = hubLadderNotes(c);
@@ -11644,7 +11650,7 @@ function amHub(game) {
   const afterSim = r => { game.save.save(); if (!r) return; evRoute(c, r); game.hubTab = 'home'; game.ui.clearTo(amHub(game)); game.ui.toastMsg(simToastText(c, r)); }; // 3.0 (§2.2): SIM is a toast, then HOME
   const actions = () => { const out = [];
     if (c.stage === 'combine') out.push(btn('PRO COMBINE', 0, 0, 0, 0, () => game.ui.push(amCombineScreen(game)), { primary: true }));
-    else if (c.decision) out.push(btn(c.decision.kind === 'college' ? (c.decision.signing ? 'SIGNING DAY' : 'CHOOSE YOUR COLLEGE') : c.decision.kind === 'portal' ? 'TRANSFER PORTAL' : 'TURN PRO?', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true }));
+    else if (c.decision) out.push(btn(c.decision.kind === 'college' ? (c.decision.juco ? 'TRANSFER OFFERS' : c.decision.signing ? 'SIGNING DAY' : 'CHOOSE YOUR COLLEGE') : c.decision.kind === 'portal' ? 'TRANSFER PORTAL' : 'TURN PRO?', 0, 0, 0, 0, () => game.ui.push(amDecisionScreen(game)), { primary: true }));
     else if (c.summer && c.summer.pending) out.push(btn('YOUR SUMMER', 0, 0, 0, 0, () => game.ui.push(summerScreen(game)), { primary: true }));
     else if (c.tryout && c.tryout.step !== 'done') out.push(btn('TRYOUTS', 0, 0, 0, 0, () => game.ui.push(tryoutScreen(game)), { primary: true }));
     else if (nx && nx.opp && !amPlaysNow(c, nx)) out.push(btn('SIM THE GAME', 0, 0, 0, 0, () => afterSim(amSimGame(c)), { primary: true })); /* R4: on the bench your teammate starts */
@@ -11821,6 +11827,7 @@ function resultFacts(c, rec) {
   if (LL) { const T = LL.team, M = llMyLine(c), tn = c.team ? c.team.name : 'Your team'; if (T) add('whistle', tn + ' (' + T.starter + ' starting) ' + (T.won ? 'beat ' : 'lost to ') + T.opp + ' ' + Math.max(T.my, T.their) + '–' + Math.min(T.my, T.their) + '.', UI_DIM); if (M) add('star', LL.name + ': #' + M.r + ' of ' + M.of + ' · ' + M.ppg.toFixed(1) + ' PPG · ' + M.w + '-' + M.l, UI_TEXT); const D = llDepthLine(c); if (D && !isStarter(c)) add('whistle', 'Depth chart #' + ladderRank(c) + ': ahead of the starter ' + (D.hot || 0) + ' of ' + TM.depth.weeks + ' weeks', D.hot ? UI_GOLD : UI_DIM); } /* 3.0 (§4.3): a game in the league below */
   else if (!rec.playoff) { const K = rkMeRow(c); if (K && (K.r || K.pv)) { const mv = rkMoveText(K.r, K.pv); add('star', K.r ? 'Ranked ' + rkText(K.r) + (mv && mv !== '–' ? ' (' + mv + ')' : '') + ' · ' + (K.lv === 'pro' ? 'the PBL' : K.lv === 'college' ? 'college' : 'the nation') : 'Out of the top ' + RK.top + ' this week', K.r && (!K.pv || K.r < K.pv) ? UI_GOLD : K.r ? UI_TEXT : UI_ORANGE); } } /* 3.0 (§4.1): this week's rank */
   if (rec.crew) add('whistle', 'Crew: ' + rec.crew, UI_CYAN); /* 3.0 (§7) */
+  if (rec.scouts) add('eye', rec.scouts, UI_GOLD); /* X9 (3.0 §8): the scouts at a big game */
   if (pro && rec.pay != null) add('coin', (rec.playoff ? 'Playoff check ' : 'Game check ') + fmtMoney(rec.pay) + (rec.endorse ? ' · sponsors ' + fmtMoney(rec.endorse) : ''), UI_TEXT);
   const fg = pro ? rec.fameGain : null; if (fg) add('star', 'Fame ' + (fg > 0 ? '+' : '−') + Math.abs(fg) + ' (' + Math.round(B.fame || 0) + ')', fg > 0 ? UI_TEXT : UI_ORANGE); else if (!pro && rec.won && (B.fame || 0) > 0) add('star', 'Fame ' + Math.round(B.fame), UI_DIM);
   if (pro && rec.tv != null) add('star', 'National TV: fame ' + (rec.tv >= 0 ? '+' : '−') + Math.abs(rec.tv).toFixed(1) + ' (twice the usual)', rec.tv >= 0 ? UI_GOLD : UI_ORANGE);
@@ -12059,6 +12066,7 @@ function meDrawOf(c) { return isPro(c) ? { def: drawDefOf(meOf(c), c), kit: club
 // options: [{ label, note, primary, pick() }] } (a decision whose answer isn't a choice's fx). Back picks the last option.
 // 12×12 pixel icons: X the icon's color, o dark ink; each gets a one-pixel dark outline.
 const MSG_ICONS = {
+  eye: ['............', '............', '....XXXX....', '..XX....XX..', '.X..XXXX..X.', 'X..XXooXX..X', 'X..XXooXX..X', '.X..XXXX..X.', '..XX....XX..', '....XXXX....', '............', '............'], // X9 (3.0 §8): the scouts
   case: ['............', '....XXXX....', '....X..X....', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XXXXooXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '............', '............'],
   whistle: ['............', '............', '....XXXXXXX.', '...XXXXXXXX.', '..XXooXXXXX.', '.XXo..oXX...', '.XXo..oXX...', '..XXooXX....', '...XXXX.....', '............', '............', '............'],
   paper: ['..XXXXXXX...', '..XXXXXXXX..', '..XooooXXX..', '..XXXXXXXX..', '..XoooooXX..', '..XXXXXXXX..', '..XoooooXX..', '..XXXXXXXX..', '..XoooXXXX..', '..XXXXXXXX..', '..XXXXXXXX..', '............'],
@@ -12072,7 +12080,7 @@ const MSG_ICONS = {
   shoe: ['............', '............', '............', '.XXX........', '.XXXX.......', '.XXXXX......', '.XXXXXXX....', '.XXXXXXXXXX.', '.XXXXXXXXXXX', '.oooooooooo.', '............', '............'],
   mail: ['............', '............', '.XXXXXXXXXX.', '.XoXXXXXXoX.', '.XXoXXXXoXX.', '.XXXoXXoXXX.', '.XXXXooXXXX.', '.XXXXXXXXXX.', '.XXXXXXXXXX.', '............', '............', '............'],
 };
-const MSG_ICON_COL = { case: '#C98B4A', whistle: '#D5DDEB', paper: '#EDE6D2', swap: '#5EE0FF', cross: '#FF5A5A', cup: '#FFD23F', coin: '#FFD23F', book: '#5EB7FF', star: '#FFD23F', house: '#4CE07A', shoe: '#FF5A5A', mail: '#EDE6D2' };
+const MSG_ICON_COL = { eye: '#5EE0FF', case: '#C98B4A', whistle: '#D5DDEB', paper: '#EDE6D2', swap: '#5EE0FF', cross: '#FF5A5A', cup: '#FFD23F', coin: '#FFD23F', book: '#5EB7FF', star: '#FFD23F', house: '#4CE07A', shoe: '#FF5A5A', mail: '#EDE6D2' };
 const MSG_ICON_OF = { coach: 'whistle', agent: 'case', family: 'house', reporter: 'paper', trainer: 'cross', mentor: 'star', me: 'ball' };
 function msgIconOf(ev, opts) {
   if (opts && opts.icon) return opts.icon; if (ev.icon) return ev.icon; const t = String(ev.title || '').toUpperCase();
@@ -12646,7 +12654,7 @@ function drawHomeCard(ctx, ui, H, D, C, t) {
   ui.label(ctx, O.label || 'NEXT', cx, top + 18, P ? 15 : 13, H.bench ? UI_ORANGE : UI_CYAN, 'center', w - 30);
   const vs = 'vs ' + String(O.def.name || '').toUpperCase(), vsz = fitFont(ctx, vs, w - 60, P ? 28 : 30, true); kitStamp(ctx, vs, cx, top + 46, vsz, [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
   const chips = []; if (D.oppNat) chips.push(['RANKED #' + D.oppNat, 'rgba(255,210,63,0.92)', UI_INK, 'rank']); else if (D.oppRank) chips.push(['#' + D.oppRank + ' IN THE TABLE', 'rgba(8,12,36,0.85)', UI_TEXT, 'record']); /* 3.0: the opponent's national rank first */ if (H.oppCard && H.oppCard.ovr != null) chips.push(['OVR ' + H.oppCard.ovr, 'rgba(94,224,255,0.9)', UI_INK, 'ovr']);
-  if (H.ll) chips.push([H.ll.short.toUpperCase(), 'rgba(94,224,255,0.9)', UI_INK]); if (H.bench) chips.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.playoff) chips.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.boss) chips.push(['BOSS', '#FFD23F', UI_INK]); if (O.where) chips.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); if (H.gpaWarn) chips.unshift([H.gpaWarn[0], H.gpaWarn[1], UI_INK]);
+  if (H.ll) chips.push([H.ll.short.toUpperCase(), 'rgba(94,224,255,0.9)', UI_INK]); if (H.bench) chips.push(['BENCH', 'rgba(255,138,42,0.95)', UI_INK]); if (O.playoff) chips.push(['PLAYOFFS', 'rgba(255,210,63,0.92)', UI_INK]); if (O.boss) chips.push(['BOSS', '#FFD23F', UI_INK]); if (O.scouts) chips.push(['SCOUTS ' + O.scouts.ids.length, 'rgba(94,224,255,0.9)', UI_INK]); /* X9 (3.0 §8) */ if (O.where) chips.push([O.where, 'rgba(8,12,36,0.8)', UI_TEXT]); if (H.gpaWarn) chips.unshift([H.gpaWarn[0], H.gpaWarn[1], UI_INK]);
   const cs = P ? 14 : 12; ctx.font = fontStr(cs, true); let cw = chips.reduce((a, c) => a + ctx.measureText(c[0]).width + cs * 1.3 + 6, -6); while (cw > w - 30 && chips.length > 2) { chips.pop(); cw = chips.reduce((a, c) => a + ctx.measureText(c[0]).width + cs * 1.3 + 6, -6); }
   let px = cx - cw / 2; const py = top + 74; for (const ch of chips) { const cwi = kitChip(ctx, ch[0], px, py, { size: cs, fill: ch[1], color: ch[2], stroke: false }); if (ch[3]) statHot(ctx, ch[3], px, py - cs, cwi, cs * 2); px += cwi + 6; }
   const cardTop = py + 18, avail = (P ? y + h - 8 : y + h - 86) - cardTop, ch = Math.max(80, Math.min(P ? 270 : 170, avail)), cwd = Math.round(ch * 0.715);
@@ -12654,7 +12662,8 @@ function drawHomeCard(ctx, ui, H, D, C, t) {
   kitStamp(ctx, 'VS', cx, cardTop + ch / 2 - 10, P ? 34 : 30, [UI_GOLD, '#F2A91C'], { outline: 0.2 });
   const mh = (H.myCard && H.myCard.height) || H.me.h, oh = (H.oppCard && H.oppCard.height) || O.h, dh = Math.round((oh - mh) / 0.0254);
   kitChip(ctx, dh === 0 ? 'SAME HEIGHT' : (dh > 0 ? '+' + dh + '″ THEM' : '+' + (-dh) + '″ ' + (H.bench ? 'US' : 'YOU')), cx, cardTop + ch / 2 + 26, { size: P ? 14 : 12, align: 'center', fill: 'rgba(8,12,36,0.95)', color: dh > 0 ? UI_RED : dh < 0 ? UI_GREEN : UI_TEXT });
-  if (H.scout && !P && ch >= 150) { ctx.font = fontStr(13, false); ctx.fillStyle = UI_GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, '“' + H.scout + '”', cx, cardTop + ch / 2 + 44, w - 2 * cwd - 70, 17); }
+  if (O.scouts) { const mw = w - 2 * cwd - 70, fs = P ? 15 : 13; ctx.font = fontStr(fs, false); const full = 'Scouts here: ' + recScoutNames(O.scouts), t = P || ctx.measureText(full).width <= mw ? full : 'Scouts: ' + recScoutNames(O.scouts, 2); ctx.fillStyle = UI_CYAN; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, t, cx, cardTop + ch / 2 + (P ? 48 : 40), mw, P ? 20 : 17); } /* X9 (3.0 §8): "Scouts here: Royal Oak, Kingsbridge…" */
+  else if (H.scout && !P && ch >= 150) { ctx.font = fontStr(13, false); ctx.fillStyle = UI_GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrapText(ctx, '“' + H.scout + '”', cx, cardTop + ch / 2 + 44, w - 2 * cwd - 70, 17); }
 }
 
 // --- LEAGUE: the table and the league's pages ---
@@ -13051,7 +13060,8 @@ function colRecruitStars(P) { return clamp(hsStars(Math.round(Math.pow(10, recLe
 // { total, left, mine, held, recruits: [{ name, stars, at, status: 'committed' | 'chasing' | 'elsewhere', rival }] } at
 // the recruit clock (now, or `atClock`): in the order they come, the named recruits (your story rival among them,
 // 165_recgame.js) commit and take the spots; your own verbal commitment takes one from the day you made it. An offer
-// holds nothing (2.1 §2.2: spots run out): whoever commits first gets the spot.
+// holds nothing (2.1 §2.2: spots run out): whoever commits first gets the spot. X9 (3.0 §8): a program holds one for a top
+// target (held: 1, from the day it offered).
 function colSpots(c, id, atClock) {
   const P = colProg(id); if (!P) return { total: 0, left: 0, mine: false, held: 0, recruits: [] }; const clock = atClock != null ? atClock : colRecruitClock(c);
   const S = colMemo(c, 'spots:' + id + ':' + ((c && c.rec && c.rec.cls) || 0), () => { /* (a prep year recruits with the next class) */
@@ -13059,11 +13069,11 @@ function colSpots(c, id, atClock) {
     for (let i = 0; i < n; i++) { const st = clamp(colRecruitStars(P) + (r.next() < 0.3 ? 1 : 0) - (r.next() < 0.3 ? 1 : 0), 1, 5); const nm = genName(r, used, new Set()); used.add(nm); out.push({ name: nm, stars: st, at: COLG.commitFrom + r.next() * (1 - COLG.commitFrom) }); }
     out.sort((a, b) => a.at - b.at); return { total, recruits: out };
   });
-  const R = c && c.rec, ev = S.recruits.map(x => ({ t: x.at, x }));
-  if (R && R.commit && R.commit.pid === id && R.commit.at <= clock) ev.push({ t: R.commit.at, me: true });
-  ev.sort((a, b) => a.t - b.t || (a.me ? -1 : b.me ? 1 : 0)); let free = S.total, mine = false; const recruits = [];
-  for (const e of ev) { if (e.me) { if (free > 0) free--; mine = true; continue; } const x = e.x, st = x.at > clock ? 'chasing' : free > 0 ? 'committed' : 'elsewhere'; if (st === 'committed') free--; recruits.push({ name: x.name, stars: x.stars, at: x.at, status: st, rival: !!x.rival }); }
-  return { total: S.total, left: Math.max(0, free), mine, held: mine ? 1 : 0, recruits };
+  const R = c && c.rec, ev = S.recruits.map(x => ({ t: x.at, x })), hT = R && R.hold && R.hold[id] != null && (c.offers || []).some(o => !o.pulled && o.pid === id) ? R.hold[id] : null; /* X9 (3.0 §8): a top target's held spot */
+  if (R && R.commit && R.commit.pid === id && Math.min(R.commit.at, hT != null ? hT : 1) <= clock) ev.push({ t: Math.min(R.commit.at, hT != null ? hT : 1), me: true }); else if (hT != null && hT <= clock) ev.push({ t: hT, me: true, hold: true });
+  ev.sort((a, b) => a.t - b.t || (a.me ? -1 : b.me ? 1 : 0)); let free = S.total, mine = false, held = 0; const recruits = [];
+  for (const e of ev) { if (e.me) { if (free > 0) free--; if (e.hold) held = 1; else mine = true; continue; } const x = e.x, st = x.at > clock ? 'chasing' : free > 0 ? 'committed' : 'elsewhere'; if (st === 'committed') free--; recruits.push({ name: x.name, stars: x.stars, at: x.at, status: st, rival: !!x.rival }); }
+  return { total: S.total, left: Math.max(0, free), mine, held: mine ? 1 : held, recruits };
 }
 
 // ---------------- interest in you (2.1 §2.2: the recruiting game's model, 165_recgame.js) ----------------
@@ -13860,7 +13870,7 @@ function amStartRatings(arch, total) {
   for (const k of RATING_KEYS) out[k] *= 10; return out;
 }
 function amOvr(c) { return ovrOf(c.r, c.height); }
-function amStageLabel(c) { if (c.stage === 'hs') return AM_CLASS[Math.min(3, c.stageYear - 1)] + ' · ' + c.school; if (c.stage === 'college') return 'College year ' + c.stageYear + ' · ' + c.college; if (c.stage === 'overseas') return 'Abroad · ' + ((ovsClub(c.ovs && c.ovs.club) || {}).name || 'Overseas League'); return 'Pro prospect'; }
+function amStageLabel(c) { if (c.stage === 'hs') return AM_CLASS[Math.min(3, c.stageYear - 1)] + ' · ' + c.school; if (c.stage === 'college') return 'College year ' + c.stageYear + ' · ' + c.college; if (c.stage === 'overseas') return 'Abroad · ' + ((ovsClub(c.ovs && c.ovs.club) || {}).name || 'Overseas League'); if (c.stage === 'juco') return 'JUCO year ' + (c.stageYear || 1) + ' · ' + jucoName(c); return 'Pro prospect'; }
 function amHeightFxText(h, short) { const dh = amDh(h); const parts = []; for (const k of RATING_KEYS) { const v = Math.round(AMC.heightFx[k] * dh); if (Math.abs(v) >= 1) parts.push((v > 0 ? '+' : '−') + Math.abs(v) + ' ' + (short ? RATING_SHORT[k] : RATING_LONG[k])); } return parts.length ? parts.join(short ? '  ' : ', ') : 'average height: no rating effect'; }
 
 // ---------------- people ----------------
@@ -13897,10 +13907,11 @@ function amCreate(save, form) {
 }
 
 // ---------------- seasons, standings, playoffs ----------------
-function amStageMean(c) { const y = c.stageYear, M = AMC.stageMean; if (c.stage === 'overseas') return OVS.you.mean + OVS.you.perYear * ((y || 1) - 1); return c.stage === 'hs' ? M.hs + M.hsPerYear * (y - 1) : M.college + M.collegePerYear * (y - 1) + M.collegePerTier * (c.collegeTier || 0); }
+function amStageMean(c) { const y = c.stageYear, M = AMC.stageMean; if (c.stage === 'overseas') { const Y = c.ovs && c.ovs.youth ? OVS.youth : OVS.you; return Y.mean + Y.perYear * ((y || 1) - 1); } if (c.stage === 'juco') return M.juco + M.jucoPerYear * ((y || 1) - 1); /* X9 (3.0 §8) */ return c.stage === 'hs' ? M.hs + M.hsPerYear * (y - 1) : M.college + M.collegePerYear * (y - 1) + M.collegePerTier * (c.collegeTier || 0); }
 function amNewSeason(c, rng) {
   if (c.stage === 'hs') { hsNewSeason(c, rng); return; } // R5: tryouts, JV or a district (172_hs.js)
   if (c.stage === 'overseas') { ovsNewSeason(c, rng); return; } // 3.0 (§4.3): a season abroad (167_overseas.js)
+  if (c.stage === 'juco') { jucoNewSeason(c, rng); return; } // X9 (3.0 §8): junior college (167_juco.js)
   if (c.stage === 'college') { colNewSeason(c, rng); return; } // R6: marquee games, a conference, its tournament, the national one (174_college.js)
   const S = AMC.stages[c.stage] || AMC.stages.hs; const mean = amStageMean(c); c.league = { name: S.league, opps: [], schedule: [], week: 0, me: { w: 0, l: 0, pf: 0, pa: 0 }, games: [], playoffs: null, done: false };
   for (let i = 0; i < S.size - 1; i++) c.league.opps.push(amMakeOpp(c, rng, c.stage, Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 28, 94)), 's' + c.season + 'o' + i));
@@ -13952,7 +13963,7 @@ function amAdvancePlayoffs(c, rng, won) {
 // ---------------- a game: results, stats and development ----------------
 function amApplyResult(c, opp, my, their, st, simmed, G) {
   if (G) return amApplyLower(c, opp, my, their, st, simmed, G); /* 3.0 (§4.3): your game in the league below */
-  const rng = amRng(c); const L = c.league; const won = my > their; const po = L.playoffs, poRound = po ? po.round : 0; const ovrBefore = amOvr(c); /* poRound: the round played (advancing changes po.round) */ if (c.team) { if (won) c.team.w++; else c.team.l++; } // the team's record is yours
+  const rng = amRng(c); const L = c.league; const won = my > their; const po = L.playoffs, poRound = po ? po.round : 0; const ovrBefore = amOvr(c); /* poRound: the round played (advancing changes po.round) */ const scouts0 = c.stage === 'hs' ? recScoutsNext(c, { opp, playoff: poRound }, true) : null; /* X9 (3.0 §8): the scouts at a big game (the list HOME showed) */ if (c.team) { if (won) c.team.w++; else c.team.l++; } // the team's record is yours
   if (!po) { rkFill(c); if (!opp.marquee) amRec(L.me, my, their); if (L.all) amRec(L.all, my, their); amRec(opp.rec, their, my); L.week++; amSimWeek(c, rng, opp.id); rkAmGame(c, opp, my, their, st); rkAmWeek(c); /* 3.0 (§4.1): the week's rankings */ llAfterMain(c, opp, my, their, st); /* 3.0 (§4.3): the league below's week, the depth chart */ } else if (L.all) amRec(L.all, my, their); // R6: marquee games count overall, not in the conference
   L.games.push({ opp: opp.id, name: opp.name, my, their, won, po: po ? po.round : 0, marquee: !!opp.marquee });
   const S = c.seasonStats, T = c.totals; for (const k of ['pts', 'fgm', 'fga', 'tpm', 'tpa', 'reb', 'stl', 'blk']) { S[k] += st[k] || 0; T[k] += st[k] || 0; } S.g++; T.g++; if (won) { S.w++; T.w++; }
@@ -13969,12 +13980,12 @@ function amApplyResult(c, opp, my, their, st, simmed, G) {
   for (const r of recs) newsAdd(c, c.name + ' sets a career high: ' + r.v + ' ' + REC_WORDS[r.k] + '.', 'record');
   if (wk.injury) { injuryLossApply(c); /* V6 (§1.2) */ newsAdd(c, c.name + ' is playing through a ' + wk.injury.name.toLowerCase() + ' (' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '') + injLossText(wk.injury) + ').', 'injury'); tlAdd(c, 'injury', wk.injury.name + ', ' + wk.injury.games + ' game' + (wk.injury.games > 1 ? 's' : '')); }
   if (T.g === 1) { tlAdd(c, 'first', 'First game: ' + (won ? 'beat ' : 'lost to ') + opp.name + ' ' + my + '–' + their); }
-  if (c.stage === 'hs') recWeek(c, rng, wk && wk.plan); /* 2.1 (§2.2): the recruiting week */
+  const scouts = scouts0 ? recScoutsGame(c, scouts0, grade, won) : null; /* X9 (3.0 §8): before the week's offers */ if (c.stage === 'hs') recWeek(c, rng, wk && wk.plan); /* 2.1 (§2.2): the recruiting week */
   let note = ''; if (po) note = amAdvancePlayoffs(c, rng, won); else if (L.week >= L.schedule.length) note = amStartPlayoffs(c, rng); else note = hsAfterWeek(c, rng) || '';
   roadCheck(c); /* V5 (2.0 §4.1) */
   trAfterGame(c, st, { won, playoff: !!po, us: my, them: their, injured: !!wk.injury, ovr: amOvr(c), eng: simmed ? null : { clutch: st.trClutch || 0 } }); // V3: the badges' deeds (unlocks and level-ups)
   const boss = !po && amIsBoss(c, opp); if (boss && won) { c.fame = Math.min(MD.fameMax, (c.fame || 0) + SC.boss.fame); const BT = traitsOf(opp); newsAdd(c, 'Boss down: ' + c.name + ' beats ' + opp.name + (BT && TR.list[BT.boss] ? ' and their ' + TR.list[BT.boss].name : '') + '.', 'record'); } // V4: the Boss (+fame)
-  return { won, my, their, opp: opp.name, oppId: opp.id, gains, learned, note, grade, slump, /* V6 */ ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, tag, fame: hw, crew: crewGameLine(c, st.crewHelp, crewWeekNotes(c), { plan: crewPlanFor(c, opp.id, opp) }), /* 3.0 (§7.3): the crew's impact (the result screen's line) */ crewPay, helped: simmed ? traitsHelpedSim(c, !!po) : null, boss, bossWon: boss && won };
+  return { won, my, their, opp: opp.name, oppId: opp.id, gains, learned, note, grade, slump, /* V6 */ ovrBefore, ovrAfter: amOvr(c), line: st, playoff: poRound, simmed: !!simmed, wk, recs, md, tag, fame: hw, crew: crewGameLine(c, st.crewHelp, crewWeekNotes(c), { plan: crewPlanFor(c, opp.id, opp) }), /* 3.0 (§7.3): the crew's impact (the result screen's line) */ crewPay, helped: simmed ? traitsHelpedSim(c, !!po) : null, boss, bossWon: boss && won, scouts };
 }
 // 3.0 (§4.3): your game in the league below (you don't start). It develops you like any game you play (XP, the week,
 // coach trust, badges' deeds); your team's game (its starter), both leagues' weeks and the depth chart run around it.
@@ -14077,6 +14088,7 @@ function amAfterSeason(c, rng, lines) {
     else if (c.stageYear < AMC.stages.college.years) { c.decision = { kind: 'declare' }; lines.push('Decision time: scouts project you as ' + amProjLabel(c) + '.'); }
     else { lines.push('Four years done. You turn pro.'); amGoToDraft(c); }
   } else if (c.stage === 'overseas') ovsAfterSeason(c, rng, lines); // 3.0 (§4.3)
+  else if (c.stage === 'juco') jucoAfterSeason(c, rng, lines); // X9 (3.0 §8)
 }
 // A new season at the same school: the seniors graduate, new freshmen arrive (R3).
 function amTeamSummer(c, lines) { if (!c.team) return; const gone = tmNewSeason(c); if (gone.length && lines) lines.push((c.team.kind === 'hs' ? 'Graduated: ' : 'Moved on: ') + gone.slice(0, 3).join(', ') + (gone.length > 3 ? ' and ' + (gone.length - 3) + ' more' : '') + '.'); }
@@ -15581,7 +15593,7 @@ function rkRng(c, key) { return new RNG((hashString(((c && c.seed) >>> 0) + ':rk
 function rkZero(o) { for (const k of RK_LINE) o[k] = 0; return o; }
 // The ranking's state for this level and season (made, rolled over or backfilled as needed). null between levels.
 function rkFill(c) {
-  const lv = rkLevel(c); if (!lv) return c && c.rk && c.rk.v === 1 && c.stage !== 'overseas' ? c.rk : null; /* (between levels: the last one's; abroad: none) */
+  const lv = rkLevel(c); if (!lv) return c && c.rk && c.rk.v === 1 && c.stage !== 'overseas' && c.stage !== 'juco' ? c.rk : null; /* (between levels: the last one's; abroad and at junior college: none) */
   let R = c.rk; if (!R || typeof R !== 'object' || R.v !== 1) R = c.rk = { v: 1, lv: null, season: null, wk: 0, nid: 0, P: {}, T: {}, hist: [], last: null };
   let fresh = false; if (R.lv !== lv) { rkNewLevel(c, R, lv); fresh = true; } else if (R.season !== c.season) { rkNewSeason(c, R); fresh = true; }
   if (lv !== 'pro') { rkSyncLeague(c, R); if (fresh) rkBackfill(c, R); }
@@ -15740,7 +15752,7 @@ function rkProTeamOrder(c) { const R = rkFill(c); if (!R) return standingsSorted
 // ---------------- what the screens read ----------------
 // Your row: { r (your rank, 0 unranked), pv, pt, tr (your team's), tpv, of (ranked players), tof } or null.
 function rkMeRow(c) {
-  const R = c && c.rk; if (!R || R.v !== 1 || (c.stage === 'overseas' && !isPro(c))) return null; const myId = R.lv === 'pro' ? c.meId : 'me', p = R.P[myId], tid = R.lv === 'pro' ? (meOf(c) || {}).club : rkMyTeamId(c), T = R.T[tid];
+  const R = c && c.rk; if (!R || R.v !== 1 || ((c.stage === 'overseas' || c.stage === 'juco') && !isPro(c))) return null; const myId = R.lv === 'pro' ? c.meId : 'me', p = R.P[myId], tid = R.lv === 'pro' ? (meOf(c) || {}).club : rkMyTeamId(c), T = R.T[tid];
   let of = 0, tof = 0; for (const id in R.P) if (R.P[id].r > 0) of++; for (const t in R.T) if (R.T[t].r > 0) tof++;
   const cut = rkCutPoints(R); return { r: p ? rkShown(p.r) : 0, pv: p ? rkShown(p.pv) : 0, raw: p ? p.r || 0 : 0, pt: p ? p.pt : null, cut, jv: !!(p && p.jv), g: p && R.lv !== 'pro' ? p.g || 0 : null, tr: T ? rkShown(T.r) : 0, tpv: T ? rkShown(T.pv) : 0, of: Math.min(of, RK.top), tof: Math.min(tof, RK.top), lv: R.lv, wk: R.wk };
 }
@@ -15921,7 +15933,7 @@ function evShown(c) { const B = holderOf(c); if (B) B.msgWk = weekKeyOf(c); } //
 const RCG = CONFIG.recruiting;
 function recOf(c) {
   const R = c.rec && typeof c.rec === 'object' ? c.rec : (c.rec = {}); R.v = 1;
-  for (const k of ['earned', 'last', 'warn', 'frozen', 'ann']) if (!R[k] || typeof R[k] !== 'object' || Array.isArray(R[k])) R[k] = {};
+  for (const k of ['earned', 'last', 'warn', 'frozen', 'ann', 'hold']) if (!R[k] || typeof R[k] !== 'object' || Array.isArray(R[k])) R[k] = {};
   for (const k of ['off', 'unoff', 'camps', 'log']) if (!Array.isArray(R[k])) R[k] = [];
   if (!(R.t >= 0)) R.t = 0; if (!(R.ver >= 0)) R.ver = 0; delete R.char; delete R.acts; delete R.rival; delete R.films; if (!R.studyY || typeof R.studyY !== 'object') R.studyY = { y: 0, n: 0 };
   return R;
@@ -15961,13 +15973,14 @@ function recOfferRoll(c, rng, n) {
   const have = new Set(c.offers.map(o => o.pid || (colProgByName(o.name) || {}).id).filter(Boolean)); if (R.commit && R.commit.signed) return fresh;
   const x = Math.log10(recProjRank(c)); for (const P of COLLEGES) { if (have.has(P.id)) continue; const v = colInterest(c, P.id); if (!(v >= COLG.stages[2]) || (c.gpa || 0) < recGpaFloor(P) || colSpots(c, P.id).left <= 0) continue;
     const h = RCG.hazard[clamp(P.tier, 0, 3)] * (v - COLG.stages[2]) / (100 - COLG.stages[2]) * (1 + RCG.above * clamp(recLevel(P) - x, 0, 1)) * (R.commit && R.commit.pid !== P.id ? RCG.committedMul : 1) * (n || 1); /* a recruit better than its usual one: sooner */
-    if (rng.next() < 1 - Math.exp(-h)) { const o = colOfferFrom(c, P, 'week'); o.t = R.t; if (P.academic) o.cond = { gpa: colGpaReq(P) }; /* §2.2: final only at its 3.3 line by the senior finals */ c.offers.push(o); fresh.push(o); have.add(P.id); } }
+    if (rng.next() < 1 - Math.exp(-h)) { const o = colOfferFrom(c, P, 'week'); o.t = R.t; if (P.academic) o.cond = { gpa: colGpaReq(P) }; /* §2.2: final only at its 3.3 line by the senior finals */ c.offers.push(o); fresh.push(o); have.add(P.id); if (recTopTarget(P, x, v)) recHold(c, P.id); /* X9 (3.0 §8): a top target's spot is held */ } }
   if (fresh.length) recOfferCard(c, fresh); return fresh;
 }
 function recOfferCard(c, fresh) {
-  const S = n => colSpots(c, fresh[n].pid).left, lines = [fresh.map(o => o.name + ' (' + schoolTierLabel(o) + ')').join(', ') + (fresh.length > 1 ? ' offer you scholarships.' : ' offers you a scholarship.')];
-  lines.push(fresh.length === 1 ? 'Interest ' + colInterest(c, fresh[0].pid) + ' · spots left: ' + S(0) + '. A spot goes to whoever commits first: an offer doesn\'t hold one.' : 'An offer doesn\'t hold a spot: whoever commits first gets it. Spots left: ' + fresh.map((o, i) => o.name + ' ' + S(i)).join(', ') + '.');
-  const last = fresh.filter((o, i) => S(i) === 1 && recWarn(c, o, 'spot', 'x')); if (last.length) lines.push('One spot left at ' + last.map(o => o.name).join(', ') + ': commit soon, or the next recruit takes it and the offer goes.'); /* §2.2: a filled spot pulls an offer, after a warning */
+  const S = n => colSpots(c, fresh[n].pid).left, held = fresh.filter(o => recHeld(c, o.pid)), open = fresh.filter(o => !recHeld(c, o.pid)), lines = [fresh.map(o => o.name + ' (' + schoolTierLabel(o) + ')').join(', ') + (fresh.length > 1 ? ' offer you scholarships.' : ' offers you a scholarship.')];
+  if (held.length) lines.push((held.length === fresh.length ? (fresh.length > 1 ? 'They hold' : 'It holds') : held.map(o => o.name).join(', ') + (held.length > 1 ? ' hold' : ' holds')) + ' a spot for you through Signing Day: you\'re one of ' + (held.length > 1 ? 'their' : 'its') + ' top targets.'); /* X9 (3.0 §8) */
+  if (open.length) lines.push(open.length === 1 && fresh.length === 1 ? 'Interest ' + colInterest(c, fresh[0].pid) + ' · spots left: ' + S(0) + '. A spot goes to whoever commits first: this offer doesn\'t hold one.' : (held.length ? 'The others don\'t' : 'An offer doesn\'t') + ' hold a spot: whoever commits first gets it. Spots left: ' + open.map(o => o.name + ' ' + colSpots(c, o.pid).left).join(', ') + '.');
+  const last = open.map(o => [o, recDeadline(c, o.pid)]).filter(x => x[1] && x[1].soon && recWarn(c, x[0], 'spot', 'x')); if (last.length) lines.push(last.map(x => x[0].name + ': ' + recDeadlineText(c, x[1])).join(' ') + ' Commit by then, or the last spot goes and the offer with it.'); /* §2.2: a filled spot pulls an offer, after a warning; X9: with the deadline */
   const cond = fresh.filter(o => o.cond); if (cond.length) lines.push(cond.map(o => o.name).join(', ') + ': conditional, a ' + cond[0].cond.gpa.toFixed(1) + ' GPA by your senior finals.'); else if (!last.length) lines.push(hsOfferLineText(fresh));
   c.events.push({ kind: 'story', offer: true, /* V5: an offer stops a sim */ who: 'coach', title: fresh.length > 1 ? 'SCHOLARSHIP OFFERS' : 'A SCHOLARSHIP OFFER', lines });
   for (const o of fresh) { newsAdd(c, o.name + ' (' + schoolTierLabel(o) + ') offers ' + c.name + ' a scholarship.', 'draft'); recNote(c, 'Offer: ' + o.name); }
@@ -15975,7 +15988,7 @@ function recOfferCard(c, fresh) {
 }
 // An offer pulled (why: 'gpa' | 'injury' | 'interest' | 'spot' | 'condition'), with the news; returns its line.
 function recPull(c, o, why) {
-  o.pulled = true; o.pulledAt = colRecruitClock(c); o.why = why; recBump(c); const text = { gpa: 'your grades', injury: 'your injury', interest: 'they lost interest', spot: 'its last spot is gone', condition: 'the GPA condition wasn\'t met', flip: 'you flipped', 'new class': 'a new recruiting class' }[why] || why;
+  o.pulled = true; o.pulledAt = colRecruitClock(c); o.why = why; { const R = recOf(c); if (o.pid && R.hold[o.pid] != null) delete R.hold[o.pid]; } /* X9: a held spot goes with the offer */ recBump(c); const text = { gpa: 'your grades', injury: 'your injury', interest: 'they lost interest', spot: 'its last spot is gone', condition: 'the GPA condition wasn\'t met', flip: 'you flipped', 'new class': 'a new recruiting class' }[why] || why;
   newsAdd(c, o.name + ' pulls its offer to ' + c.name + ' (' + text + ').', 'draft'); recNote(c, 'Pulled: ' + o.name + ' (' + text + ')'); return o.name + ' (' + text + ')';
 }
 // A warning first (§2.2); returns its line or null if this offer was already warned for it.
@@ -16003,8 +16016,66 @@ function recSpotNews(c, c0, c1, warn, pulled) {
   for (const id of recWatchIds(c)) { const P = colProg(id); if (!P) continue; const A = colSpots(c, id, c0), B = colSpots(c, id, c1), o = recLiveOffer(c, id), mine = R.commit && R.commit.pid === id;
     B.recruits.forEach((r, i) => { const was = A.recruits[i]; if (r.status !== 'committed' || (was && was.status === 'committed')) return; const key = id + ':' + r.name; if (R.ann[key]) return; R.ann[key] = 1;
       newsAdd(c, r.name + ' (' + r.stars + '★) commits to ' + P.name + '. Spots left: ' + B.left + '.', 'draft'); });
-    if (o && !mine) { if (B.left === 0 && A.left > 0) pulled.push(recPull(c, o, 'spot')); else if (B.left === 1 && A.left > 1) { const l = recWarn(c, o, 'spot', 'Spots left: 1 at ' + P.name + '. Commit soon, or the next recruit takes it and the offer goes.'); if (l) warn.push(l); } } }
+    if (o && !mine && !recHeld(c, id)) { if (B.left === 0 && A.left > 0) pulled.push(recPull(c, o, 'spot')); else { const D = recDeadline(c, id, c1); if (D && D.soon) { const l = recWarn(c, o, 'spot', P.name + ' (spots left: ' + B.left + '): ' + recDeadlineText(c, D) + ' Commit by then, or the last spot goes and the offer with it.'); if (l) warn.push(l); } } } } /* X9 (3.0 §8): the deadline, ahead of time */
 }
+// ---------------- X9 (3.0 §8): holds, deadlines, scouts at games, the programs at events ----------------
+// A top target: you rate at or above the program's usual recruit (x: log10 of your projected rank), or its interest is
+// RCG.hold.int+ when it offers. It holds a spot for you through Signing Day (colSpots counts it taken from today).
+function recTopTarget(P, x, v) { return x <= recLevel(P) || v >= RCG.hold.int; }
+function recHold(c, id) { const R = recOf(c); if (R.hold[id] == null) { R.hold[id] = colRecruitClock(c); recBump(c); } }
+function recHeld(c, id) { const R = c && c.rec; return !!(R && R.hold && R.hold[id] != null && recLiveOffer(c, id)); }
+// A clock reading (colRecruitClock) as the game it comes after: { y (the school year), g (the game) }.
+function recClockGame(c, at) { const L = c.league, n = (L && L.schedule && L.schedule.length) || 10, t = 2 * at, f = Math.floor(t + 1e-9); return { y: 3 + f, g: clamp(Math.ceil((t - f) * n - 1e-9), 1, n) }; }
+// When a program's last spot goes (the next recruits commit at known times): { at, y, g, weeks, soon } or null (it
+// won't fill, or you hold or have its spot). soon: within RCG.hold.weeks game weeks of now (or of the clock c1).
+function recDeadline(c, id, c1) {
+  const S = colSpots(c, id, c1); if (!S.total || S.left <= 0 || S.mine) return null; const ch = S.recruits.filter(r => r.status === 'chasing'); if (ch.length < S.left) return null;
+  const at = ch[S.left - 1].at, W = recClockGame(c, at), L = c.league, n = (L && L.schedule && L.schedule.length) || 10, now = c1 != null ? c1 : colRecruitClock(c), weeks = Math.max(0, Math.round((at - now) * 2 * n));
+  return { at, y: W.y, g: W.g, weeks, soon: weeks <= RCG.hold.weeks };
+}
+function recDeadlineText(c, D) { if (!D) return ''; const yr = (c.stageYear || 1) === D.y ? 'this season' : 'your ' + (D.y >= 4 ? 'senior' : 'junior') + ' season'; return 'their last spot goes after game ' + D.g + ' of ' + yr + (D.weeks > 0 && D.weeks <= 8 ? ' (about ' + D.weeks + ' week' + (D.weeks > 1 ? 's' : '') + ')' : '') + '.'; }
+// Scouts at big games (high school, while recruiting is open): which game is big (null when it isn't).
+function recBigGame(c, nx, playing) {
+  if (!c || c.stage !== 'hs' || !recOpen(c) || !nx || !nx.opp || nx.ll || !c.league) return null; if (!playing && !amPlaysNow(c, nx)) return null; const L = c.league;
+  if (nx.playoff) return nx.playoff >= 6 ? 'final' : nx.playoff >= 3 ? 'state' : 'po';
+  if (hsGameTag(c, L.week) === 'senior') return 'senior'; if (amIsBoss(c, nx.opp)) return 'boss';
+  const p = c.rk && c.rk.v === 1 && c.rk.P && c.rk.P[nx.opp.id]; return p && rkShown(p.r) ? 'ranked' : null;
+}
+// The programs whose scouts come to this game (kept on the league for the game: the same list before and after it):
+// { key, kind, ids }. Programs at interest RCG.scouts.min+ still recruiting (a spot left, or your live offer),
+// weighted by interest and prestige.
+function recScoutsNext(c, nx, playing) {
+  try { nx = nx || amNext(c); const kind = recBigGame(c, nx, playing); if (!kind) return null; const L = c.league, key = (nx.playoff ? 'po' + nx.playoff : 'w' + L.week) + ':' + nx.opp.id;
+    if (L.scouts && L.scouts.key === key) return L.scouts; const K = RCG.scouts, r = colRngFor(c, 'scouts:' + c.season + ':' + key), wt = x => x.v * (1 + 0.2 * x.P.stars);
+    const pool = COLLEGES.map(P => ({ P, v: colInterest(c, P.id) || 0 })).filter(x => x.v >= K.min && (colSpots(c, x.P.id).left > 0 || recLiveOffer(c, x.P.id))), ids = [];
+    while (ids.length < (K.n[kind] || 2) && pool.length) { let u = r.next() * pool.reduce((s, x) => s + wt(x), 0), i = 0; for (; i < pool.length - 1; i++) { u -= wt(pool[i]); if (u <= 0) break; } ids.push(pool[i].P.id); pool.splice(i, 1); }
+    return ids.length ? (L.scouts = { key, kind, ids }) : null; } catch (e) { return null; }
+}
+function recScoutNames(S, n) { const N = ((S && S.ids) || []).map(id => (colProg(id) || {}).name).filter(Boolean); return n && N.length > n ? N.slice(0, n).join(', ') + ' +' + (N.length - n) : N.join(', '); }
+// After the game: your grade (and a win) moves their interest. Returns the result's line (null without scouts).
+function recScoutsGame(c, S, grade, won) {
+  if (!S || S.done || !S.ids || !S.ids.length) return null; S.done = true; const K = RCG.scouts, d = (K.byGrade[grade] != null ? K.byGrade[grade] : 0) + (won ? K.win : 0), got = S.ids.filter(id => colProg(id)).map(id => [colProg(id).name, d ? recEarn(c, id, d) : 0]);
+  const same = got.every(x => x[1] === got[0][1]), line = 'Scouts from ' + got.map(x => x[0]).join(', ') + ': ' + (same ? (got[0][1] > 0 ? 'interest +' + got[0][1] : got[0][1] < 0 ? 'interest ' + got[0][1] : 'no change') : got.map(x => x[0] + ' ' + (x[1] > 0 ? '+' : '') + x[1]).join(', ')) + ' (grade ' + grade + ')';
+  recNote(c, line); return line;
+}
+// The programs at a high school event this season (the summer's, the HS Nationals, the All-American Game): seeded by
+// the season and the event, by its level (the Summer Jam: small schools and mid-majors near home; the Elite Classic:
+// mid-majors and power programs; the national events: power programs and blue bloods).
+function recEventProgs(c, key) {
+  const n = (RCG.summer.n || {})[key] || 0; if (!n || !c || c.stage !== 'hs') return [];
+  return colMemo(c, 'evprog:' + key, () => { const r = colRngFor(c, 'evprog:' + c.season + ':' + key), pool = COLLEGES.filter(P => key === 'aau1' ? P.tier <= 1 && colMiles(c, P) <= RCG.summer.nearMi : key === 'aau2' ? P.tier >= 1 && P.tier <= 2 : P.tier >= 2), out = [];
+    while (out.length < n && pool.length) { let u = r.next() * pool.reduce((s, P) => s + 1 + P.stars, 0), i = 0; for (; i < pool.length - 1; i++) { u -= 1 + pool[i].stars; if (u <= 0) break; } out.push(pool[i].id); pool.splice(i, 1); }
+    return out; });
+}
+// Your scout's word on the summer (from the junior year: the crew's scout): who invites you, at Lv RCG.summer.scoutLv+.
+function recScoutInvites(c) { const M = c && c.stage === 'hs' ? crewMember(c, 'scout') : null; return M && crewEffLv(M) >= RCG.summer.scoutLv ? crewFirst(M) + ', Lv' + crewEffLv(M) : null; }
+// Playing in an event moves the interest of the programs there by your place (with a scout or without one: they're
+// there either way). Returns the rewards' line.
+function recEventInterest(c, T) {
+  if (!T || !Array.isArray(T.prog) || !T.prog.length || !T.my || !T.my.in || !(T.my.place > 0) || c.stage !== 'hs' || !recOpen(c)) return null; const row = RCG.summer.byPlace.find(r => T.my.place <= r[0]), d = row ? row[1] : 0; if (!d) return null;
+  const got = T.prog.filter(id => colProg(id)).map(id => [colProg(id).name, recEarn(c, id, d)]); recNote(c, tnTitle(T) + ': ' + got.map(x => x[0]).join(', ') + ' watched (interest +' + d + ')'); return 'interest +' + d + ' at ' + got.length + ' program' + (got.length === 1 ? '' : 's'); /* (the names: the recruiting log) */
+}
+
 // A long injury: a warning, then the pull (§2.2).
 function recChecks(c, warn, pulled) {
   const R = recOf(c), inj = c.injury && c.injury.games >= RCG.injuryGames; if (inj && R.injT == null) R.injT = R.t; if (!c.injury) R.injT = null;
@@ -16087,7 +16158,7 @@ function recChoose(c, ev, i) {
 function recFlipFriendly(c, id) { return colRngFor(c, id + ':flipf').next() < RCG.flip.friendly; } // some programs love a flip
 function recCommitWhyNot(c, id) {
   const P = colProg(id); if (!P) return 'No program'; if (!c || c.stage !== 'hs' || (c.decision && c.decision.kind !== 'college')) return 'Recruiting is over'; const R = recOf(c);
-  if (R.commit && R.commit.signed) return 'You signed'; if (R.commit && R.commit.pid === id) return 'You\'re committed here'; if (!recLiveOffer(c, id)) return 'No offer from them'; if (colSpots(c, id).left <= 0) return 'No spot left';
+  if (R.commit && R.commit.signed) return 'You signed'; if (R.commit && R.commit.pid === id) return 'You\'re committed here'; if (!recLiveOffer(c, id)) return 'No offer from them'; if (colSpots(c, id).left <= 0 && !recHeld(c, id)) return 'No spot left';
   return null;
 }
 // A verbal commitment (§2.5): a spot is yours from today; the other programs' interest stops rising (a flip-friendly few keep at it).
@@ -16135,21 +16206,24 @@ function recHats(c) { const seen = new Set(), out = []; for (const o of c.offers
 function recSigningDay(c, rng) {
   hsFill(c); const R = recOf(c); if (R.carousel && !R.carousel.fired && R.commit) recCarouselFire(c);
   const live = hsLiveOffers(c).map(o => Object.assign({}, o)), cm = R.commit ? R.commit.pid : null; live.sort((a, b) => (b.pid === cm) - (a.pid === cm) || b.tier - a.tier);
-  const none = !live.length, prepOk = none && !c.prep, walk = none && COLLEGES.some(P => (c.gpa || 0) >= colGpaReq(P)); if (amOvr(c) >= AMC.skipCollegeOvr || (none && !prepOk && !walk)) live.push({ name: 'Skip college: turn pro', tier: -1, draft: true }); /* (no road left: the pros, where three franchises always make an offer) */
+  const none = !live.length, prepOk = none && !c.prep, walk = none && COLLEGES.some(P => (c.gpa || 0) >= colGpaReq(P)); if (amOvr(c) >= AMC.skipCollegeOvr) live.push({ name: 'Skip college: turn pro', tier: -1, draft: true }); /* X9 (3.0 §8): with no offer, junior college and a club abroad are always there (the pros straight away: an elite senior's road) */
   c.decision = { kind: 'college', offers: live, signing: true, committed: cm, none, prepOk };
-  if (none) c.events.push({ kind: 'story', who: 'coach', title: 'NO OFFERS', lines: ['Signing Day, and nobody has offered you a scholarship.', (walk ? 'Walk on at any program whose GPA line you meet (no scholarship: you pay the tuition and start at the bottom of its depth chart)' : 'Your GPA (' + (c.gpa || 0).toFixed(2) + ') is under every program\'s line: no walk-on') + (prepOk ? (walk ? ', or a prep year' : '. A prep year') + ': one more season, and if you dominate the offers come back.' : walk ? '.' : '. The pros are still there: three franchises make offers after the combine.')] });
+  if (none) c.events.push({ kind: 'story', who: 'coach', title: 'NO OFFERS', lines: ['Signing Day, and nobody has offered you a scholarship.', 'Your roads: ' + (walk ? 'a walk-on (a program whose GPA line you meet: no scholarship, the bottom of its depth chart), ' : '') + (prepOk ? 'a prep year (dominate it and the offers come back), ' : '') + 'junior college (a season, then offers as a transfer) or a club abroad (then the PBL).'] });
   newsAdd(c, none ? 'Signing Day: ' + c.name + ' has no scholarship offers.' : 'Signing Day: ' + c.name + ' has ' + live.filter(o => !o.draft).length + ' scholarship offer' + (live.filter(o => !o.draft).length > 1 ? 's' : '') + (cm ? ' and a commitment to ' + colProg(cm).name : '') + '.', 'draft');
 }
 // The simulators' Signing Day (devJumpToPro; tests/careersim.js has its own policies): the pros for a projected top-10
 // pick, or the commitment, or the best offer (the highest level, academic first); with none, the prep year once, then
 // a walk-on where the interest was highest (or the pros).
+// X9 (3.0 §8): with no offer, a seeded mix of the roads (the prep year, junior college, a walk-on, a club abroad); after
+// junior college without one, a second JUCO year, then a walk-on (or abroad).
 function recSimSign(c) {
   const d = c.decision; if (!d || d.kind !== 'college') return null; const skip = d.offers.find(o => o.draft), list = d.offers.filter(o => !o.draft);
-  if (skip && (amPickFrom(amDraftScore(c)) <= 10 || !list.length && !d.prepOk && !COLLEGES.some(P => !recWalkOnWhyNot(c, P.id)))) { amChooseCollege(c, skip); return 'pro'; }
+  if (skip && amPickFrom(amDraftScore(c)) <= 10) { amChooseCollege(c, skip); return 'pro'; }
   if (list.length) { const o = (d.committed && list.find(x => x.pid === d.committed)) || list.slice().sort((x, y) => (y.tier - x.tier) || ((y.academic ? 1 : 0) - (x.academic ? 1 : 0)))[0]; amChooseCollege(c, o); return 'sign'; }
-  if (d.prepOk) { recPrepYear(c, amRng(c)); return 'prep'; }
-  const W = COLLEGES.filter(P => !recWalkOnWhyNot(c, P.id)).sort((a, b) => (colInterest(c, b.id) || 0) - (colInterest(c, a.id) || 0) || a.tier - b.tier)[0]; if (W) { recWalkOn(c, W.id); return 'walkon'; }
-  if (skip) { amChooseCollege(c, skip); return 'pro'; } return null;
+  const k = (hashString(String(c.seed) + ':road') >>> 0) % 4, W = COLLEGES.filter(P => !recWalkOnWhyNot(c, P.id)).sort((a, b) => (colInterest(c, b.id) || 0) - (colInterest(c, a.id) || 0) || a.tier - b.tier)[0], abroad = () => { ovsSign(c, Object.assign(ovsOffers(c)[0], { youth: true })); return 'overseas'; };
+  if (d.juco) { if (d.more && k !== 3) { jucoGo(c); return 'juco'; } if (W && k !== 3) { recWalkOn(c, W.id); return 'walkon'; } if (skip && k !== 3) { amChooseCollege(c, skip); return 'pro'; } return abroad(); }
+  if (k === 0 && d.prepOk) { recPrepYear(c, amRng(c)); return 'prep'; } if (k === 3) return abroad(); if (k === 2 && W) { recWalkOn(c, W.id); return 'walkon'; }
+  jucoGo(c); return 'juco';
 }
 // A walk-on (§2.6): no scholarship (you pay the tuition) and the bottom of the depth chart.
 function recWalkOnWhyNot(c, id) { const P = colProg(id); if (!P) return 'No program'; if (!c.decision || c.decision.kind !== 'college') return 'Not now'; if ((c.gpa || 0) < colGpaReq(P)) return 'Their GPA line is ' + colGpaReq(P).toFixed(1); return null; }
@@ -16198,10 +16272,10 @@ function amVisit(c, i) {
 // Commitment day: you pick a hat.
 function amChooseCollege(c, o) {
   const rng = amRng(c); const d = c.decision; c.decision = null; if (o.draft) { amGoToDraft(c); return; }
-  const offers = d && d.offers ? d.offers.filter(x => !x.draft) : [o]; const R = c.stage === 'hs' ? recOf(c) : null, hats = R && (c.offers || []).length ? recHats(c) : offers.map(x => ({ name: x.name, colors: x.colors, tier: x.tier })); /* 2.1 (§2.5): every school that offered you */
-  c.stage = 'college'; c.stageYear = 1; c.college = o.name; c.collegeTier = o.tier; c.colors = o.colors.slice(); c.program = { name: o.name, pid: o.pid || (colProgByName(o.name) || {}).id || null, tier: o.tier, fac: o.fac || 1, focus: o.focus || null, coach: o.coach || 'Coach', academic: !!o.academic }; const Pn = colProg(c.program.pid);
+  const jy = c.stage === 'juco' ? (c.juco && c.juco.seasons) || 1 : 0, from = jy ? jucoName(c) : c.school || 'High school'; /* X9 (3.0 §8): a JUCO transfer joins as a sophomore (a junior after two) */ const offers = d && d.offers ? d.offers.filter(x => !x.draft) : [o]; const R = c.stage === 'hs' ? recOf(c) : null, hats = R && (c.offers || []).length ? recHats(c) : offers.map(x => ({ name: x.name, colors: x.colors, tier: x.tier })); /* 2.1 (§2.5): every school that offered you */
+  c.stage = 'college'; c.stageYear = 1 + jy; c.college = o.name; c.collegeTier = o.tier; c.colors = o.colors.slice(); c.program = { name: o.name, pid: o.pid || (colProgByName(o.name) || {}).id || null, tier: o.tier, fac: o.fac || 1, focus: o.focus || null, coach: o.coach || 'Coach', academic: !!o.academic }; const Pn = colProg(c.program.pid);
   if (R) { if (!R.commit || R.commit.pid !== c.program.pid) R.commit = { pid: c.program.pid, at: 1, t: R.t, season: c.season, year: c.stageYear }; R.commit.signed = true; R.frozen = {}; }
-  newsAdd(c, c.name + ' commits to ' + o.name + '!', 'draft'); txAdd(c, { kind: 'commit', who: c.name, from: c.school || 'High school', to: o.name, note: o.walkOn ? 'walk-on' : 'scholarship', me: true }); tlAdd(c, 'commit', 'Committed to ' + o.name + ' (' + schoolTierLabel(o) + ')');
+  newsAdd(c, c.name + ' commits to ' + o.name + '!', 'draft'); txAdd(c, { kind: 'commit', who: c.name, from, to: o.name, note: (o.walkOn ? 'walk-on' : 'scholarship') + (jy ? ' (JUCO transfer)' : ''), me: true }); tlAdd(c, 'commit', 'Committed to ' + o.name + ' (' + schoolTierLabel(o) + ')');
   c.events.push({ kind: 'commit', title: R ? 'SIGNING DAY' : 'COMMITMENT DAY', signing: !!R, walkOn: !!o.walkOn, offers: hats.some(x => x.name === o.name) ? hats : hats.concat([{ name: o.name, colors: o.colors, tier: o.tier }]), chosen: Math.max(0, (hats.some(x => x.name === o.name) ? hats : hats.concat([o])).findIndex(x => x.name === o.name)), lines: [c.name + (o.walkOn ? ' walks on at ' : R ? ' signs with ' : ' commits to ') + o.name + '.', schoolTierLabel(o) + ' · ' + (o.coach || 'the coach') + ' · facilities ' + colFacStars(o), 'Bigger programs play tougher schedules, and more scouts are watching.'] });
   const Ros = Pn ? colRoster(c, Pn.id) : null; tmArchive(c); c.team = tmNewAm(c, 'college', { name: o.name, colors: o.colors, tier: o.tier, coach: o.coach, base: amOvr(c) + TM.tierGap[o.tier], mates: Ros ? Ros.mates : null }); colCoachToTeam(c); colSeat(c, Ros ? Ros.start : TM.ladderStart[o.tier]); /* 2.1: the roster and the coach the program's page showed */ // R3: the program is your team now; R4: bigger programs start you lower on the depth chart (R6: seated)
   if (o.walkOn) colSeat(c, ((c.team && c.team.mates) || []).length + 1); /* 2.1 (§2.6): a walk-on starts at the bottom */ if (R && R.flips) { trustAdd(c, -RCG.flip.trust); } /* §2.5: your coach remembers the flip */
@@ -16361,16 +16435,25 @@ function amPregameScreen(game) {
   if (P) phoneGrid(game.ui, items, items.length > 2 ? 280 : 400, UI_H - tapH(game.ui, 44) - 14, items.length > 2 ? 720 : 480, items.length, 0, 12); else if (items.length > 2) { Object.assign(items[0], { x: 380, y: 616, w: 190, h: 54 }); Object.assign(items[2], { x: 580, y: 616, w: 240, h: 54 }); Object.assign(items[1], { x: 830, y: 616, w: 100, h: 54 }); } else { Object.assign(items[0], { x: 470, y: 616, w: 220, h: 54 }); Object.assign(items[1], { x: 700, y: 616, w: 110, h: 54 }); }
   const myCard = { key: 'am-me', name: c.name, look: def.look, height: c.height, colors: kit.colors, ovr: amOvr(c), style: amStyle(c.style).label, number: c.number, age: c.age };
   const oppCard = { key: 'am-' + o.id, name: o.name, look: o.look, height: o.height, colors: o.colors, ovr: ovrOf(o.r, o.height), style: amStyle(o.style).label, number: o.look && o.look.number, sub: o.rec ? o.rec.w + '-' + o.rec.l : '', trait: badgeShow(o), trT: o.tr || null };
-  bakeNextCareerGame(game, 0); /* V15 (fix 2): the game's bakes while you read the card */
+  bakeNextCareerGame(game, 0); /* V15 (fix 2): the game's bakes while you read the card */ const SC = c.stage === 'hs' ? recScoutsNext(c, nx) : null; /* X9 (3.0 §8) */
   return { widgets: items, name: 'ampregame', update(dt) { t += dt; },
     draw(ctx, ui) {
       ui.panel(ctx, 20, 14, 1240, 690); const lbl = nx.playoff ? 'PLAYOFFS' : 'GAME ' + ((c.league && c.league.week) + 1);
       if (!P) { ui.label(ctx, lbl, 640, 40, 14, UI_CYAN, 'center'); kitStamp(ctx, 'vs ' + o.name.toUpperCase(), 640, 74, fitFont(ctx, 'vs ' + o.name.toUpperCase(), 640, 34, true), [UI_TEXT, '#C9CCE0'], { outline: 0.14 });
         drawTradingCard(ctx, 52, 120, 200, 280, myCard, { t }); drawTradingCard(ctx, 1028, 120, 200, 280, oppCard, { t: t + 1.1 });
         ui.heading(ctx, fmtHeight(c.height), 152, 424, 22, UI_TEXT, 'center'); ui.heading(ctx, fmtHeight(o.height), 1128, 424, 22, UI_TEXT, 'center');
-        const w = 720, h = drawScoutCard(ctx, ui, D, 280, 0, w, { measure: true, T: o.tr }), y = Math.max(108, Math.min(150, 360 - h / 2)); kitPanel(ctx, 280, y, w, h, 'rgba(8,12,36,0.88)'); drawScoutCard(ctx, ui, D, 280, y, w, { T: o.tr }); }
-      else { const w = 1200, h = drawScoutCard(ctx, ui, D, 40, 0, w, { measure: true, T: o.tr }); const y = Math.max(24, Math.min(80, (UI_H - tapH(ui, 44) - 30 - h) / 2)); kitPanel(ctx, 40, y, w, h, 'rgba(8,12,36,0.9)'); drawScoutCard(ctx, ui, D, 40, y, w, { T: o.tr, title: 'vs ' + o.name }); }
+        const w = 720, h = drawScoutCard(ctx, ui, D, 280, 0, w, { measure: true, T: o.tr }), y = Math.max(108, Math.min(150, 360 - h / 2)); kitPanel(ctx, 280, y, w, h, 'rgba(8,12,36,0.88)'); drawScoutCard(ctx, ui, D, 280, y, w, { T: o.tr }); if (SC) drawScoutsHere(ctx, ui, c, SC, 280, y + h + 14, w); }
+      else { const w = 1200, h = drawScoutCard(ctx, ui, D, 40, 0, w, { measure: true, T: o.tr }); const y = Math.max(24, Math.min(SC ? 30 : 80, (UI_H - tapH(ui, 44) - 30 - h) / 2)); kitPanel(ctx, 40, y, w, h, 'rgba(8,12,36,0.9)'); drawScoutCard(ctx, ui, D, 40, y, w, { T: o.tr, title: 'vs ' + o.name }); if (SC) drawScoutsHere(ctx, ui, c, SC, 40, y + h + 12, w); }
     } };
+}
+// X9 (3.0 §8): the college scouts at a big game: each program (its crest, stars and interest in you), and what your
+// game does for it. Returns its height.
+function drawScoutsHere(ctx, ui, c, S, x, y, w) {
+  const P = ui.phone, ids = (S && S.ids || []).filter(id => colProg(id)); if (!ids.length) return 0; const fs = P ? 17 : 13, rh = P ? 56 : 44, cols = P ? 2 : Math.min(3, ids.length), cw = (w - 32) / cols, rows = Math.ceil(ids.length / cols), h = (P ? 44 : 38) + rows * rh + (P ? 28 : 22);
+  kitPanel(ctx, x, y, w, h, 'rgba(8,12,36,0.88)'); kitHeader(ctx, 'Scouts here', x + 16, y + 22, w - 32); const B = RCG.scouts.byGrade;
+  ids.forEach((id, i) => { const Q = colProg(id), cx = x + 16 + (i % cols) * cw, cy = y + (P ? 46 : 40) + Math.floor(i / cols) * rh, cr = P ? 28 : 22, tx = cx + cr + 10, tw = cw - cr - 22; drawColCrest(ctx, Q, cx, cy - 4, cr); ui.label(ctx, Q.name, tx, cy + 4, fs, UI_TEXT, 'left', tw); ui.label(ctx, '★'.repeat(Q.stars) + ' · interest ' + (colInterest(c, id) || 0), tx, cy + fs + (P ? 16 : 13), fs - 2, UI_CYAN, 'left', tw); }); /* (two lines a program: the name never runs into its numbers) */
+  ui.label(ctx, 'Your grade: A +' + B.A + ' · B +' + B.B + ' · C +' + B.C + ' · D ' + B.D + ' · F ' + B.F + ' · a win +' + RCG.scouts.win, x + 16, y + h - (P ? 16 : 13), P ? 15 : 12, UI_DIM, 'left', w - 32);
+  return h;
 }
 // --- the card ---
 // The scouting card at (x, y), w wide: the personality, their traits, the tendencies, the weakness and the tip; a phone
@@ -16385,10 +16468,61 @@ function drawScoutCard(ctx, ui, D, x, y, w, opts) {
   if (opts.T) { yy += 4; let tx = x + pad; const ids = trActive({ tr: opts.T }); for (const id of ids) { const cw = traitChip(ctx, id, tx, yy + fs * 0.4, { T: opts.T, size: fs - 2, measure: !draw, maxW: x + w - pad - tx }); tx += cw + 6; if (tx > x + w - pad - 40) break; } yy += fs + 12; }
   yy += 4; ctx.font = fontStr(fs - 2, true); const slot = Math.max(ctx.measureText('BALL').width, ctx.measureText('DEF').width); // the side tags share one slot, so the lines start together
   for (const id of D.tend) { const T = SC.tend[id], col = T.side === 'o' ? '#FF9A3C' : '#7DB8FF'; if (draw) ui.heading(ctx, T.side === 'o' ? 'BALL' : 'DEF', x + pad, yy, fs - 2, col, 'left'); const lx = x + pad + slot + 10; ctx.font = fontStr(fs, true); const tl = rbWrap(ctx, T.text, x + w - pad - lx).slice(0, 2), tlh = Math.max(fs * 1.2, rbLineH(ctx)); /* V5: a long tendency wraps (the pixel font can't shrink on a phone) */ if (draw) tl.forEach((l, i) => ui.heading(ctx, l, lx, yy + i * tlh, fs, UI_TEXT, 'left', x + w - pad - lx)); yy += fs + 10 + (tl.length - 1) * tlh; }
-  if (D.more > 0) { const mt = D.more + ' more: watch their film this week.'; if (draw) yy += ui.para(ctx, mt, x + pad, yy, iw, fs - 2, UI_DIM, 'left', 2) - (fs - 2) * 1.35 + fs + 4; else yy += fs + 4; }
+  if (D.more > 0) { const mt = D.more + ' more: your scout or a film session (the store) shows them.'; if (draw) yy += ui.para(ctx, mt, x + pad, yy, iw, fs - 2, UI_DIM, 'left', 2) - (fs - 2) * 1.35 + fs + 4; else yy += fs + 4; }
   yy += 2; { ctx.font = fontStr(fs - 2, true); const ww = ctx.measureText('WEAKNESS').width + 10; ctx.font = fontStr(fs - 1, true); const wl = rbWrap(ctx, D.weakText, iw - ww).slice(0, 2), wlh = Math.max((fs - 1) * 1.2, rbLineH(ctx)); if (draw) { ui.heading(ctx, 'WEAKNESS', x + pad, yy, fs - 2, UI_CYAN); wl.forEach((l, k) => ui.heading(ctx, l, x + pad + ww, yy + k * wlh, fs - 1, D.weak ? UI_TEXT : UI_DIM, 'left', iw - ww)); } yy += fs + 10 + (wl.length - 1) * wlh; } /* (2.1 W5: a long weakness wraps, as a tendency does: the pixel font keeps one width from 8 to 13 px) */
   if (draw) { ui.heading(ctx, 'TIP', x + pad, yy, fs - 2, UI_GOLD); ctx.font = fontStr(fs - 2, true); const tw = ctx.measureText('TIP').width + 10; yy += ui.para(ctx, D.tip, x + pad + tw, yy, iw - tw, fs - 1, UI_GOLD, 'left', 3); } else { ctx.font = fontStr(fs - 1, false); yy += rbWrap(ctx, D.tip, iw - 40).length * Math.max((fs - 1) * 1.35, rbLineH(ctx)); }
   return yy - y + pad - 6;
+}
+
+// ============================================================================
+// SECTION: SAVE / PROGRESSION (part 9j) — X9 (3.0 §8): junior college. Signing Day with no offer: a season (two at
+// most) at a community college in the JUCO Conference (twelve players, eleven games and a final four, a level under
+// the small schools); then programs of the 64 offer you as a JUCO transfer by your finish (CONFIG.recruiting.juco):
+// you join as a sophomore (a junior after two JUCO years), your JUCO credits count for the GPA line.
+// ============================================================================
+const JUC = CONFIG.recruiting.juco;
+// The conference's twelve colleges (yours first): towns from the rankings' list, seeded by the career.
+function jucoTeams(c) { const r = colRngFor(c, 'juco:teams'), used = new Set(), out = []; let k = 0; while (out.length < AMC.stages.juco.size && k++ < 400) { const n = r.pick(RK_TOWNS) + ' CC'; if (!used.has(n)) { used.add(n); out.push(n); } } return out; }
+function jucoColors(c, name) { return colRngFor(c, 'juco:col:' + name).pick(AM_COLORS).slice(); }
+function jucoName(c) { return (c && c.juco && c.juco.name) || 'Junior college'; }
+// Why JUCO can't happen now (null when it can): Signing Day with no offer, or a JUCO season's end with another year left.
+function jucoWhyNot(c) { const d = c && c.decision; if (!d || d.kind !== 'college') return 'Not now'; if (d.juco) return d.more ? null : 'Two JUCO years at most'; return d.none ? null : 'You have offers'; }
+// Go (or stay another year): your college, its team and the conference's season.
+function jucoGo(c) {
+  if (jucoWhyNot(c)) return null; const d = c.decision, rng = amRng(c); c.decision = null;
+  if (d.juco) { c.stageYear++; amNewSeason(c, rng); amTeamSummer(c, null); newsAdd(c, c.name + ' stays at ' + jucoName(c) + ' for a second season.', 'draft'); tlAdd(c, 'commit', 'A second JUCO season at ' + jucoName(c)); return c.juco; }
+  const T = jucoTeams(c), name = T[0], col = jucoColors(c, name), from = c.school || 'High school'; tmArchive(c);
+  c.stage = 'juco'; c.stageYear = 1; c.juco = { name, seasons: 0, from }; c.colors = col;
+  c.team = tmNewAm(c, 'college', { name, colors: col, base: amOvr(c) + 1, coach: 'Coach ' + genName(colRngFor(c, 'juco:coach'), new Set(), new Set()).split(' ')[1] }); ladderInit(c, 1);
+  newsAdd(c, c.name + ' heads to ' + name + ': a season in the JUCO Conference.', 'draft'); tlAdd(c, 'commit', 'Junior college: ' + name); txAdd(c, { kind: 'commit', who: c.name, from, to: name, note: 'junior college', me: true });
+  c.events.push({ kind: 'story', who: 'coach', title: 'JUNIOR COLLEGE', lines: ['You sign with ' + name + ' in the JUCO Conference: twelve players, eleven games and a final four.', 'Finish in the top ' + JUC.offers[0][0] + ' and power programs offer; the top ' + JUC.offers[JUC.offers.length - 1][0] + ' get offers. You\'d join them as a sophomore.'] });
+  amNewSeason(c, rng); return c.juco;
+}
+// A JUCO season: the conference's eleven others, each played once, then a final four (the generic playoffs).
+function jucoNewSeason(c, rng) {
+  const S = AMC.stages.juco, mean = amStageMean(c), T = jucoTeams(c), mine = jucoName(c); const L = c.league = { name: S.league, format: 'juco', size: S.size, opps: [], schedule: [], home: [], week: 0, me: { w: 0, l: 0, pf: 0, pa: 0 }, games: [], playoffs: null, done: false };
+  T.filter(n => n !== mine).slice(0, S.size - 1).forEach((n, i) => { const o = amMakeOpp(c, rng, 'college', Math.round(clamp(mean + rng.gauss() * AMC.oppSd, 30, 94)), 'jc' + c.season + '_' + i); o.team = n; o.colors = jucoColors(c, n); o.pattern = 'solid'; L.opps.push(o); });
+  L.schedule = rng.shuffle(L.opps.map(o => o.id)); L.home = L.schedule.map((_, i) => i % 2 === 0);
+  c.seasonStats = { g: 0, w: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, reb: 0, stl: 0, blk: 0 }; c.ovrSeasonStart = amOvr(c);
+}
+// The offers after a JUCO season, by your finish (the champion counts first): CONFIG.recruiting.juco.offers rows
+// [the place it reaches, offers, the top tier], one at the top tier and the rest at any tier under it (no elite
+// academic programs: their line is too high). A transfer offer: o.juco = the JUCO seasons you played.
+function jucoOffers(c, e) {
+  const place = e && e.champ ? 1 : (e && e.rank) || 99, row = JUC.offers.find(r => place <= r[0]); if (!row) return [];
+  const r = colRngFor(c, 'juco:off:' + c.season), used = new Set(), out = [], seasons = (c.juco && c.juco.seasons) || 1;
+  for (let i = 0; i < row[1]; i++) { const pool = COLLEGES.filter(P => !P.academic && !used.has(P.id) && (i === 0 ? P.tier === row[2] : P.tier <= row[2])); if (!pool.length) break; const P = r.pick(pool); used.add(P.id); out.push(Object.assign(colOfferFrom(c, P, 'juco'), { juco: seasons })); }
+  return out.sort((a, b) => b.tier - a.tier);
+}
+// The season's end: the transfer offers (a JUCO Signing Day), another JUCO year (once), or the other roads.
+function jucoAfterSeason(c, rng, lines) {
+  const e = c.log[c.log.length - 1] || {}, J = c.juco || (c.juco = { name: c.team ? c.team.name : 'Junior college', seasons: 0 }); J.seasons = (J.seasons || 0) + 1; c.gpa = Math.max(c.gpa || 0, JUC.gpa); /* the JUCO credits */
+  const offers = jucoOffers(c, e), more = J.seasons < JUC.years, place = e.champ ? 1 : e.rank || 0; J.last = { place, offers: offers.length };
+  if (amOvr(c) >= AMC.skipCollegeOvr || (!offers.length && !more)) offers.push({ name: 'Skip college: turn pro', tier: -1, draft: true });
+  c.decision = { kind: 'college', offers, signing: true, juco: true, more, none: !offers.some(o => !o.draft), prepOk: false };
+  const n = offers.filter(o => !o.draft).length; lines.push(n ? n + ' transfer offer' + (n > 1 ? 's' : '') + ' after a #' + place + ' finish.' : 'No transfer offers after a #' + place + ' finish.');
+  c.events.push({ kind: 'story', offer: true, who: 'coach', title: n ? 'JUCO TRANSFER OFFERS' : 'NO TRANSFER OFFERS', lines: [n ? offers.filter(o => !o.draft).map(o => o.name + ' (' + schoolTierLabel(o) + ')').join(', ') + (n > 1 ? ' offer' : ' offers') + ' you a scholarship as a JUCO transfer: you\'d join as a ' + (J.seasons >= 2 ? 'junior' : 'sophomore') + '.' : 'A #' + place + ' finish, and no program offers yet.', more ? 'Or another season at ' + J.name + ': a better finish brings better offers.' : 'Your JUCO years are done: sign, walk on, go abroad' + (offers.some(o => o.draft) ? ', or turn pro.' : '.')] });
+  newsAdd(c, n ? c.name + ' has ' + n + ' transfer offer' + (n > 1 ? 's' : '') + ' after a season at ' + J.name + '.' : c.name + ' finishes #' + place + ' at ' + J.name + '.', 'draft');
 }
 
 // ============================================================================
@@ -16609,10 +16743,10 @@ function ovsNoOffers(a) { return !!(a && !isPro(a) && a.stage === 'combine' && !
 function ovsOffers(a) { const rng = new RNG((hashString('ovs:' + a.seed + ':' + (a.season || 0)) >>> 0) || 3); return rng.shuffle(OVS.clubs.slice()).slice(0, 3).map(k => ({ id: k.id, name: k.name, ab: k.ab, ctry: k.ctry, colors: k.colors.slice(), pay: 20000 + 10000 * rng.int(4) })); }
 // Sign abroad: the 'overseas' stage starts (a club of five; you start).
 function ovsSign(a, o) {
-  const K = ovsClub(o && o.id) || OVS.clubs[0], rng = amRng(a), from = a.college || a.school || 'Your school';
-  a.stage = 'overseas'; a.stageYear = 1; a.decision = null; a.proOffers = null; a.ovs = { club: K.id, seasons: 0, done: false, top: false }; a.colors = K.colors.slice(); a.cash = (a.cash || 0) + ((o && o.pay) || 0);
+  const K = ovsClub(o && o.id) || OVS.clubs[0], rng = amRng(a), from = a.stage === 'juco' ? jucoName(a) : a.college || a.school || 'Your school';
+  const youth = !!(o && o.youth) || a.stage === 'hs' || a.stage === 'juco'; /* X9 (3.0 §8): from Signing Day or junior college: a youth contract */ a.stage = 'overseas'; a.stageYear = 1; a.decision = null; a.proOffers = null; a.ovs = { club: K.id, seasons: 0, done: false, top: false, youth }; a.colors = K.colors.slice(); a.cash = (a.cash || 0) + ((o && o.pay) || 0);
   tmArchive(a); a.team = tmNewAm(a, 'overseas', { name: K.name, colors: K.colors, base: amOvr(a) + 1, mascot: '' }); ladderInit(a, 1);
-  newsAdd(a, a.name + ' signs with the ' + K.name + ' (' + K.ctry + '): a season in the Overseas League.', 'draft'); tlAdd(a, 'commit', 'Signed abroad: the ' + K.name + ' (' + K.ctry + ')'); txAdd(a, { kind: 'overseas', who: a.name, from, to: K.name, note: K.ctry, me: true });
+  newsAdd(a, a.name + ' signs ' + (youth ? 'a youth contract ' : '') + 'with the ' + K.name + ' (' + K.ctry + '): a season in the Overseas League.', 'draft'); tlAdd(a, 'commit', 'Signed abroad: the ' + K.name + ' (' + K.ctry + ')'); txAdd(a, { kind: 'overseas', who: a.name, from, to: K.name, note: K.ctry, me: true });
   amNewSeason(a, rng); return a;
 }
 // A season abroad: eleven clubs' stars, each played once, then a final four (the generic playoffs).
@@ -16632,15 +16766,15 @@ function ovsAfterSeason(c, rng, lines) {
   c.stageYear++; amNewSeason(c, rng); lines.push('Another season with ' + nm + ': finish in the top ' + OVS.top + ' and the PBL calls (after this one it calls anyway).');
 }
 // The offers screen when no PBL franchise calls: three clubs abroad.
-function ovsOffersScreen(game) {
-  const s = game.save.data, a = s.c1; if (!a) return mainMenu(game); const O = ovsOffers(a), P = game.ui.phone, sc = Math.round(amDraftScore(a)), n = O.length, cw = 372, gap = 22, x0 = 640 - (n * cw + (n - 1) * gap) / 2, bh = P ? tapH(game.ui, 56) : 54;
+function ovsOffersScreen(game, youth) {
+  const s = game.save.data, a = s.c1; if (!a) return mainMenu(game); const O = ovsOffers(a).map(o => youth ? Object.assign(o, { youth: true, pay: Math.round(o.pay * OVS.youth.pay) }) : o), P = game.ui.phone, sc = Math.round(amDraftScore(a)), n = O.length, cw = 372, gap = 22, x0 = 640 - (n * cw + (n - 1) * gap) / 2, bh = P ? tapH(game.ui, 56) : 54; /* X9 (3.0 §8): youth: from Signing Day or junior college */
   const items = O.map((o, i) => btn('SIGN WITH THE ' + o.ab, x0 + i * (cw + gap) + 18, (P ? 616 : 606) - bh, cw - 36, bh, () => { ovsSign(a, o); game.save.save(); game.ui.clearTo(amHub(game)); }, { primary: i === 0 }));
-  const back = btn('Back', 40, 648, 180, 44, () => game.ui.replace(amHub(game))); items.push(back); if (P) { phoneBar(game.ui, [back], null, 40, 300); for (const b of items) if (b !== back) b.y = Math.min(b.y, back.y - b.h - 12); }
-  return { widgets: items, name: 'ovsoffers', onBack() { game.ui.replace(amHub(game)); },
+  const back = btn('Back', 40, 648, 180, 44, () => { if (youth) game.ui.pop(); else game.ui.replace(amHub(game)); }); items.push(back); /* X9: from Signing Day, back to it */ if (P) { phoneBar(game.ui, [back], null, 40, 300); for (const b of items) if (b !== back) b.y = Math.min(b.y, back.y - b.h - 12); }
+  return { widgets: items, name: 'ovsoffers', codex: youth ? 'colleges' : undefined, onBack() { game.ui.replace(amHub(game)); },
     draw(ctx, ui) {
-      const P = ui.phone; ui.panel(ctx, 20, 12, 1240, 696); ui.title(ctx, 'NO PBL OFFERS', 44, 56, P ? 34 : 38); ui.para(ctx, 'Scouts\' score ' + sc + ' (the PBL wants ' + OVS.bar + '). Clubs abroad call: a top-' + OVS.top + ' season there brings the PBL.', 1236, 38, P ? 600 : 560, P ? 15 : 14, UI_DIM, 'right', 3);
+      const P = ui.phone; ui.panel(ctx, 20, 12, 1240, 696); ui.title(ctx, youth ? 'PLAY ABROAD' : 'NO PBL OFFERS', 44, 56, P ? 34 : 38); ui.para(ctx, youth ? 'A youth contract: the clubs\' young players (OVR about ' + OVS.youth.mean + '). A top-' + OVS.top + ' season there, or two seasons, brings the PBL.' : 'Scouts\' score ' + sc + ' (the PBL wants ' + OVS.bar + '). Clubs abroad call: a top-' + OVS.top + ' season there brings the PBL.', 1236, 38, P ? 600 : 560, P ? 15 : 14, UI_DIM, 'right', 3);
       O.forEach((o, i) => { const x = x0 + i * (cw + gap), y = 104, h = (P ? 616 : 606) - bh - 12 - y; kitPanel(ctx, x, y, cw, h); ctx.fillStyle = o.colors[0]; ctx.fillRect(x + 2, y + 2, cw - 4, 12); ui.heading(ctx, o.name.toUpperCase(), x + 20, y + 52, P ? 22 : 20, UI_TEXT, 'left', cw - 40); ui.label(ctx, o.ctry, x + 20, y + 84, P ? 17 : 15, UI_DIM, 'left', cw - 40);
-        let yy = y + 128; for (const l of ['You start: their star from day one.', 'Signing bonus ' + fmtMoney(o.pay) + '.', 'Eleven games and a final four. Finish in the top ' + OVS.top + ' and PBL franchises call; after a second season they call anyway.']) yy += ui.para(ctx, l, x + 20, yy, cw - 40, P ? 16 : 14, UI_TEXT, 'left', 6) + 10; });
+        let yy = y + 128; for (const l of [youth ? 'You start: their young star from day one.' : 'You start: their star from day one.', 'Signing bonus ' + fmtMoney(o.pay) + '.', 'Eleven games and a final four. Finish in the top ' + OVS.top + ' and PBL franchises call; after a second season they call anyway.']) yy += ui.para(ctx, l, x + 20, yy, cw - 40, P ? 16 : 14, UI_TEXT, 'left', 6) + 10; });
     } };
 }
 // ---------------- the pros: the league in the background ----------------
@@ -16777,6 +16911,7 @@ function tnCreate(c, key, o) {
   else if (T.fmt === 'groups') tnIntlField(c, T, rng, mean, used, o);
   else if (T.fmt === 'showcase') tnShowField(c, T, rng, mean, used);
   else tnIndField(c, T, rng, mean, used, ev.n || 16, o);
+  if (!pro && c.stage === 'hs') { const pg = recEventProgs(c, key); if (pg.length) T.prog = pg; } /* X9 (3.0 §8): the programs watching */
   tnSetup(c, T, rng); S.list.push(T); tnPrune(c);
   return T;
 }
@@ -16923,7 +17058,7 @@ function tnFinish(c, T) {
   }
   const myId = tnMyId(T), M = T.my; M.place = myId && M.in ? P[myId] || 0 : 0;
   const champN = T.champ ? tnLabel(T, T.champ) : '?'; newsAdd(c, T.fmt === 'showcase' ? tnTitle(T) + ': the ' + (T.won ? 'West' : 'East') + ' wins ' + Math.max(...T.score) + '–' + Math.min(...T.score) + '; MVP ' + tnName(T, T.mvp) + '.' : (T.champ && T.E[T.champ] && T.E[T.champ].me ? tnMyName(c) + (T.medals ? ' wins gold at the ' : ' wins the ') : champN + (T.medals ? ' wins gold at the ' : ' wins the ')) + tnTitle(T) + '.', T.champ && T.E[T.champ] && T.E[T.champ].me ? 'award' : 'league');
-  if (M.in && M.place) { const sitting = M.plays === false; M.rw = tnGrant(c, T.key, M.place, { mul: sitting ? 0.5 : 1, noItem: sitting, T }); if (!sitting || M.place <= 2) newsAdd(c, tnMyName(c) + ' at the ' + tnTitle(T) + ': ' + tnPlaceText(T, M.place, true).replace(/!$/, '') + '.', M.place <= 3 ? 'award' : 'you'); if (M.place === 1 || (T.medals && M.place <= 3)) tlAdd(c, M.place === 1 ? 'title' : 'award', (T.medals ? tnPlaceText(T, M.place, false) + ' medal · ' : T.fmt === 'showcase' ? 'MVP · ' : 'Champion · ') + tnTitle(T)); }
+  if (M.in && M.place) { const sitting = M.plays === false; M.rw = tnGrant(c, T.key, M.place, { mul: sitting ? 0.5 : 1, noItem: sitting, T }); if (!sitting || M.place <= 2) newsAdd(c, tnMyName(c) + ' at the ' + tnTitle(T) + ': ' + tnPlaceText(T, M.place, true).replace(/!$/, '') + '.', M.place <= 3 ? 'award' : 'you'); if (M.place === 1 || (T.medals && M.place <= 3)) tlAdd(c, M.place === 1 ? 'title' : 'award', (T.medals ? tnPlaceText(T, M.place, false) + ' medal · ' : T.fmt === 'showcase' ? 'MVP · ' : 'Champion · ') + tnTitle(T)); const pl = recEventInterest(c, T); if (pl && Array.isArray(M.rw)) M.rw.push(pl); /* X9 (3.0 §8) */ }
   crewPrepEnd(c, T.id); /* 3.0 (§7.5): the prep was for this one */
   tnRow(c, T.key, M.in ? M.place : 0, { s: T.s, y: T.y, n: tnTitle(T), ch: champN, id: T.id, m: T.medals && M.place >= 1 && M.place <= 3 ? M.place : 0 });
   return T;
@@ -17568,7 +17703,7 @@ function crewEffectLines(role, spec, L) {
     case 'skills': return { week: ['+' + pct(v('xp')) + ' XP to ' + sp + ' (practice and games), and ' + pct(v('share')) + ' of what the rest earn', v('ceiling') ? sp + ' ceiling +' + v('ceiling') : sp + ' ceiling +1 at Lv3, +2 at Lv5'], games: [sp + ' signature moves unlock ' + CREW.roles.skills.moves + ' rating point earlier', spec === 'shooting' ? 'the perfect-release window ' + pct(CREW.roles.skills.edge) + ' wider' : spec === 'finishing' ? 'rim makes under a contest +' + pct(CREW.roles.skills.edge) : spec === 'handles' ? 'steals against you −' + pct(CREW.roles.skills.edge) : 'your steals +' + pct(CREW.roles.skills.edge)] };
     case 'strength': return { week: ['+' + pct(v('xp')) + ' XP to Speed, Hops and Strength', v('age') ? 'Hops fades ' + v('age') + ' year' + (v('age') > 1 ? 's' : '') + ' later (caught up at ' + CREW.roles.strength.catchUp + ')' : 'Hops fades 1 year later at Lv3, 2 at Lv5'], games: ['stamina lasts ' + pct(v('stamina')) + ' longer', 'rim makes through contact +' + pct(v('contact'))] };
     case 'physio': return { week: ['fatigue −' + pct(v('fatigue')) + ' a game', 'injury risk −' + pct(v('injury')), 'injuries ' + v('shorter') + ' game' + (v('shorter') > 1 ? 's' : '') + ' shorter', 'aging: each year\'s decline ' + pct(v('fade')) + ' smaller'], games: ['the tired penalty starts ' + v('tired') + ' stamina later'] };
-    case 'scout': return { week: [v('tells') + ' of their tendencies before every game (all at a tournament\'s prep)', 'in high school: the summer events the top programs attend'], games: ['the game plan: +' + pct(v('plan')) + ' makes or steals when you follow it'] };
+    case 'scout': return { week: [v('tells') + ' of their tendencies before every game (all at a tournament\'s prep)', 'in high school: who watches each summer event; Lv' + RCG.summer.scoutLv + '+: AAU invites'], games: ['the game plan: +' + pct(v('plan')) + ' makes or steals when you follow it'] };
     case 'mental': return { week: ['a loss costs ' + pct(v('conf')) + ' less confidence', 'slumps end ' + pct(v('slump')) + ' faster'], games: ['+' + pct(v('clutch')) + ' make chance in the last 15 s, the playoffs and tournament knockouts'] };
     case 'agent': return { week: ['+' + pct(v('raise')) + ' on every contract, ' + pct(v('sponsor')) + ' more from sponsors', 'benched in the pros: a ' + pct(v('callUp')) + ' chance a week they get you the start', 'counteroffers ' + pct(v('odds')) + ' safer, with the odds shown', 'takes ' + pct(v('fee')) + ' of your pay'], games: [] };
     default: return { week: [], games: [] };
@@ -17644,7 +17779,7 @@ function tmNewSeason(c, rng) {
 function tmArchive(c) { const T = c.team; if (!T) return; if (!Array.isArray(c.pastTeams)) c.pastTeams = []; c.pastTeams.push({ kind: T.kind, name: T.name, mascot: T.mascot, colors: T.colors.slice(), w: T.w, l: T.l, titles: T.titles, coach: T.coach ? T.coach.name : '', seasons: T.seasons, mates: T.kind === 'pro' ? undefined : (T.mates || []).slice().sort((a, b) => tmMateOvr(b) - tmMateOvr(a)).slice(0, 4).map(m => ({ name: m.name, style: m.style, height: m.height, r: Object.assign({}, m.r), age: m.age, look: m.look })) }); c.team = null; } /* 2.1 (§3.5, W6): an amateur team's best four are remembered (they may come up to the PBL) */
 // The rival's team (a different school at the same level).
 // The league's other teams: each opponent plays for one (a school in high school, a college in college).
-function amTeamPool(c) { if (c.stage === 'overseas') return OVS.clubs.map(k => k.name).filter(n => !(c.team && c.team.name === n)); if (c.stage === 'college') return COLLEGES.map(q => q.name).filter(n => n !== c.college); return AM_SCHOOLS.filter(n => n !== c.school); } // 2.1: the 64 programs
+function amTeamPool(c) { if (c.stage === 'overseas') return OVS.clubs.map(k => k.name).filter(n => !(c.team && c.team.name === n)); if (c.stage === 'juco') return jucoTeams(c).filter(n => n !== jucoName(c)); if (c.stage === 'college') return COLLEGES.map(q => q.name).filter(n => n !== c.college); return AM_SCHOOLS.filter(n => n !== c.school); } // 2.1: the 64 programs
 function amAssignOppTeams(c, recolor) {
   const L = c.league; if (!L) return; const pool = amTeamPool(c);
   const free = pool; let i = tmHash(c.seed + ':' + c.season + c.stage) % Math.max(1, free.length);
@@ -17941,6 +18076,7 @@ function teamLevel(c) {
     if (!c.squad && c.tryout && c.tryout.step !== 'done') return { kind: 'hs', chip: 'TRYOUTS', fill: 'rgba(94,224,255,0.95)', note: 'the starter plays varsity, the rest JV', caption: 'Tryouts set the depth chart: the starter plays varsity, the rest JV', short: 'varsity is the top team', rungs, at: -1 };
     return c.squad === 'jv' ? { kind: 'hs', chip: 'JV · NOT STARTING', fill: 'rgba(255,138,42,0.95)', note: 'the starter plays varsity', caption: 'You play JV until you start: varsity is the top', short: 'varsity is the top team', rungs, at: 0 } : { kind: 'hs', chip: 'VARSITY · TOP TEAM', fill: 'rgba(255,210,63,0.95)', note: '', caption: 'Varsity is the school\'s top team · JV is the 2nd', short: 'the school\'s top team', rungs, at: 1 }; }
   if (c.stage === 'college') { const n = AMC.tiers.length, t = clamp(c.collegeTier | 0, 0, n - 1), top = AMC.tiers[n - 1].toLowerCase(); return { kind: 'college', chip: AMC.tiers[t].toUpperCase(), fill: TIER_FILL[t], pips: true, note: t === n - 1 ? 'the top level' : top + ' is the top', caption: 'Level ' + (t + 1) + ' of ' + n + (t === n - 1 ? ': the top' : ' · ' + top + ' is the top'), short: t === n - 1 ? 'the top level' : top + ' is the top', rungs: AMC.tiers.map((x, i) => TIER_SHORT[i] || x.toUpperCase()), at: t }; }
+  if (c.stage === 'juco') return { kind: 'juco', chip: 'JUCO', fill: 'rgba(94,224,255,0.95)', note: 'the top ' + JUC.offers[JUC.offers.length - 1][0] + ' get D1 offers', caption: 'Junior college: finish in the top ' + JUC.offers[0][0] + ' and power programs offer', short: 'D1 is next', rungs: ['JUCO', 'D1'], at: 0 }; /* X9 (3.0 §8) */
   if (c.stage === 'overseas') return { kind: 'overseas', chip: 'OVERSEAS', fill: 'rgba(94,224,255,0.95)', note: 'the top ' + OVS.top + ' get PBL offers', caption: 'Abroad: finish in the top ' + OVS.top + ' and the PBL calls', short: 'the PBL is next', rungs: ['ABROAD', 'PBL'], at: 0 };
   return null; // at the combine you are between teams
 }
@@ -18717,7 +18853,7 @@ function formatHarnessTable(rows) {
 // ============================================================================
 const ROAD = CONFIG.road;
 const ROAD_STAGES = ['hs', 'college', 'combine', 'pro'];
-function roadStageIdx(c) { if (isPro(c)) return 3; const s = c && c.stage; return s === 'college' ? 1 : s === 'combine' ? 2 : s === 'pro' ? 3 : 0; }
+function roadStageIdx(c) { if (isPro(c)) return 3; const s = c && c.stage; return s === 'college' || s === 'juco' ? 1 : s === 'combine' || s === 'overseas' ? 2 : s === 'pro' ? 3 : 0; } // (X9: junior college is college's; a season abroad is on the way to the pros)
 function roadOf(c) { const B = c && holderOf(c); if (!B) return null; if (!B.road || typeof B.road !== 'object' || !B.road.done) B.road = { done: {}, missed: {}, init: false }; if (!B.road.missed) B.road.missed = {}; return B.road; }
 function roadNew() { return { done: {}, missed: {}, init: true, v12: true }; } // a new career's track (its first milestone gets its card)
 function roadDef(id) { return ROAD.list.find(r => r.id === id) || null; }
@@ -18780,7 +18916,7 @@ function roadBanner(c) {
     else if (next.id === 'varsity') line = c.squad === 'jv' ? 'On JV: outplay the starter ' + TM.depth.weeks + ' weeks running.' : 'Tryouts set the depth chart; the starter plays varsity.';
     else if (next.id === 'top100') line = c.recruit ? 'National rank ' + c.recruit.nat + ': win, and get seen.' : 'Win, and get seen.';
     else if (next.id === 'offer') line = 'Offers come with your recruit stars (now ' + ((c.recruit && c.recruit.stars) || 1) + '★).';
-    else if (next.id === 'colstart') line = 'Win the depth chart: you are #' + ladderRank(c) + '.';
+    else if (next.id === 'colstart') line = c.stage === 'juco' ? 'Junior college: a top-' + JUC.offers[JUC.offers.length - 1][0] + ' finish brings a transfer offer.' : 'Win the depth chart: you are #' + ladderRank(c) + '.';
     else if (next.id === 'prooffer') line = 'Pro interest: ' + amProStars(c) + '★ franchises.';
     else if (next.id === 'rotation') line = 'Win the depth chart: you are #' + ladderRank(c) + '.';
     else if (next.id === 'team3' || next.id === 'team4' || next.id === 'team5') { const st = next.id === 'team3' ? 3 : next.id === 'team4' ? 4 : 5, bar = FRN.bar[st - 1], v = Math.floor(frValue(c)); line = st + '★ teams sign at value ' + bar + ' · you: ' + v + ' (now ' + frMine(c) + '★)' + (st === 5 && FRN.need5 && !frElite(c) ? ', and a playoff series or All-League first.' : '.'); /* V6 (§1.3) */ frac = Math.max(frac, clamp01(v / bar) * 0.999); }
@@ -18986,7 +19122,15 @@ function wkStudy(B) { const w = wkOf(B); if (w.done) return null; hsFill(B); con
 function hsReportCard(c, when) { return amReportCard(c, when); } // V9: one report card for both levels (172_school.js)
 
 // ---------------- recruiting: stars, the national rank, offers ----------------
-function hsRecruitScore(c) { const last = c.log && c.log.length ? c.log[c.log.length - 1] : null, ppg = last && last.stage === 'hs' ? logPpgN(last) : 0; /* F5 */ return amOvr(c) + 2 * (c.titles || 0) + HS.districtW * (c.districts || 0) + 2 * (c.mvps || 0) + MD.fameRecruit * (c.fame || 0) + TM.trustRecruit * trustOf(c) / 100 + (c.exposure || 0) + HS.ppgW * (ppg - HS.ppgRef) + (c.prep && c.prep.bonus ? (c.prep.bonusPts != null ? c.prep.bonusPts : RCG.prep.bonus) : 0); } /* 2.1 (§2.6): a dominated prep year */
+// The recruiting score's parts (X9, 3.0 §8: interest comes from how you play): your rating, titles, district titles,
+// MVPs, fame, your coach's word, the tournaments (exposure: AAU, State, Nationals, the All-American Game), last
+// season's points a game and your place in the national player ranking (this season's, or the last); a dominated
+// prep year (2.1 §2.6).
+function hsPlayRank(c) { try { const L = c.league, R = c.rk, last = c.log && c.log.length ? c.log[c.log.length - 1] : null; if (L && !L.done && L.week > 0 && R && R.v === 1 && R.lv === 'hs' && R.P && R.P.me) { const r = rkShown(R.P.me.r); if (r) return r; } return last && last.stage === 'hs' ? rkShown(last.prk || 0) : 0; } catch (e) { return 0; } }
+function hsRecruitParts(c) { const last = c.log && c.log.length ? c.log[c.log.length - 1] : null, ppg = last && last.stage === 'hs' ? logPpgN(last) : 0, rk = hsPlayRank(c); /* F5 */
+  return { ovr: amOvr(c), titles: 2 * (c.titles || 0), districts: HS.districtW * (c.districts || 0), mvps: 2 * (c.mvps || 0), fame: MD.fameRecruit * (c.fame || 0), trust: TM.trustRecruit * trustOf(c) / 100, exposure: c.exposure || 0, ppg: HS.ppgW * (ppg - HS.ppgRef), rank: rk ? RCG.play.rank * (RK.top + 1 - rk) / RK.top : 0, prep: c.prep && c.prep.bonus ? (c.prep.bonusPts != null ? c.prep.bonusPts : RCG.prep.bonus) : 0, ppgV: ppg, rankV: rk }; }
+function hsRecruitPartsText(c) { const P = hsRecruitParts(c), f = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1).replace(/\.0$/, ''), out = ['OVR ' + P.ovr]; if (P.exposure) out.push('tournaments ' + f(P.exposure)); if (P.rank) out.push('ranked #' + P.rankV + ' ' + f(P.rank)); if (P.titles + P.districts) out.push('titles ' + f(P.titles + P.districts)); if (P.mvps) out.push('MVPs ' + f(P.mvps)); if (P.ppgV) out.push(P.ppgV.toFixed(1) + ' PPG ' + f(P.ppg)); if (Math.abs(P.fame) >= 0.1) out.push('fame ' + f(P.fame)); if (Math.abs(P.trust) >= 0.1) out.push('your coach ' + f(P.trust)); if (P.prep) out.push('prep year ' + f(P.prep)); return out.join(' · '); } // (the recruiting screen)
+function hsRecruitScore(c) { const P = hsRecruitParts(c); return P.ovr + P.titles + P.districts + P.mvps + P.fame + P.trust + P.exposure + P.ppg + P.rank + P.prep; }
 function hsNatRank(score, yearsLeft) { const z = (score + HS.classAdj * Math.max(0, yearsLeft || 0) - HS.recruitMean) / HS.recruitSd; return Math.max(1, Math.round(HS.classSize * (1 - normCdf(z))) + 1); }
 function hsStars(rank) { const S = HS.stars; return rank <= S[0] ? 5 : rank <= S[1] ? 4 : rank <= S[2] ? 3 : rank <= S[3] ? 2 : 1; }
 function hsStarText(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
@@ -19012,8 +19156,9 @@ const HS_SUMMER_INFO = {
 function hsSummerStart(c) { hsFill(c); c.summer = { pending: true, year: c.stageYear, season: c.season }; }
 // This summer's events: [{ key, ok (you can go), why }].
 function hsSummerEvents(c) {
-  const S = c.summer || {}, rank = tnMyRank(c), out = ['aau1', 'aau2', 'aau3'].map(key => ({ key, ok: true, why: 'Open: ' + ['local', 'state', 'national'][TNE[key].tier] + ' level' }));
-  const inv = rank > 0 && rank <= TNE.camp.invite; out.push({ key: 'camp', ok: inv, why: inv ? 'Invited: #' + rank + ' nationally' : 'By invitation: the top ' + TNE.camp.invite + ' nationally' });
+  const S = c.summer || {}, rank = tnMyRank(c), sc = recScoutInvites(c), nat = c.recruit ? c.recruit.nat : HS.classSize, out = ['aau1', 'aau2'].map(key => ({ key, ok: true, why: 'Open: ' + ['local', 'state', 'national'][TNE[key].tier] + ' level' }));
+  { const by = nat <= RCG.summer.aau3 ? 'a ' + hsStars(nat) + '★ recruit (#' + nat + ')' : rank > 0 && rank <= RK.top ? '#' + rank + ' in the player ranking' : null; out.push({ key: 'aau3', ok: !!(by || sc), inv: !by && !!sc, why: by ? 'Invited: ' + by : sc ? 'Invited by your scout (' + sc + ')' : 'By invitation: the top ' + RCG.summer.aau3 + ' recruits and the top ' + RK.top + ' players (or a Lv' + RCG.summer.scoutLv + ' scout)' }); } /* X9 (3.0 §8): the best AAU events are invitation-only */
+  const inv = rank > 0 && rank <= TNE.camp.invite; out.push({ key: 'camp', ok: inv || !!sc, inv: !inv && !!sc, why: inv ? 'Invited: #' + rank + ' nationally' : sc ? 'Invited by your scout (' + sc + ')' : 'By invitation: the top ' + TNE.camp.invite + ' nationally (or a Lv' + RCG.summer.scoutLv + ' scout)' });
   if ((S.year === 2 || S.year === 3) && tnYouthYear(c, 'u17')) { const pk = rank > 0 && rank <= TNE.u17.pick; out.push({ key: 'u17', ok: pk, why: pk ? 'Picked for ' + TN.home + ' (#' + rank + ')' : TN.home + ' takes its top ' + TNE.u17.pick }); }
   return out;
 }
@@ -19194,20 +19339,28 @@ function summerScreen(game) {
       ui.label(ctx, head, 60, 102, 15, UI_TEXT, 'left', P ? 740 : 1160);
       const hy = P ? 122 : 140; if (!P) kitHeader(ctx, 'EVENTS · PICK ANY', 60, hy, 400); const py = plB.length ? plB[0].y - (P ? 22 : 20) : 0; kitHeader(ctx, 'THE REST OF THE SUMMER', 60, py, P ? 760 : 400);
       const x = P ? 830 : 500, w = P ? 400 : 720; let y = P ? 140 : 160; const sel = st.sel, E = av.find(e => e.key === sel);
-      if (E) { kitHeader(ctx, (tnEv(sel).name || sel).toUpperCase(), x, y - 20, w); for (const l of [E.why].concat(evLine(sel))) y += ui.para(ctx, l, x, y + 8, w, P ? 15 : 16, l === E.why ? (E.ok ? UI_GREEN : UI_ORANGE) : UI_TEXT, 'left', P ? 3 : 2) + 10; }
+      if (E) { kitHeader(ctx, (tnEv(sel).name || sel).toUpperCase(), x, y - 20, w); for (const l of [E.why].concat(evLine(sel))) y += ui.para(ctx, l, x, y + 8, w, P ? 15 : 16, l === E.why ? (E.ok ? UI_GREEN : UI_ORANGE) : UI_TEXT, 'left', P ? 3 : 2) + (P ? 6 : 10); drawSummerProgs(ctx, ui, c, sel, x, y + (P ? 14 : 18), w); } /* X9 (3.0 §8): your scout's read */
       else { const I = HS_SUMMER_INFO[sel] || HS_SUMMER_INFO.rest; kitHeader(ctx, I.title, x, y - 20, w); for (const l of I.lines(c)) y += ui.para(ctx, l, x, y + 8, w, P ? 15 : 16, UI_TEXT, 'left', 3) + 10; }
       const n = st.ev.length, sum = (n ? n + ' event' + (n > 1 ? 's' : '') + ' (fatigue +' + n * TN.summer.fatigue + ')' : 'No events') + ' · ' + HS_SUMMER_INFO[st.plan].title.toLowerCase();
       if (!P) ui.label(ctx, 'Your summer: ' + sum, 1220, 580, 15, UI_GOLD, 'right', 700);
     } };
 }
 
+// X9 (3.0 §8): the programs at a summer event. Your scout (from the junior year) names them; without one they're a
+// surprise. Playing there moves their interest by your place either way.
+function drawSummerProgs(ctx, ui, c, key, x, y, w) {
+  const P = ui.phone, ids = recEventProgs(c, key), M = crewMember(c, 'scout'), B = RCG.summer.byPlace, fs = P ? 15 : 14; if (!ids.length) return y; kitHeader(ctx, 'Programs here', x, y, w); y += P ? 12 : 14;
+  y += ui.para(ctx, M ? ids.map(id => colProg(id).name.replace(/ University$/, '') + ' ' + colProg(id).stars + '★').join(' · ') : 'A scout (your crew, from your junior year) would know.', x, y + 6, w, fs, M ? UI_CYAN : UI_DIM, 'left', 4) + 4;
+  return y + ui.para(ctx, 'Playing here: interest +' + B[B.length - 1][1] + ' (the title +' + B[0][1] + ').', x, y + 6, w, fs - 1, UI_DIM, 'left', 2);
+}
 // --- recruiting: where you stand (2.1 §2.2: every offer's status, warnings and pulls; the log) ---
 function recOfferStatus(c, o) {
   const R = c.rec || {}, W = (R.warn || {})[o.pid || o.name] || {}, req = schoolOfferReq(o);
   if (o.pulled) return ['PULLED: ' + recWhyText(o.why || 'gpa'), UI_RED];
   if (R.commit && R.commit.pid && R.commit.pid === o.pid) return ['COMMITTED (verbal) · ' + schoolTierLabel(o), UI_GOLD];
   if (o.cond) return o.cond.met ? ['Condition met: final · ' + schoolTierLabel(o), UI_GREEN] : ['Conditional: GPA ' + o.cond.gpa.toFixed(1) + ' by your senior finals', UI_ORANGE];
-  const wk = Object.keys(W); if (wk.length) return ['Warning: ' + wk.map(recWhyText).join(', '), UI_ORANGE];
+  const wk = Object.keys(W).filter(k => k !== 'spot' || !recHeld(c, o.pid)); if (wk.length) { const D = W.spot != null && o.pid ? recDeadline(c, o.pid) : null; return [D ? 'Last spot goes after game ' + D.g + (D.y === (c.stageYear || 1) ? '' : ' (senior year)') + ': commit before' : 'Warning: ' + wk.map(recWhyText).join(', '), UI_ORANGE]; }
+  if (o.pid && recHeld(c, o.pid)) return ['Held through Signing Day · ' + schoolTierLabel(o), UI_GREEN]; /* X9 (3.0 §8): a top target */
   return [schoolTierLabel(o) + ' · GPA ' + req.toFixed(1) + '+' + (o.pid ? ' · spots left ' + colSpots(c, o.pid).left : ''), (c.gpa || 0) < req + 0.2 ? UI_ORANGE : UI_DIM]; /* V9: orange: you're close to its GPA line */
 }
 function recruitingScreen(game) {
@@ -19220,11 +19373,12 @@ function recruitingScreen(game) {
     ui.heading(ctx, hsStarText(r.stars), 60, 128, 34, UI_GOLD); ui.heading(ctx, hsRankText(r).toUpperCase(), 60, 172, 20, r.nat <= 100 ? UI_GREEN : UI_TEXT, 'left', 520);
     ui.label(ctx, 'Class: ' + HS.classSize.toLocaleString() + ' players · GPA ' + c.gpa.toFixed(2) + ' (' + hsGpaLetter(c.gpa) + ')', 60, 204, P ? 16 : 14, UI_DIM, 'left', 520);
     kitHeader(ctx, 'How offers come', 60, 236, 520); let y = 262; const cm = R && R.commit && colProg(R.commit.pid);
-    const lines = [cm ? 'Committed to ' + cm.name + ' (verbal): the other programs stop rising. Signing Day makes it binding.' : 'From your junior year, a program with interest ' + COLG.stages[2] + '+ and a scholarship spot open offers some week; a spot goes to whoever commits first.', 'Pulled: grades under its line, a long injury or a filled spot. A warning comes first.'].concat(R && recOpen(c) ? ['Official visits ' + R.off.length + ' of ' + RCG.official.max + '.'] : []);
+    const lines = [cm ? 'Committed to ' + cm.name + ' (verbal): the other programs stop rising. Signing Day makes it binding.' : 'From your junior year, a program with interest ' + COLG.stages[2] + '+ and a spot open offers some week. A top target\'s spot is held; for the rest, the first to commit gets it.', 'Pulled: grades under its line, a long injury or a filled spot. A warning comes first.'].concat(R && recOpen(c) ? ['Official visits ' + R.off.length + ' of ' + RCG.official.max + '.'] : []);
     for (const l of lines) y += ui.para(ctx, l, 60, y, 520, P ? 15 : 13, UI_TEXT, 'left', 4) + 8;
+    if (c.stage === 'hs') { kitHeader(ctx, 'What the scouts count', 60, y + 10, 520); y += 30; y += ui.para(ctx, hsRecruitPartsText(c), 60, y, 520, P ? 15 : 13, UI_CYAN, 'left', 3) + 8; } /* X9 (3.0 §8): how you play */
     const byYear = {}; for (const e of c.rankLog || []) byYear[e.year || 1] = e; const yrs = Object.keys(byYear).sort(); if (yrs.length && y < 520) { kitHeader(ctx, 'Your rank by year', 60, y + 10, 520); yrs.forEach((k, i) => { const e = byYear[k]; ui.label(ctx, AM_CLASS[Math.min(3, k - 1)] + ': ' + e.stars + '★ · #' + e.nat, 60 + (i % 2) * 280, y + 36 + Math.floor(i / 2) * 22, P ? 15 : 13, UI_TEXT, 'left', 272); }); } /* the latest rank each year */
     const x = P ? 620 : 640, w = P ? 600 : 580, A = all(), live = A.filter(o => !o.pulled).length, n = pages(); st.page = clamp(st.page, 0, n - 1); kitHeader(ctx, 'Offers (' + live + (A.length > live ? ' · ' + (A.length - live) + ' pulled' : '') + ')' + (n > 1 ? ' · ' + (st.page + 1) + '/' + n : ''), x, 96, w);
-    if (!A.length) ui.para(ctx, 'No offers yet. Win, put up numbers, reach out (the Recruit tab: film, emails, camps, visits); offers start in your junior year.', x, 124, w, P ? 18 : 15, UI_DIM, 'left', 5);
+    if (!A.length) ui.para(ctx, 'No offers yet. Win, put up numbers, and shine in the big games and the summer events: scouts are watching. Camps and visits are on the Recruit tab; offers start in your junior year.', x, 124, w, P ? 18 : 15, UI_DIM, 'left', 5);
     const rh = P ? 84 : 52; A.slice(st.page * per, st.page * per + per).forEach((o, i) => { const yy = (P ? 140 : 132) + i * rh, S = recOfferStatus(c, o); ctx.fillStyle = o.colors[0]; ctx.fillRect(x, yy - 14, 12, 28); ctx.fillStyle = o.colors[1]; ctx.fillRect(x + 12, yy - 14, 4, 28); ui.heading(ctx, o.name, x + 26, yy - (P ? 12 : 8), P ? 22 : 16, o.pulled ? UI_DIM : UI_TEXT, 'left', w - 40); ui.label(ctx, S[0], x + 26, yy + (P ? 20 : 13), P ? 17 : 12, S[1], 'left', w - 40); });
   } };
 }
@@ -19433,7 +19587,7 @@ function collegeBrowserScreen(game) {
   const prev = btn('◀ Prev', 0, 0, 0, 0, () => { st.page = (st.page - 1 + pages) % pages; }), next = btn('Next ▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages; }), back = btn('Back', 0, 0, 0, 0, () => ui.pop());
   const rows = Array.from({ length: per }, (_, i) => colRowWidget(game, c, () => list[st.page * per + i] || null, () => list)), rx = P ? 104 : 120;
   if (P) { rows.forEach((r, i) => Object.assign(r, { x: rx, y: 70 + i * (TH + 8), w: 1256 - rx, h: TH })); phoneBar(ui, [prev, next, back], [1, 1, 1], 24, 1232); }
-  else { rows.forEach((r, i) => Object.assign(r, { x: rx, y: 136 + i * 60, w: 1120, h: 54 })); Object.assign(prev, { x: rx, y: 630, w: 150, h: 44 }); Object.assign(next, { x: 1090, y: 630, w: 150, h: 44 }); Object.assign(back, { x: 40, y: 650, w: 200, h: 44 }); if (pages < 2) prev.hidden = next.hidden = true; }
+  else { rows.forEach((r, i) => Object.assign(r, { x: rx, y: 136 + i * 60, w: 1120, h: 54 })); Object.assign(back, { x: 40, y: 640, w: 180, h: 46 }); Object.assign(prev, { x: 236, y: 640, w: 150, h: 46 }); Object.assign(next, { x: 1090, y: 640, w: 150, h: 46 }); if (pages < 2) prev.hidden = next.hidden = true; } /* X9: Back sat on top of ◀ Prev */
   return { widgets: rows.concat([prev, next, back]), name: 'colbrowser', codex: 'colleges',
     draw(ctx, ui) { const Ph = ui.phone; ui.panel(ctx, 20, 14, 1240, 692);
       rows.forEach((r, i) => { const k = st.page * per + i; if (list[k]) ui.heading(ctx, '#' + (k + 1), rx - 12, r.y + r.h / 2, Ph ? 24 : 18, k < 8 ? UI_GOLD : UI_TEXT, 'right', rx - 40); });
@@ -19441,7 +19595,7 @@ function collegeBrowserScreen(game) {
       ui.title(ctx, 'COLLEGES', 50, 56, 34); ui.label(ctx, COLLEGES.length + ' programs, ranked · ' + COL_CONFS.length + ' conferences of ' + CO.conference, 1236, 58, 14, UI_DIM, 'right', 520);
       ui.label(ctx, c ? (hs ? 'You: ' + hsStarText(c.recruit ? c.recruit.stars : 1) + ' · ' + hsRankText(c.recruit) + ' · GPA ' + (c.gpa || 0).toFixed(2) : 'You play for ' + c.college + ' (' + colConfName(c) + ').') : 'Every program in the country.', 50, 94, 14, UI_GOLD, 'left', 1180);
       const hy = 124, C = COLB_COLS; for (const [t, x] of [['RANK', -rx + 50], ['PROGRAM', C.a], ['CONFERENCE', C.b], ['STARS', C.c]].concat(hs ? [['INTEREST', C.d]] : [])) ui.label(ctx, t, rx + x, hy, 11, UI_CYAN, 'left', 150);
-      ui.label(ctx, 'Page ' + (st.page + 1) + ' / ' + pages, 680, 652, 14, UI_DIM, 'center', 520); } };
+      ui.label(ctx, 'Page ' + (st.page + 1) + ' / ' + pages, 740, 663, 14, UI_DIM, 'center', 520); } };
 }
 // ---------------- a program's page ----------------
 const COLP_VIEWS = ['Your chances', 'Coach & school', 'Team & history'];
@@ -19491,7 +19645,7 @@ function colDrawProgramPage(ctx, ui, c, P, view) {
     const v = colInterest(c, P.id), S = colSpots(c, P.id), of = !!colOfferOf(c, P.id), vc = colStageColor(v, of), St = COLG.stages; ui.heading(ctx, String(v), x, yy + (Ph ? 10 : 8), Ph ? 44 : 36, vc, 'left', 120); ctx.font = fontStr(Ph ? 44 : 36, true); const nw = ctx.measureText(String(v)).width;
     const mine = !!S.mine; ui.label(ctx, '/ 100 · ' + (mine ? 'you\'re committed' : of ? 'they offered you' : colStage(v, S.left)), x + nw + 10, yy + (Ph ? 12 : 10), Ph ? 20 : 14, vc, 'left', w - nw - 10); yy += Ph ? 44 : 36; meterBar(ctx, x, yy, w, Ph ? 14 : 10, v / 100, vc);
     yy += Ph ? 30 : 24; const bands = [[St[0], St[1], 'watch'], [St[1], St[2], 'contact'], [St[2], 100, 'offer']]; for (const [k0, k1, t] of bands) { const tx = x + w * k0 / 100; ctx.fillStyle = 'rgba(243,240,255,0.55)'; ctx.fillRect(Math.round(tx), yy - (Ph ? 30 : 24), 2, Ph ? 14 : 10); ui.label(ctx, t, x + w * (k0 + k1) / 200, yy, Ph ? 15 : 11, v >= k0 ? vc : UI_DIM, 'center', w * 0.25); } /* each stage's word in the middle of its band */ yy += Ph ? 38 : 30;
-    const earned = (recOf(c).earned[P.id] || 0); ui.heading(ctx, 'Spots left: ' + S.left + ' of ' + S.total, x, yy, fs + 1, mine ? UI_GOLD : S.left ? UI_TEXT : UI_RED, 'left', w); yy += Ph ? 28 : 22; ui.label(ctx, mine ? 'One is yours (committed).' : earned ? 'Your contact: +' + Math.round(earned) + ' (it fades)' : 'Your contact: none yet', x, yy, Ph ? 17 : 12, mine ? UI_GOLD : UI_DIM, 'left', w); yy += Ph ? 32 : 28;
+    const earned = (recOf(c).earned[P.id] || 0); ui.heading(ctx, 'Spots left: ' + S.left + ' of ' + S.total, x, yy, fs + 1, mine ? UI_GOLD : S.left ? UI_TEXT : UI_RED, 'left', w); yy += Ph ? 28 : 22; const Dl = !mine && of && !recHeld(c, P.id) ? recDeadline(c, P.id) : null; ui.label(ctx, mine ? 'One is yours (committed).' : recHeld(c, P.id) ? 'Held for you through Signing Day' : Dl && Dl.soon ? 'Last spot: after game ' + Dl.g + (Dl.y === (c.stageYear || 1) ? ' this season' : ' of your senior season') : earned ? 'Earned (camps, visits, games): +' + Math.round(earned) : 'Earned (camps, visits, games): none yet', x, yy, Ph ? 17 : 12, mine || recHeld(c, P.id) ? UI_GOLD : Dl && Dl.soon ? UI_ORANGE : UI_DIM, 'left', w); yy += Ph ? 32 : 28; /* X9 (3.0 §8) */
     for (const r of S.recruits.slice(0, Ph ? 3 : 5)) { const tag = r.status === 'committed' ? 'committed' : r.status === 'elsewhere' ? 'elsewhere' : 'chasing', sn = colShortName(r.name), nm = Ph ? r.name : sn.length > 13 ? r.name.split(' ').slice(-1)[0] : sn, nx = Ph ? w * 0.5 : 176; ui.label(ctx, nm, x, yy, fs, r.status === 'elsewhere' ? UI_DIM : UI_TEXT, 'left', nx - 8); drawStarsTxt(ctx, r.stars, x + nx, yy, fs, 'left'); ui.label(ctx, tag, x + w, yy, Ph ? 16 : 12, r.status === 'committed' ? UI_RED : r.status === 'elsewhere' ? UI_DIM : UI_CYAN, 'right', Ph ? w * 0.26 : 120); yy += Ph ? 30 : 24; }
     return yy; };
   if (Ph) { const x = 40, w = 1200, y = 172; if (view === 0) { const b = chanceBlock(x, y, 760); ui.label(ctx, colCoachTitle(co), 820, y + 40, 19, UI_CYAN, 'left', 420); ui.label(ctx, 'Style: ' + COL_SYS[co.sys].label, 820, y + 76, 19, UI_CYAN, 'left', 420); ui.label(ctx, colTierLabel(P) + ' · ' + COL_NIL_WORD[P.nil] + ' NIL market', 820, y + 112, 19, UI_DIM, 'left', 420); if (co.hot) ui.label(ctx, 'On the hot seat', 820, y + 148, 19, UI_RED, 'left', 420); return b; }
@@ -19624,7 +19778,7 @@ function recWhyText(why) { return { gpa: 'grades', injury: 'injury', interest: '
 // The parts of a program's interest, two short lines (its page and the action sheet).
 function recPartsLines(c, id) {
   const I = recInterestParts(c, id); if (!I) return []; const sg = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v));
-  const out = ['Fit with your level ' + Math.round(I.fit) + ' · coach ' + sg(I.coach) + ' · home ' + sg(I.home), 'Camps and visits ' + sg(I.earned) + ' · competition ' + sg(I.competition)];
+  const out = ['Fit with your level ' + Math.round(I.fit) + ' · coach ' + sg(I.coach) + ' · home ' + sg(I.home), 'Camps, visits, games ' + sg(I.earned) + ' · competition ' + sg(I.competition)];
   if (I.frozen != null) out.push('Held at ' + I.frozen + ': you\'re committed elsewhere'); else if (I.gpaCap != null) out.push('At most ' + I.gpaCap + ': under their GPA line (' + recGpaFloor(colProg(id)).toFixed(1) + ')'); else if (I.yearCap != null) out.push('A ' + AM_CLASS[clamp((c.stageYear || 1) - 1, 0, 3)].toLowerCase() + ' is ' + ((c.stageYear || 1) <= 1 ? 'watched' : 'contacted') + ' at most');
   return out;
 }
@@ -19646,7 +19800,7 @@ function recActionScreen(game, id) {
     const R = recOf(c), why = k => recWhyNot(c, k, id), set = (b, w, note) => { b.enabled = !w; b.note = w || note; }, sm = !!(c.summer && c.summer.pending);
     set(A.camp, why('camp'), '$' + RCG.camp.cost + ' · +' + RCG.camp.gain + ' here · +' + RCG.camp.conf + ' across the ' + COL_CONFS[P.conf].short);
     set(A.unofficial, why('unofficial'), '+' + RCG.unofficial + ' · ' + (sm ? 'a summer trip' : 'it takes this week (no practice)'));
-    set(A.official, why('official'), '+' + RCG.official.gain + ' · playing time, NIL, facilities, academics, the coach · ' + R.off.length + ' of ' + RCG.official.max + ' used');
+    set(A.official, why('official'), '+' + RCG.official.gain + ' · one summary of the program · ' + R.off.length + ' of ' + RCG.official.max + ' used');
     const mine = R.commit && R.commit.pid === id; A.commit.label = mine ? 'Decommit' : Ph ? 'Commit here' : 'Commit to ' + P.name; A.commit.primary = false;
     if (mine) set(A.commit, R.commit.signed ? 'You signed' : c.decision ? 'Signing Day: sign or pick another' : null, 'A flip: fame −' + RCG.flip.fame);
     else { const w = c.decision ? 'Signing Day: sign on its screen' : recCommitWhyNot(c, id); set(A.commit, w === 'No offer from them' ? 'Needs their offer first' : w, R.commit ? 'A flip from ' + colProg(R.commit.pid).name + ' (fame −' + RCG.flip.fame + ')' : 'A verbal commitment: binding on Signing Day'); A.commit.primary = !w; }
@@ -19663,7 +19817,8 @@ function recDrawStanding(ctx, ui, c, P, x, y, w) {
   ui.label(ctx, '/ 100 · ' + colStage(v, S.left, !!o, mine), x + nw + 10, yy + 2, Ph ? 20 : 14, vc, 'left', w - nw - 10); yy += Ph ? 34 : 28; meterBar(ctx, x, yy, w, Ph ? 14 : 10, v / 100, vc); yy += Ph ? 34 : 26;
   for (const l of recPartsLines(c, P.id)) { ui.label(ctx, l, x, yy, Ph ? 17 : 12, UI_DIM, 'left', w); yy += Ph ? 26 : 19; }
   kitHeader(ctx, 'Your status', x, yy + 10, w); yy += Ph ? 46 : 38;
-  const lines = [[mine ? 'You\'re committed here (verbal)' : o ? 'They offered you a scholarship' : 'No offer yet' + (v >= COLG.stages[2] ? ': any week now' : ''), mine || o ? UI_GOLD : UI_TEXT], ['Spots left: ' + S.left + ' of ' + S.total + (mine ? ' (one is yours)' : ''), S.left || mine ? UI_TEXT : UI_RED]];
+  const hd = !mine && recHeld(c, P.id), Dl = o && !mine && !hd ? recDeadline(c, P.id) : null, lines = [[mine ? 'You\'re committed here (verbal)' : o ? 'They offered you a scholarship' : 'No offer yet' + (v >= COLG.stages[2] ? ': any week now' : ''), mine || o ? UI_GOLD : UI_TEXT], ['Spots left: ' + S.left + ' of ' + S.total + (mine ? ' (one is yours)' : hd ? ' (one held for you)' : ''), S.left || mine || hd ? UI_TEXT : UI_RED]];
+  if (hd) lines.push(['Held through Signing Day: you\'re a top target', UI_GREEN]); else if (Dl) lines.push(['Last spot: after game ' + Dl.g + (Dl.y === (c.stageYear || 1) ? ' this season' : ' of your senior season'), Dl.soon ? UI_ORANGE : UI_DIM]); /* X9 (3.0 §8) */
   if (o && o.cond) lines.push([o.cond.met ? 'Conditional offer: the condition is met' : 'Conditional: GPA ' + o.cond.gpa.toFixed(1) + ' by senior finals (' + (c.gpa || 0).toFixed(2) + ')', o.cond.met ? UI_GREEN : UI_ORANGE]);
   const W = o && R.warn[o.pid || o.name]; if (W && Object.keys(W).length) lines.push(['Warned: ' + Object.keys(W).map(recWhyText).join(', '), UI_ORANGE]);
   lines.push(['Official visits ' + R.off.length + ' of ' + RCG.official.max + ' · here: ' + (R.off.includes(P.id) ? 'visited' : R.unoff.includes(P.id) ? 'unofficial' : 'not yet') + (R.camps.includes(P.id) ? ', camp' : ''), UI_DIM]);
@@ -19709,22 +19864,24 @@ function recSigningScreen(game) { // (2.1: the college Signing Day; signingScree
   const at = i => offers[st.page * per + i] || null, row = i => ({ kind: 'custom', label: 'Sign', x: 0, y: 0, w: 0, h: 0, enabled: true, get offer() { return at(i); }, onPress() { const o = at(i); if (o) sign(o); },
     draw(ctx, focused, ui) { const o = this.offer; if (!o) return; this.label = 'Sign: ' + o.name; try { recDrawSignRow(ctx, ui, c, o, this.x, this.y, this.w, this.h, focused, R.commit && R.commit.pid === o.pid); } catch (e) { /* a row is decoration */ } } });
   const rows = Array.from({ length: per }, (_, i) => row(i)), prev = btn('◀ Prev', 0, 0, 0, 0, () => { st.page = (st.page - 1 + pages()) % pages(); }), next = btn('Next ▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages(); });
-  const walk = btn(Ph ? 'Walk on' : 'Walk on somewhere', 0, 0, 0, 0, () => ui.push(recWalkOnScreen(game)), { primary: !offers.length && !d.prepOk }), prep = btn(Ph ? 'Prep year' : 'A prep year', 0, 0, 0, 0, () => ui.push(confirmScreen(game, 'A prep year at a school near home? One more season: dominate it and the offers come back.', () => { recPrepYear(c, amRng(c)); game.save.save(); ui.clearTo(amHub(game)); })), { primary: !offers.length, hidden: !d.prepOk });
-  const pro = btn(Ph ? 'Turn pro' : 'Skip college: turn pro', 0, 0, 0, 0, () => sign(skip), { hidden: !skip }), back = btn('Back', 0, 0, 0, 0, () => ui.pop()), roads = [walk, prep, pro];
+  const walk = btn(Ph ? 'Walk on' : 'Walk on somewhere', 0, 0, 0, 0, () => ui.push(recWalkOnScreen(game)), { primary: !offers.length && !d.prepOk && !!jucoWhyNot(c) }), prep = btn(Ph ? 'Prep year' : 'A prep year', 0, 0, 0, 0, () => ui.push(confirmScreen(game, 'A prep year at a school near home? One more season: dominate it and the offers come back.', () => { recPrepYear(c, amRng(c)); game.save.save(); ui.clearTo(amHub(game)); })), { primary: !offers.length, hidden: !d.prepOk });
+  const jw = jucoWhyNot(c), juco = btn(Ph ? (d.juco ? 'JUCO again' : 'JUCO') : d.juco ? 'Another JUCO year' : 'Junior college', 0, 0, 0, 0, () => ui.push(confirmScreen(game, d.juco ? 'Another season at ' + jucoName(c) + '? A better finish brings better offers.' : 'A season at a junior college? Then programs offer you as a transfer.', () => { jucoGo(c); game.save.save(); ui.clearTo(amHub(game)); })), { hidden: !!jw, primary: !offers.length && !d.prepOk }), abroad = btn(Ph ? 'Abroad' : 'Play abroad', 0, 0, 0, 0, () => ui.push(ovsOffersScreen(game, true)), { hidden: !d.none }); /* X9 (3.0 §8): no offer: junior college or a club abroad */
+  const pro = btn(Ph ? 'Turn pro' : 'Skip college: turn pro', 0, 0, 0, 0, () => sign(skip), { hidden: !skip }), back = btn('Back', 0, 0, 0, 0, () => ui.pop()), roads = [walk, prep, juco, abroad, pro], nr = roads.filter(b => !b.hidden).length;
   let items;
-  if (Ph) { prev.label = '◀'; next.label = '▶'; rows.forEach((r, i) => Object.assign(r, { x: 24, y: 140 + i * (TH + 8), w: 1232, h: TH })); items = rows.concat([prev, next], roads, [back]); }
-  else { rows.forEach((r, i) => Object.assign(r, { x: 40, y: 150 + i * 76, w: 820, h: 68 })); Object.assign(prev, { x: 40, y: 620, w: 150, h: 44 }); Object.assign(next, { x: 710, y: 620, w: 150, h: 44 }); column(roads.filter(b => !b.hidden), 890, 420, 350, 50, 10); Object.assign(back, { x: 1040, y: 650, w: 200, h: 44 }); items = rows.concat(roads, [prev, next, back]); }
+  if (Ph) { prev.label = '◀'; next.label = '▶'; rows.forEach((r, i) => Object.assign(r, { x: 24, y: 140 + i * (TH + 8), w: 1232, h: TH })); if (!offers.length) phoneGrid(ui, roads, 24, 330, 1232, Math.max(1, Math.min(4, nr)), 0, 8); /* no offer: the roads in a row under the words; else in the bar */ items = rows.concat([prev, next], roads, [back]); }
+  else { rows.forEach((r, i) => Object.assign(r, { x: 40, y: 150 + i * 76, w: 820, h: 68 })); Object.assign(prev, { x: 40, y: 620, w: 150, h: 44 }); Object.assign(next, { x: 710, y: 620, w: 150, h: 44 }); column(roads.filter(b => !b.hidden), 890, !offers.length ? 196 : nr > 3 ? 318 : 420, 350, nr > 3 ? 46 : 50, nr > 3 ? 8 : 10); Object.assign(back, { x: 1040, y: 650, w: 200, h: 44 }); items = rows.concat(roads, [prev, next, back]); }
   const scr = { widgets: items, name: 'signing', codex: 'colleges',
-    update() { const n = pages(); st.page = clamp(st.page, 0, n - 1); rows.forEach((r, i) => { const o = at(i); r.hidden = !o; if (o) r.label = 'Sign: ' + o.name; }); prev.hidden = next.hidden = n < 2; if (Ph) phoneBar(ui, [prev, next].concat(roads, [back]), [0.5, 0.5, 1, 1, 1, 1], 24, 1232); },
-    draw(ctx, ui) { ui.panel(ctx, 20, 14, 1240, 692); const n = pages(), cm = R.commit && colProg(R.commit.pid);
-      ui.title(ctx, 'SIGNING DAY', Ph ? 36 : 50, Ph ? 46 : 56, Ph ? 30 : 38); const you = 'OVR ' + amOvr(c) + ' · ' + hsStarText(c.recruit ? c.recruit.stars : 1) + ' ' + hsRankText(c.recruit) + ' · GPA ' + (c.gpa || 0).toFixed(2);
-      if (Ph) { ui.label(ctx, you, 1244, 44, 18, UI_GOLD, 'right', 700); ui.label(ctx, offers.length ? 'Binding: tap a program to sign.' + (n > 1 ? ' Page ' + (st.page + 1) + ' / ' + n + '.' : '') : 'No scholarship offers: walk on, or ' + (d.prepOk ? 'a prep year.' : 'turn pro.'), 40, 104, 20, offers.length ? UI_TEXT : UI_ORANGE, 'left', 1200); if (!offers.length) ui.para(ctx, 'A walk-on: any program whose GPA line you meet, no scholarship (you pay the tuition), the bottom of its depth chart.' + (d.prepOk ? ' A prep year: one more season; dominate it and the offers come back.' : ''), 40, 160, 1200, 20, UI_TEXT, 'left', 6); return; }
-      ui.label(ctx, you, 50, 94, 15, UI_GOLD, 'left', 820); ui.label(ctx, offers.length ? 'Tap an offer to sign: binding, the hat you pick is where you play.' : 'No scholarship offers.', 50, 122, 14, offers.length ? UI_TEXT : UI_ORANGE, 'left', 820);
+    update() { const n = pages(); st.page = clamp(st.page, 0, n - 1); rows.forEach((r, i) => { const o = at(i); r.hidden = !o; if (o) r.label = 'Sign: ' + o.name; }); prev.hidden = next.hidden = n < 2; if (Ph) { if (offers.length) phoneBar(ui, [prev, next].concat(roads, [back]), [0.5, 0.5, 1, 1, 1, 1, 1, 1], 24, 1232); else phoneBar(ui, [prev, next, back], [0.5, 0.5, 1], 24, 1232); } },
+    draw(ctx, ui) { ui.panel(ctx, 20, 14, 1240, 692); const n = pages(), cm = !d.juco && R.commit && colProg(R.commit.pid), J = d.juco && c.juco && c.juco.last; /* X9 (3.0 §8): a JUCO season's offers too */
+      ui.title(ctx, d.juco ? 'TRANSFER OFFERS' : 'SIGNING DAY', Ph ? 36 : 50, Ph ? 46 : 56, Ph ? 30 : 38); const you = 'OVR ' + amOvr(c) + ' · ' + (d.juco ? (J ? '#' + J.place + ' in the JUCO Conference' : jucoName(c)) : hsStarText(c.recruit ? c.recruit.stars : 1) + ' ' + hsRankText(c.recruit)) + ' · GPA ' + (c.gpa || 0).toFixed(2);
+      const roadsText = (d.juco ? '' : 'A walk-on: any program whose GPA line you meet, no scholarship (you pay the tuition), the bottom of its depth chart.') + (d.juco ? 'A walk-on (your JUCO credits meet most GPA lines), ' + (d.more ? 'another JUCO season, ' : '') + 'or a club abroad (a youth contract, then the PBL).' : (d.prepOk ? ' A prep year: one more season; dominate it (win ' + Math.round(RCG.prep.winShare * 100) + '% of your games) and the offers come back.' : '') + ' Junior college: a season in the JUCO Conference, then offers as a transfer. Or a club abroad: a youth contract, then the PBL.');
+      if (Ph) { ui.label(ctx, you, 1244, 44, 18, UI_GOLD, 'right', 700); ui.label(ctx, offers.length ? 'Binding: tap a program to sign.' + (n > 1 ? ' Page ' + (st.page + 1) + ' / ' + n + '.' : '') : d.juco ? 'No transfer offers yet: pick a road.' : 'No scholarship offers: pick a road.', 40, 104, 20, offers.length ? UI_TEXT : UI_ORANGE, 'left', 1200); if (!offers.length) ui.para(ctx, roadsText.trim(), 40, 150, 1200, 18, UI_TEXT, 'left', 7); return; }
+      ui.label(ctx, you, 50, 94, 15, UI_GOLD, 'left', 820); ui.label(ctx, offers.length ? 'Tap an offer to sign: binding, the hat you pick is where you play.' : d.juco ? 'No transfer offers.' : 'No scholarship offers.', 50, 122, 14, offers.length ? UI_TEXT : UI_ORANGE, 'left', 820);
       if (n > 1) ui.label(ctx, 'Page ' + (st.page + 1) + ' / ' + n, 450, 642, 14, UI_DIM, 'center', 300);
-      if (!offers.length) ui.para(ctx, 'Nobody offered you a scholarship. Walk on at any program whose GPA line you meet: no scholarship (the tuition is yours) and the bottom of its depth chart.' + (d.prepOk ? ' Or a prep year: one more season, and if you dominate (win ' + Math.round(RCG.prep.winShare * 100) + '% of your games) the scouts add a star and the offers come back.' : ''), 50, 170, 800, 16, UI_TEXT, 'left', 8);
-      kitHeader(ctx, cm ? 'Your commitment' : 'Other roads', 890, 160, 350); let y = 190;
+      if (!offers.length) ui.para(ctx, (d.juco ? 'No program offered you a transfer. ' : 'Nobody offered you a scholarship. ') + roadsText.trim(), 50, 170, 800, 16, UI_TEXT, 'left', 8);
+      kitHeader(ctx, cm ? 'Your commitment' : offers.length ? 'Other roads' : 'Your roads', 890, 160, 350); let y = 190; if (!offers.length) return; /* X9: with no offer the left side explains them */
       if (cm) { ui.heading(ctx, cm.name, 890, y, 16, UI_GOLD, 'left', 350); y += 26; y += ui.para(ctx, 'Your verbal commitment: sign it, or any other offer (no flip cost today).', 890, y, 350, 13, UI_DIM, 'left', 3) + 10; kitHeader(ctx, 'Other roads', 890, y + 6, 350); y += 34; }
-      ui.para(ctx, 'A walk-on: no scholarship, the bottom of the depth chart.' + (d.prepOk ? ' A prep year: one more season to earn offers.' : '') + (skip ? ' Or skip college and turn pro.' : ''), 890, y, 350, 13, UI_DIM, 'left', 6); } };
+      ui.para(ctx, 'A walk-on: no scholarship, the bottom of the depth chart.' + (d.prepOk ? ' A prep year: one more season to earn offers.' : '') + (!jw ? (d.juco ? ' Another JUCO season: a better finish, better offers.' : ' Junior college: a season, then transfer offers.') : '') + (d.none ? ' Abroad: a youth contract, then the PBL.' : '') + (skip ? ' Or skip college and turn pro.' : ''), 890, y, 350, 13, UI_DIM, 'left', nr > 3 ? 7 : 6); } };
   scr.update(); return scr;
 }
 function recDrawSignRow(ctx, ui, c, o, x, y, w, h, focused, mine) {
@@ -20017,12 +20174,13 @@ function standCols(P, full) { return [{ h: '#', w: P ? 50 : 40, v: r => r.rank, 
 function standingsChartScreen(game) {
   const c = careerOf(game) || amateurOf(game); if (!c) return mainMenu(game); const pro = isPro(c), L = !pro && c.league;
   const cut = pro ? PBL.confSeeds : L && L.format === 'district' ? AMC.playoffSeeds : null;
-  return chartScreen(game, { name: 'standings', title: 'STANDINGS', tabs: pro && game.ui.phone ? PBL_CONFS.map(k => k.toUpperCase()) : null,
+  const am = () => standRows(c), perP = P => P ? 8 : 13; /* X9: an amateur table pages (junior college's and the Overseas League's twelve) */
+  return chartScreen(game, Object.assign({ name: 'standings', title: 'STANDINGS', tabs: pro && game.ui.phone ? PBL_CONFS.map(k => k.toUpperCase()) : null,
     sub: () => pro ? 'The PBL · season ' + c.season + ' · the top ' + PBL.confSeeds + ' of each conference make the playoffs' : L ? L.name + ' · season ' + c.season + (L.format === 'jv' ? ' · no playoffs on JV' : L.format === 'conf' ? ' · everyone plays the conference tournament' : ' · the top ' + AMC.playoffSeeds + ' make the playoffs') : 'No league right now.',
     draw(ctx, ui, S, box) { const P = ui.phone, rh = P ? 44 : 34;
       if (pro && !P) { const w = (box.w - 30) / 2; PBL_CONFS.forEach((k, i) => { const b = { x: box.x + i * (w + 30), y: box.y, w, h: box.h }; ui.heading(ctx, k.toUpperCase(), b.x + 6, b.y + 6, 16, UI_GOLD, 'left', w); chartTable(ctx, ui, b, b.y + 36, standCols(false, false).map(col => col.h === 'TEAM · PLAYER' ? Object.assign({}, col, { h: 'TEAM', v: r => [r.team, r.abbr] }) : col), standRows(c, k), rh, { line: cut }); }); return; }
-      const rows = pro ? standRows(c, PBL_CONFS[S.tab] || 'East') : standRows(c); if (!rows.length) { ui.para(ctx, c.tryout && c.tryout.step !== 'done' ? 'Tryouts first: the league starts when the coach has picked varsity and JV.' : 'No league right now.', box.x, box.y + 20, 900, 17, UI_DIM); return; }
-      chartTable(ctx, ui, box, box.y + 6, standCols(P, !P && !pro).map(col => pro && col.h === 'TEAM · PLAYER' ? Object.assign({}, col, { h: 'TEAM', v: r => [r.team + ' · ' + r.player, r.team, r.abbr] }) : col), rows, rh, { line: cut }); } });
+      const all = pro ? standRows(c, PBL_CONFS[S.tab] || 'East') : standRows(c), per = perP(P), rows = pro ? all : all.slice((S.page || 0) * per, (S.page || 0) * per + per); if (!rows.length) { ui.para(ctx, c.tryout && c.tryout.step !== 'done' ? 'Tryouts first: the league starts when the coach has picked varsity and JV.' : 'No league right now.', box.x, box.y + 20, 900, 17, UI_DIM); return; }
+      chartTable(ctx, ui, box, box.y + 6, standCols(P, !P && !pro).map(col => pro && col.h === 'TEAM · PLAYER' ? Object.assign({}, col, { h: 'TEAM', v: r => [r.team + ' · ' + r.player, r.team, r.abbr] }) : col), rows, rh, { line: cut && (S.page || 0) === 0 ? cut : null }); } }, pro ? {} : { per: perP, count: () => am().length, find: () => am().findIndex(r => r.me) }));
 }
 // ---------------- rankings ----------------
 function rankingsChartScreen(game, tab) {
@@ -20225,7 +20383,7 @@ function transfersChartScreen(game) {
 }
 function chartLinks(game, c) {
   const br = () => { const L = bracketList(game, c); if (L.length === 1) L[0].open(); else game.ui.push(bracketsScreen(game)); };
-  if (!isPro(c) && c.stage === 'overseas') return [btn('Standings', 0, 0, 0, 0, () => game.ui.push(standingsChartScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamPageScreen(game))), btn('My charts', 0, 0, 0, 0, () => game.ui.push(myChartsScreen(game)))]; /* 3.0 (§4.3): abroad the table is the ranking */
+  if (!isPro(c) && (c.stage === 'overseas' || c.stage === 'juco')) return [btn('Standings', 0, 0, 0, 0, () => game.ui.push(standingsChartScreen(game))), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamPageScreen(game))), btn('My charts', 0, 0, 0, 0, () => game.ui.push(myChartsScreen(game)))]; /* 3.0 (§4.3): abroad the table is the ranking */
   return [btn('Rankings', 0, 0, 0, 0, () => game.ui.push(rankingsChartScreen(game))), btn('Leaders', 0, 0, 0, 0, () => game.ui.push(leadersChartScreen(game))), btn('Standings', 0, 0, 0, 0, () => game.ui.push(standingsChartScreen(game))), btn('Brackets', 0, 0, 0, 0, br), btn('Team', 0, 0, 0, 0, () => game.ui.push(teamPageScreen(game))), btn('My charts', 0, 0, 0, 0, () => game.ui.push(myChartsScreen(game)))];
 }
 
@@ -20796,7 +20954,7 @@ function gearSummary(B) {
 function gearMoney(n) { n = Math.round(n || 0); return Math.abs(n) < 1e4 ? (n < 0 ? '−$' : '$') + String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : fmtMoney(n); }
 function gearWallet(c) { return isPro(c) ? (c.me.money || 0) : (c.cash || 0); } // an amateur's cash, a pro's money
 function gearPay(c, n) { if (isPro(c)) c.me.money = (c.me.money || 0) - n; else c.cash = (c.cash || 0) - n; }
-function gearStage(c) { return isPro(c) ? 'pro' : c && (c.stage === 'college' || c.stage === 'combine') ? 'college' : 'hs'; } // the price list you pay from
+function gearStage(c) { return isPro(c) ? 'pro' : c && (c.stage === 'college' || c.stage === 'combine' || c.stage === 'juco' || c.stage === 'overseas') ? 'college' : 'hs'; } // the price list you pay from (X9: junior college and a season abroad are college's)
 function gearPrice(c, it, lv) { const row = it && GEAR.price[gearStage(c)]; return row && row[lv - 1] != null ? row[lv - 1] : null; } // level lv's price (Lv1: to buy it)
 function gearNextPrice(c, id) { const it = gearItem(id), lv = gearOf(holderOf(c)).owned[id] | 0; return !it || lv >= it.max ? null : gearPrice(c, it, lv + 1); } // the next level's (to buy, or upgrade)
 
@@ -20926,7 +21084,7 @@ function guideEntries(game, topic) {
     const pct = v => Math.round(v * 100) + '%', row = (role, key) => CREW.roles[role][key].slice(0, CREW.maxLv).map(v => typeof v === 'number' && v < 1 ? Math.round(v * 100) : v).join('/'), mine = role => { const M = c ? crewMember(B, role) : null; return M ? M.name + ' · Lv' + M.lv : ''; };
     add('Your crew', c ? crewCount(B) + ' of ' + crewSlots(c) + ' slots' : '', ['Six roles. Slots grow with you: high school ' + CREW.slots.hs + ', college ' + CREW.slots.college + ', the pros ' + CREW.slots.pro + '. Hire from three candidates a role (new ones each season): their level, specialty, pay and effects are on the card.', 'Each has a level 1–' + CREW.maxLv + ': no stars, no rarity. Credits raise one a level (' + CREW.up.slice(1).join(', ') + ' for Lv2–' + CREW.maxLv + '); the salary rises with it. After ' + CREW.knows + ' seasons together they work a level higher.', 'They follow you from high school to the pros while you pay them (each game week; ' + CREW.broke + ' weeks unpaid and one walks). Credits: ' + CREW.winCredit + ' a win, tournaments, ' + CREW.goalCredits + ' a Road goal.']);
     add('Skills coach', mine('skills'), ['From your sophomore year. Pick a specialty: Shooting, Finishing, Handles or Defense. Every week: +' + row('skills', 'xp') + '% XP to it by level (practice and games), and ' + row('skills', 'share') + '% of what your other ratings earn; its ceiling +1 at Lv3, +2 at Lv5.', 'In games: its signature moves a rating point early; its timing +' + pct(CREW.roles.skills.edge) + ' (the release window, rim makes under a contest, steals against you, or your steals).']);
-    add('Scout', mine('scout'), ['From your junior year. Before every game: ' + row('scout', 'tells') + ' of the opponent\'s tendencies by level (2 without one). In high school: which summer events the top programs attend.', 'A game plan from the report (Live at the rim, Shoot over him, Bait the steal): +' + row('scout', 'plan') + '% makes or steals by level when you follow it. Pick it on the scouting report; the scout\'s pick is starred.']);
+    add('Scout', mine('scout'), ['From your junior year. Before every game: ' + row('scout', 'tells') + ' of the opponent\'s tendencies by level (2 without one). In high school: the programs at each summer event, and from Lv' + RCG.summer.scoutLv + ' invitations to the Grassroots Finals and the Elite Camp.', 'A game plan from the report (Live at the rim, Shoot over him, Bait the steal): +' + row('scout', 'plan') + '% makes or steals by level when you follow it. Pick it on the scouting report; the scout\'s pick is starred.']);
     add('Strength coach', mine('strength'), ['From college. +' + row('strength', 'xp') + '% XP to Speed, Hops and Strength by level; Hops starts to fade a year later at Lv3, two at Lv5 (caught up at ' + CREW.roles.strength.catchUp + ').', 'In games: stamina lasts ' + row('strength', 'stamina') + '% longer; rim makes through contact +' + row('strength', 'contact') + '%.']);
     add('Physio', mine('physio'), ['From college (the old nutritionist too). A game\'s fatigue −' + row('physio', 'fatigue') + '%, injury risk −' + row('physio', 'injury') + '% by level; injuries a game shorter (two from Lv4); a lasting injury −' + row('physio', 'loss') + '% less likely; each aging year\'s decline ' + row('physio', 'fade') + '% smaller.', 'In games: the tired penalty starts ' + row('physio', 'tired') + ' stamina later.']);
     add('Mental coach', mine('mental'), ['From college. A loss costs ' + row('mental', 'conf') + '% less confidence by level; a slump ends ' + row('mental', 'slump') + '% faster.', 'In games: +' + row('mental', 'clutch') + '% make chance in the last 15 seconds, the playoffs and tournament knockouts.']);
@@ -21031,11 +21189,14 @@ function guideEntries(game, topic) {
     const confs = Object.keys(kinds).map(k => COL_CONFS.filter(q => q.kind === k).map(q => q.short).join(', ') + ' (' + kinds[k] + ')').join('; ');
     add('The 64 programs', Pm ? 'yours: ' + Pm.name : COLLEGES.length + ' programs', ['Eight conferences of eight: ' + confs + '. Tiers: blue blood (' + COLLEGES.filter(q => q.tier === 3).length + ' programs), power, mid-major, small and elite academic; prestige 1–5★.', 'Each has a coach, a GPA line, facilities, an NIL market, a roster and history (national titles, pros). The college list ranks them all: the RECRUIT tab in high school, Team → Colleges in college.', 'The national tournament takes all 64: your national rank sets your seed (1–16 in each of four regions).']);
     const top = hs ? hubRecruitTop(am, 1)[0] : null, R = hs ? recOf(am) : null, F = RCG.fit;
-    add('Interest in you', top ? top.name + ' ' + colInterest(am, top.id) : hs ? '' : 'high school', ['0–100 for every program, through high school (2.1 §2.2). First, how you fit its usual recruit: your projected national rank against its level. A power program or a blue blood wants anyone better; a small school doesn\'t reach far up.', 'Then your coach\'s word (±' + Math.round(I.trust * 50) + ' at trust 0 or 100), home (within ' + I.nearMi + ' mi +' + I.near + ', past ' + I.farMi.toLocaleString('en-US') + ' mi ' + I.far + ').', 'What camps and visits add (up to +' + RCG.earnedMax + '; it doesn\'t fade) and the competition for its spots (±' + RCG.compMax + ': the recruits chasing them, rated over or under you).', 'Under its GPA line, at most ' + I.gpaCap + '. A freshman is watched at most (' + I.yearCap[0] + '), a sophomore contacted (' + I.yearCap[1] + '). Watching from ' + COLG.stages[0] + ', contacted from ' + COLG.stages[1] + ', offer range from ' + COLG.stages[2] + '.']);
-    add('Offers', hs ? hsLiveOffers(am).length + ' live' : '', ['From your junior year, a program with interest ' + COLG.stages[2] + '+, a scholarship spot open and your GPA over its line offers some week: blue bloods quickly, the others choosing among many, all of them sooner for a recruit better than their usual one.', 'An elite academic program offers from GPA ' + RCG.academicFrom.toFixed(1) + ', on condition: ' + CONFIG.school.gpaReq.academic.toFixed(1) + ' by your senior finals (the senior midterm warns you).', 'An offer can be pulled: grades under its line (a report card warns, the next pulls), a long injury (' + RCG.injuryGames + '+ games) or a filled spot. Always a warning first.']);
-    add('Scholarship spots', '', ['A program has ' + COLG.spots[0] + '–' + COLG.spots[1] + ' spots for your class, and ' + COLG.chasers[0] + '–' + COLG.chasers[1] + ' more named recruits than spots chase them.', 'They commit through your junior and senior years: the first take the spots, the rest go elsewhere, and the news says "Spots left". An offer holds no spot: whoever commits first gets it. Your verbal commitment takes one.']);
+    add('Interest in you', top ? top.name + ' ' + colInterest(am, top.id) : hs ? '' : 'high school', ['0–100 for every program, through high school (2.1 §2.2). First, how you fit its usual recruit: your projected national rank against its level. A power program or a blue blood wants anyone better; a small school doesn\'t reach far up.', 'Your rank comes from how you play (3.0 §8): your rating, titles, the tournaments (AAU, State, Nationals, the All-American Game), points a game and your place in the player rankings (#1: +' + RCG.play.rank + '). Offers & rank shows the parts.', 'Then your coach\'s word (±' + Math.round(I.trust * 50) + ' at trust 0 or 100), home (within ' + I.nearMi + ' mi +' + I.near + ', past ' + I.farMi.toLocaleString('en-US') + ' mi ' + I.far + ').', 'What camps, visits, the scouts at your big games and the summer events add (up to +' + RCG.earnedMax + '; it doesn\'t fade) and the competition for its spots (±' + RCG.compMax + ': the recruits chasing them, rated over or under you).', 'Under its GPA line, at most ' + I.gpaCap + '. A freshman is watched at most (' + I.yearCap[0] + '), a sophomore contacted (' + I.yearCap[1] + '). Watching from ' + COLG.stages[0] + ', contacted from ' + COLG.stages[1] + ', offer range from ' + COLG.stages[2] + '.']);
+    add('Offers', hs ? hsLiveOffers(am).length + ' live' : '', ['From your junior year, a program with interest ' + COLG.stages[2] + '+, a scholarship spot open and your GPA over its line offers some week: blue bloods quickly, the others choosing among many, all of them sooner for a recruit better than their usual one.', 'An elite academic program offers from GPA ' + RCG.academicFrom.toFixed(1) + ', on condition: ' + CONFIG.school.gpaReq.academic.toFixed(1) + ' by your senior finals (the senior midterm warns you).', 'A top target (you rate at or above its usual recruit, or its interest is ' + RCG.hold.int + '+): the program holds a spot for you through Signing Day (3.0 §8).', 'An offer can be pulled: grades under its line (a report card warns, the next pulls), a long injury (' + RCG.injuryGames + '+ games) or a filled spot. Always a warning first.']);
+    add('Scholarship spots', '', ['A program has ' + COLG.spots[0] + '–' + COLG.spots[1] + ' spots for your class, and ' + COLG.chasers[0] + '–' + COLG.chasers[1] + ' more named recruits than spots chase them.', 'They commit through your junior and senior years: the first take the spots, the rest go elsewhere, and the news says "Spots left". Your verbal commitment takes one, and a top target\'s is held.', 'Otherwise whoever commits first gets the spot. A program whose last spot could go within ' + RCG.hold.weeks + ' weeks tells you the deadline: "their last spot goes after game 7 of your senior season".']);
+    { const K = RCG.scouts, B = K.byGrade; add('Scouts at big games', '', ['From your sophomore year, college scouts come to your big games: ' + K.n.po + ' to a district playoff game, ' + K.n.state + ' to a state game and ' + K.n.final + ' to the final, ' + K.n.senior + ' to senior night, the Boss and a ranked opponent. HOME and the pregame name them.', 'Programs at interest ' + K.min + '+ come. Your grade moves their interest: A +' + B.A + ', B +' + B.B + ', C +' + B.C + ', D ' + B.D + ', F ' + B.F + ' (a win +' + K.win + ').']); }
+    { const S = RCG.summer, B = S.byPlace; add('Summer events and your scout', '', ['Each high school event has programs watching: the Summer Jam small schools and mid-majors near home, the Elite Classic mid-majors and power programs, the national events power programs and blue bloods.', 'Playing moves their interest by your place: +' + B[3][1] + ', a semifinal +' + B[2][1] + ', the final +' + B[1][1] + ', the title +' + B[0][1] + '. Your scout (the crew, from your junior year) names them before you choose.', 'The Grassroots Finals invite the top ' + S.aau3 + ' recruits and the top ' + RK.top + ' players, the Elite Camp the top ' + TNE.camp.invite + '. A scout at Lv' + S.scoutLv + ' gets you into both.']); }
     add('Camps and visits', hs && recOpen(am) ? 'official ' + recOf(am).off.length + ' of ' + RCG.official.max : '', ['Interest comes from how you play (3.0 §1: no film, emails, coach calls or monthly action points). From your sophomore year: a camp ($' + RCG.camp.cost + '): +' + RCG.camp.gain + ' there, +' + RCG.camp.conf + ' across its conference, and a showcase game. An unofficial visit: +' + RCG.unofficial + ' (it takes the week; free in the summer).', 'An official visit: +' + RCG.official.gain + ', at most ' + RCG.official.max + ', from interest ' + RCG.official.from + '. One summary: your playing time, NIL, facilities, academics and the coach\'s style; you see how they develop players.', 'A program\'s page → Recruit… for its camp, its visits and a commitment.']);
-    add('Commitment and Signing Day', R && R.commit ? colProg(R.commit.pid).name : '', ['A verbal commitment isn\'t binding: one of the program\'s spots is yours, and the other programs\' interest stops rising (a flip-friendly few keep at it).', 'A flip: fame −' + RCG.flip.fame + ', your next coach\'s trust −' + RCG.flip.trust + '; most programs cool on you. The coaching carousel: ' + Math.round(RCG.carousel * 100) + '% of the coaches you commit to leave. Follow them (no flip), stay, or reopen.', 'Signing Day is binding: a hat on the table for every program that ever offered.', 'With no offer: walk on at any program whose GPA line you meet (no scholarship, the bottom of its depth chart), a prep year (once: win ' + Math.round(RCG.prep.winShare * 100) + '% of its games and a star comes back), or the pros.']);
+    add('Commitment and Signing Day', R && R.commit ? colProg(R.commit.pid).name : '', ['A verbal commitment isn\'t binding: one of the program\'s spots is yours, and the other programs\' interest stops rising (a flip-friendly few keep at it).', 'A flip: fame −' + RCG.flip.fame + ', your next coach\'s trust −' + RCG.flip.trust + '; most programs cool on you. The coaching carousel: ' + Math.round(RCG.carousel * 100) + '% of the coaches you commit to leave. Follow them (no flip), stay, or reopen.', 'Signing Day is binding: a hat on the table for every program that ever offered.', 'With no offer: walk on at any program whose GPA line you meet (no scholarship, the bottom of its depth chart), a prep year (once: win ' + Math.round(RCG.prep.winShare * 100) + '% of its games and a star comes back), junior college or a club abroad.']);
+    { const J = RCG.juco.offers; add('Junior college and abroad', am && am.stage === 'juco' ? jucoName(am) : '', ['Junior college: a season in the JUCO Conference (twelve players, eleven games, a final four). Then transfer offers by your finish: the top ' + J[0][0] + ' get ' + J[0][1] + ' (one from a power program), the top ' + J[1][0] + ' ' + J[1][1] + ', the top ' + J[2][0] + ' ' + J[2][1] + '.', 'You join as a sophomore (a junior after a second JUCO season, the most there is); your JUCO credits make your GPA at least ' + RCG.juco.gpa.toFixed(1) + '.', 'A club abroad: a youth contract in the Overseas League (OVR about ' + OVS.youth.mean + '). A top-' + OVS.top + ' season, or two seasons, brings the PBL\'s offers.']); }
     add('The College test', R && R.test ? 'GPA ' + (R.test.d >= 0 ? '+' : '') + R.test.d.toFixed(2) : '', ['In your junior year, after week ' + RCG.test.week + '. Study weeks that season before it: ' + RCG.test.prepared + '+ GPA +' + RCG.test.up.toFixed(2) + ', one or two +' + RCG.test.some.toFixed(2) + ', none ' + RCG.test.down.toFixed(2) + '.']);
     const co = Pm ? colCoach(am, Pm.id) : null;
     add('Coaches', co ? co.name + ' · ' + COL_SYS[co.sys].label : '', ['Four styles: Pace (extra speed, hops or finishing work after every game), Defense (defense or strength), Iso (handles or shooting), Development (a plan for every player: XP +' + Math.round(COLG.devXp * 100) + '%).', 'From a third season a coach can land on the hot seat (' + guidePct(COLG.hotSeat, 0) + ' a season); ' + (COLG.fired === 0.5 ? 'half' : guidePct(COLG.fired, 0)) + ' of them are let go after it, and a new coach starts over. Yours stays while you play there.']);

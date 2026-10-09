@@ -3,6 +3,130 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X9 (3.0) — recruiting like real life
+
+The request's §8. Interest comes from how you play, college scouts come to your big games, the summer's events have
+their programs (your scout names them and gets you into the invitation-only ones), offers arrive by themselves (a top
+target's is held through Signing Day, the rest come with a deadline), and with no offer there is junior college or a
+club abroad besides the walk-on and the prep year. Quick checks for this milestone: the new `tests/recruit30.js` (it
+replaces `tests/recruit21.js`, 6 of 15 since X2's removals: film, emails, monthly actions, visit scenes, the press
+storm), `tests/screens30.js` (X9's screens), `tests/tourney.js`, `tests/colleges.js` (its offers step), `tests/crew.js`
+(its unit steps), `tests/oldsaves.js`, `tests/smoke.js`; the career simulator's §8 table (below).
+Results: `recruit30` 23 of 23; `screens30` 170 + 170 + 197 + 197 screens (desktop, 1.25×, phone, phone 1.25×), none
+flagged; `tourney` 8; the crew's unit steps 7; `oldsaves` 42; `smoke` 134; `flow` 12; `loop` 5; `lower` 12; `rankings`
+13 at 120 careers (the high school top scorer in the top 10 in 96% of 286 seasons; the default 40 careers read 94.9%,
+the edge of its noise: X9 moves no ranking, only the dice); `colleges` 7 of 14 and `school` 2 of 8 (the rest broken
+since X2/X3's removals: X11 rewrites them); 40 whole careers in the simulator, none stuck.
+
+### Interest comes from how you play (§8)
+
+- **The recruiting score is its parts:** your rating, titles and district titles, MVPs, fame, your coach's word, the
+  tournaments (exposure: AAU, State, Nationals, the All-American Game), last season's points a game, a dominated prep
+  year and, new, your place in the national player ranking (X4's): #1 +3, #50 +1.5, #100 about 0
+  (`recruiting.play.rank`), this season's rank while it runs, else last season's. Offers & rank shows the parts
+  ("What the scouts count: OVR 58 · tournaments +9 · ranked #1 +3 · titles +1 · 18.2 PPG +0.6 · …").
+- **`hs.recruitMean` 59 → 60.5.** At signing a typical career is ranked 75–80% of the time (median #7–#12), worth about
+  +1.8, so the class's mean moves with it: the typical career's stars stay about where they were, a ranked player rises
+  and an unranked one falls.
+
+### Scouts at big games (§8)
+
+- From the sophomore year, while recruiting is open: a district playoff game brings 3 programs' scouts, a state game 4,
+  the state final 5, senior night, the Boss and a nationally ranked opponent 2 (`recruiting.scouts.n`): programs at
+  interest 25+ still recruiting (a spot left, or your live offer), weighted by interest and prestige, kept for the game
+  (the list HOME showed is the list that watched).
+- HOME's next game shows a SCOUTS chip and "Scouts here: Royal Oak, Kingsbridge…"; the pregame lists them (crest,
+  stars, their interest) and what your game does: A +5, B +3, C +1, D −1, F −2, a win +1 (`recruiting.scouts.byGrade`,
+  `win`). The result's line: "Scouts from Bayside State, Tamsin State: interest +4 (grade B+)", and the recruiting log.
+  Simmed games count too.
+
+### The summer: the programs at each event, your scout's read, the invitations (§8, §7.1)
+
+- Every high school event has its programs watching (`recruiting.summer.n`): the Summer Jam 3 (small schools and
+  mid-majors within 900 miles of home), the Elite Classic 3 (mid-majors and power programs), the Grassroots Finals, the
+  Elite Camp and the U17 World Cup 4 (power programs and blue bloods), the HS Nationals 4, the All-American Game 5.
+  Playing moves their interest by your place: +3, a semifinal +5, the final +6, the title +8
+  (`recruiting.summer.byPlace`), on the tournament's rewards ("interest +5 at 4 programs"; their names in the
+  recruiting log).
+- **Your scout** (the crew, from your junior year) names them on the summer screen, event by event, before you choose;
+  without one, "a scout would know". The card says it in numbers now, so `tests/crew.js` no longer exempts the line.
+- **The best AAU events are invitation-only:** the Grassroots Finals invite the top 300 recruits (4★) and the top 100
+  in the player ranking (they were open); the Elite Camp the top 60, as before. A scout working at Lv3 gets you into
+  both (`recruiting.summer.aau3`, `scoutLv`).
+
+### Offers: held through Signing Day, or a deadline (§8)
+
+- **A top target's offer is held:** when you rate at or above the program's usual recruit, or its interest is 90+ as
+  it offers (`recruiting.hold.int`), it holds one of its spots for you through Signing Day: its spots count it, the
+  named recruits can't take it, its offer never goes for a filled spot, and you can commit with none left. A pulled
+  offer (grades, an injury, a flip) frees the spot. The offer card, Offers & rank ("Held through Signing Day") and the
+  program's page say so.
+- **The rest come with a deadline:** a program whose last spot could go within 4 game weeks (`recruiting.hold.weeks`)
+  warns you with the game it goes after ("Royal Oak (spots left: 1): their last spot goes after game 9 of this season
+  (about 4 weeks). Commit by then, or the last spot goes and the offer with it."). The recruits' commit times are
+  known, so the deadline is the truth (the test checks it).
+- Offers pulled a career: 5.2 → 0.6 (for a filled spot 0.5).
+
+### More offers, from more programs (the §8 targets)
+
+- **`recruiting.committedMul` 0.5 → 1:** your verbal commitment no longer halves the other programs' offers (their
+  interest still stops rising).
+- **`recruiting.hazard` [0.012, 0.03, 0.10, 0.64] → [0.024, 0.036, 0.16, 0.64]** (small, mid-major, power, blue
+  blood): with the class re-centered, the Top 50 got 15.2 offers (85% with 8+) and a 3★ 2.3; tried: offers after a
+  commitment (16.7 / 2.6), power programs 0.16 (16.6 / 2.3), both (17.7 / 2.6), mid-majors 0.045 or 0.06 (a 3★ 3.7 or
+  4.4, too wide: 49% or 44% in 2–4), small schools 0.03 (a 1★ with none only 35%), power programs 0.24 with
+  `above` 3 (the typical Top 50 7.9 → 8.6, not worth the 4★'s rise). The 2.1 table by stars now: 5★ ~19, 4★ 5.2, 3★
+  3.3, 2★ 1.2 (none 37%), 1★ 0.8 (none 45%) against 2.1 §2.7's 10–20, 5–9, 2–4, 1–2 (about 30%), 0–1 (about 60%); a
+  5★ loses the #1 school in 14% of careers (2.1's 15–25%: a held offer stays).
+
+### No offer: junior college, a club abroad, a walk-on, the prep year (§8's 1★ row)
+
+- Signing Day's NO OFFERS card and screen list the roads. "Skip college: turn pro" is an elite senior's road only
+  (OVR 68+); it used to be the last resort.
+- **Junior college** (`167_juco.js`, a new amateur stage): a season in the JUCO Conference (twelve players from
+  community colleges, eleven games and a final four; opponents' OVR 52, +3 the second season:
+  `amateur.stageMean.juco`, `jucoPerYear`), then transfer offers by your finish (`recruiting.juco.offers`): the top 3
+  get three (one from a power program), the top 6 two, the top 9 one; another JUCO season once (`juco.years`); you join
+  as a sophomore (a junior after two); the credits make your GPA at least 2.5 (`juco.gpa`). HOME, the league's table,
+  the stage chip (JUCO → D1), a TRANSFER OFFERS decision, the Road ("a top-9 finish brings a transfer offer").
+- **A club abroad:** a youth contract in the Overseas League (the clubs' young players: OVR 52, +4 the second season; a
+  quarter of the signing bonus: `overseas.youth`); a top-3 season, or two seasons, bring the PBL's combine.
+- The simulators' Signing Day (`recSimSign`) picks a road by the career's seed: a prep year, junior college, a walk-on
+  or abroad; after junior college without an offer, another season, then a walk-on (or abroad).
+
+### Other
+
+- Junior college and a season abroad shop at college's prices and use college's crew slots (abroad used high
+  school's); the Road to the League counts junior college as college and a season abroad as the way to the pros (it
+  showed "Start for varsity").
+- Words: Offers & rank's "no offers" line named film and emails; a program's page said your contact fades ("Earned:
+  camps, visits, games"); the scouting card said to watch their film this week ("your scout or a film session (the
+  store) shows them"); the official visit's note fits the action sheet.
+- The standings chart pages an amateur table (eight rows a page on a phone): junior college's and the Overseas
+  League's twelve ran under the Back button.
+- The college list (desktop): Back sat on top of ◀ Prev.
+- `tests/careersim.js` prints the §8 table (by the national rank at signing) and the play's parts at signing, and
+  writes them with `--hsOnly --json`; its `rec8` is shared with `tests/recruit30.js` (the simulator runs only from the
+  command line now).
+- Tests brought up to date: `tests/smoke.js` (the AAU summer is the events you can enter), `tests/colleges.js` (a top
+  target's offer holds a spot), `tests/flow.js` (the CAREER tab's Crew, from X8), `tests/crew.js` (no exemption for the
+  scout's summer line).
+
+### The §8 table (career simulator: 600 careers, `--hsOnly --spread=12`, seeds 1–4)
+
+| By the national rank at signing | Careers | Offers (mean) | Median | None | |
+|---|---|---|---|---|---|
+| Top 50 | 223 | 17.7 | 19 | 0% | 8+ for 91%; a power program or a blue blood for 99%; a blue blood for 54% where the GPA allows (2.5+) |
+| 4★ (51–300) | 88 | 5.2 | 5 | 0% | |
+| 3★ | 108 | 3.3 | 3 | 4% | 2–4 for 58% |
+| 2★ | 126 | 1.2 | 1 | 37% | |
+| 1★ | 55 | 0.8 | 1 | 45% | with none: a prep year, junior college, a walk-on, abroad |
+
+Every career with no offer (76 of 600) took a road: a prep year 23, junior college 18, a walk-on 19, abroad 16. Held
+through Signing Day: 7.5 offers a career (the Top 50 nearly all of theirs). Typical careers (no spread, 600): stars at
+signing 5/4/3/2/1 14/264/261/60/1; the Top 50 (late risers, mostly ranks 31–50 as seniors) 7.9 offers (median 8),
+4★ 4.5, 3★ 3.7 (median 4), 2★ 2.4.
+
 ## X8 (3.0) — your crew
 
 The request's §7: the old staff menu (removed in X2) comes back as your crew, a small team you hire, level up and keep

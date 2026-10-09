@@ -10,9 +10,12 @@ Hoop Heads 2.1, in ten milestones (W1–W10; `CHANGES.md` has each one and the 2
 screen shows once after the update, and the main menu keeps a button for it.
 
 - **The recruiting game.** 64 college programs in eight conferences, each with a coach and a system, facilities, an NIL
-  market, a GPA line, a roster and a history; the Recruit tab and the College Browser. Interest that rises and falls,
-  actions and official visits, offers that hold no spot and can be pulled, commitments, flips, a coaching carousel,
-  Signing Day, walking on and a prep year.
+  market, a GPA line, a roster and a history; the Recruit tab and the ranked college list. Interest comes from how you
+  play (your rating, titles, the tournaments, points and the player ranking), from college scouts at your big games and
+  from the programs watching each summer event (your scout names them and, at Lv3, gets you into the invitation-only
+  ones); camps and five official visits. Offers come by themselves: a top target's is held through Signing Day, the
+  rest come with a deadline before a filled spot takes them. Commitments, flips, a coaching carousel, Signing Day;
+  with no offer a walk-on, a prep year, junior college (then transfer offers) or a club abroad.
 - **Teams come to you.** No draft: franchises make offers when your value crosses their bar, and a better one calls with
   a trade in the season. Playing your games well pays (legacy, stars and titles well above simming everything), simmed
   games score like played ones, and money has big buys worth making.
@@ -178,7 +181,8 @@ node tests/careersim.js [40] [seed] [--set career.proMean=83 ...]   # whole simu
                                    # pick the policies; --policy=great plays every game well (Part 2's "great" career);
                                    # --menus=never takes every card's default, --week=rest|nostudy, --parity=n, --json;
                                    # --rec=typical|none|early|late (the recruit's actions and commitment), --hsOnly --spread=12 (the
-                                   # recruiting table of 2.1 §2.7 alone: high school only, talent spread over every star level)
+                                   # recruiting tables alone, 2.1 §2.7's by stars and 3.0 §8's by the national rank at signing:
+                                   # high school only, talent spread over every star level)
 node tests/perf.js                 # frame cost at phone size in the arena, at each performance-guard level
 node tests/modes.js                # every mode played to its end through its screens (quick 1v1, the 3-point contest,
                                    # practice, the tutorial, and the career's games, drills, challenges and All-Star weekend)
@@ -209,7 +213,7 @@ node tests/hudaudit.js             # the match HUD's text at several window size
 node tests/playtest3.js            # 2.1's playtest fixes and the running clock, one step each
 node tests/improve21.js            # 2.1's improvements: Study and the GPA floor, leaving college, offers that come to you, big buys
 node tests/colleges.js             # 2.1's 64 colleges: the registry, coaches, interest, the browser, a program's page, offers and spots, the field of 64, old saves, the Recruit tab
-node tests/recruit21.js            # 2.1's recruiting game: interest, offers, spots, warnings and pulls, actions, visits, commitment and flips, the carousel, Signing Day, walk-ons and the prep year, the College test, the screens
+node tests/recruit30.js            # 3.0 §8's recruiting: interest from how you play, scouts at big games, the summer's programs and your scout's invites, offers held and deadlines, spots, warnings and pulls, camps and visits, commitment and flips, the carousel, Signing Day, walk-ons, the prep year, junior college and a club abroad, the College test, the college list, the screens, the Codex, old saves, and the §8 table (600 careers)
 node tests/parity.js [12] [seed]   # your simmed points against your played points (the AI at your controls), every level within 10%
 node tests/pace.js [8] [seed]      # 3.0 (§0.2): career games played in the engine: 12–18 points a side, 70–80 s a game, at every level
 node tests/memory.js [50] [--phone]   # 3.0 (§0.1): 50 career games against new opponents: memory within +150 MB of the level after game 5

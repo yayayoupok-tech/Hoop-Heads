@@ -423,7 +423,13 @@ seasons together and they work a level higher; slots 1/3/6 by stage; they follow
 the result screen's crew line, the season's grades, the bench and the tip-off banner; the crew's messages (the physio's
 hamstring call, poaching, the agent's trade talk and the counter's odds); the tournament prep and the scout's read on the
 bracket; the career simulator's crew table (`tests/crew.js`, `tests/careersim.js --crew=`).
-**X9 — Recruiting** — §8.
+**X9 — Recruiting** *(done)* — §8: interest from how you play (the player ranking joins the recruiting score; Offers &
+rank shows its parts); college scouts at big games (the playoffs, senior night, the Boss, a ranked opponent: named on
+HOME and the pregame, their interest moved by your grade); the programs at each summer event, named by your scout, and
+the invitation-only Grassroots Finals and Elite Camp (a Lv3 scout gets you in); a top target's offer held through
+Signing Day, the rest with a deadline before a filled spot takes them; offers that keep coming after a commitment; with
+no offer junior college (a new stage: a JUCO season, then transfer offers by the finish) or a youth contract abroad;
+the §8 table (`tests/recruit30.js`, which replaces `tests/recruit21.js`; `tests/careersim.js --hsOnly`).
 **X10 — Progression tuning** — §9.
 **X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed; the README's
 feature list rewritten for 3.0 (it still describes 2.1's story, press room, rarities and staff).

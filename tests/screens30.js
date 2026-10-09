@@ -4,7 +4,8 @@
 // leaders, brackets, your team, your charts) at each level and X5's (the league below, the depth chart, the transfers,
 // the teams, the Overseas League and a season abroad) and X6's (the tournament screen in every format, its result and
 // chart, the summer's picks, HOME and the tip while it waits, the trophy case, the Cup, the Summer step, Blacktop's
-// message, the legacy with and without the epilogue), each at a desktop (1280×720), a phone (844×390 with touch) and
+// message, the legacy with and without the epilogue) and X9's (scouts at a big game, the summer's programs, Offers & rank's
+// parts, Signing Day with no offer, a youth contract abroad, junior college), each at a desktop (1280×720), a phone (844×390 with touch) and
 // both at the 1.25× text size. The checks are auditkit.js's (tap targets, overlaps, text
 // over text, cut text, two screens at once, art over text, legibility); any flag fails the run. Each milestone adds its
 // screens here. Usage: node tests/screens30.js [shotsDir] [--only=desktop|phone|desktop125|phone125]
@@ -88,6 +89,24 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     for (const t of ['home', 'league', 'career']) await audit('ovs-' + t, t => __home(t), t);
     await audit('ovs-standings', () => { const g = HH.game; __home('league'); g.ui.push(standingsChartScreen(g)); });
     await audit('ovs-team', () => { const g = HH.game; __home('league'); g.ui.push(teamPageScreen(g)); });
+    await ev(() => { const g = HH.game; g.save.data.c1 = g.__keep; delete g.__keep; });
+    // X9 (§8): recruiting: scouts at a big game (HOME, the pregame, the result), Offers & rank's parts, the summer with
+    // a scout's read; no offer at Signing Day (its roads), a youth contract abroad, junior college (HOME, LEAGUE,
+    // CAREER, its table, the transfer offers)
+    await ev(() => { const g = HH.game; g.__keep = g.save.data.c1; const a = amCreate(g.save.data, { name: 'Scout Audit', look: PRESET_LOOKS[6], number: 3, style: 'slasher', seed: 91 }); for (const k of RATING_KEYS) { a.r[k] = Math.min(CR.ratingMax, a.r[k] + 12); a.caps[k] = Math.max(a.caps[k], a.r[k]); } g.save.data.c1 = a;
+      __adv(a, 400, a => a.stageYear >= 3 && a.league && a.league.format === 'district' && a.league.week >= 2 && !a.league.playoffs); ladderInit(a, 1); hsSquadSync(a); a.ineligible = 0; a.league.seniorNight = a.league.week; a.league.scouts = null; __quiet(a); });
+    await audit('hs-home-scouts', () => __home('home'));
+    await audit('hs-pregame-scouts', () => { const g = HH.game; __home('home'); g.ui.push(amPregameScreen(g)); });
+    await audit('hs-result-scouts', () => { const g = HH.game, a = g.save.data.c1; const r = amSimGame(a); __quiet(a); g.ui.clearTo(amResultScreen(g, r, null)); });
+    await audit('hs-recruiting-parts', () => { const g = HH.game; __home('home'); g.ui.push(recruitingScreen(g)); });
+    await audit('hs-summer-scout', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.cash = Math.max(a.cash || 0, 1e5); if (!crewMember(a, 'scout') && crewCanHire(a, 'scout')) crewHire(a, crewCandidates(a, 'scout')[0]); const M = crewMember(a, 'scout'); if (M) M.lv = 3; a.summer = { pending: true, year: 3, season: a.season }; g.sumPick = null; __home('home'); g.ui.push(summerScreen(g)); });
+    await ev(() => { const g = HH.game, a = g.save.data.c1; a.summer = null; a.stageYear = 4; a.offers = []; for (const k of RATING_KEYS) a.r[k] = Math.max(CR.ratingMin, a.r[k] - 30); recSigningDay(a, amRng(a)); __quiet(a); });
+    await audit('hs-signing-none', () => { const g = HH.game; __home('home'); g.ui.push(amDecisionScreen(g)); });
+    await audit('hs-abroad', () => { const g = HH.game; __home('home'); g.ui.push(ovsOffersScreen(g, true)); });
+    await ev(() => { const g = HH.game, a = g.save.data.c1; jucoGo(a); for (let k = 0; k < 3; k++) amSimGame(a); __quiet(a); });
+    for (const t of ['home', 'league', 'career']) await audit('juco-' + t, t => __home(t), t);
+    await audit('juco-standings', () => { const g = HH.game; __home('league'); g.ui.push(standingsChartScreen(g)); });
+    await audit('juco-offers', () => { const g = HH.game, a = g.save.data.c1; let k = 0; while (a.stage === 'juco' && !a.decision && k++ < 60) { amSimGame(a); __quiet(a); } __home('home'); g.ui.push(amDecisionScreen(g)); });
     await ev(() => { const g = HH.game; g.save.data.c1 = g.__keep; delete g.__keep; });
     // college
     await ev(() => { const g = HH.game, a = g.save.data.c1; __adv(a, 900, a => a.stage !== 'hs'); __adv(a, 3); __quiet(a); g.save.save(); });
