@@ -5,7 +5,8 @@
 // the teams, the Overseas League and a season abroad) and X6's (the tournament screen in every format, its result and
 // chart, the summer's picks, HOME and the tip while it waits, the trophy case, the Cup, the Summer step, Blacktop's
 // message, the legacy with and without the epilogue) and X9's (scouts at a big game, the summer's programs, Offers & rank's
-// parts, Signing Day with no offer, a youth contract abroad, junior college), each at a desktop (1280×720), a phone (844×390 with touch) and
+// parts, Signing Day with no offer, a youth contract abroad, junior college) and X10's (CAREER's ceiling with its parts, a rating
+// past its ceiling there and in the focus picker), each at a desktop (1280×720), a phone (844×390 with touch) and
 // both at the 1.25× text size. The checks are auditkit.js's (tap targets, overlaps, text
 // over text, cut text, two screens at once, art over text, legibility); any flag fails the run. Each milestone adds its
 // screens here. Usage: node tests/screens30.js [shotsDir] [--only=desktop|phone|desktop125|phone125]
@@ -34,6 +35,7 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     if (phone) await audit('hs-homemore', () => { __home('home'); const s = HH.game.ui.screen, b = s.widgets.find(w => w.label === 'MORE…'); if (b) b.onPress(); });
     if (phone) await audit('hs-careermore', () => { __home('career'); const s = HH.game.ui.screen, b = s.widgets.find(w => w.label === 'MORE…'); if (b) b.onPress(); });
     await audit('hs-focuspick', () => { const g = HH.game; __home('home'); g.ui.push(focusPickerScreen(g)); });
+    await audit('hs-career-ceiling', () => { const a = HH.game.save.data.c1; a.ceilTn = 1.5; __home('career'); }); // X10 (§9): the ceiling and what raised it
     await audit('hs-drillpost', () => { const g = HH.game, a = g.save.data.c1; __home('home'); holderOf(a).wk = {}; g.ui.push(drillPostScreen(g, { contest3: { score: 14 } }, { kind: 'drill', focus: 'shooting' })); });
     await audit('hs-drillpost-ran', () => { const g = HH.game; __home('home'); g.ui.push(drillPostScreen(g, { contest3: { score: 9 } }, { kind: 'drill', focus: 'finishing' })); }); // a second drill the same week: "This week already ran."
     await audit('hs-result', () => { const g = HH.game, a = g.save.data.c1; const r = amSimGame(a); __quiet(a); g.ui.clearTo(amResultScreen(g, r, null)); });
@@ -122,6 +124,9 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     if (phone) await audit('pro-homemore', () => { __home('home'); const s = HH.game.ui.screen, b = s.widgets.find(w => w.label === 'MORE…'); if (b) b.onPress(); });
     if (phone) await audit('pro-careermore', () => { __home('career'); const s = HH.game.ui.screen, b = s.widgets.find(w => w.label === 'MORE…'); if (b) b.onPress(); });
     await audit('pro-focuspick', () => { const g = HH.game; __home('home'); g.ui.push(focusPickerScreen(g)); });
+    await ev(() => { window.__ceil = c => { const me = meOf(c), P0 = potsOf(c.me, me.caps); c.me.ceilTn = 3.5; c.me.big = c.me.big || {}; c.me.big.facility = c.season; me.r.sho = Math.min(me.caps.sho - 1, Math.ceil(P0.sho) + 3); }; }); // X10 (§9): a rating past its ceiling, the ceiling's parts
+    await audit('pro-career-ceiling', () => { __ceil(HH.game.save.data.career); __home('career'); });
+    await audit('pro-focuspick-ceiling', () => { const g = HH.game; __home('home'); g.ui.push(focusPickerScreen(g)); });
     await audit('pro-result', () => { const g = HH.game, c = g.save.data.career; const rec = simUserGame(g.save.data); __quiet(c); g.ui.clearTo(careerResultScreen(g, rec, null)); });
     await audit('pro-trade', () => { const g = HH.game, c = g.save.data.career, me = meOf(c); __quiet(c); const dest = frIds().find(k => k !== me.club); c.events.push({ kind: 'tradeoffer', title: 'A TRADE OFFER', who: 'agent', dest, lines: ['Your agent: "The ' + frFullName(dest) + ' called. A 4★ franchise, and they want you before the deadline."', 'Say yes and you move this week; say no and you stay where you are.'] }); g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); });
     await audit('pro-shoe', () => { const g = HH.game, c = g.save.data.career; __quiet(c); c.me.fame = MD.fameMax; c.me.shoePitched = false; c.me.shoe = null; proShoePitch(c); g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); });

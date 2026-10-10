@@ -3,6 +3,115 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X10 (3.0) — progression: effort matters, no flat decade, fame that means something
+
+The request's §9. The legacy weighs what you did (awards, the player rankings, tournaments and medals, your peak OVR),
+not only the rings; your ceiling is on CAREER and tournaments, the crew, a facility and badges raise it; a play-well
+career keeps climbing through its twenties; fame follows the role, the stats and the wins, and fades. Quick checks for
+this milestone: the new `tests/progress30.js` (§9's unit checks and the career simulator's §9 table), `tests/effort.js`
+(the policy table), `tests/screens30.js` (X10's screens), `tests/tourney.js`, `tests/oldsaves.js`, `tests/loop.js`,
+`tests/crew.js` (its unit steps), `tests/smoke.js`; the recruiting table (§8, 600 careers) is unchanged.
+
+### Where it started (the career simulator, 100 careers a policy, seed 1)
+
+| | plays well | typical | sims everything |
+|---|---|---|---|
+| legacy (the old formula) | 302 | 102 | 43 |
+| OVR gains in the first 8 pro seasons: median (6+) | 6 (76%) | 6 (78%) | 5 (27%) |
+| fame at pro season 3 (100 already) | 94 (57%) | 57 (6%) | 37 (3%) |
+| fame as the starter / from the bench | 97 / 74 | 84 / 60 | 60 / 34 |
+| careers whose fame reached 100 | 100% | 91% | 43% |
+| Hall of Fame (line 92) | 92% | 40% | 8% |
+
+A play-well career's OVR rose 70 → 76 in its first three pro seasons and then about a point every other season (its
+gains: 90% of careers in season 3, 70% in seasons 5–7, 51% in season 8): the potential's 3× XP and the XP curve. Fame
+saturated (a typical career at 90+ by pro season 6, a lazy one's bench seasons at 34).
+
+### Fame means something (§9)
+
+- **A pro game you start** moves fame by the result (a win +0.5, a loss −0.4: `career.fame.win`, `loss`), your points
+  against the league's line (+0.13 a point over 13 and the same under it, at most ±1.2: `perPt`, `ptsRef` 34 per the
+  old game length, `ptsCap`), highlights and a playoff game (+0.6, was +0.8). Gains × your franchise's stage and
+  Showman as before, and smaller near the top: × (1 − fame ÷ 125), at least 0.2 (`top`, `topMin`; at 60 ×0.52).
+- **The bench moves none:** a week you don't start (the Development League's game) only fades it.
+- **It fades every game week, from zero:** −3% (`decay`; it faded only the part over 30, by 2.2%). 0.025 gave a
+  play-well career 64 at pro season 3 (13% at 100); 0.03 gives 60 (11%), typical 25, lazy 12.
+- A lifestyle item's weekly fame is × the same room (the three items' weekly fame alone used to hold a career at 89;
+  now 32).
+- Words: the Codex's Fame page (a game you start, the bench, the fade), the FAME tip, HOME's fame panel.
+
+### No flat decade: the ceiling shown and raised (§9)
+
+- **Your ceiling, shown:** each skill's ceiling is your potential (rolled at the start; it was hidden, a grade) plus
+  what raises it. CAREER rates every rating against its ceiling ("Shooting 78 / 82"); past it the rating shows its max
+  in orange and "3× XP", and under the ratings "CEILING 84 · your potential 78 · badges +1 · crew +1 · tournaments +3 ·
+  facility +2" (the OVR with every rating at its ceiling). The focus picker says "past its ceiling"; the profile's chip
+  shows the number; the Codex's Potential page is now Ceiling (yours, skill by skill, and what raised it).
+- **What raises it:** tournament finishes, on every skill (`tourney.events[k].ceil` by finish: State and the HS
+  Nationals 1, the U17 and U21 World Cups 1/0.5/0.5, the national tournament 2/1/0.5, the PBL playoffs 2/1, the Cup 1/0.5,
+  the All-Star 1v1 1, the World Cup 2/1/0.5, the Olympics 3/2/1, the AAU Grassroots Finals, the Elite Camp, the
+  All-American Game, the conference tournament, the Invitational and Blacktop Kings 0.5; the reward line says
+  "ceiling +1"), a private training facility (+2, `pro.big.facility.ceil`), badges (their heads) and a skills coach (its
+  ceiling), as before. The amateur years' tournament ceiling comes along to the pros.
+- **A good grade pays more in the pros:** a pro game's XP × 1.2 more for an A and × 1.08 for a B
+  (`career.gradeXpPro`: A 1.8, B 1.3 in all; amateurs keep 1.5 and 1.2, X9's recruiting is fitted to them). A play-well
+  career now gains OVR in 6 or more of its first 8 pro seasons 92% of the time (median 7), was 76%; with the ceilings
+  alone 81%. Tried and dropped: the pros' summer growth going to the style's next rating once the Focus rating is maxed
+  (every policy +2 or 3 at the peak, the lazy one too: no effort in it); the age multiplier at 26–28 1.0 (81%, the
+  median 7 by a hair).
+
+### Effort matters: the legacy re-weighted (§9)
+
+- **The legacy** (`career.legacy`) = titles (10 each; a ring from a season mostly on the bench 5) + awards (MVP 8,
+  Finals MVP 4, All-League 4 and 2nd team 2, Defensive Player 3, Rookie and Scoring Champion 2, Most Improved and Sixth
+  Man 1, every All-Star 1) + rankings (a pro season's final player rank: #1 3, the top 3 2, the top 10 1) + tournaments
+  and medals (their legacy, as X6 set it) + peak OVR (1.5 a point over 70) + seasons (0.5 each) + points (per 250, the
+  old game length) + the arena (3 → 8). Was 12 a title, 12 an MVP, 3 an All-League 1st team, 1 a season, points ÷ 250,
+  the tournaments and the arena.
+- **The Hall of Fame** at 350 (`hofScore`, was 92): typical careers 7% (Part 2 §1.1's 3–8%), play-well 71% (36% on the
+  first ballot, 525), lazy 0% (600 careers); at 300, 12% / 76% / 0%. The retirement's verdicts: a great career from 150,
+  a good one from 60 (`legacyVerdict`, were 60 and 25).
+- The spec's case (a try-hard career, OVR 78, and a lazy one, OVR 68, both with 1 title and legacy 52): the peak alone
+  is +12 for the try-hard, and a few seasons in the top 10, an All-Star or an All-League 2nd team put it 40%+ ahead.
+  In the simulator the careers with 0–1 titles that peaked at 77–80 out-score those that peaked at 66–69 by 116% (92%
+  with the old formula).
+- The legacy screen shows the PEAK OVR; the Codex's Legacy page lists the weights and your parts ("Yours: titles 20 ·
+  awards 45 · rankings 24 · …"); the season review's four lines are the new weights.
+
+### The §9 table
+
+`tests/progress30.js 200 2` (200 careers a policy, seed 2; at 100 careers on seed 1 every row passes too):
+
+| | plays well + good choices | typical, a smart spender | sims everything |
+|---|---|---|---|
+| legacy: mean (median) | 437.6 (451) | 152.9 (134) | 55.6 (43) |
+| Hall of Fame | 71% | 7% | 0% |
+| titles · peak OVR | 5.39 · 84 | 1.53 · 73 | 0.30 · 68 |
+| OVR gains in the first 8 pro seasons: median (6+) | 7 (90%) | 6 (84%) | 5 (38%) |
+| fame at pro season 3 (100 already) | 61 (13%) | 25 (1%) | 12 (0%) |
+| fame over the career · from the bench | 74 · 37 | 47 · 22 | 18 · 7 |
+
+- **Effort matters:** play-well careers average +687% legacy over lazy ones (the spec's 40%+; +656% in
+  `tests/effort.js`, 200 careers on seed 1, which passes all six of its rows: the smart spender's unspent cash 21%).
+- **No flat decade:** a play-well career's OVR climbs 70 → 83 over 12 pro seasons (was 70 → 81, a point every other
+  season after the third); 6+ gains in its first 8 seasons 90–92% of the time.
+- **Fame spreads:** 100 by pro season 3 in 13% of play-well careers (57% before), a typical career 25 there, a lazy
+  bench 7.
+
+### Other
+
+- `tests/careersim.js --seasons` records each pro season's fame, points a game, player rank, awards, starting OVR,
+  ceiling OVR, ratings, potential and caps, the tournament ceiling and the facility; its legacy parts include every
+  award, the rankings, the tournaments and the peak.
+- The summer screen no longer throws on a frame drawn after the summer resolved under it (the audit's full run caught it
+  after an X9 step).
+- The legacy screen's numbers put the long labels in the last column (PEAK OVR ran into TOURNAMENTS), and the Codex's
+  Ceiling, Fame and Legacy pages keep each paragraph within its six lines.
+- For X11: `tests/difficulty.js` holds Part 2 §1.1's bands (a typical career's 5★ team 15–25% and titles 0.2–0.4, a
+  great one's titles 1–2 and Hall of Fame 30–40%); with 3.0's crew, badges, items and tournaments a typical career
+  reaches a 5★ team about 35% of the time with about 1.4 titles, and a play-well one wins about 5 (the Hall's line puts
+  the typical career in its band). X11 decides between retuning and new bands for 3.0.
+
 ## X9 (3.0) — recruiting like real life
 
 The request's §8. Interest comes from how you play, college scouts come to your big games, the summer's events have

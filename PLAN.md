@@ -430,7 +430,15 @@ the invitation-only Grassroots Finals and Elite Camp (a Lv3 scout gets you in); 
 Signing Day, the rest with a deadline before a filled spot takes them; offers that keep coming after a commitment; with
 no offer junior college (a new stage: a JUCO season, then transfer offers by the finish) or a youth contract abroad;
 the §8 table (`tests/recruit30.js`, which replaces `tests/recruit21.js`; `tests/careersim.js --hsOnly`).
-**X10 — Progression tuning** — §9.
+**X10 — Progression tuning** *(done)* — §9: fame by role, stats and wins (a game you start moves it by the result, your
+points against the league's line, highlights and the playoffs; the bench's games none; −3% a week from zero; gains
+shrink near the top); your ceiling shown on CAREER (each rating against it, CEILING with what raised it; past it
+orange, 3× XP; the focus picker, the profile, the Codex) and raised by tournament finishes, a training facility, badges
+and a skills coach; a good grade pays more XP in the pros (no flat decade); the legacy re-weighted toward awards, the
+player rankings, tournaments and medals and peak OVR (a bench ring half; the Hall at 350) (`tests/progress30.js`: play-well
+careers +687% legacy over lazy ones, 6+ OVR gains in their first 8 pro seasons 90% of the time, fame 74/47/18 by policy).
+Part 2 §1.1's difficulty bands (`tests/difficulty.js`) predate 3.0's crew, badges and tournaments: X11 retunes or
+re-bands them.
 **X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed; the README's
 feature list rewritten for 3.0 (it still describes 2.1's story, press room, rarities and staff).
 
