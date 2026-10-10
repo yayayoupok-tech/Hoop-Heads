@@ -74,10 +74,10 @@ const ROWS = [
     typical: { txt: m => m.b5.toFixed(1) + '%', p2: ['15–25%', m => IN(m.b5, 15, 25)], x3: ['30–60%', m => IN(m.b5, 30, 60)] },
     great: { txt: m => m.b5.toFixed(1) + '%', p2: ['35–55% (2.1 §3.7)', m => IN(m.b5, 35, 55)], x3: ['85%+', m => m.b5 >= 85] } }, /* 2.1 §3.7 (the plays-well policy) replaced Part 2's 52–68% */
   { label: 'Championships per career',
-    typical: { txt: m => m.t.toFixed(2), p2: ['about 0.3 (0.2–0.4)', m => IN(m.t, 0.2, 0.4)], x3: ['1.0–2.2', m => IN(m.t, 1, 2.2)] },
-    great: { txt: m => m.t.toFixed(2), p2: ['1–2 (2.1 §3.7)', m => IN(m.t, 1, 2)], x3: ['4–7', m => IN(m.t, 4, 7)] } }, /* 2.1 §3.7 replaced Part 2's 1–3 */
+    typical: { txt: m => m.t.toFixed(2), p2: ['about 0.3 (0.2–0.4)', m => IN(m.t, 0.2, 0.4)], x3: ['0.3–1.2 (4.0)', m => IN(m.t, 0.3, 1.2)] },
+    great: { txt: m => m.t.toFixed(2), p2: ['1–2 (2.1 §3.7)', m => IN(m.t, 1, 2)], x3: ['1–3 (4.0)', m => IN(m.t, 1, 3)] } }, /* 2.1 §3.7 replaced Part 2's 1–3; 4.0 (§0.1): the league's stars bring a play-well career back to 1–3 titles (3.0's band was 4–7) */
   { label: 'Hall of Fame',
-    typical: { txt: m => m.hof.toFixed(1) + '%', p2: ['3–8%', m => IN(m.hof, 3, 8)], x3: ['3–12%', m => IN(m.hof, 3, 12)] },
+    typical: { txt: m => m.hof.toFixed(1) + '%', p2: ['3–8%', m => IN(m.hof, 3, 8)], x3: ['3–12%', m => IN(m.hof, 3, 12)] }, /* 4.0: the line moved to 225 with the titles */
     great: { txt: m => m.hof.toFixed(1) + '%', p2: ['about 35% (30–40)', m => IN(m.hof, 30, 40)], x3: ['55–85%', m => IN(m.hof, 55, 85)] } },
 ];
 
@@ -110,7 +110,7 @@ const ROWS = [
   const xp = (r => { let s6 = 0, s8 = 0; for (let p = 60; p < 70; p++) s6 += 20 * Math.pow(1.11, p - 40); for (let p = 80; p < 90; p++) s8 += 20 * Math.pow(1.11, p - 40); return s8 / s6; })();
   console.log('the XP curve (§1.2): 20 × 1.11^(rating − 40) a point; 80→90 costs ' + xp.toFixed(1) + '× the 60→70 stretch');
   { const L = policy => res.filter(r => r.policy === policy && r.d && Array.isArray(r.d.legacy)).reduce((a, r) => a.concat(r.d.legacy), []), at = (xs, t) => xs.length ? (100 * xs.filter(x => x >= t).length / xs.length).toFixed(1) + '%' : '—'; /* 2.1 (W6): where the Hall of Fame line could go (career.hofScore; a legacy at or over it) */
-    console.log('the Hall of Fame at other lines (a legacy at the line or over it): ' + [300, 325, 350, 375, 400].map(t => t + ' typical ' + at(L('typical'), t) + ' great ' + at(L('great'), t)).join(' · ')); }
+    console.log('the Hall of Fame at other lines (a legacy at the line or over it): ' + [175, 200, 225, 250, 275].map(t => t + ' typical ' + at(L('typical'), t) + ' great ' + at(L('great'), t)).join(' · ')); }
   console.log('careers ' + by.typical.length + ' typical, ' + by.great.length + ' great · stuck ' + (stuck.typical + stuck.great) + ' · ' + Math.round((Date.now() - t0) / 1000) + ' s');
   if (errs.length) console.log('page errors: ' + errs.join(' ; '));
   const ok = !failed.length && !misses && !(stuck.typical + stuck.great) && !errs.length;

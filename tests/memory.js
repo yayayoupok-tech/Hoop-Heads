@@ -6,11 +6,13 @@
 // collection on the page and in the workers, and the caches' sizes on both sides (sprite sheets, shoe bakes, faces,
 // portraits). Target (3.0 §11): the level after the last game within +150 MB of the level after game 5 (a level: the median of
 // three readings in a row; one reading moves up to ±60 MB with what the allocator holds on to).
-// Usage: node tests/memory.js [games=50] [--play=2500] [--phone]
+// Usage: node tests/memory.js [games=50] [--play=2500] [--phone] [--snap=5,30 --snapdir=DIR] (4.0 §0.2: heap snapshots of the
+// page after those games, for tests/heapdiff.js)
 const fs = require('fs');
 const { launch, openPage } = require('./lib');
 const arg = (k, d) => { const a = process.argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const N = +(process.argv.slice(2).find(x => /^\d+$/.test(x)) || 50), PLAY_MS = +arg('play', 2500), PHONE = process.argv.includes('--phone'), LIMIT_MB = 150, BASE_AT = 5;
+const SNAP = String(arg('snap', '')).split(',').filter(Boolean).map(Number), SNAPDIR = arg('snapdir', '/tmp');
 
 // The browser's processes: the descendants of this node process, by their parent ids.
 function descendants(root) {
@@ -56,6 +58,7 @@ function rendererMB() { const P = descendants(process.pid).map(procInfo).filter(
       const back = await ev(() => { const g = HH.game; for (let k = 0; k < 30; k++) { const s = g.ui.screen; if (!s) break; if (s.name === 'career') return { ok: true }; if (s.finish) s.finish(); const w = (s.widgets || []).find(w => !w.hidden && w.enabled !== false && w.onPress && (w.primary || /^(CONTINUE|Continue|GOT IT|Got it|OK|▼)$/.test(w.label || ''))) || (s.widgets || []).find(w => !w.hidden && w.enabled !== false && w.onPress); if (!w) { if (s.onTap) { s.onTap(0, 0); continue; } break; } w.onPress(); } const c = g.save.data.career; if (c) { c.events.length = 0; g.ui.clearTo(careerHub(g)); } return { ok: true, forced: true }; });
       if (!back || !back.ok) throw new Error('game ' + i + ': not back to the hub');
       await wait(300); await gc(); const M = rendererMB(), st = await stats();
+      if (SNAP.includes(i)) { const cdp = await page.context().newCDPSession(page), parts = []; cdp.on('HeapProfiler.addHeapSnapshotChunk', e => parts.push(e.chunk)); await cdp.send('HeapProfiler.enable'); await cdp.send('HeapProfiler.collectGarbage'); await cdp.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false }); fs.writeFileSync(SNAPDIR + '/heap_' + i + '.heapsnapshot', parts.join('')); await cdp.detach(); console.log('heap snapshot after game ' + i + ': ' + SNAPDIR + '/heap_' + i + '.heapsnapshot'); }
       rows.push({ i, mb: M.mb, renderer: M.renderer, gpu: M.gpu, procs: M.n, opp: pre.opp, st, s: Math.round((Date.now() - t0) / 1000) });
       const W = st.worker || {}, Mn = st.main || {}, U = st.ui || {};
       console.log('game ' + String(i).padStart(2) + ' · ' + M.mb.toFixed(0).padStart(5) + ' MB (renderer ' + M.renderer.toFixed(0) + ', gpu ' + M.gpu.toFixed(0) + ') · sheets main ' + (Mn.sheets != null ? Mn.sheets : '?') + (Mn.poses != null ? ' (' + Mn.poses + ' poses)' : '') + ', worker ' + (W.sheets != null ? W.sheets + ' (' + W.poses + ' poses)' : '?') + ' · shoe bakes main ' + (Mn.shoes != null ? Mn.shoes : '?') + ', workers ' + (W.shoes != null ? W.shoes : '?') + '/' + (U.shoes != null ? U.shoes : '?') + ' · faces ' + (Mn.faces != null ? Mn.faces : '?') + '/' + (W.faces != null ? W.faces : '?') + ' · closed ' + (Mn.closed != null ? Mn.closed : '?') + ' · venues ' + (Mn.venueMB != null ? Mn.venueMB + '/' + (W.venueMB != null ? W.venueMB : '?') + ' MB' : '?') + ' · text ' + (Mn.textAtlases != null ? Mn.texts + ' strings in ' + Mn.textAtlases + ' atlases, ' + Mn.textMB + ' MB' : '?') + ' · crowds ' + (Mn.fans != null ? Mn.fans + '/' + (W.fans != null ? W.fans : '?') : '?') + ' · heap ' + (Mn.heapMB != null ? Mn.heapMB + ' MB' : '?') + ' · ' + Math.round((Date.now() - t0) / 1000) + ' s');

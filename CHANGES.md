@@ -3,6 +3,138 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## Y1 (4.0) — the §0 fixes
+
+The request "Hoop Heads 4.0: the Retro Bowl format", §0: what the 3.0 played careers found, fixed before the new
+format. Checks for this milestone: the new `tests/fixes40.js` (each fix), `tests/memory.js` (50 games, and its new
+`--snap` heap snapshots with `tests/heapdiff.js`), the crew, recruiting and screen suites whose hires now need credits,
+and the career simulator's §0.1 table (300 careers a policy).
+
+### Difficulty (§0.1)
+
+The 3.0 plays-well career won 5.5 titles and 7.1 MVPs on average, with 5 undefeated seasons per 100 careers; the
+target is 1–3 titles and MVP in 2–4 seasons, under one undefeated season per 100 careers, and 0–1 titles for a lazy
+career.
+
+- **The tournament ceiling stops at +3 a rating over a career** (`tourney.ceilMax`; `ceilTnOf` caps what an old save
+  already earned). Alone it changed nothing measurable: the titles came from the league, not the ceiling.
+- **Growth flattens after 26** (`career.ageXpMul`: ×1.4 to 26, ×0.45 to 28, ×0.25 to 31, ×0.12 after; it was ×1.4
+  to 25, ×0.8 to 28, ×0.45 to 31, ×0.22 after, and a played career's OVR still rose at 32). A star still improves
+  after 26, slowly.
+- **The league keeps 3–5 stars at 88–95 every season** (`career.stars`; `lgStars` after each offseason and when a
+  pro career starts): the best players aged 23–31 grow to a target of 90–94 a rating at a time, anyone over 95 comes
+  back to it, and a star plays with an edge of 2.5 rating points in the simulated games and in the engine
+  (`lgStarEdge`). 3.0's league had one 88+ player in most seasons, so a good career out-classed it by 26.
+- **The Hall of Fame line: 350 → 225** (and the retirement verdicts 150/60 → 100/40), because the legacy's titles and
+  MVPs fell with the league's stars: at 350 the Hall took 35% of play-well careers and none of the typical ones.
+- **Unbeaten deep into a season, every opponent brings its best game** (`career.unbeaten`: from 8-0, +6 rating points
+  against you in the sims and in the engine until your first loss; a headline says so when it starts). It only
+  touches unbeaten runs, so titles and MVPs barely move.
+- **Most Improved never goes to the MVP** (§0.6): the reigning one or this season's, and only to a real jump in
+  points a game (3.0 gave it to the MVP 4 times in one played career).
+
+The career simulator (the §0.1 policies: plays well = `--policy=great --press=team --school=student
+--spend=smart --fa=stars --trade=up`; lazy = `--policy=typical --press=trash --week=rest --summer=job --spend=none
+--gear=none --trade=never --fa=yours`; typical = `--policy=typical --spend=smart`):
+
+| policy (careers) | titles (1–3) | MVP seasons (2–4) | undefeated / 100 careers | Hall of Fame | peak OVR |
+|---|---|---|---|---|---|
+| plays well, 3.0 (100) | 5.50 (21%) | 7.10 (14%) | 5.0 | 65% at 350 | 83.4 |
+| plays well, Y1 (600) | **2.52** (58%) | **3.05** (29%) | **0.8** | 71% at 225 | 82.3 |
+| typical, Y1 (300) | 0.53 (31%) | 0.45 | 0.3 | 6% | 72.6 |
+| lazy, 3.0 (100) | 0.31 | 0.36 | 0 | 0% | 67.8 |
+| lazy, Y1 (300) | **0.13** | 0.03 | 0 | 0% | 67.4 |
+
+The means are on target. The spread stays wide: 14% of plays-well careers win no title and 28% four or more, and
+the MVP seasons split about evenly between none, 2–4 and 5 or more, because they follow the peak OVR (a peak under 80: 1.4 MVPs and 1.3 titles; 83–85:
+3.1 and 2.7; 87 or more: 5.6 and 4.6). The league's stars per season: 4.2 at 88+ (3–5 every season), the best 93, the 3rd 91.
+
+### Memory (§0.2)
+
+- **The portrait prewarm stays inside the cache's cap.** It installed every prewarmed portrait past
+  `ART.rtPortraitN` (120): `rtPortraitPut` evicts beyond the cap (the replaced picture is closed) for the prewarm and
+  the bake worker's answers alike.
+- **Heap snapshots of a session** (`tests/memory.js --snap=5,30`, `tests/heapdiff.js`). Between games 5 and 30 the JS
+  heap grew 2.4 MB (mostly compiled code); the live canvases went from 354 to 444 (24 → 32 MB of pixels). Their
+  holders: the text strips (capped at 96), the glyph cache (capped), the shoe bakes (32), the venue's crowd layers (one
+  venue at a time), the backdrop copies (3) and a freeze frame: each bounded and full by game 30. One real leak: the
+  rebound scratch list (`_contenders`) kept the last match's players, and through them the match and its sprites, until
+  the next game's first loose ball; it's emptied after each pass now.
+- `tests/memory.js` (50 games): +97 MB after game 50 over the level after game 5 (target +150), the trend 1.7 MB a
+  game (X11: +92 MB and 2.4 MB a game; Y1 before the scratch-list fix: +109 MB and 2.7).
+
+### Toasts (§0.3)
+
+- A toast sits in the top band, in the first row from the top clear of every button and the help corner
+  (`toastY`); 3.0 drew it at the screen's foot, over Back, CONTINUE and PLAY. The plan's toast shows only when the
+  plan changes (it came every time a plan button was pressed).
+
+### The crew (§0.4)
+
+- **Hires cost credits** (`ECONOMY.crewHire`: 2/5/9/14/20 a level), like upgrades; a forced hire (an old save's staff)
+  is free. **Salaries start in the pros** (`ECONOMY.crewPay`: high school and college 0): a high school coach used to
+  cost $300–660 a season against a high schooler's $150–250 and walked in week 10 ("two weeks unpaid"). The hire
+  screen shows each candidate's cost in credits and its weekly salary (or "no salary"), how many weeks your cash pays
+  in the pros, and greys out a hire you can't afford; the crew's pages and the Codex say so.
+
+### No bench limbo (§0.5)
+
+The lazy career sat three seasons in the Development League at OVR 70–72 behind a starter on a 4-11 team. Three
+causes, three fixes, measured on 300 lazy careers (a season counts as limbo when you sat half of it while rating at
+or over your team's starter: `tests/careersim.js --seasons` now records the starter's OVR and your place among the five):
+
+- **The form now compares equal players equally in the pros.** A game's form took 0.4 a point of OVR off for weaker
+  opponents (`team.depth.opp`), but the sims' points flatten against much weaker players, so a Development League
+  game cost about 2 points too many and an equal player never got the start. In the pros the opponents' part is now
+  what a player of your OVR expects against the league's mean less what you expect against this opponent (the sim's
+  own curve, `llOppAdj`); the amateur levels keep 0.4. In the pros a benched player's form needs no margin over the
+  starter's (`team.depth.edgePro` 0; the starter keeps a tie).
+- **The coach starts the better player**: rated at or over the starter, 3 straight bench weeks and you start
+  (`team.limbo.weeks`; a card with the coach's words and the record). 3.0's agent had done this by chance (a call-up 7–16%
+  a week by level); with hires in credits (§0.4) the lazy careers lost their agent and the limbo
+  came back, which is how it was found (with no crew: 18.8% of lazy seasons half on the bench; with an agent 12.4%).
+- **The agent's trade**: behind a better starter, after those 3 weeks and before the deadline, the agent brings a
+  trade to the best franchise whose starter you match (OVR within 2, `team.limbo.ovr`): you start there, your
+  contract comes with you, no fame lost. Once a season.
+
+| lazy careers (300) | limbo seasons | careers with 2+ | careers with 3+ seasons mostly (75%+) on the bench |
+|---|---|---|---|
+| credits for hires, 3.0's form | 126 (3.6%) | 22 | 28 |
+| Y1 | **15 (0.4%)** | **1** | 13 |
+
+The 13 careers left are players rated under their own teammates (most 9+ under the starter, fourth or fifth of the
+five): the Development League is where they play. Plays-well careers sit half a season 0.9% of the time, typical
+ones 6.2% (3.0: 1.2% and 6.0%).
+
+### Rankings, the All-Star field, names and text (§0.7–§0.12)
+
+- **The PBL ranks on PBL games only**: a player is ranked once they've played 60% of their team's games
+  (`rank.proMin`). A benched player kept last season's ranking points all season, so a Development League regular
+  finished #1 with no PBL games. The Development League ranks its own (its chart, LEAGUE → the league below).
+- **The 3-Point Contest takes the four best shooters**: 3P% shrunk toward the league's by 20 attempts plus Shooting
+  × 0.004, among players with at least half the league's threes a game (`career.allStar3`); your fans vote you in
+  only from the top six. 3.0 weighed 3P% by volume and let fame 55 replace the fourth: a Shooting-28 player got in.
+- **Team names, never abbreviations** on the screens: free agency's SIGN WITH THE OWLS (was OWL), the Overseas offers,
+  TALK TO THE …, standings and leaders rows (Wendell Okoro · Raccoons, not ROO), the playoff seeds, the draft board,
+  the awards' teams, the trade card, the 5★ spots, a stake, the banner. A jersey and a crest keep their letters.
+- **No rivals left**: the PBL standings' "Your rival is in red.", the recruiting cards' RIVAL WANTS THIS SPOT, the
+  timeline's RIVAL tag (an old save's rival entries go: `y40Migrate`), the Art Lab's RIVAL chip (now HURT), and "a
+  rival" in the crew's poaching message, the Codex and the 5★ spots ("another team", "the best contender").
+- **Small ones**: an untrained rating's row stays quiet (one note by the header: "No time shown: it grows in games"),
+  the OVR chart's first and last season labels sit inside its width (S1 overlapped the axis's 40), and a phone HOME's
+  headline keeps its last line above the tab bar.
+
+### Checks
+
+`tests/fixes40.js` 9/9 (desktop and phone), `tests/smoke.js` 134/134, `tests/memory.js` 50 games +97 MB (pass),
+`tests/screens30.js` 762 screens with none flagged, `tests/oldsaves.js` 42/42, `tests/crew.js` 7/7 (without its long
+table), `tests/lower.js` 12/12, `tests/rankings.js 120` 13/13, `tests/life21.js` 17/17, `tests/recruit30.js` 23/23,
+`tests/pbl21.js` 11/11, `tests/proteams.js` 14/14, `tests/polish.js` 14/14, `tests/store30.js` 7/7, `tests/shop.js` 9/9.
+Fixed on the way: a long list of awards ran under the offseason chart's axis (it now shortens to "+N MORE"), and the
+Overseas offers' SIGN WITH buttons take the club's short name. `tests/lower.js` allows the Development League more than
+its 64 slots' players (anyone who moved between the leagues); `tests/difficulty.js` judges titles by 4.0's bands
+(plays-well 1–3, typical 0.3–1.2) and lists the Hall at 175–275.
+
 ## X11 (3.0) — app readiness, the full suite, version 3.0
 
 The request's §10–§12: the game made ready for an app (prepared only: no payments), every suite run and every §11 table

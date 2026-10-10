@@ -39,7 +39,7 @@ const { launch, openPage, runner } = require('./lib');
     if (bad.length) throw new Error(bad.slice(0, 10).join(' · ')); return 'upgrades ' + costs.join('/') + ' credits · Lv3 for two seasons works at Lv' + L1 + ' · pay Lv1–5 ' + [1, 2, 3, 4, 5].map(lv => crewMoney(crewPay(c, { role: 'physio', lv }))).join('/'); }));
 
   await step('they follow you (§7.2): a skills coach hired in high school is still yours in college and in the pros (the same person, the years together kept), and the slots grow', () => ev(() => {
-    const bad = [], g = HH.game, a = __hs(43); a.stageYear = 2; const cand = crewCandidates(a, 'skills')[2]; if (!crewHire(a, cand)) throw new Error('no high school hire'); const id = cand.id; crewOf(a).staff.skills.yrs = 1;
+    const bad = [], g = HH.game, a = __hs(43); a.stageYear = 2; const cand = crewCandidates(a, 'skills')[2]; a.credits = 100; /* 4.0 (§0.4): a hire costs credits */ if (!crewHire(a, cand)) throw new Error('no high school hire'); const id = cand.id; crewOf(a).staff.skills.yrs = 1;
     const r = devJumpToPro(g, 43); if (!g.save.data.career) createCareerFromAmateur(g.save.data, a); const c = careerOf(g); if (!c) throw new Error('no pro career: ' + JSON.stringify(r)); const M = crewMember(c.me, 'skills');
     if (!M || M.id !== id) bad.push('the coach didn\'t come: ' + JSON.stringify(crewList(c.me).map(x => x.id))); else if (!(M.yrs >= 1)) bad.push('the years together were lost: ' + M.yrs); if (crewSlots(c) !== 6) bad.push('pro slots ' + crewSlots(c));
     if (bad.length) throw new Error(bad.join(' · ')); return M.name + ' (' + CREW_SPEC_NAME[M.spec] + ', Lv' + M.lv + ') from high school to the pros, ' + M.yrs + ' seasons together'; }));

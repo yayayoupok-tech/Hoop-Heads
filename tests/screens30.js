@@ -49,7 +49,7 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('hs-recruit-home', () => { const g = HH.game, a = g.save.data.c1; __adv(a, 400, a => a.stageYear >= 3 && a.offers && a.offers.length > 0 && !a.decision); __quiet(a); g.hubTab = 'home'; g.ui.clearTo(amHub(g)); });
     await audit('hs-recboard', () => { const g = HH.game; __home('home'); g.ui.push(recBoardScreen(g)); });
     // X8 (§7): the crew in high school (one slot: a skills coach), its hiring screen with the slot full, HOME's crew line
-    await audit('hs-crew', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.cash = Math.max(a.cash || 0, 20000); if (crewCanHire(a, 'skills')) crewHire(a, crewCandidates(a, 'skills')[1]); __home('career'); g.ui.push(crewScreen(g)); });
+    await audit('hs-crew', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.cash = Math.max(a.cash || 0, 20000); a.credits = Math.max(a.credits || 0, 100); if (crewCanHire(a, 'skills')) crewHire(a, crewCandidates(a, 'skills')[1]); __home('career'); g.ui.push(crewScreen(g)); });
     await audit('hs-crewhire', () => { const g = HH.game; __home('career'); g.ui.push(crewHireScreen(g, 'scout')); });
     await audit('hs-home-crew', () => __home('home'));
     // X5 (§4.3–4.4): not starting: the JV game on HOME, its result, the depth chart, JV's tables, the Transfers chart, the transfer message
@@ -102,7 +102,7 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
     await audit('hs-pregame-scouts', () => { const g = HH.game; __home('home'); g.ui.push(amPregameScreen(g)); });
     await audit('hs-result-scouts', () => { const g = HH.game, a = g.save.data.c1; const r = amSimGame(a); __quiet(a); g.ui.clearTo(amResultScreen(g, r, null)); });
     await audit('hs-recruiting-parts', () => { const g = HH.game; __home('home'); g.ui.push(recruitingScreen(g)); });
-    await audit('hs-summer-scout', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.cash = Math.max(a.cash || 0, 1e5); if (!crewMember(a, 'scout') && crewCanHire(a, 'scout')) crewHire(a, crewCandidates(a, 'scout')[0]); const M = crewMember(a, 'scout'); if (M) M.lv = 3; a.summer = { pending: true, year: 3, season: a.season }; g.sumPick = null; __home('home'); g.ui.push(summerScreen(g)); });
+    await audit('hs-summer-scout', () => { const g = HH.game, a = g.save.data.c1; __quiet(a); a.cash = Math.max(a.cash || 0, 1e5); a.credits = Math.max(a.credits || 0, 100); if (!crewMember(a, 'scout') && crewCanHire(a, 'scout')) crewHire(a, crewCandidates(a, 'scout')[0]); const M = crewMember(a, 'scout'); if (M) M.lv = 3; a.summer = { pending: true, year: 3, season: a.season }; g.sumPick = null; __home('home'); g.ui.push(summerScreen(g)); });
     await ev(() => { const g = HH.game, a = g.save.data.c1; a.summer = null; a.stageYear = 4; a.offers = []; for (const k of RATING_KEYS) a.r[k] = Math.max(CR.ratingMin, a.r[k] - 30); recSigningDay(a, amRng(a)); __quiet(a); });
     await audit('hs-signing-none', () => { const g = HH.game; __home('home'); g.ui.push(amDecisionScreen(g)); });
     await audit('hs-abroad', () => { const g = HH.game; __home('home'); g.ui.push(ovsOffersScreen(g, true)); });

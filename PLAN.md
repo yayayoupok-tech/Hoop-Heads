@@ -446,6 +446,34 @@ adapter, save codes (`HH3:`; Settings → Save), an upright phone that turns the
 rewritten for 3.0 and the bugs they found fixed; `tests/difficulty.js` judged by 3.0's bands with Part 2's targets
 beside them. Version 3.0, What's new in 3.0, the README rewritten, the artifact republished.
 
+## Hoop Heads 4.0 (Y1–Y11): the Retro Bowl format
+
+The request "Hoop Heads 4.0: the Retro Bowl format". The career keeps 3.0's systems and takes Retro Bowl's layout, flow
+and feel for a 1v1 basketball career: one HOME with the next game's card, a PREGAME and a POSTGAME, a TEAM page, a
+PLAYER page for training, a FRONT OFFICE (facilities in credits, the salary bar, the crew as cards, offers, sponsors),
+a LEAGUE with standings, leaders and the Hall of Fame, fans, morale and energy, a two-screen offseason, and a real-life
+calendar at every level (the PBL's 30 teams, divisions, play-in and best-of series; college's Top 25 and its
+tournament; high school's class rankings). Nothing is copied from Retro Bowl: no names, logos or art. Its rules: one
+`index.html`, renderers never throw, a commit per milestone, old saves migrate, quick checks per milestone and the full
+suite once at the end, 1v1 only (no story, rivals, rarity or arcade extras).
+
+**Y1 — The §0 fixes** *(done)* — difficulty (the tournament ceiling capped at +3 a rating, stars' growth flat after
+26, 3–5 league stars at 88–95 every season; a play-well career wins 1–3 titles and 2–4 MVPs, the Hall at 225), memory
+(the portrait prewarm inside the cache's cap; heap snapshots of 30 games: a finished match kept alive by the rebound
+scratch list), toasts in the top band, crew hires in credits with salaries only in the pros, no bench limbo (a call-up
+or the agent's trade), Most Improved never to the MVP, PBL rankings on PBL games only, the 3-Point Contest's field, team
+names for abbreviations, the last "rival" text, three small layout fixes (`tests/fixes40.js`).
+**Y2 — The visual kit** — §1.
+**Y3 — HOME** — §2.1.
+**Y4 — PREGAME and POSTGAME** — §2.2–2.3, with the kit and ball pickers.
+**Y5 — TEAM, the PLAYER page and VIEW ALL TEAMS** — §2.4.
+**Y6 — FRONT OFFICE** — §2.6: facilities in credits, the salary bar, crew cards, offers, sponsors and raises.
+**Y7 — LEAGUE and the HALL OF FAME** — §2.5, §2.8.
+**Y8 — Fans, morale, energy, team stars and messages; the offseason in two screens** — §3, §2.9, §2.7.
+**Y9 — The real-life PBL** — §4.1.
+**Y10 — College and high school in the new format** — §4.2–4.3.
+**Y11 — Release quality, the full suite, version 4.0, the republish** — §8–§10.
+
 ## Testing every milestone
 
 ```
@@ -465,6 +493,7 @@ node tests/phoneaudit.js [dir]     # phone tap targets, overlaps and text size o
 node tests/loop.js                 # 3.0: the weekly loop's screens between games at each level (§2.2)
 node tests/screens30.js [dir]      # 3.0: the overflow audit of the 3.0 screens at a desktop, a phone and 1.25× text (§11)
 node tests/rankings.js [n]         # 3.0: rankings follow how people play at each level (§4.1, §11)
+node tests/fixes40.js [--phone]    # 4.0: the §0 fixes (stars, toasts, crew pay, bench limbo, awards, rankings, the 3-Point Contest, names)
 node tests/gate.js [n] [hn]        # the §2 Legends View gate: mirror, Legend vs Pro and the harness in both layouts (L1)
 node tests/tojpeg.js <dir>         # milestone screenshots: PNG → JPEG
 ```
