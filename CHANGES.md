@@ -3,6 +3,309 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## X11 (3.0) — app readiness, the full suite, version 3.0
+
+The request's §10–§12: the game made ready for an app (prepared only: no payments), every suite run and every §11 table
+printed, version 3.0 and the README rewritten for it. Checks for this milestone: the new `tests/store30.js` (§10 and
+§11's "Store"), the whole suite (below).
+
+### App readiness (§10)
+
+- **Every price in one table.** `ECONOMY` (its own section, above `CONFIG`) holds every price in the game: the store's
+  levels by stage, the extras, celebrations, the camps, school (tuition, summer classes), the crew's salaries and its
+  credits a level, the gym, the pro cosmetics, a lifestyle, the shoe line, the big buys and the epilogue's. The sections
+  that used to hold them read them from it (`gear.price`, `crew.pay`, `crew.up`, `pro.big`, `pro.lifestyle`, …), so a
+  change there is the price the game charges; no price literal is left anywhere else in `CONFIG` (`tests/store30.js`
+  scans for one). Cash is earned by playing and buys items, upgrades, crew salaries and the big buys; credits come from
+  wins, tournaments and goals and level up the crew.
+- **One store module (`179_store.js`, the STORE section).** A product catalogue (`CONFIG.store.skus`): two credit packs
+  that only speed things up, one Unlimited unlock (the player editor for any player, more save slots, custom teams, as
+  Retro Bowl's), cosmetics (jerseys, shoes, courts, celebrations), each with its price tier in `ECONOMY.store` (the app
+  stores' tiers: no amounts in the web build). `purchase(sku)` goes through a provider interface ({ id, enabled,
+  purchase(item), restore() }); the web build's provider is a disabled stub, so every purchase answers "disabled" and
+  gives nothing, and the build holds no payment code. Fair by design: a product gives exactly what it says (no paid
+  random rewards), and everything can also be earned by playing (each product's `earn`; Unlimited comes with a Hall of
+  Fame career). In an app, purchases must go through Apple's and Google's own billing: a provider for each, behind the
+  same interface (`storeUseProvider`).
+- **Sections apart.** SAVE (`160_save.js`: the slots, the storage adapter, the save code, the migrations) is its own
+  section now, split from the pros' progression (`160_save_pro.js`); ECONOMY and STORE are new; the UI parts were
+  already apart. Every read and write of a save goes through `SAVE_STORAGE` (the browser's `localStorage` here), so an
+  app can keep saves in its own storage.
+- **Versioned saves you can export.** The schema version is 6 (3.0). Settings has a sixth tab, Save: copy this save as a
+  code (`HH3:` and base64 JSON with the app, the schema version and the game's version; to the clipboard, or a box to
+  copy it from), load a code (pasted into a box; a bad one says why and the box stays open) or a file. An older save is
+  brought up to date by the migrations every old save goes through; a newer one is refused; this device's settings stay.
+- **Touch-first, a portrait option, offline.** A phone held upright used to get a "rotate your phone" screen it could
+  never leave with the rotation lock on. Now the game turns its canvas to fill the upright screen (touches mapped to
+  match; the save box turns with it), and Settings → Display → Upright phone picks Turn the game (the default) or Ask
+  to rotate. Accessibility is now Display (six tabs fit a desktop). Everything works offline: one file, no requests.
+
+### Version 3.0
+
+- `version` 3.0 (the title screen, the credits, the save code); What's new in 3.0 (eleven cards: HOME and the week,
+  rankings, teammates, tournaments, items and badges, the crew, recruiting, effort, your ceiling, your save, less to
+  manage; the old 2.1 page still listed the story's chapters and endings).
+- The README rewritten for 3.0: what's new, the career as it plays now (HOME, the week, the leagues below, tournaments,
+  the store, the crew, the ceiling, fame, the legacy), the app-ready notes and every suite.
+
+### Fixed (the full suite's finds)
+
+- **A program's page** cut its X9 line "Earned (camps, visits, games): none yet" on every desktop (the value never
+  showed): it takes the longest of three wordings that fits.
+- **The ? key** on the recruiting board opened OVR & ratings: it opens Colleges & recruiting, and 3.0's other new
+  screens open their own pages (the rankings, the leaders, the brackets, the season review, the drill's result, MORE…,
+  the standings, the teams and a team's page, transfers, the leagues below, the Overseas League and its offers).
+- **2.x's tab names** left in five places: the Codex's "The 64 programs" (the RECRUIT tab, Team → Colleges: now LEAGUE →
+  Colleges or the recruiting board) and "Ceremonies and records" (the ME tab: CAREER → Records), the pros' help card and
+  HOME's bench note (Team → Office: CAREER → Office), a program page's "your depth chart is on the TEAM tab" (LEAGUE).
+- **The trophy case's legacy lines** (X10's weights) were cut at every desktop size ("A title 10 · an MV…"): a row a
+  weight, its number on the right.
+- **A phone's free agency row** cut its terms ("over the cap · ends day 2 · player op…": the no-trade clause never
+  showed): it takes the longest wording that fits. **A phone's negotiation** ran its odds into the Yes/No line: the odds
+  read "97% ACCEPT · 3% WALK" and the line starts after them.
+- **A college player's LEAGUE tab** kept a red dot for good: their high school offers were never all seen, and nothing
+  on LEAGUE cleared it. Only high school's HOME shows the offers' dot (junior college's and the portal's offers come as
+  a decision).
+- **CAREER's doors** go three a row: two a row left a phone no room for any of your numbers (stage, fame, confidence,
+  cash) and stopped a desktop before the GPA.
+- **The genes reveal** ran its third badge card under CONTINUE on a phone: a phone shows two.
+- **The wide audit's finds** (`tests/phoneaudit.js`, the four modes; each was cut or overlapped at its size): the Road's
+  varsity milestone ("Win your school's starting spot.") and an item reward's name ("Shooter's sleeve +1" where ", a
+  level" doesn't fit); the Road banner's lines for the tryouts and junior college; 2.x's messages with three long lines
+  (a rebuild, a trade offer, an unhappy star): a message holds five lines of detail now; the coaching carousel's "Follow
+  the coach" ("Their offer: no flip cost"); the scouting card's "2 more…" line on a phone; a tournament's opponent line
+  (a long school's name and the round's rating); the film session's card in the store; the timeline's tryout line; the
+  college list's YOUR PROGRAM; a celebration's "The Road: …" on its card and in the preview; the negotiation's odds at
+  1.25× text on a desktop; HOME's report line during the tryouts (three lines, not one); the legacy screen's buttons,
+  which now come once the retired jersey is up (it rose under them).
+- Tests: `improve21.js`'s big-buys step compared hype against NaN (it always passed): gone with hype; `smoke.js`'s
+  settings step reopens DISPLAY before it sets the text size (its loop ended on the new SAVE tab).
+
+### The suites, rewritten for 3.0
+
+Eleven suites still drove what 3.0 took out or replaced. Each step now tests what 3.0 has in its place (its title
+says so), and every one passes on the final build:
+
+- `colleges.js` (14 steps): the registry (no program rivals: §1 took them out), the college list (64 programs ranked by
+  stars, then tier and name; no 2.x filters), the desktop list and a program's page (its stage, the Earned line, a held
+  offer, no cut text), recruiting on HOME (the card, the board, Signing Day; in college the list is on LEAGUE), the
+  Codex (? on the list, a page and the board) and a phone (MORE… → Recruiting → the board → a page in three views → the
+  list).
+- `life21.js` (17): the negotiation's agent comes through the crew (each level takes `CREW.roles.agent.odds` off a +20%
+  ask's risk: 20% → 18/16/14/12/10%, 8% once they know your game); the owners' moves are messages, one a week, two a
+  season at most (no press beat); the value meter on all five tabs; the screens (HOME's tabs, the meddler's messages,
+  free agency, the negotiation) on a desktop and a phone.
+- `improve21.js` (13): the plans (STUDY sets the plan and studies at tip-off), probation as the coach's rule through the
+  real loop, a trade offer as an urgent message on HOME, the big buys (no hype). `gameplay.js` (12): PLAY goes straight
+  to the game and HOME's Scout report holds the card (reading it studies the opponent: Film Junkie's deed); the Boss
+  (BOSS on HOME, the card and the tip-off; a Boss win pays +3 fame).
+- `modes.js` (13): a high school game from HOME's PLAY to the result and back, the 30-second drill (its bonus 0–50%), a
+  pro game from the Scout report, the tryouts (JV plays in the district league since X5). `proteams.js` (14): a title's
+  parade, ring and banner come in the Season review.
+- `polish.js` (14): the ? key on 36 of 3.0's screens, the Codex's terms (fame and no hype, the store, badges, the
+  ceiling, the crew, the week, rankings, tournaments), the tooltips on all five tabs, a phone's tap on fame and the
+  ceiling, the red dots (HOME's Recruiting, CAREER's News, the pros' Office; none on the store or a college LEAGUE).
+  `school.js` (8): report cards after week 5 and before the last game (no exam choice), probation (two cards under
+  1.5 cost the scholarship), the degree in four seasons with no major, an old save's major and its cards taken out.
+- `fullcareer.js`: the driver knows 3.0's screens (the season review, messages, tournaments and their charts, MORE…,
+  Train and the drill, the summer, the crew's hire, the Overseas League's offers, What's new) and must play a real game
+  at each level, a tournament game and a drill. Title to Hall of Fame on a desktop: 392 actions, 16 pro seasons,
+  retired at 37; on a phone: 510 actions, 15 seasons, retired at 37.
+- `phoneaudit.js` (about 250 screens a mode) audits 3.0's screens where 2.x's were: HOME and its five tabs, messages,
+  the focus picker and the drill's result, the Season review, LEAGUE's charts, tournaments and their brackets, the
+  recruiting board, the crew, the store and the Settings tabs, with every screen 3.0 kept; it ends with a count (screens
+  audited, flagged). `loadlag.js` times 3.0's screens and game loads (HOME's tabs, a message, the scouting report, the
+  Season review, the crew; PLAY straight to the game).
+
+### The full suite (§11: every table)
+
+Every suite ran on the final build. The long simulations ran on the build before the last round of text and layout
+fixes (the wide audit's), which touch no game logic.
+
+**Memory** (§11: 50 career games within +150 MB; `tests/memory.js`, run alone):
+
+| Build | Games | The level after game 5 | After the last game | Growth (target: +150 MB at most) | The highest level on the way | Trend |
+| --- | --- | --- | --- | --- | --- | --- |
+| 3.0, desktop 1280×720 | 50 | 586 MB | 678 MB | ✓ +92 MB | 747 MB (+160) | 2.4 MB a game |
+| 3.0, phone 844×390 at 2× | 30 | 683 MB | 797 MB | ✓ +114 MB | 812 MB (+129) | 3.5 MB a game |
+
+(X1's build: +65 MB over 50 games on a desktop, +89 over 30 on a phone; 2.1's: +538 over 20. A reading moves ±60 MB
+with what the allocator keeps, so the level is the median of three in a row; the trend is the slope over the run.)
+
+**Screens between games** (§11: at most 2 on PLAY, 1 on SIM; `tests/loop.js`, twelve weeks at each level, six played
+and six simmed, through the real screens):
+
+| Level | PLAY week: most screens (mean) | SIM week: most (mean) | The screens it met |
+| --- | --- | --- | --- |
+| High school | ✓ 1 (1.00) | ✓ 1 (0.17) | the result 6, the season review 1 |
+| College | ✓ 2 (1.17) | ✓ 0 (0) | the result 5, a message 2 |
+| The pros | ✓ 1 (1.00) | ✓ 0 (0) | the result 6 |
+
+**Pace** (§11: 12–18 points a side, 70–80 s games; `tests/pace.js`, 8 careers, seed 11, each game played in the engine
+with the AI at your controls):
+
+| Level | Games | You | Opponent | A side | Sides in 12–18 | Length, mean / median | Overtime |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| High school | 160 | 14.2 | 13.2 | ✓ 13.7 | 43% | 73.8 / ✓ 73.4 s | 6% |
+| College | 121 | 15.2 | 13.0 | ✓ 14.1 | 43% | 75.6 / ✓ 74.4 s | 7% |
+| The pros | 320 | 15.9 | 15.4 | ✓ 15.7 | 45% | 75.6 / ✓ 74.7 s | 6% |
+
+Simmed against played points (`tests/parity.js`, within 10%): high school ✓ 1.015, college ✓ 0.995, the pros ✓ 0.923.
+
+**Rankings** (§11: the top scorer in the top 10 in 95% of seasons; `tests/rankings.js`, 120 careers and 120 PBL
+seasons):
+
+| Pool | Seasons | The top scorer in the top 10 | Their worst ranks | Teams: rank vs win share (the #1 within a loss of the best) | Players: rank vs PPG / vs OVR |
+| --- | --- | --- | --- | --- | --- |
+| High school (the nation) | 286 | ✓ 96% | 13, 13, 14, 15, 22, 25 | ρ 0.85 (100%) | ρ 0.90 / 0.55 |
+| College (64 programs) | 464 | ✓ 100% | 5, 5, 6, 7, 7, 8 | ρ 0.96 (100%) | ρ 0.97 / 0.66 |
+| The PBL | 120 | ✓ 100% | 2, 2, 3, 3, 3, 4 | ρ 0.95 (100%) | ρ 0.97 / 0.70 |
+
+**The depth chart** (§11; `tests/lower.js`, 12 of 12): a benched player who outplays the starter takes the spot on the
+third week (not after two; within the edge the starter keeps it) ✓. Over whole careers: 17 swaps in 64 seasons, 2 of
+them past a starter 8+ OVR better.
+
+**Tournaments** (§11; `tests/tourney.js`, 8 of 8): every one runs and has a bracket chart (13 new ones, and the state,
+conference, national, All-Star and playoff brackets) ✓; the field rises with the tier (high school 45.0 < 46.4 < 49.0 <
+53.2; the pros' Blacktop 74.2 < World Cup 83.9 < Olympics 85.7, the best 91 and 92) and each round (the HS Nationals
+43.9 → 51.7 → 55.1) ✓; the rewards are granted ✓; the World Cup and the Olympics alternate (the Olympics in 2032 and
+2036, the World Cup in 2034) ✓.
+
+| Tournament | Format | Tier | The opponent by round | Win% | The champion's reward |
+| --- | --- | --- | --- | --- | --- |
+| HS Nationals | knockout 16 | national | 44 → 52 → 55 → 58 | 13% | $300 · 2 ranking points · 6 credits · Nationals Headband |
+| AAU Summer Jam | knockout 16 | local | 38 → 46 → 49 → 53 | 30% | $100 · 0.8 · 3 · Circuit Socks |
+| AAU Elite Classic | knockout 16 | state | 41 → 49 → 52 → 56 | 27% | $150 · 1 · 4 · Circuit Socks |
+| AAU Grassroots Finals | knockout 16 | national | 44 → 52 → 55 → 58 | 13% | $200 · 1.2 · 5 · Circuit Socks |
+| Elite Camp | skills 12 | national | 53 → 54 | 40% | $150 · 1 · 4 · Elite Camp Sleeve |
+| All-American Game | showcase 24 | national | 58 | 7% | $250 · 1.5 · 6 · All-American Shoes |
+| U17 World Cup | groups 16 | international | 55 → 57 → 60 → 62 | 0% | $400 · 2.5 · 8 · U17 Gold Wristbands |
+| Preseason Invitational | knockout 8 | state | 60 → 67 → 71 | 60% | $1,500 · 1.5 · 5 · Invitational Headband |
+| U21 World Cup | groups 16 | international | 73 → 75 → 77 → 81 | 0% | $3,000 · 2.5 · 8 · U21 Gold Sleeve |
+| PBL Cup | cup 16 | league | the league's | — | $500,000 · 2 · 10 · PBL Cup Shoes |
+| Blacktop Kings | knockout 16 | local | 68 → 76 → 81 → 85 | 37% | $100,000 · 0.5 · 5 · Blacktop Kings Headband |
+| World Cup | groups 16 | international | 84 → 89 → 89 → 93 | 3% | $250,000 · 1.5 · 12 · World Cup Socks |
+| Olympics | groups 16 | Olympic | 87 → 90 → 91 → 96 | 3% | $500,000 · 2 · 15 · Olympic Shoes |
+
+(Win%: a high school player 16 over a freshman's OVR, about 57; a college one about 77; a pro at 88; 30 runs each.)
+
+**Recruiting** (§11: the §8 targets over 600 careers; `tests/careersim.js --hsOnly --spread=12`, seeds 1–4, 150 each;
+identical to X9's, and `tests/recruit30.js` 23 of 23):
+
+| By the national rank at signing | Careers | Offers (mean) | Median | None | |
+| --- | --- | --- | --- | --- | --- |
+| Top 50 | 223 | 17.7 | 19 | 0% | ✓ 8+ for 91%; a power program or a blue blood for 99%; a blue blood for 54% where the GPA allows (2.5+) |
+| 4★ (51–300) | 88 | 5.2 | 5 | 0% | |
+| 3★ | 108 | 3.3 | ✓ 3 | 4% | 2–4 for 58% |
+| 2★ | 126 | 1.2 | 1 | 37% | |
+| 1★ | 55 | 0.8 | 1 | ✓ 45% | with none: a prep year 23, junior college 18, a walk-on 19, abroad 16 (all bands) |
+
+Held offers 7.49 a career; pulled 0.58 (a filled spot 276, a flip 72).
+
+**Progression** (§11: the §9 targets; `tests/progress30.js`, 7 of 7; the table: 200 careers a policy, seed 2):
+
+| Policy | Legacy (median) | Hall of Fame | Titles | Peak OVR | OVR gains in the first 8 pro seasons (6+) | Fame at pro season 3 (100) | Fame (career) | A bench season's fame |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Plays well + good choices | 437.6 (451) | 71% | 5.39 | 84 | ✓ 7 (90%) | 61 (13%) | 74 | 37 (44 seasons) |
+| Typical, a smart spender | 152.9 (134) | 7% | 1.53 | 73 | 6 (84%) | 25 (1%) | 47 | 22 (211 seasons) |
+| Sims everything | 55.6 (43) | 0% | 0.30 | 68 | 5 (38%) | 12 (0%) | 18 | 7 (501 seasons) |
+
+Effort ✓ +687% legacy (40%+); OVR gains ✓ 6+ in 90%; fame ✓ spread 74 / 47 / 18 (100 by pro season 3 in 13% of
+play-well careers). `tests/effort.js` (200 careers each, seed 1, 6 of 6): plays well 422.1 legacy, 95% a 5★ team, 5.33
+titles, 66% the Hall; sims everything 55.8, 5%, 0.26, 0% (+656%); never opening a menu still reaches a 3★ team 100%; a
+smart spender leaves 21% of their earnings unspent.
+
+**Crew** (§11: the §7.6 table, no role under +4%; `tests/crew.js`, 8 of 8; 1,200 careers a policy, seeds 1–6; legacy as
+the paired difference from the same careers with no crew):
+
+| Crew | Legacy | OVR | Injuries | Avoided | Money | The agent's | Pay / income | Credits from wins + tournaments |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| None | (106.6) | — | — | — | — | — | 0% | — |
+| A full crew at Lv3 | ✓ +35.4% ±1.8 | +1.22 | −1.58 | 1.75 | +$35.4M | $18.6M | 25% | 91% |
+| The typical crew (auto) | +42.8% ±1.9 | +1.11 | −1.56 | 1.67 | +$44.0M | $24.5M | ✓ 29% | 91% |
+| Skills coach alone | ✓ +8.6% ±1.4 | +0.61 | +0.12 | 0 | +$9.3M | — | 8% | 90% |
+| Scout alone | ✓ +5.1% ±1.2 | +0.11 | +0.13 | 0 | −$0.9M | — | 8% | 90% |
+| Strength coach alone | ✓ +8.1% ±1.1 | +0.17 | +0.02 | 0 | +$1.7M | — | 8% | 90% |
+| Physio alone | ✓ +5.6% ±1.3 | +0.38 | −1.88 | 1.82 | +$0.7M | — | 8% | 90% |
+| Mental coach alone | ✓ +7.0% ±1.2 | +0.15 | +0.01 | 0 | +$0.9M | — | 8% | 90% |
+| Agent alone | ✓ +6.0% ±1.2 | +0.05 | +0.06 | 0 | +$16.3M | $18.3M | 0% | 90% |
+
+Every role works and shows on HOME's crew report and the result screen, the crew follows you between stages, and two
+seasons together add a level (the suite's other seven checks).
+
+**Items** (§11; `tests/items.js`, 5 of 5): no rarity word on 18 screens (503 strings drawn) ✓; the +4 cap held over 500
+random lockers (the most +4) ✓; tournament items are never on a shelf (won, upgraded with cash, a level stronger than
+the store's) ✓.
+
+**Store** (§11; `tests/store30.js`, 7 of 7): the stub provider is disabled and sells nothing (7 products, each
+"disabled") ✓; every price comes from `ECONOMY` (14 groups; no price literal elsewhere in `CONFIG`; a change there is
+the price) ✓; every product is fair (no paid random rewards, each earnable by playing) ✓; a save code round-trips (a
+145 KB code, v6, 3.0), an older one migrates, a newer or damaged one is refused ✓; an upright phone turns the game ✓;
+offline ✓.
+
+**Old saves** (§11; `tests/oldsaves.js`): ✓ 42 of 42 saves from older builds (from before 2.0 to 2.1, at every stage of
+a career) load with the story, the rival and rarity taken out, and play on through the UI (160 actions each).
+
+**The overflow audit** (§11: a desktop, a phone and 1.25× text on every new screen): `tests/screens30.js`, every 3.0
+screen in its states at a desktop and a phone, each at 1× and 1.25× text: 758 screens, ✓ 0 flagged;
+`tests/phoneaudit.js`, the wide audit (about 250 screens a mode), 250 screens on a phone and 242 on a desktop, each at
+1× and 1.25× text: 0 flagged (its first run on 3.0 flagged 17 screens across the four modes: the fixes above).
+
+**The difficulty table** (`tests/difficulty.js`, 600 careers a policy, seeds 1–3; 3.0's bands, Part 2 §1.1's targets
+beside them; a measured cell's marks: Part 2's, then 3.0's):
+
+| Milestone | Typical: Part 2 | Typical: 3.0 band | Typical: measured | Great: Part 2 | Great: 3.0 band | Great: measured |
+| --- | --- | --- | --- | --- | --- | --- |
+| Makes varsity | soph or junior (freshman 20–25%) | freshman 30–60%, median year 1–2 | ✗ ✓ freshman 38%, median year 2 | freshman (50%+) | freshman 50%+ | ✓ ✓ 64% |
+| Recruit stars at graduation | 2–3★ | 2–3★ | ✓ ✓ 2–3★ 54%, median 3★ | 4–5★ | 4–5★ | ✓ ✓ 100%, median 5★ |
+| Starts in college | year 2–3 | year 2–3 | ✓ ✓ median year 2 | year 1 (50%+) | year 1 in 20%+ | ✗ ✓ year 1 30% |
+| First pro offer | 1–2★ or none | median 2–3★ | ✓ ✓ 1–2★ 77%, median 2★ | 3★ | median 3–4★ | ✗ ✓ median 4★ |
+| Reaches a 3★ team | by 26–28 in 50% | by 28 in 75%+ | ✗ ✓ by 28 90%, median age 25 | by 24 | by 24 in 75%+ | ✓ ✓ 100% |
+| Reaches a 5★ team | 15–25% | 30–60% | ✗ ✓ 42.0% | 35–55% | 85%+ | ✗ ✓ 95.2% |
+| Titles a career | 0.2–0.4 | 1.0–2.2 | ✗ ✓ 1.57 | 1–2 | 4–7 | ✗ ✓ 5.63 |
+| Hall of Fame | 3–8% | 3–12% | ✓ ✓ 5.7% | 30–40% | 55–85% | ✗ ✓ 70.0% |
+
+By seed (1 | 2 | 3): titles, typical 1.62 | 1.45 | 1.66, great 5.74 | 5.27 | 5.87; the Hall of Fame, typical 6.5 | 4.0
+| 6.5%, great 69.5 | 70.5 | 70.0%. The Hall at other lines: 300 typical 13.3%, great 76.3%; 325 10.5%, 73.7%; 375 4.5%,
+66.3%; 400 3.5%, 62.3%. 0 stuck careers.
+
+Part 2 §1.1's targets (2.0's "a climb that's actually hard") hold for 7 of the 16 rows. 3.0 changed the climb on
+purpose: §9 asked for effort to matter (a play-well career +40% legacy or more; it is +687%), no flat decade and a
+ceiling that tournaments, the crew, a facility and badges raise; X5 made your 1v1 record your team's and the team stars
+follow the team rankings, so a great player lifts their own team to 5★. A typical career now wins about 1.6 titles (Part
+2: 0.3) and a play-well one about 5.6 (1–2), and the Hall's line (350) keeps the typical career in Part 2's 3–8%. So the
+table judges each row by 3.0's band (this measurement with room for the seeds' noise: a guard against a regression) and
+prints Part 2's target beside it. Retuning toward Part 2 would make the pros harder for everyone and undo part of §9.
+
+**Badges** (`tests/traitbalance.js`, 200 great careers a badge, seed 1; a badge at Lv1 from the first week against every
+badge earned, median legacy 444; with none at all 243, −45%): 16 of 17 at or above the baseline's −3% noise line (from
+−2% to +5%: Clutch, Generational and Ice Veins +5%); Late Bloomer read −3.5% ✗. On seeds 2 and 3 it reads −1.5% and
++3.1% (200 careers each against the same careers' baseline): noise, with no downside left in the badge.
+
+**The engine** (report-only): `tests/balance.js` brute force against a Pro 1.06 PPP (≤ 1.30 ✓), timing and reads beat
+it (2.02), a Legend beats a Pro 83% (75–95% ✓); `tests/gate.js` the Pro mirror 1.17 PPP, 50/50, a Legend 81% ✓;
+`tests/stylemix.js` post-ups 51%, a shooter's jumpers 60% (half threes 52%), a slasher's drives 64% ✓;
+`tests/heighttest.js` the 2.12 m bot wins 12, 11 and 4 of 60 against the 1.82 m one (as 2.1's). `tests/steals.js` 1,000
+steals, no mismatch; `tests/boxscore.js` 2,000 box scores add up; `tests/devtools.js` all OK (1,000 balls, none
+tunneled); `tests/league30.js` 3 of 3 (10.8 trades a season, a new champion 94% of seasons, every franchise a title in
+30 seasons).
+
+**Timing** (run alone; this host's headless Chromium paints canvas on the CPU): `tests/smoke.js` 134 of 134 (zero errors
+allowed). `tests/perf4x.js` (the device clock at 4× CPU, 5 forced dunks and 3 blocks): a median frame of 18.1 ms on a
+phone and 16.8 ms on a desktop (✓ 25 ms at most; 2.1: 25.6–28.4 and 24.3–24.9 ms), the frame guard sheds in 0.17 s (✓
+0.5 s at most), frames over 50 ms in dunks, celebrations and blocks 10 and 2 (✗ the target is none; 2.1: 13–27 and
+11–19). `tests/loadlag.js` (73 steps at 4× and at 1×): the title at 807 ms and 516 ms of long tasks before the menu at
+4× (✓ 1.5 s at most; 2.1: 1.20–1.33 s and 1.12 s); 5 steps over their bar at 4× (offers → Signing Day 105 ms, a pro tab
+135 ms, a pro game's first frame 353 ms and its result 159 ms, the season review 107 ms; 2.1: 7–11 of about 110) and 2
+at 1× (tasks of 64 and 69 ms) ✗, as on this host since V15. `tests/perf.js` (a report): 2.4–5.3 ms a frame at 1×,
+20.9–30.7 ms at 4×, where the guard engages.
+
+**Everything else, 0 failures:** syntax (2,571 top-level functions, no duplicates); flow 12; lower 12; items 5; traits
+9; shop 9; climb 9; fixes 11; the HUD audit (35 scenes, none flagged); pbl21 11; playtest3 11; recruit30 23; tourney 8;
+store30 7; loop 5; colleges 14; life21 17; improve21 13; gameplay 12; modes 13; proteams 14; polish 14; school 8; a
+whole career, title to Hall of Fame, on a desktop and a phone; oldsaves 42; rankings 13; steals 2; box scores 2;
+devtools; parity; pace; league30 3; crew 8; effort 6; progress30 7; difficulty (3.0's bands); badges (16 of 17, above).
+
 ## X10 (3.0) — progression: effort matters, no flat decade, fame that means something
 
 The request's §9. The legacy weighs what you did (awards, the player rankings, tournaments and medals, your peak OVR),

@@ -6,7 +6,7 @@
 // chart, the summer's picks, HOME and the tip while it waits, the trophy case, the Cup, the Summer step, Blacktop's
 // message, the legacy with and without the epilogue) and X9's (scouts at a big game, the summer's programs, Offers & rank's
 // parts, Signing Day with no offer, a youth contract abroad, junior college) and X10's (CAREER's ceiling with its parts, a rating
-// past its ceiling there and in the focus picker), each at a desktop (1280×720), a phone (844×390 with touch) and
+// past its ceiling there and in the focus picker) and X11's (Settings: Display's upright phone, the Save tab), each at a desktop (1280×720), a phone (844×390 with touch) and
 // both at the 1.25× text size. The checks are auditkit.js's (tap targets, overlaps, text
 // over text, cut text, two screens at once, art over text, legibility); any flag fails the run. Each milestone adds its
 // screens here. Usage: node tests/screens30.js [shotsDir] [--only=desktop|phone|desktop125|phone125]
@@ -30,6 +30,7 @@ const PASSES = [{ id: 'desktop', page: {}, big: false }, { id: 'phone', page: { 
       localStorage.clear(); const g = HH.game; g.save = new SaveSystem(); const a = amCreate(g.save.data, { name: 'Screen Audit', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 31 }); g.save.data.c1 = a; __adv(a, 3); __quiet(a); g.save.save();
     });
     const tabs = ['home', 'league', 'events', 'career', 'store'];
+    for (const t of ['Display', 'Save']) await audit('settings-' + t.toLowerCase(), t => { const g = HH.game; g.ui.clearTo(mainMenu(g)); g.ui.push(settingsScreen(g, SET_TABS.indexOf(t))); }, t); // X11 (§10): the upright phone, the save code
     // high school
     for (const t of tabs) await audit('hs-' + t, t => __home(t), t);
     if (phone) await audit('hs-homemore', () => { __home('home'); const s = HH.game.ui.screen, b = s.widgets.find(w => w.label === 'MORE…'); if (b) b.onPress(); });

@@ -31,10 +31,33 @@
 */
 
 // ============================================================================
+// SECTION: ECONOMY (3.0 §10) — every price in the game, in this one table. Cash ($, earned by playing: family help,
+// summer jobs, NIL, salaries, sponsors, prizes) buys the store's items and their levels, the extras, camps, school,
+// crew salaries, a lifestyle and the big buys. Credits (earned from wins, tournaments and Road goals) level up your
+// crew. The CONFIG sections below read their prices from here (gear.price, crew.pay, crew.up, pro.big, …); store.tiers
+// are the future app's price tiers (an app store sets the amounts; the web build sells nothing).
+// ============================================================================
+const ECONOMY = {
+  gear: { hs: [60, 100, 160, 250, 400], college: [600, 1000, 1600, 2500, 4000], pro: [10000, 25000, 60000, 150000, 400000] }, // a store item's levels: [Lv1 (to buy), Lv2, Lv3, Lv4, Lv5] by the stage you pay at
+  consumable: { hs: 20, college: 200, pro: 5000 }, // an ice bath, a film session or a sports drink
+  celebration: { hs: 150, college: 900, pro: 40000 }, // a celebration from the shop
+  camp: { hs: 600, college: 250 },  // high school's summer skills camp; a college program's camp
+  school: { tuition: 12000, summerClasses: 20000 }, // a college season's full tuition; summer classes in the pros
+  crewPay: { hs: 300, college: 800, pro: 250000 }, // a Lv1 crew member's salary a season by stage (× crew.lvPay by level)
+  crewCredits: [0, 6, 12, 20, 30], // credits to reach each crew level (Lv2 6, Lv3 12, Lv4 20, Lv5 30)
+  gym: [0, 2000000, 6000000, 15000000], // the personal gym's levels
+  cosmetics: { headband: 15000, sleeves: 15000, shoes: 25000, ballskin: 40000 },
+  lifestyle: { car: [120000, 1000], sportscar: [900000, 8000], house: [2500000, 15000], mansion: [15000000, 100000] }, // [cost, upkeep a game week]
+  shoeLine: 5000000,                // a signature shoe line, up front
+  big: { stakePerStar: 12000000, facility: [25000000, 500000], sneakerShare: 10000000, family: 8000000, charity: 1500000, arena: 40000000 }, // the big buys (facility: [cost, upkeep a season])
+  retirement: { foundationPer: 2000000, academy: 30000000, stake: 250000000 }, // the epilogue: a foundation's legacy point, a youth academy, a franchise stake
+  store: { tiers: { 'credits.small': 1, 'credits.large': 3, unlimited: 5, 'cosmetic.jerseys': 2, 'cosmetic.shoes': 2, 'cosmetic.courts': 2, 'cosmetic.celebrations': 1 } }, // the future app's price tiers (the app stores' own tiers; none in the web build)
+};
+// ============================================================================
 // SECTION: CONFIG — every tuning number in the game lives here (one-line comment each)
 // ============================================================================
 const CONFIG = {
-  version: '2.1',               // V14: the game's version (the title screen, the credits); W10: 2.1
+  version: '3.0',               // V14: the game's version (the title screen, the credits); W10: 2.1; X11: 3.0
   sim: {
     step: 1 / 120,             // fixed simulation step in seconds (120 Hz)
     ballSubsteps: 4,           // ball integration substeps per sim step (480 Hz total)
@@ -796,13 +819,25 @@ const CONFIG = {
     repeatDelayS: 0.35,        // held navigation repeat delay
     repeatRateS: 0.09,         // held navigation repeat rate
     titleTapsForDev: 5,        // taps on the title logo to open the dev menu
-    whatsNew: '2.1',           // V13 (2.0 §5): the update the What's new page describes (W10: 2.1's); a save that hasn't seen it gets it once on the main menu
+    whatsNew: '3.0',           // V13 (2.0 §5): the update the What's new page describes (W10: 2.1's; X11: 3.0's); a save that hasn't seen it gets it once on the main menu
+  },
+  economy: ECONOMY,            // 3.0 (§10): every price (above)
+  store: {                     // 3.0 (§10): the future app's store (179_store.js), prepared only. Fair: each product says exactly what it gives (no paid random rewards) and can also be earned by playing (earn); its price tier is ECONOMY.store
+    skus: [
+      { sku: 'credits.small', kind: 'credits', name: 'A few credits', credits: 15, earn: 'wins, tournaments and Road goals' }, // credit packs only speed things up: credits level your crew
+      { sku: 'credits.large', kind: 'credits', name: 'A bag of credits', credits: 50, earn: 'wins, tournaments and Road goals' },
+      { sku: 'unlimited', kind: 'unlock', name: 'Unlimited', grants: ['the player editor for any player', 'more save slots', 'custom teams'], earn: 'a Hall of Fame career' }, // one unlock, like Retro Bowl's
+      { sku: 'cosmetic.jerseys', kind: 'cosmetic', name: 'Throwback jerseys', earn: 'a title with a franchise: its throwback' },
+      { sku: 'cosmetic.shoes', kind: 'cosmetic', name: 'Every signature colorway', earn: 'your signature shoe\'s colorways (a rookie deal, an All-Star, a ring, an MVP…)' },
+      { sku: 'cosmetic.courts', kind: 'cosmetic', name: 'Every court', earn: 'a tournament title on each court' },
+      { sku: 'cosmetic.celebrations', kind: 'cosmetic', name: 'Every celebration', earn: 'the Road to the League and the shop' },
+    ],
   },
   save: {
     key: 'hoopheads.save.v1',  // localStorage key (the schema version lives inside); save slot 1 (R10), slots 2 and 3 add .slot2 / .slot3
     slots: 3,                  // R10 §4: save slots
     slotKey: 'hoopheads.slot', // the slot this device played last
-    version: 5,                // save schema version (5: painted-face looks; 4: one career from high school to retirement, ratings = engine attribute × 10)
+    version: 6,                // save schema version (6: 3.0, the removed systems out and the save code; 5: painted-face looks; 4: one career from high school to retirement, ratings = engine attribute × 10)
     maxPosters: 6,             // posters kept in the save
     posterBytesCap: 1.5e6,     // poster storage cap (bytes)
     posterW: 320,              // saved poster width (px)
@@ -860,7 +895,7 @@ const CONFIG = {
     usage: { sho3: 3, shoMid: 1.5, rim: 2, reb: 0.4, blk: 1, stops: 2, floor: 0.5, move: 1, body: 0.3 }, // where the rest of the XP goes: makes → Shooting, rim finishes → Finishing, rebounds → Strength and Hops, steals and blocks → Defense (floor/move/body: baseline shares)
     trainFocus: { shooting: { label: 'Shooting', staff: 'shooting', split: { sho: 1 } }, finishing: { label: 'Finishing', staff: 'skills', split: { fin: 1 } }, handles: { label: 'Handles', staff: 'skills', split: { han: 1 } }, speed: { label: 'Speed', staff: 'strength', split: { spd: 1 } }, hops: { label: 'Hops', staff: 'strength', split: { jmp: 1 } }, defense: { label: 'Defense', staff: 'skills', split: { def: 1 } }, strength: { label: 'Strength', staff: 'strength', split: { str: 1 } } }, // training focuses, one drill per rating (R3 §3.2; was six, two of them split): the week's Practice works on one; it also takes 45% of every game's XP
     fame: { win: 0.5, loss: -0.4, perPt: 0.05, ptsRef: 34, ptsCap: 1.2, highlight: 0.25, playoff: 0.6, potw: 1.5, allStar: 4, title: 10, mvp: 12, decay: 0.03, top: 125, topMin: 0.2 }, // popularity changes. X10 (3.0 §9: fame reached 100 by pro season 3, and a lazy bench player hit 98): a game you start moves it by the result (win, loss), your points against ptsRef (per the old game length: perPt a point, at most ±ptsCap), highlights and a playoff game; the bench's games (the Development League) none. Gains × your stage and get smaller near the top (× 1 − fame ÷ top, at least topMin); every game week it fades by decay × your fame (0.025: a play-well career's fame at pro season 3 averaged 64, 13% at 100; 0.03: 60 and 11%, typical 25, lazy 12; was: decay 0.022 of the part above 30; win 0.6, loss −0.2, perPt 0.02 over 20 points, playoff 0.8)
-    gymCost: [0, 2000000, 6000000, 15000000], // personal gym levels ($)
+    gymCost: ECONOMY.gym,      // personal gym levels ($: ECONOMY)
     gymBonus: 0.1,             // training XP +10% per gym level
     aiGrowth: 1.0,             // young AI players close this fraction of the gap to their ceilings each offseason... (V10: 0.45 → 0.75, Leagues refresh every season, so the bar keeps rising (§1.2): with the staff a typical career won 0.47 titles a career, against about 0.3) V11: 0.75 → 1 (young AI players reach their ceilings in an offseason), for the gear
     aiGrowthAge: 27,           // ...up to this age
@@ -868,7 +903,7 @@ const CONFIG = {
     moveUnlocks: { hesitation: { han: 50 }, stepback: { any: [{ sho: 50 }, { han: 55 }] }, spin: { han: 60 }, euro: { fin: 70 }, dunk360: { jmp: 75 }, windmill: { jmp: 80 }, btb: { han: 70 }, snatch: { han: 80 }, reverse: { jmp: 80 }, pullup: { sho: 80 } }, // moves are learned by getting better (V4, 2.0 §3: the signature moves at 7 and 8: Behind-the-back han 70, Snatch-back han 80, Euro-step fin 70 (was 60), Reverse dunk jmp 80, Pull-up three sho 80)
     brands: [{ name: 'Zoomfruit', what: 'sports drink', base: 6000, perFame: 450 }, { name: 'Bouncehaus', what: 'sneaker', base: 10000, perFame: 700 }, { name: 'Glide Co.', what: 'headband', base: 3000, perFame: 250 }, { name: 'Rimrock Bars', what: 'snack', base: 4000, perFame: 300 }, { name: 'Nightowl Energy', what: 'energy drink', base: 5000, perFame: 400 }, { name: 'Loud Duck Audio', what: 'headphone', base: 4000, perFame: 350 }], // invented sponsors and weekly pay
     shoeColors: ['#FF4FA3', '#B8FF5A', '#8BE3FF', '#FFD23F'], // cosmetic shoe colors
-    cosmeticCosts: { headband: 15000, sleeves: 15000, shoes: 25000, ballskin: 40000 }, // cosmetics prices ($)
+    cosmeticCosts: ECONOMY.cosmetics, // cosmetics prices ($: ECONOMY)
     rookiePay: [10.5, 2.1, 0.9], // rookie salary ($M): a − b·ln(pick), or c undrafted
     rookieYears: 4,            // a rookie contract runs this many seasons
     contractYears: 4,          // every later deal runs this many seasons too, so renewals come in pro years 5, 9 and 13
@@ -1209,7 +1244,7 @@ const CONFIG = {
     campExposure: 1,           // recruiting score + this for every skills camp
     minOffers: 3,              // commitment day always has at least this many offers (small schools fill in)
     startCash: 200,            // what you have saved as a freshman ($)
-    campCost: 600,             // summer skills camp: its cost ($)...
+    campCost: ECONOMY.camp.hs, // summer skills camp: its cost ($: ECONOMY)...
     campXp: 150,               // ...and the XP it puts into your focus
     jobPay: 1000,              // summer job: what it pays ($)...
     jobXpLoss: 30,             // ...and the XP it costs (spread over your ratings' banks, never below zero; 60 left always-job careers 25% behind)
@@ -1284,7 +1319,7 @@ const CONFIG = {
     academicFrom: 3.0,         // an elite academic program offers from this GPA, on condition (its 3.3 line by the senior finals)
     test: { week: 6, prepared: 3, up: 0.15, some: 0.05, down: -0.1 }, // the College test (junior year, after game `week`): with `prepared`+ Study weeks this season GPA +up, 1–2 +some, none down
     watch: 10,                 // the news follows the programs you hold offers from, your commitment and your watch top this many
-    camp: { gain: 10, conf: 3, cost: 250, showcase: 5, fame: 2 }, // a program's camp: $cost, +gain there and +conf across its conference, and a showcase game (a win: +showcase more, fame +fame)
+    camp: { gain: 10, conf: 3, cost: ECONOMY.camp.college, showcase: 5, fame: 2 }, // a program's camp: $cost, +gain there and +conf across its conference, and a showcase game (a win: +showcase more, fame +fame)
     unofficial: 8,             // an unofficial visit: + this (it costs the week: no practice that week; free in the summer)
     official: { gain: 15, max: 5, from: 50 }, // an official visit: + gain, at most max; a program invites you from interest `from`; one summary (3.0: no scenes), and you see how they develop players
     carousel: 0.15,            // §2.5: the chance your committed program's coach leaves for another job before Signing Day (a program's dice, rolled once a career: an official visit can hint at it)
@@ -1313,22 +1348,22 @@ const CONFIG = {
     tradeDeadline: 0.67,       // trade requests are possible up to this share of the regular season
     tradeFame: 0.1,            // a trade request costs this share of the fame cap ("a distraction")
     shoeFame: 0.6,             // the signature shoe line opens at this share of the fame cap (§3.7: 60 of 100)...
-    shoeCost: 5000000,         // ...for this much up front...
+    shoeCost: ECONOMY.shoeLine, // ...for this much up front ($: ECONOMY)...
     shoeRoyalty: 1000000,      // ...then royalties: this a season × (1 + fame / 50), paid week by week
     shoeBuyout: 2,             // when you retire the brand buys the line for this many seasons of royalties (it counts in your net worth)
-    lifestyle: [{ id: 'car', name: 'A new car', cost: 120000, conf: 1, weekly: { fame: 0.3 }, upkeep: 1000 }, { id: 'sportscar', name: 'A sports car', cost: 900000, conf: 1, weekly: { fame: 0.8 }, upkeep: 8000 }, { id: 'house', name: 'A house for your family', cost: 2500000, conf: 2, asset: true, weekly: { conf: 0.1 }, upkeep: 15000 }, { id: 'mansion', name: 'A mansion', cost: 15000000, conf: 1, asset: true, weekly: { fame: 0.2 }, upkeep: 100000 }], // one each: confidence + conf (once), never a rating; houses count in your net worth. V11 (Part 2 §5.1): every game week each one adds its weekly (fame or confidence) and costs its upkeep ($)
-    foundationPer: 2000000,    // the epilogue: a foundation adds 1 to your legacy per this much...
+    lifestyle: [{ id: 'car', name: 'A new car', cost: ECONOMY.lifestyle.car[0], conf: 1, weekly: { fame: 0.3 }, upkeep: ECONOMY.lifestyle.car[1] }, { id: 'sportscar', name: 'A sports car', cost: ECONOMY.lifestyle.sportscar[0], conf: 1, weekly: { fame: 0.8 }, upkeep: ECONOMY.lifestyle.sportscar[1] }, { id: 'house', name: 'A house for your family', cost: ECONOMY.lifestyle.house[0], conf: 2, asset: true, weekly: { conf: 0.1 }, upkeep: ECONOMY.lifestyle.house[1] }, { id: 'mansion', name: 'A mansion', cost: ECONOMY.lifestyle.mansion[0], conf: 1, asset: true, weekly: { fame: 0.2 }, upkeep: ECONOMY.lifestyle.mansion[1] }], // one each: confidence + conf (once), never a rating; houses count in your net worth. V11 (Part 2 §5.1): every game week each one adds its weekly (fame or confidence) and costs its upkeep ($)
+    foundationPer: ECONOMY.retirement.foundationPer, // the epilogue: a foundation adds 1 to your legacy per this much ($: ECONOMY)...
     foundationMax: 20,         // ...up to this much legacy
-    academyCost: 30000000,     // a youth academy: your next career gets a Legacy Start...
+    academyCost: ECONOMY.retirement.academy, // a youth academy: your next career gets a Legacy Start...
     legacyCaps: 5,             // ...every ceiling + this (half a point on the 10 scale)
-    stakeCost: 250000000,      // a franchise stake: the Owner ending and an owner's badge on your profile, for good (the first careers ran up $330M of net worth by the median: a cheaper stake was no choice at all)
+    stakeCost: ECONOMY.retirement.stake, // a franchise stake: the Owner ending and an owner's badge on your profile, for good (the first careers ran up $330M of net worth by the median: a cheaper stake was no choice at all)
     big: {                     // 2.1 (§1.4): the big buys (176_invest.js), priced for a pro's salary (a typical career earns about $190M), in the Front office's Big buys tab
-      stake: { name: 'A stake in your team', pct: 2, costPerStar: 12000000, fromSeason: 4, divPct: 0.04, growPct: 0.05, titleGrow: 0.1 }, // 2% of your franchise at $12M a star (mid-career: from pro season 4): a dividend of 4% of the price a season, worth +5% a season (+10% more in the franchise's title season); it counts in your net worth (the Owner ending's price)
-      facility: { name: 'A private training facility', cost: 25000000, xp: 0.08, ceil: 2, upkeep: 500000 }, // practice XP + this (with the franchise's and your home gym's), every skill's ceiling + ceil (X10, 3.0 §9), upkeep a season
-      sneaker: { name: 'Sneaker company shares', share: 10000000, max: 3, ret: [-0.3, 0.45] }, // $10M a share, up to 3; every offseason they move by a random share of their value in this range (mean +7.5%); sell when you like
-      family: { name: 'A home for your parents', cost: 8000000, conf: 3, weeklyConf: 0.15 }, // a story, confidence + conf once and + weeklyConf every game week; an asset
-      charity: { name: 'A charity event', cost: 1500000, fame: 4, perSeason: 1 }, // fame, once a season
-      arena: { name: 'Your name on the hometown arena', cost: 40000000, fame: 8, legacy: 8 }, /* X10: legacy 3 → 8 with the re-weighted legacy (the Hall's line 92 → 300) */ // once: fame + this, legacy + this (the legacy score, and so the Hall of Fame)
+      stake: { name: 'A stake in your team', pct: 2, costPerStar: ECONOMY.big.stakePerStar, fromSeason: 4, divPct: 0.04, growPct: 0.05, titleGrow: 0.1 }, // 2% of your franchise at $12M a star (mid-career: from pro season 4): a dividend of 4% of the price a season, worth +5% a season (+10% more in the franchise's title season); it counts in your net worth (the Owner ending's price)
+      facility: { name: 'A private training facility', cost: ECONOMY.big.facility[0], xp: 0.08, ceil: 2, upkeep: ECONOMY.big.facility[1] }, // practice XP + this (with the franchise's and your home gym's), every skill's ceiling + ceil (X10, 3.0 §9), upkeep a season
+      sneaker: { name: 'Sneaker company shares', share: ECONOMY.big.sneakerShare, max: 3, ret: [-0.3, 0.45] }, // $10M a share, up to 3; every offseason they move by a random share of their value in this range (mean +7.5%); sell when you like
+      family: { name: 'A home for your parents', cost: ECONOMY.big.family, conf: 3, weeklyConf: 0.15 }, // a story, confidence + conf once and + weeklyConf every game week; an asset
+      charity: { name: 'A charity event', cost: ECONOMY.big.charity, fame: 4, perSeason: 1 }, // fame, once a season
+      arena: { name: 'Your name on the hometown arena', cost: ECONOMY.big.arena, fame: 8, legacy: 8 }, /* X10: legacy 3 → 8 with the re-weighted legacy (the Hall's line 92 → 300) */ // once: fame + this, legacy + this (the legacy score, and so the Hall of Fame)
     },
   },
   franchise: {                 // F7 (the user: the goal of the game is getting onto a really good pro team; teams instead of drafts)
@@ -1460,12 +1495,8 @@ const CONFIG = {
     xpCap: 0.25,               // ...and never more than this in one rating
     regenPerLv: 1,             // recovery boots: this much less fatigue after every game, a level
     injuryPerLv: 0.08,         // a knee brace: injury risk − this a level (Lv5: −40%)
-    price: {                   // what a level costs ($): [Lv1 (to buy), Lv2, Lv3, Lv4, Lv5] by the stage you're at when you pay (high school $60–$400, college $600–$4K, the pros $10K–$400K)
-      hs: [60, 100, 160, 250, 400],
-      college: [600, 1000, 1600, 2500, 4000],
-      pro: [10000, 25000, 60000, 150000, 400000],
-    },
-    consumable: { hs: 20, college: 200, pro: 5000 }, // an ice bath, a film session or a sports drink: this much each (once a week each)
+    price: ECONOMY.gear,       // what a level costs ($: ECONOMY): [Lv1 (to buy), Lv2, Lv3, Lv4, Lv5] by the stage you're at when you pay (high school $60–$400, college $600–$4K, the pros $10K–$400K)
+    consumable: ECONOMY.consumable, // an ice bath, a film session or a sports drink: this much each (once a week each; $: ECONOMY)
     iceBath: 20,               // an ice bath: fatigue − this, now
     drinkStamina: 0.05,        // a sports drink (2.0 §4.3): +this stamina for one game (a live game: stamina costs ÷ (1 + this), recovery × (1 + this); a simulated one: fatigue costs × (1 − this))
     filmTells: 2,              // a film session (2.0 §4.3): the scouting card shows this many more of the opponent's tendencies
@@ -1474,7 +1505,7 @@ const CONFIG = {
 
   road: {                      // V5 (2.0 §4.1): Road to the League, a milestone track at the top of the hub; THE goal is a 5★ team
     list: [                    // in order; stage: the last stage it can be reached in (hs, college, combine, pro); reward: cash ($), trait (3.0: a level for your badge nearest its next one, or its unlock), gear (3.0: a free level for that item, Lv1 when it's new, worn at once: it shows on your player)
-      { id: 'varsity', label: 'START FOR VARSITY', stage: 'hs', reward: 'cash', cash: 250, celeb: 'raiseRoof', what: 'Win the starting spot on your high school team: the starter plays varsity, the rest JV.' },
+      { id: 'varsity', label: 'START FOR VARSITY', stage: 'hs', reward: 'cash', cash: 250, celeb: 'raiseRoof', what: 'Win your school\'s starting spot.' } /* X11: the Road's column (the long one was cut) */,
       { id: 'top100', label: 'A TOP 100 RECRUIT', stage: 'hs', reward: 'trait', what: 'Reach the national top 100.' },
       { id: 'offer', label: 'A COLLEGE OFFER', stage: 'hs', reward: 'gear', gear: 'courtShoes', what: 'Get a college scholarship offer.' },
       { id: 'colstart', label: 'START IN COLLEGE', stage: 'college', reward: 'cash', cash: 2500, celeb: 'shush', what: 'Start a college game.' },
@@ -1494,7 +1525,7 @@ const CONFIG = {
   },
   celebs: {                    // V13 (2.0 §6): celebrations, a cosmetic: everyone has the eight; six more are yours to unlock
     shop: ['earCup', 'iceVeins'], // ...these two from the shop (the rest on the Road: see road.list's celeb)...
-    price: { hs: 150, college: 900, pro: 40000 }, // ...at this price at each stage ($: a week of family help in high school, an NIL deal in college, small change in the pros)
+    price: ECONOMY.celebration, // ...at this price at each stage (ECONOMY; $: a week of family help in high school, an NIL deal in college, small change in the pros)
   },
   simAhead: {                  // V5 (2.0 §4.2/§4.8): Sim to next big moment / Sim the rest of the season
     maxWeeks: 80,              // a run sims at most this many weeks (a season is 10–22, plus playoffs)
@@ -1507,10 +1538,10 @@ const CONFIG = {
     academicNil: 1.3,          // ...and NIL deals × this
     fullRideGpa: 3.5,          // a full ride: GPA at least this at commitment...
     fullRideStars: 4,          // ...and a recruit this many stars or more; otherwise a partial scholarship
-    tuition: 12000,            // a college season's full tuition ($); a partial scholarship pays half...
+    tuition: ECONOMY.school.tuition,            // a college season's full tuition ($); a partial scholarship pays half...
     partialShare: 0.5,         // ...so you pay this share, at the start of every college season (a lost scholarship: all of it)
     degreeYears: 4,            // college seasons to a degree (summer classes in the pros add one a summer)
-    summerCost: 20000,         // summer classes in the pros: this much ($)...
+    summerCost: ECONOMY.school.summerClasses,         // summer classes in the pros: this much ($)...
     summerXp: [-0.1, 4],       // ...and the summer's gym time: practice XP × (1 + this) for this many weeks of the next season
   },
   rank: {                      // 3.0 (§4.1): rankings from how people play (164_rank.js), every week at each level; never from OVR
@@ -1566,8 +1597,8 @@ const CONFIG = {
     slots: { hs: 1, college: 3, pro: 6 }, // crew slots by stage
     knows: 2,                  // seasons together before a staff member works one level higher ("knows your game")
     maxLv: 5,                  // the highest level you can pay for
-    up: [0, 6, 12, 20, 30],    // credits to reach each level (Lv2 6, Lv3 12, Lv4 20, Lv5 30)
-    pay: { hs: 300, college: 800, pro: 250000 }, // a Lv1's salary a season by stage ($); × lvPay by level
+    up: ECONOMY.crewCredits,   // credits to reach each level (Lv2 6, Lv3 12, Lv4 20, Lv5 30: ECONOMY)
+    pay: ECONOMY.crewPay,      // a Lv1's salary a season by stage ($: ECONOMY); × lvPay by level
     lvPay: [1, 1.5, 2.2, 3.1, 4.2],
     weeks: { hs: 12, college: 16, pro: 15 }, // the game weeks a season's salary is paid over
     broke: 2,                  // game weeks unpaid before a staff member walks
@@ -3679,6 +3710,10 @@ function rbTitle(ctx, text, x, y, px, opts) {
 // ============================================================================
 // SECTION: INPUT — every device maps into one InputState; bots write the same struct
 // ============================================================================
+// 3.0 (§10): an upright phone can turn the game (Settings: Upright phone): the canvas is rotated 90° to fill the
+// screen, so a screen point (sx, sy) is the game's (sy, vw − sx). INPUT_TURN: { vw, vh } while turned (resize sets it).
+let INPUT_TURN = null;
+function inXY(e) { const T = INPUT_TURN; return T ? [e.clientY, T.vw - e.clientX] : [e.clientX, e.clientY]; }
 const BUTTONS = ['jump', 'shoot', 'pass', 'action', 'sprint', 'down', 'laneUp', 'laneDown'];
 class InputState {
   constructor() { this.reset(); }
@@ -3764,8 +3799,8 @@ class HumanInput {
     window.addEventListener('gamepadconnected', e => { this.gamepadIndex = e.gamepad.index; });
     window.addEventListener('gamepaddisconnected', e => { if (this.gamepadIndex === e.gamepad.index) this.gamepadIndex = -1; });
     const c = this.canvas;
-    c.addEventListener('pointerdown', e => { this.grabFocus(); this.anyPress = true; if (e.pointerType === 'touch') { this.lastDevice = 'touch'; this.touch.pointerDown(e); } else { this.mouse.down = true; this.mouse.clicked = true; this.mouse.x = e.clientX; this.mouse.y = e.clientY; if (this.hasTouch && e.pointerType === 'pen') this.touch.pointerDown(e); } e.preventDefault(); });
-    c.addEventListener('pointermove', e => { if (e.pointerType === 'touch') this.touch.pointerMove(e); else { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.moved = true; } });
+    c.addEventListener('pointerdown', e => { this.grabFocus(); this.anyPress = true; if (e.pointerType === 'touch') { this.lastDevice = 'touch'; this.touch.pointerDown(e); } else { this.mouse.down = true; this.mouse.clicked = true; [this.mouse.x, this.mouse.y] = inXY(e); if (this.hasTouch && e.pointerType === 'pen') this.touch.pointerDown(e); } e.preventDefault(); });
+    c.addEventListener('pointermove', e => { if (e.pointerType === 'touch') this.touch.pointerMove(e); else { [this.mouse.x, this.mouse.y] = inXY(e); this.mouse.moved = true; } });
     const up = e => { if (e.pointerType === 'touch') this.touch.pointerUp(e); else { this.mouse.down = false; } };
     c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up); c.addEventListener('pointerout', e => { if (e.pointerType === 'touch') this.touch.pointerUp(e); });
     c.addEventListener('contextmenu', e => e.preventDefault());
@@ -3878,7 +3913,7 @@ class TouchControls {
   hitButton(x, y) { const L = this.layout; if (!L) return null; for (let i = 0; i < L.buttons.length; i++) { const b = L.buttons[i]; if (b.key === 'super' && !this.superOn) continue; if (dist2(x, y, b.x, b.y) < b.r * b.r * 1.3) return b.key; } return null; }
   // (named pointerDown, not down: `down` is the stance flag above and would shadow the method)
   pointerDown(e) {
-    const x = e.clientX, y = e.clientY; this.tapped = true; this.lastTapX = x; this.lastTapY = y;
+    const [x, y] = inXY(e); this.tapped = true; this.lastTapX = x; this.lastTapY = y;
     if (!this.visible || !this.layout) { this.pointers.set(e.pointerId, { kind: 'tap', x, y }); return; }
     const L = this.layout;
     if (dist2(x, y, L.pause.x, L.pause.y) < L.pause.r * L.pause.r * 2) { this.pausePressed = true; this.pointers.set(e.pointerId, { kind: 'pause', x, y }); return; }
@@ -3888,7 +3923,7 @@ class TouchControls {
     this.recompute();
   }
   pointerMove(e) {
-    const p = this.pointers.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
+    const p = this.pointers.get(e.pointerId); if (!p) return; [p.x, p.y] = inXY(e);
     if (p.kind === 'stick') { this.stickDX = p.x - this.stickX; this.stickDY = p.y - this.stickY; }
     else if (p.kind === 'button' || p.kind === 'tap') { p.key = this.hitButton(p.x, p.y); p.kind = p.key ? 'button' : 'tap'; this.recompute(); }
     this.recompute();
@@ -9373,11 +9408,11 @@ class ReplayPlayer {
 }
 
 // ============================================================================
-// SECTION: UI (part 0) — R10 §4 polish: Settings in five tabs (Graphics, Audio, Controls, Gameplay, Accessibility) with
+// SECTION: UI (part 0) — R10 §4 polish: Settings in six tabs (Graphics, Audio, Controls, Gameplay, Display, Save) with
 // what each setting does, and key remapping (a Custom key set next to presets A and B).
 // ============================================================================
-const SET_TABS = ['Graphics', 'Audio', 'Controls', 'Gameplay', 'Accessibility'];
-const SET_TAB_HELP = ['How the game looks: the pixel world or the painted one, the camera, the shake.', 'Three volumes. Sound starts after your first tap or key press.', 'Your keys (or your own), and the touch controls on a phone or tablet.', 'How the games play: the computer\'s smarts, the rules, the career\'s court, injuries and quick results, the shot meter, power-ups in quick games and the tips.', 'Bigger text, less motion, clearer jerseys.'];
+const SET_TABS = ['Graphics', 'Audio', 'Controls', 'Gameplay', 'Display', 'Save']; // (3.0: Accessibility is Display: six tabs fit a desktop)
+const SET_TAB_HELP = ['How the game looks: the pixel world or the painted one, the camera, the shake.', 'Three volumes. Sound starts after your first tap or key press.', 'Your keys (or your own), and the touch controls on a phone or tablet.', 'How the games play: the computer\'s smarts, the rules, the career\'s court, injuries and quick results, the shot meter, power-ups in quick games and the tips.', 'Bigger text, less motion, clearer jerseys, and what an upright phone does.', 'Your save: copy it as a code (it carries its version), paste one, or load one from a file. Everything else stays on this device.'];
 function settingsScreen(game, tab0) {
   const S = game.save.data.settings, ui0 = game.ui, P = ui0.phone, apply = () => game.applySettings(); let tab = clamp(tab0 | 0, 0, SET_TABS.length - 1);
   const diffs = ['rookie', 'pro', 'allstar', 'legend'], diffL = ['Rookie', 'Pro', 'All-Star', 'Legend'], H = (w, help) => Object.assign(w, { help });
@@ -9411,7 +9446,11 @@ function settingsScreen(game, tab0) {
       H(tgl('First-time tips', 0, 0, 0, 0, () => S.tips !== false, v => { S.tips = v; }), 'A short tip the first time you reach each part of the career. Turning it back on shows the ones you haven\'t seen.')],
     [H(sel('Text size', 0, 0, 0, 0, ['1×', '1.25×'], () => S.textSize === 1.25 ? 1 : 0, i => { S.textSize = i ? 1.25 : 1; apply(); }), 'Bigger text in the menus, the career and the match HUD. Long lines wrap or shrink to fit.'),
       H(tgl('Reduce motion', 0, 0, 0, 0, () => S.reduceMotion, v => { S.reduceMotion = v; apply(); }), 'No screen transitions, camera punches or bobbing heads; story text shows at once.'),
-      H(tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }), 'Every game: one side in solid blue, the other in gold stripes, two colors and two patterns that never look alike.')],
+      H(tgl('Colorblind-safe jerseys', 0, 0, 0, 0, () => S.colorblind, v => { S.colorblind = v; }), 'Every game: one side in solid blue, the other in gold stripes, two colors and two patterns that never look alike.'),
+      H(sel('Upright phone', 0, 0, 0, 0, ['Turn the game', 'Ask to rotate'], () => S.upright === 'ask' ? 1 : 0, i => { S.upright = i ? 'ask' : 'turn'; game.resize(); }), 'A phone held upright (with the rotation lock on too): Turn the game fills the screen sideways, so you play with the phone turned; Ask to rotate waits for you to turn it.')], /* 3.0 (§10): the portrait option */
+    [H(btn('Copy this save as a code', 0, 0, 0, 0, () => saveIoCopy(game)), 'This slot\'s career, Hall of Fame, records and posters as one code with its version (it starts with HH3:). Keep it, or paste it on another device.'),
+      H(btn('Load a save code…', 0, 0, 0, 0, () => saveIoPaste(game)), 'Paste a save code: it loads into this slot (it replaces what\'s here; your settings stay). An older version\'s save is brought up to date.'),
+      H(btn('Load a save file…', 0, 0, 0, 0, () => saveIoFile(game)), 'A text file with a save code in it.')], /* 3.0 (§10): versioned saves you can export */
   ];
   const tabs = SET_TABS.map((t, i) => btn(t.toUpperCase(), 0, 0, 0, 0, () => { tab = i; sync(); scr.focus = items.indexOf(tabs[i]); }));
   const erase = btn('Erase this save slot', 0, 0, 0, 0, () => game.ui.push(confirmScreen(game, 'Erase save slot ' + game.save.slot + '? Its career, Hall of Fame and records go; your settings stay.', () => { game.save.eraseKeepSettings(); game.applySettings(); game.ui.toastMsg('Save slot ' + game.save.slot + ' erased.'); game.ui.clearTo(titleScreen(game)); })));
@@ -9438,6 +9477,38 @@ function settingsScreen(game, tab0) {
   sync(); return scr;
 }
 
+// --- 3.0 (§10): the save code: copy it (the clipboard, or a box to copy it from), paste one, or load one from a file ---
+function saveIoCopy(game) {
+  let code = ''; try { code = game.save.exportCode(); } catch (e) { game.ui.toastMsg('This save can\'t be copied right now.'); return; }
+  const kb = Math.max(1, Math.round(code.length / 1024)), box = () => ioOverlay(game, { title: 'YOUR SAVE CODE', text: code, readOnly: true, note: 'Save slot ' + game.save.slot + ', version ' + CONFIG.version + ' (' + kb + ' KB). Copy all of it and keep it, or paste it on another device.' });
+  try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(code).then(() => game.ui.toastMsg('Copied: save slot ' + game.save.slot + ' as a code (' + kb + ' KB).'), box); return; } } catch (e) { /* the box */ }
+  box();
+}
+function saveIoLoad(game, text) { const r = game.save.importCode(text); if (!r.ok) return r; game.applySettings(); game.ui.clearTo(mainMenu(game)); game.ui.toastMsg('Loaded into save slot ' + game.save.slot + (r.game ? ' (a ' + r.game + ' save)' : '') + '.'); return r; }
+function saveIoPaste(game) { ioOverlay(game, { title: 'LOAD A SAVE CODE', text: '', note: 'Paste a code that starts with HH3:. It replaces save slot ' + game.save.slot + ' (your settings stay).', ok: ['Load into slot ' + game.save.slot, t => saveIoLoad(game, t)] }); }
+function saveIoFile(game) {
+  try { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.txt,.hh3,text/plain';
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { const r = saveIoLoad(game, String(rd.result || '')); if (!r.ok) game.ui.toastMsg(r.why); }; rd.onerror = () => game.ui.toastMsg('That file can\'t be read.'); rd.readAsText(f); };
+    inp.click(); } catch (e) { game.ui.toastMsg('Files can\'t be opened here: paste the code instead.'); }
+}
+// A box over the game for text the canvas can't hold (a save code to copy, one to paste): { title, text, readOnly,
+// note, ok: [label, fn(text) → { ok, why }] }. It keeps its keys to itself (the game's keys wait until it closes).
+function ioOverlay(game, o) {
+  ioOverlayClose(); const doc = document, d = doc.createElement('div'), box = doc.createElement('div'), h = doc.createElement('div'), ta = doc.createElement('textarea'), p = doc.createElement('div'), row = doc.createElement('div');
+  d.id = 'hh-io'; d.style.cssText = 'position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(4,6,26,0.82);padding:12px;box-sizing:border-box;';
+  box.style.cssText = 'width:min(94vw,760px);max-height:94vh;display:flex;flex-direction:column;gap:10px;background:#141C4E;border:3px solid #FFD23F;border-radius:14px;padding:14px;box-sizing:border-box;font:15px system-ui,-apple-system,sans-serif;color:#F3F0FF;';
+  h.textContent = o.title || ''; h.style.cssText = 'font-weight:800;letter-spacing:0.08em;color:#FFD23F;';
+  ta.value = o.text || ''; ta.readOnly = !!o.readOnly; ta.spellcheck = false; ta.setAttribute('aria-label', o.title || 'save code'); ta.style.cssText = 'width:100%;height:min(40vh,240px);resize:none;box-sizing:border-box;font:12px ui-monospace,Menlo,monospace;color:#F3F0FF;background:#0A0D1E;border:2px solid #5EE0FF;border-radius:8px;padding:8px;';
+  p.textContent = o.note || ''; p.style.cssText = 'color:#C9CCE0;line-height:1.35;';
+  row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;';
+  const mk = (label, primary, fn) => { const b = doc.createElement('button'); b.type = 'button'; b.textContent = label; b.style.cssText = 'min-height:48px;padding:0 18px;border-radius:10px;border:2px solid ' + (primary ? '#FFD23F' : '#5EE0FF') + ';background:' + (primary ? '#FFD23F' : '#1E2A6E') + ';color:' + (primary ? '#1A1206' : '#F3F0FF') + ';font:700 15px system-ui,sans-serif;cursor:pointer;'; b.onclick = fn; row.appendChild(b); return b; };
+  if (o.ok) mk(o.ok[0], true, () => { const r = o.ok[1](ta.value); if (r && r.ok === false) { p.textContent = r.why || 'That didn\'t work.'; p.style.color = '#FF8A8A'; return; } ioOverlayClose(); });
+  mk(o.readOnly ? 'Done' : 'Cancel', !o.ok, () => ioOverlayClose());
+  d.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') ioOverlayClose(); }); d.addEventListener('keyup', e => e.stopPropagation()); d.addEventListener('pointerdown', e => { if (e.target === d) ioOverlayClose(); });
+  if (INPUT_TURN) { const T = INPUT_TURN; Object.assign(d.style, { inset: 'auto', left: '0', top: '0', width: T.vh + 'px', height: T.vw + 'px', transformOrigin: '0 0', transform: 'translate(' + T.vw + 'px, 0) rotate(90deg)' }); } /* (the game turned: the box turns with it) */
+  box.append(h, ta, p, row); d.appendChild(box); doc.body.appendChild(d); ta.focus(); if (o.readOnly) ta.select(); return d;
+}
+function ioOverlayClose() { const d = document.getElementById('hh-io'); if (d) d.remove(); try { const c = document.getElementById('game'); if (c) c.focus({ preventScroll: true }); } catch (e) { /* focus is a nicety */ } }
 // --- key remapping: the Custom key set (S.keyMap: action → key code), shown as KEY_PRESETS.C and KEY_LABELS.C ---
 const REMAP_ACTIONS = [['left', 'Move left'], ['right', 'Move right'], ['jump', 'Jump · block'], ['down', 'Post up · defensive stance'], ['shoot', 'Shoot (hold) · pump fake (tap)'], ['pass', 'Fadeaway (hold)'], ['action', 'Dribble move · steal'], ['sprint', 'Sprint'], ['pause', 'Pause']];
 const KEY_RESERVED = ['Escape', 'Backquote', 'F1', 'F2', 'F3', 'Tab', 'MetaLeft', 'MetaRight']; // Esc always pauses and backs out of menus; ` is the dev menu
@@ -9493,7 +9564,7 @@ function touchLayoutScreen(game) {
 // --- three save slots (R10 §4) ---
 // A slot's summary without loading it into the game: the career's player and where they are, the Hall of Fame, when.
 function slotSummary(n) {
-  let raw = null; try { raw = localStorage.getItem(slotKey(n)); } catch (e) { return null; } if (!raw) return null;
+  let raw = null; try { raw = SAVE_STORAGE.get(slotKey(n)); } catch (e) { return null; } if (!raw) return null;
   let d = null; try { d = JSON.parse(raw); } catch (e) { return { n, broken: true }; } if (!d || typeof d !== 'object') return { n, broken: true };
   const c = d.career, a = d.c1, hof = Array.isArray(d.hallOfFame) ? d.hallOfFame.length : 0; let who = '', what = '';
   try { if (c && c.players && c.players[c.meId]) { who = c.players[c.meId].name; what = c.phase === 'retired' ? 'Retired · ' + c.season + ' pro seasons' : 'Pro · season ' + c.season + (c.phase === 'playoffs' ? ' · playoffs' : c.phase === 'offseason' ? ' · offseason' : ''); } else if (a && !a.handedOff && a.name) { who = a.name; what = a.stage === 'combine' ? 'Pro prospect' : amStageLabel(a); } } catch (e) { what = what || 'A career'; }
@@ -9546,7 +9617,7 @@ const TIPS = {
   'draftstock': ['PRO STOCK', ['Every game moves your pro stock: the result and your points. Marquee and tournament games count twice. The stock decides how many stars the franchises that offer you have.', 'Half of this season\'s grade carries into the next one.']],
   'portal': ['THE TRANSFER PORTAL', ['Programs that would start you. Moving means a new coach and a new depth chart; staying means earning your spot where you are.']],
   'nil': ['NIL', ['Name, image and likeness: money that is yours to keep (it comes with you to the pros).', 'Each deal asks for appearances, which cost fatigue. Turn one down and nothing happens.']],
-  'pro': ['THE PROS', ['Sixteen PBL franchises in two conferences, rated 1 to 5 stars. The goal: a 5★ team, then its starting spot, then a title.', 'Better franchises call when your value (OVR, fame) reaches their bar: in free agency, or ask for a trade in Team → Office (any time after ' + CONFIG.team.tradeBenchWeeks + ' bench weeks).', 'Your franchise\'s depth chart still decides who plays each week.']], // F7
+  'pro': ['THE PROS', ['Sixteen PBL franchises in two conferences, rated 1 to 5 stars. The goal: a 5★ team, then its starting spot, then a title.', 'Better franchises call when your value (OVR, fame) reaches their bar: in free agency, or ask for a trade in CAREER → Office (any time after ' + CONFIG.team.tradeBenchWeeks + ' bench weeks).', 'Your franchise\'s depth chart still decides who plays each week.']], // F7
   'hub': ['THE HUB', ['HOME is your week: the next game, the season line, the table, the next event, the headlines and the plan. LEAGUE has the standings, EVENTS the calendar, CAREER your ratings, badges, items and the office, STORE the store. The number keys switch them; a dot means something new.', 'Sim to next event skips ahead and stops before the playoffs, the Boss and spot starts, and for anything that can\'t wait. A decision comes as a message, at most one a week.']],
   'business': ['FRONT OFFICE', ['Your contract, sponsors, the home gym, your lifestyle and big buys.', 'Sponsors pay more with fame. A shoe line opens at fame ' + Math.round(CONFIG.pro.shoeFame * CONFIG.media.fameMax) + '.', 'Gear (small edges in games) and Looks have tabs of their own.']],
   'gear': ['GEAR', ['Five slots you wear (shoes, socks, a sleeve, a headband, wristbands), two training slots and a recovery slot. Items level up: each adds to a rating in games (never more than +' + CONFIG.gear.cap + ' to one), to practice XP, or cuts fatigue or injuries.', 'Six items a week, one featured. Your OVR and your value to the franchises don\'t change, and your gear comes with you to the pros.']], // V11
@@ -11612,7 +11683,7 @@ function amHubData(game, c) {
     if (nx.ll) { const st = ladderStarterMate(c), lw = llName(c, true); H.ll = { name: llName(c), short: lw, rank: ladderRank(c), starter: st ? st.name : '' }; H.opp.label = lw.toUpperCase() + ' · GAME ' + (L.week + 1) + ' · YOU\'RE #' + ladderRank(c) + (st ? ' · ' + st.nick.toUpperCase() + ' STARTS' : ''); H.myCard.sub = (c.stage === 'college' ? c.college : c.school) + ' ' + lw; H.oppCard.sub = (o.team || '') + ' · ' + o.rec.w + '-' + o.rec.l; H.scout = 'Outplay ' + (st ? st.name : 'the starter') + ' ' + TM.depth.weeks + ' weeks running and you start.'; } /* 3.0 (§4.3): your game in the league below */
     if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = inel ? 'INELIGIBLE · ' + c.ineligible + ' GAME' + (c.ineligible > 1 ? 'S' : '') + ' · ' + sm.nick.toUpperCase() + ' PLAYS' : 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'am-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: kit.colors, ovr: tmMateOvr(sm), style: amStyle(sm.style).label, number: sm.look && sm.look.number, sub: inel ? 'plays for you' : 'starts this week' }; H.scout = inel ? 'Study weeks raise your GPA; you are eligible again after these games.' : sm.name + ' starts the playoffs: the depth chart is set until next season.'; } }
   else if (c.summer && c.summer.pending) { H.idleTitle = 'YOUR SUMMER'; H.idleText = 'Pick your events (the AAU circuit, and the Elite Camp or the U17 World Cup if invited), then a skills camp, rest or a job.'; } /* 3.0 (X6): the summer's events */
-  else if (c.tryout && c.tryout.step !== 'done') { H.idleTitle = 'TRYOUTS'; H.idleText = 'Your place on the depth chart (the starter plays varsity, the rest JV): a 60-second shootout, then a 1v1 against a senior. Play them or sim them.'; }
+  else if (c.tryout && c.tryout.step !== 'done') { H.idleTitle = 'TRYOUTS'; H.idleText = 'A 60-second shootout, then a 1v1 against a senior: the starter plays varsity, the rest JV. Play or sim them.'; }
   else { H.idleTitle = c.stage === 'combine' ? 'THE PRO COMBINE' : c.decision ? 'DECISION TIME' : 'SEASON OVER'; H.idleText = c.stage === 'combine' ? 'Scouts measure you: height, wingspan, reach, vertical. Then three franchises make offers. Projected: ' + amProjLabel(c) + '.' : c.decision ? (c.decision.kind === 'college' ? (c.decision.juco ? (c.decision.none ? 'Your JUCO season is over and no program offered: ' + (c.decision.more ? 'another JUCO season, ' : '') + 'a walk-on or a club abroad.' : 'Your JUCO season is over: transfer offers are in. Sign one to join as a ' + ((c.juco && c.juco.seasons) >= 2 ? 'junior.' : 'sophomore.')) : c.decision.signing ? (c.decision.none ? 'Signing Day, and no scholarship offers: a walk-on, ' + (c.decision.prepOk ? 'a prep year, ' : '') + 'junior college or a club abroad.' : 'Signing Day: sign with one of the programs that offered you. It\'s binding.') : 'Offers are in. Pick where you play next.') : c.decision.kind === 'portal' ? 'You sat most of the season. Transfer to a program that starts you, stay, or declare.' : 'Turn pro, or stay in school? Pro interest: ' + amProStars(c) + '★ franchises.') : ''; }
   if (L && c.stage !== 'combine' && L.format === 'conf') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1, po = L.playoffs; H.headline = 'Conference ' + L.me.w + '-' + L.me.l + ' (#' + rank + ' of ' + L.size + ') · overall ' + L.all.w + '-' + L.all.l + (po && !L.done ? (po.round >= 31 ? ' · national tournament' : ' · conference tournament') : '') + ' · pro interest ' + amProStars(c) + '★'; }
   else if (L && c.stage !== 'combine') { const rank = amTable(c).findIndex(r => r.id === 'me') + 1; H.headline = (L.format === 'jv' ? 'JV ' : '') + 'Record ' + L.me.w + '-' + L.me.l + ' · rank ' + rank + ' of ' + (L.size || stg.size) + (L.playoffs && !L.done ? (L.playoffs.round >= 3 ? ' · at state' : ' · in the playoffs') : '') + ' · ' + c.titles + ' title' + (c.titles === 1 ? '' : 's') + ' · ' + c.mvps + ' MVP' + (c.mvps === 1 ? '' : 's'); }
@@ -11637,7 +11708,7 @@ function proHubData(game, c) {
     else if (sm) { H.bench = { rank: ladderRank(c), starter: sm.name }; H.opp.label = 'BENCH · YOU\'RE #' + ladderRank(c) + ' · ' + sm.nick.toUpperCase() + ' STARTS'; H.myCard = { key: 'pm-' + sm.id, name: sm.name, look: sm.look, height: sm.height, colors: club.colors, ovr: tmMateOvr(sm), style: ARCHETYPES[sm.style] ? ARCHETYPES[sm.style].label : '', sub: 'starts this week' }; H.scout = 'Outplay the starter ' + TM.depth.weeks + ' weeks running and you start.'; } }
   else H.idleTitle = c.phase === 'playoffs' ? 'PLAYOFFS' : 'NO GAME THIS WEEK';
   const st = c.standings[c.meId]; H.headline = (st ? 'Record ' + st.w + '-' + st.l : '') + ' · ' + frMine(c) + '★ franchise' + (c.news && c.news[0] ? ' · ' + c.news[0].t : ''); if (pblOn(c)) { H.value = { v: frValue(c), now: frMine(c) }; if (c.tonight && c.tonight.s === c.season && c.phase === 'regular') H.headline = (st ? 'Record ' + st.w + '-' + st.l + ' · ' : '') + 'PBL TONIGHT: ' + c.tonight.head; } /* 2.1 (§3.5–3.6, W6): your value against the bars; the week's headline */
-  H.trainNotes = hubTrainNotes(c.me, false); H.ladder = hubLadderRows(c, me.name, recOvr(me)); H.ladderNotes = hubLadderNotes(c); if (benchWeeksOf(c) >= TM.tradeBenchWeeks) H.ladderNotes.push(benchWeeksOf(c) + ' bench weeks this season: you can ask for a trade (Team → Office).');
+  H.trainNotes = hubTrainNotes(c.me, false); H.ladder = hubLadderRows(c, me.name, recOvr(me)); H.ladderNotes = hubLadderNotes(c); if (benchWeeksOf(c) >= TM.tradeBenchWeeks) H.ladderNotes.push(benchWeeksOf(c) + ' bench weeks this season: you can ask for a trade (CAREER → Office).');
   const T = traitsOf(c.me), R = roadBanner(c), ct = c.me.contract || {}; H.meLines = [['PRO', 'Season ' + c.season + ' · age ' + me.age], ['MONEY', fmtMoney(c.me.money) + ' · ' + fmtMoney(ct.salary || 0) + ' a season · ' + tnCredits(c) + ' credit' + (tnCredits(c) === 1 ? '' : 's')], ['FAME', Math.round(c.me.fame || 0) + ' of 100'], ['CONFIDENCE', String(Math.round(c.me.confidence || 0))], ['DEGREE', schoolDegreeLine(c)] /* V9 */].concat(T ? [['BADGES', trActive(c.me).map(id => TR.list[id].name + ' (' + trLevelName(trLvOf(c.me, id)) + ')').join(' · ') || 'none yet']] : []).concat([['ROAD', R.n + ' of ' + R.total + ' milestones' + (R.next ? ' · next: ' + R.next.label.toLowerCase() : '')]]);
   hubHomeData(game, c, H); /* 3.0 (§2.1) */
   H.teamTitle = club.name; const OD = frMyOdds(c); if (OD && H.level) H.level.note = 'title odds ' + oddsPct(OD.me) + ' · ' + H.level.note; /* V12 (§6): title odds on the hub */ H.teamLines = [['FRANCHISE', frMine(c) + '★ · ' + frCity(club.id) + ' · ' + FR_MARKET_WORD[frMarket(club.id)].toLowerCase()], ['TITLE ODDS', OD ? OD.text : '—'], ['RECORD', st ? st.w + '-' + st.l + (pblOn(c) ? pblRecordTail(c) : ' this season') : '—'], /* 2.1: the conference place, the MVP ladder */ ['CONTRACT', ct.years ? fmtMoney(ct.salary || 0) + ' × ' + ct.years + ' season' + (ct.years > 1 ? 's' : '') : '—'], ['COACH TRUST', trustOf(c) + ' of 100']];
@@ -11784,7 +11855,8 @@ function legacyScreen(game) {
   const J = ((c.me && c.me.jerseys) || [])[0] || null, mc = J ? J.club : frMainClub(c), mcl = clubOf(mc), banners = frTitlesOf(c, mc).slice(-4), rings = ringsOf(c), stint = frStints(c)[mc] || { seasons: 0, titles: 0 }; /* V12 (Part 2 §6): your franchise's banners, your rings, your jersey if a franchise retired it */
   const items = [btn('MAIN MENU', 0, 0, 0, 0, () => { s.career = null; game.save.save(); game.ui.clearTo(mainMenu(game)); }, { primary: true })]; if (c.epilogue) items.push(btn('What money built', 0, 0, 0, 0, () => game.ui.push(moneyBuiltScreen(game)))); column(items, 860, UI_H - tapH(ui, 54) - 24, 380, tapH(ui, 54), 10); if (items[1]) Object.assign(items[1], { x: 510, y: items[0].y, w: 340 }); /* R7: the epilogue's summary; 3.0 (X6): side by side, under the text (stacked, the second ran over it) */
   const verdict = L.hof ? (L.firstBallot ? 'FIRST-BALLOT HALL OF FAMER' : 'HALL OF FAMER') : L.score >= CR.legacyVerdict[0] ? 'A GREAT CAREER' : L.score >= CR.legacyVerdict[1] ? 'A GOOD CAREER' : 'THE FINAL BUZZER'; /* X10: the re-weighted legacy's lines */
-  return { widgets: items, name: 'legacy', opaque: 'span', update(dt) { t += dt; }, onBack() {},
+  const show = () => { const h = !uiReduceMotion() && t < 2.9; for (const b of items) b.hidden = h; }; show(); /* X11: the buttons come once the jersey is up (it rose under them) */
+  return { widgets: items, name: 'legacy', opaque: 'span', update(dt) { t += dt; show(); }, onBack() {},
     draw(ctx, ui) {
       const reduce = uiReduceMotion(), T = reduce ? 9 : t;
       const sp = uiSpan(ui); const sky = ctx.createLinearGradient(0, 0, 0, UI_H); sky.addColorStop(0, '#04061A'); sky.addColorStop(1, '#141C4E'); ctx.fillStyle = sky; ctx.fillRect(sp.x0, sp.y0, sp.x1 - sp.x0, sp.y1 - sp.y0);
@@ -12113,7 +12185,7 @@ function msgScreen(game, c, ev, done, opts) {
   // the layout: the message's lines, the detail's and the buttons' (a note's lines too), measured on the scratch canvas
   // at first, then again in the screen's own draw (the main canvas: the text size and the pixel floor) when those change
   const n = items.length, gap = 14, bw = (L.w - 56 - gap * (n - 1)) / n, tw = L.w - L.is - 96; let G = null, memo = '';
-  const layout = cx => { cx.save(); try { const lt = lhOf(cx, L.ts), ld = lhOf(cx, L.ds), la = lhOf(cx, L.ls), ln = lhOf(cx, L.ns); cx.font = fontStr(L.ts, true); const tl = Math.min(4, rbWrap(cx, text, tw).length); cx.font = fontStr(L.ds, false); const dl = detail ? Math.min(3, rbWrap(cx, detail, tw).length) : 0;
+  const layout = cx => { cx.save(); try { const lt = lhOf(cx, L.ts), ld = lhOf(cx, L.ds), la = lhOf(cx, L.ls), ln = lhOf(cx, L.ns); cx.font = fontStr(L.ts, true); const tl = Math.min(4, rbWrap(cx, text, tw).length); cx.font = fontStr(L.ds, false); const dl = detail ? Math.min(5, rbWrap(cx, detail, tw).length) : 0; /* X11: five lines (a 2.x message's three lines were cut at three) */
     cx.font = fontStr(L.ns, false); const nl = Math.max(0, ...items.map(b => b.note ? Math.min(2, rbWrap(cx, b.note, bw - 28).length) : 0)), lip = 8;
     const bh = Math.max(P ? tapH(ui0, 44) : nl ? 84 : 60, Math.ceil(la + (nl ? 4 + nl * ln : 0) + 22 + lip)), body = 40 + tl * lt + (dl ? 10 + dl * ld : 0), h = Math.round(Math.max(L.is + 40, body + 28) + bh + 52), x = (UI_W - L.w) / 2, y = Math.round(Math.max(8, (UI_H - h) / 2));
     items.forEach((b, i) => Object.assign(b, { x: x + 28 + i * (bw + gap), y: y + h - 26 - bh, w: bw, h: bh })); G = { x, y, h, tl, lt, ld }; } finally { cx.restore(); } };
@@ -12126,7 +12198,7 @@ function msgScreen(game, c, ev, done, opts) {
       const ix = x + 28, iy = y + 28; ctx.fillStyle = '#0B0F24'; ctx.fillRect(ix - 4, iy - 4, L.is + 8, L.is + 8); ctx.fillStyle = UI_GOLD; ctx.fillRect(ix - 4, iy - 4, L.is + 8, 4); ctx.fillRect(ix - 4, iy + L.is, L.is + 8, 4); ctx.fillRect(ix - 4, iy - 4, 4, L.is + 8); ctx.fillRect(ix + L.is, iy - 4, 4, L.is + 8); drawMsgIcon(ctx, icon, ix + 8, iy + 8, L.is - 16);
       const tx = x + L.is + 68; ui.label(ctx, String(ev.title || '').toUpperCase(), tx, y + 40, L.tl, UI_GOLD, 'left', tw);
       let yy = y + 40 + 24 + G.lt / 2; ui.para(ctx, text, tx, yy, tw, L.ts, UI_TEXT, 'left', 4); yy += G.tl * G.lt - G.lt / 2 + 10;
-      if (detail) ui.para(ctx, detail, tx, yy + G.ld / 2, tw, L.ds, UI_DIM, 'left', 3);
+      if (detail) ui.para(ctx, detail, tx, yy + G.ld / 2, tw, L.ds, UI_DIM, 'left', 5);
     } };
   return scr;
 }
@@ -12238,7 +12310,7 @@ function trophyCaseScreen(game) {
       ordered.slice(page * per, page * per + rows * cols).forEach((tr, i) => { const r = Math.floor(i / cols), col = i % cols, cx = 30 + (col + 0.5) * W / cols, y = 20 + 110 + (r + 1) * shelfH - under; if (tr.kind === 'gear') drawTrophyGear(ctx, tr, cx, y, Math.min(60, (shelfH - under - 10) / 1.9)); else drawTrophy(ctx, tr.kind, cx, y, Math.min(60, (shelfH - under - 10) / 1.9), tr.level, tr.club); ctx.font = fontStr(12, true); ctx.fillStyle = '#F3E7D0'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; const mw = W / cols - 20, lh = lhL; let L = rbWrap(ctx, String(tr.label), mw, 40); /* 3.0 (X6): two lines, measured as the pixel font draws */ if (L.length > 2) L = [L[0], L.slice(1).join(' ')]; L = L.map(l => { let s = l; while (s.length > 4 && rbDrawWidth(ctx, s) > mw) s = s.slice(0, -1); return s === l ? l : s + '…'; }); L.forEach((l, k) => { ctx.fillText(l, cx, y + 16 + k * lh); if (l.endsWith('…') && RBF.boxes && RBF.boxes.length) RBF.boxes[RBF.boxes.length - 1].cut = tr.label; /* F7: the tests' cut-text audit */ });
         ctx.font = fontStr(11, false); ctx.fillStyle = 'rgba(243,231,208,0.65)'; ctx.fillText((tr.level === 'pro' ? 'Pro' : tr.level === 'college' ? 'College' : 'HS') + ' · season ' + tr.season, cx, y + 16 + L.length * lh + 2); });
       if (!P) { ui.panel(ctx, 1000, 20, 250, 420); ui.heading(ctx, 'CAREER HIGHS', 1020, 56, 18, UI_GOLD); recordsOf(c).forEach((rw, i) => { const y = 92 + i * 34; ui.label(ctx, REC_WORDS[rw.k], 1020, y, 14, UI_TEXT); ui.heading(ctx, String(rw.pro != null ? Math.max(rw.am, rw.pro) : rw.am), 1230, y, 16, UI_GOLD, 'right'); });
-        const L = pro ? legacyOf(pro) : null; if (L) { ui.label(ctx, 'Earned ' + fmtMoney(pro.me.earned || 0) + (pro.me.earnedSince > 1 ? ' (S' + pro.me.earnedSince + '+)' : ''), 1020, 262, 14, UI_GOLD, 'left', 220); /* V12: short enough for the panel */ ui.label(ctx, 'Legacy ' + L.score + ' / ' + CR.hofScore, 1020, 290, 15, UI_TEXT); meterBar(ctx, 1020, 304, 210, 10, L.score / CR.hofScore, L.score >= CR.hofScore ? UI_GOLD : UI_CYAN); const LW = CR.legacy; ['A title ' + LW.title + ' · an MVP ' + LW.mvp, 'All-League ' + LW.allLeague + ' · All-Star ' + LW.allStar, 'A season ranked #1: ' + LW.rank[0], 'Each peak OVR over ' + LW.peakFrom + ': ' + LW.peak].forEach((l, i) => ui.label(ctx, l, 1020, 332 + i * 21, 12, UI_DIM, 'left', 210)); } /* V12: four short lines (the paragraph ran past the panel under the Earned line) */ else { ctx.font = fontStr(12, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'The Hall of Fame only counts what you do as a pro. Everything here counts for your pro offers.', 1020, 290, 210, 16); } }
+        const L = pro ? legacyOf(pro) : null; if (L) { ui.label(ctx, 'Earned ' + fmtMoney(pro.me.earned || 0) + (pro.me.earnedSince > 1 ? ' (S' + pro.me.earnedSince + '+)' : ''), 1020, 262, 14, UI_GOLD, 'left', 220); /* V12: short enough for the panel */ ui.label(ctx, 'Legacy ' + L.score + ' / ' + CR.hofScore, 1020, 290, 15, UI_TEXT); meterBar(ctx, 1020, 304, 210, 10, L.score / CR.hofScore, L.score >= CR.hofScore ? UI_GOLD : UI_CYAN); const LW = CR.legacy; [[['A title'], LW.title], [['An MVP'], LW.mvp], [['All-League'], LW.allLeague], [['All-Star'], LW.allStar], [['A season ranked #1', 'Ranked #1'], LW.rank[0]], [['Peak OVR over ' + LW.peakFrom + ', a point', 'Peak OVR, a point', 'Peak OVR'], LW.peak]].forEach(([t, v], i) => { const y = 330 + i * 17; ctx.font = fontStr(12, false); ui.label(ctx, rbFirstFit(ctx, t, 168), 1020, y, 12, UI_DIM, 'left', 168); ui.label(ctx, String(v), 1230, y, 12, UI_TEXT, 'right', 40); }); } /* V12: short lines (the paragraph ran past the panel under the Earned line); X11: each weight a row with its number on the right (X10's longer lines were cut) */ else { ctx.font = fontStr(12, false); ctx.fillStyle = UI_DIM; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; wrapText(ctx, 'The Hall of Fame only counts what you do as a pro. Everything here counts for your pro offers.', 1020, 290, 210, 16); } }
     } };
 }
 
@@ -12526,7 +12598,7 @@ function drawHubShop(ctx, ui, H, t, box, c) {
 function hubBadges(game, c) {
   const B = holderOf(c), out = {}; if (!B) return out;
   out.career = hubNewsUnread(c) || (isPro(c) && (c.me.offers || []).length > (c.me.offersSeen || 0)); /* 3.0: news and the Office's offers */
-  if (!isPro(c)) { const o = (c.offers || []).filter(x => !x.pulled).length > (c.offersSeen || 0); if (c.stage === 'hs') out.home = o; else out.league = o; } /* high school: the recruiting card on HOME */
+  if (!isPro(c) && c.stage === 'hs') out.home = (c.offers || []).filter(x => !x.pulled).length > (c.offersSeen || 0); /* high school: the recruiting card on HOME (X11: only there; a college player's old offers lit LEAGUE for good, with nothing on it to clear them; JUCO's and the portal's offers come as a decision) */
   return out;
 }
 function hubNewsUnread(c) { const n = (c.news || []).length; return n > 0 && n !== (holderOf(c).newsSeen || 0) && c.news[0] && c.news[0].t !== holderOf(c).newsSeenT; }
@@ -12612,7 +12684,7 @@ function drawHome(ctx, ui, H, t, box) {
   kitPanel(ctx, L.card.x, L.card.y, L.card.w, L.card.h); drawHomeCard(ctx, ui, H, D, L.card, t);
   if (P) { drawHomeSide(ctx, ui, H, D, L.side, t); return; }
   // the report under the plan: what this week runs, the fatigue
-  { const R = L.report; kitPanel(ctx, R.x, R.y, R.w, R.h, 'rgba(8,12,36,0.55)'); const B = H.B; if (B && H.planLine) { ui.heading(ctx, H.planLine, R.x + 14, R.y + 20, 13, UI_CYAN, 'left', R.w - 28); statHot(ctx, 'plan', R.x + 8, R.y + 6, R.w - 16, 28); drawWeekStatus(ctx, ui, B, R.x + 14, R.y + 40, R.w - 28, true, H.crew); if (H.planNote) ui.label(ctx, H.planNote, R.x + 14, R.y + R.h - 12, 12, UI_GOLD, 'left', R.w - 28); } /* 3.0 (§7): the crew report in the week's free line */ else ui.label(ctx, H.idleText || '', R.x + 14, R.y + 24, 13, UI_DIM, 'left', R.w - 28); }
+  { const R = L.report; kitPanel(ctx, R.x, R.y, R.w, R.h, 'rgba(8,12,36,0.55)'); const B = H.B; if (B && H.planLine) { ui.heading(ctx, H.planLine, R.x + 14, R.y + 20, 13, UI_CYAN, 'left', R.w - 28); statHot(ctx, 'plan', R.x + 8, R.y + 6, R.w - 16, 28); drawWeekStatus(ctx, ui, B, R.x + 14, R.y + 40, R.w - 28, true, H.crew); if (H.planNote) ui.label(ctx, H.planNote, R.x + 14, R.y + R.h - 12, 12, UI_GOLD, 'left', R.w - 28); } /* 3.0 (§7): the crew report in the week's free line */ else if (H.idleText) ui.para(ctx, H.idleText, R.x + 14, R.y + 24, R.w - 28, 13, UI_DIM, 'left', 3); } /* X11: three lines (one cut the tryouts' text) */
   // the season line
   { const S = L.line; kitPanel(ctx, S.x, S.y, S.w, S.h, 'rgba(8,12,36,0.7)'); const txt = seasonLineText(D); ui.heading(ctx, txt || 'NO SEASON RIGHT NOW', S.x + 16, S.y + S.h / 2, 18, UI_TEXT, 'left', S.w - 32); if (D.rec) statHot(ctx, 'record', S.x, S.y, S.w, S.h); }
   // the top five and your team
@@ -12700,7 +12772,7 @@ function homeEvents(c) {
   return out;
 }
 // --- CAREER: you, your ratings ("+1 in about N weeks"), your badges, and the doors to the rest ---
-function careerTabWidgets(game, box, links) { const ui = game.ui, P = ui.phone, out = []; if (P && links.length > 6) { const rest = links.slice(5); links = links.slice(0, 5).concat([btn('MORE…', 0, 0, 0, 0, () => game.ui.push(homeMoreScreen(game, rest.map(b => [b.label, b.onPress]))))]); } /* a phone: five doors and MORE… */ const x = box.x + (P ? 712 : 660) + 16, w = box.x + box.w - 16 - x, cols = 2, bh = P ? tapH(ui, 44) : 48, gap = 10, lw = (w - gap) / cols, rows = Math.ceil(links.length / cols); let y = box.y + box.h - 16 - rows * bh - (rows - 1) * gap; ui.careerRows = rows;
+function careerTabWidgets(game, box, links) { const ui = game.ui, P = ui.phone, out = []; if (P && links.length > 6) { const rest = links.slice(5); links = links.slice(0, 5).concat([btn('MORE…', 0, 0, 0, 0, () => game.ui.push(homeMoreScreen(game, rest.map(b => [b.label, b.onPress]))))]); } /* a phone: five doors and MORE… */ const x = box.x + (P ? 712 : 660) + 16, w = box.x + box.w - 16 - x, cols = 3, bh = P ? tapH(ui, 44) : 48, /* X11: three a row (two left no room for your numbers above them on a phone) */ gap = 10, lw = (w - gap) / cols, rows = Math.ceil(links.length / cols); let y = box.y + box.h - 16 - rows * bh - (rows - 1) * gap; ui.careerRows = rows;
   links.forEach((b, i) => { const last = i === links.length - 1 && links.length % cols === 1; out.push(Object.assign(b, { x: last ? x : x + (i % cols) * (lw + gap), y: y + Math.floor(i / cols) * (bh + gap), w: last ? w : lw, h: bh })); }); return out; }
 function drawCareerTab(ctx, ui, H, t, box) {
   const P = ui.phone, lw = P ? 700 : 648, K = H.K; kitPanel(ctx, box.x, box.y, lw, box.h); const x = box.x + 16, w = lw - 32; let y = box.y + (P ? 26 : 28);
@@ -13152,14 +13224,16 @@ function colCoachToTeam(c) { const P = colProgOf(c), T = c.team; if (!P || !T ||
 function colNilMul(c) { const P = colProgOf(c); return P && c.program && c.program.pid ? COLG.nilMul[P.nil] : 1; } // NIL deals by your program's market
 
 // ============================================================================
-// SECTION: SAVE / PROGRESSION — versioned localStorage save with migration, and the pro half of the 1v1 career:
-// draft night, a 12-player league with clubs, seasons, playoffs, awards, aging, progression by playing and
-// training, contracts, endorsements, staff, injuries and retirement. (The amateur years live in part 2.)
+// SECTION: SAVE — versioned saves: three slots in the device's storage (SAVE_STORAGE: the browser's localStorage here;
+// an app wrapper swaps in its own), the save code that exports and imports a slot (3.0 §10), and the migrations that
+// bring an older save up to date (the schema version: CONFIG.save.version).
 // ============================================================================
+// 3.0 (§10): where saves live. Every read and write goes through here, so an app can keep them in its own storage.
+const SAVE_STORAGE = { ok() { try { return !!window.localStorage; } catch (e) { return false; } }, get(k) { return localStorage.getItem(k); }, set(k, v) { localStorage.setItem(k, v); }, remove(k) { localStorage.removeItem(k); } };
 function defaultSave() {
   return {
     version: CONFIG.save.version,
-    settings: { whatsNewSeen: CONFIG.ui.whatsNew, /* V13: a new player starts with it seen */ graphics: 'retro', arcadeExtras: 'off', extrasF1: true, autoReplay: false, gameLen: 60, /* F5 */ quickResults: false, /* V5 */ difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {}, shotFeedback: true, autoSprint: true, vibrate: true, touchLayout: null }, // V4: shot feedback, auto-sprint, vibration, your touch layout
+    settings: { upright: 'turn', /* 3.0 (§10): an upright phone turns the game (or 'ask': the rotate screen) */ whatsNewSeen: CONFIG.ui.whatsNew, /* V13: a new player starts with it seen */ graphics: 'retro', arcadeExtras: 'off', extrasF1: true, autoReplay: false, gameLen: 60, /* F5 */ quickResults: false, /* V5 */ difficulty: 'pro', meter: 'on', shake: 1, reduceMotion: false, colorblind: false, master: CONFIG.audio.masterDefault, sfx: CONFIG.audio.sfxDefault, music: CONFIG.audio.musicDefault, touchSize: 1, touchOpacity: 0.55, leftHanded: false, keyPreset: 'A', showFps: false, adaptive: false, charges: true, careerCourt: 'full', injuries: true, tutorialDone: false, camera: 'legends', textSize: 1, keyMap: null, tips: true, tipsSeen: {}, shotFeedback: true, autoSprint: true, vibrate: true, touchLayout: null }, // V4: shot feedback, auto-sprint, vibration, your touch layout
     unlocks: { arena: true, trophies: [] },
     career: null,
     c1: null,
@@ -13173,26 +13247,41 @@ function defaultSave() {
 // R10 §4: three save slots. Slot 1 keeps the original key (a save from before R10 is slot 1, untouched); the device
 // remembers the slot last played, and the settings follow the device from slot to slot.
 function slotKey(n) { return n > 1 ? CONFIG.save.key + '.slot' + n : CONFIG.save.key; }
-function activeSlot() { try { const v = +localStorage.getItem(CONFIG.save.slotKey); return v >= 1 && v <= CONFIG.save.slots ? v : 1; } catch (e) { return 1; } }
+function activeSlot() { try { const v = +SAVE_STORAGE.get(CONFIG.save.slotKey); return v >= 1 && v <= CONFIG.save.slots ? v : 1; } catch (e) { return 1; } }
 class SaveSystem {
   constructor(slot) { this.slot = slot >= 1 && slot <= CONFIG.save.slots ? slot | 0 : activeSlot(); this.data = defaultSave(); this.available = false; this.loaded = false; this.load(); }
   load() {
-    let raw = null; try { raw = window.localStorage ? localStorage.getItem(slotKey(this.slot)) : null; this.available = !!window.localStorage; } catch (e) { this.available = false; }
+    let raw = null; try { this.available = SAVE_STORAGE.ok(); raw = this.available ? SAVE_STORAGE.get(slotKey(this.slot)) : null; } catch (e) { this.available = false; }
     if (!raw) { this.loaded = true; return; }
-    try { const obj = JSON.parse(raw); if (!obj || typeof obj !== 'object') throw new Error('bad save'); this.data = migrateSave(obj); } catch (e) { console.warn('Corrupted save; starting fresh (a copy is kept).', e); this.data = defaultSave(); this.corrupted = true; try { localStorage.setItem(slotKey(this.slot) + '.corrupt', raw); localStorage.removeItem(slotKey(this.slot)); } catch (e2) {} } // R10: never thrown away: the unreadable save stays under .corrupt
+    try { const obj = JSON.parse(raw); if (!obj || typeof obj !== 'object') throw new Error('bad save'); this.data = migrateSave(obj); } catch (e) { console.warn('Corrupted save; starting fresh (a copy is kept).', e); this.data = defaultSave(); this.corrupted = true; try { SAVE_STORAGE.set(slotKey(this.slot) + '.corrupt', raw); SAVE_STORAGE.remove(slotKey(this.slot)); } catch (e2) {} } // R10: never thrown away: the unreadable save stays under .corrupt
     this.loaded = true;
   }
-  save() { if (!this.available) return false; try { this.data.savedAt = Date.now(); localStorage.setItem(slotKey(this.slot), JSON.stringify(this.data)); return true; } catch (e) { return false; } }
-  reset() { this.data = defaultSave(); try { localStorage.removeItem(slotKey(this.slot)); } catch (e) {} }
+  save() { if (!this.available) return false; try { this.data.savedAt = Date.now(); SAVE_STORAGE.set(slotKey(this.slot), JSON.stringify(this.data)); return true; } catch (e) { return false; } }
+  reset() { this.data = defaultSave(); try { SAVE_STORAGE.remove(slotKey(this.slot)); } catch (e) {} }
   eraseKeepSettings() { const S = this.data.settings; this.reset(); this.data.settings = S; this.save(); } // R10: erase a slot, keep the device's settings
   // Another slot: this one is saved first and the settings go along. Returns the new slot's SaveSystem.
-  switchTo(n) { this.save(); const next = new SaveSystem(n); next.data.settings = Object.assign({}, next.data.settings, this.data.settings); try { localStorage.setItem(CONFIG.save.slotKey, String(next.slot)); } catch (e) { /* private mode */ } next.save(); return next; }
+  switchTo(n) { this.save(); const next = new SaveSystem(n); next.data.settings = Object.assign({}, next.data.settings, this.data.settings); try { SAVE_STORAGE.set(CONFIG.save.slotKey, String(next.slot)); } catch (e) { /* private mode */ } next.save(); return next; }
+  exportCode() { return saveExportCode(this.data); } // 3.0 (§10): this slot as a versioned save code
+  importCode(text) { const r = saveImportCode(text); if (!r.ok) return r; r.data.settings = Object.assign({}, r.data.settings, this.data.settings); this.data = r.data; this.save(); return r; } // ...loaded into this slot (this device's settings stay)
   addPoster(dataUrl, label, noSave) {
     const P_ = this.data.posters; P_.unshift({ url: dataUrl, label, t: Date.now() }); while (P_.length > CONFIG.save.maxPosters) P_.pop();
     let bytes = P_.reduce((a, p) => a + p.url.length, 0); while (bytes > CONFIG.save.posterBytesCap && P_.length) { const last = P_.pop(); bytes -= last.url.length; }
     if (!noSave) this.save(); // F3: the game's posters are saved together after the final buzzer
   }
 }
+// 3.0 (§10): a save you can take with you: the slot's data in a versioned envelope ({ app, v: the schema version, game:
+// the game's version, at }) as text: 'HH3:' + base64 of its JSON (UTF-8). Import checks the app and the version (a newer
+// schema is refused) and runs the data through migrateSave like any older save.
+function saveExportCode(data) { return 'HH3:' + b64EncUtf8(JSON.stringify({ app: 'hoopheads', v: CONFIG.save.version, game: CONFIG.version, at: Date.now(), data })); }
+function saveImportCode(text) {
+  try { const t = String(text || '').replace(/\s+/g, ''); if (!/^HH3:/.test(t)) return { ok: false, why: 'That isn\'t a Hoop Heads save code (it starts with HH3:).' };
+    const env = JSON.parse(b64DecUtf8(t.slice(4))); if (!env || env.app !== 'hoopheads' || !env.data || typeof env.data !== 'object') return { ok: false, why: 'That isn\'t a Hoop Heads save.' };
+    if ((env.v || 0) > CONFIG.save.version) return { ok: false, why: 'That save is from a newer version (' + (env.game || '?') + ').' };
+    return { ok: true, data: migrateSave(env.data), v: env.v || 0, game: env.game || '', at: env.at || 0 };
+  } catch (e) { return { ok: false, why: 'The code is damaged or cut short.' }; }
+}
+function b64EncUtf8(s) { const b = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(bin); }
+function b64DecUtf8(s) { const bin = atob(s), b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return new TextDecoder().decode(b); }
 // Older saves: settings, records and posters carry over. Careers from older builds (the team career and the first
 // pro-only 1v1 career) can't continue on the new rating scale, so their player's name and look prefill the new player.
 // A career from the first high-school build carries over with its ratings, height and history.
@@ -13297,6 +13386,12 @@ function repairCareer(c) {
   return c;
 }
 
+
+// ============================================================================
+// SECTION: PROGRESSION (the pros) — the pro half of the 1v1 career: draft night, a league with clubs, seasons,
+// playoffs, awards, aging, progression by playing and training, contracts, endorsements, injuries and retirement.
+// (The amateur years live in part 2; the saves in SAVE.)
+// ============================================================================
 // ---------------- ratings, OVR, formatting ----------------
 const CR = CONFIG.career, LG = CONFIG.league;
 const RATING_LONG = { sho: 'Shooting', fin: 'Finishing', han: 'Handles', spd: 'Speed', jmp: 'Hops', def: 'Defense', str: 'Strength' };
@@ -13841,7 +13936,7 @@ function legacyOf(c) {
   const score = Math.round(Object.values(parts).reduce((a, v) => a + v, 0)); // F5: points per the old game length; 2.1 (§1.4): your name on an arena
   return { score, parts, peak, rk1, rk3, rk10, benchT, mip, sixth, tour, medals, cups, golds: TR_.filter(t => t.kind === 'gold').length, titles, mvps, fmvp, allL, allL2, dpoy, roy, scoring, allStars, hof: score >= CR.hofScore, firstBallot: score >= CR.hofScore * CR.firstBallotMul, seasons, pts: cs.pts, ptsN: cs.ptsN != null ? cs.ptsN : cs.pts, g: cs.g, ppg: cs.g ? cs.pts / cs.g : 0 };
 }
-function retireCareer(save) { const c = save.career; if (!c) return null; const L = legacyOf(c); const me = meOf(c); mediaFill(c); tlAdd(c, 'retire', 'Retired after ' + L.seasons + ' pro season' + (L.seasons === 1 ? '' : 's') + (L.hof ? ': Hall of Fame' : '')); const entry = { name: me.name, look: me.look, h: me.h, arch: me.arch, seasons: L.seasons, titles: L.titles, mvps: L.mvps, ppg: +L.ppg.toFixed(1), score: L.score, hof: L.hof, when: Date.now() }; try { entry.jerseys = frRetireJerseys(c).map(j => j.club); } catch (e) { /* the rafters are decoration */ } /* V12 (Part 2 §6): jerseys retired */ save.hallOfFame.unshift(entry); if (save.hallOfFame.length > 20) save.hallOfFame.length = 20; c.phase = 'retired'; c.legacy = L; try { roadCheck(c); } catch (e) { /* the road is decoration at the end */ } return L; } // V5: the Hall of Fame milestone
+function retireCareer(save) { const c = save.career; if (!c) return null; const L = legacyOf(c); const me = meOf(c); mediaFill(c); tlAdd(c, 'retire', 'Retired after ' + L.seasons + ' pro season' + (L.seasons === 1 ? '' : 's') + (L.hof ? ': Hall of Fame' : '')); const entry = { name: me.name, look: me.look, h: me.h, arch: me.arch, seasons: L.seasons, titles: L.titles, mvps: L.mvps, ppg: +L.ppg.toFixed(1), score: L.score, hof: L.hof, when: Date.now() }; try { entry.jerseys = frRetireJerseys(c).map(j => j.club); } catch (e) { /* the rafters are decoration */ } /* V12 (Part 2 §6): jerseys retired */ save.hallOfFame.unshift(entry); if (save.hallOfFame.length > 20) save.hallOfFame.length = 20; if (L.hof) storeEarn(save, 'unlimited'); /* 3.0 (§10): Unlimited, earned */ c.phase = 'retired'; c.legacy = L; try { roadCheck(c); } catch (e) { /* the road is decoration at the end */ } return L; } // V5: the Hall of Fame milestone
 
 </script>
 <script data-hh>
@@ -16216,7 +16311,7 @@ function recCarouselFire(c) {
   newsAdd(c, colCoachTitle(co) + ' leaves ' + P.name + (Y ? ' for ' + Y.name : '') + '.', 'league');
   c.events.push({ kind: 'dialog', offer: true, icon: 'swap', title: 'YOUR COACH IS LEAVING', rec: { pid: P.id, to: Y ? Y.id : null, carousel: true },
     lines: [colCoachTitle(co) + ' takes the job at ' + (Y ? Y.name : 'another program') + '.', P.name + ' will name a new coach; your commitment there still stands.'],
-    choice: (Y ? [{ label: 'Follow the coach', note: Y.name + ' offers you: no flip', rec: { car: 'follow' } }] : []).concat([{ label: 'Stay committed', note: 'A new coach; your spot stands', rec: { car: 'stay' }, def: true }, { label: 'Reopen recruiting', note: 'No flip cost: the coach left, not you', rec: { car: 'reopen' } }]) });
+    choice: (Y ? [{ label: 'Follow the coach', note: 'Their offer: no flip cost', rec: { car: 'follow' } }] : []).concat([{ label: 'Stay committed', note: 'A new coach; your spot stands', rec: { car: 'stay' }, def: true }, { label: 'Reopen recruiting', note: 'No flip cost: the coach left, not you', rec: { car: 'reopen' } }]) });
 }
 function recCarouselChoose(c, ev, kind) {
   const R = recOf(c), out = []; if (kind === 'reopen') return recDecommit(c, 'carousel').lines;
@@ -16492,7 +16587,7 @@ function drawScoutCard(ctx, ui, D, x, y, w, opts) {
   if (opts.T) { yy += 4; let tx = x + pad; const ids = trActive({ tr: opts.T }); for (const id of ids) { const cw = traitChip(ctx, id, tx, yy + fs * 0.4, { T: opts.T, size: fs - 2, measure: !draw, maxW: x + w - pad - tx }); tx += cw + 6; if (tx > x + w - pad - 40) break; } yy += fs + 12; }
   yy += 4; ctx.font = fontStr(fs - 2, true); const slot = Math.max(ctx.measureText('BALL').width, ctx.measureText('DEF').width); // the side tags share one slot, so the lines start together
   for (const id of D.tend) { const T = SC.tend[id], col = T.side === 'o' ? '#FF9A3C' : '#7DB8FF'; if (draw) ui.heading(ctx, T.side === 'o' ? 'BALL' : 'DEF', x + pad, yy, fs - 2, col, 'left'); const lx = x + pad + slot + 10; ctx.font = fontStr(fs, true); const tl = rbWrap(ctx, T.text, x + w - pad - lx).slice(0, 2), tlh = Math.max(fs * 1.2, rbLineH(ctx)); /* V5: a long tendency wraps (the pixel font can't shrink on a phone) */ if (draw) tl.forEach((l, i) => ui.heading(ctx, l, lx, yy + i * tlh, fs, UI_TEXT, 'left', x + w - pad - lx)); yy += fs + 10 + (tl.length - 1) * tlh; }
-  if (D.more > 0) { const mt = D.more + ' more: your scout or a film session (the store) shows them.'; if (draw) yy += ui.para(ctx, mt, x + pad, yy, iw, fs - 2, UI_DIM, 'left', 2) - (fs - 2) * 1.35 + fs + 4; else yy += fs + 4; }
+  if (D.more > 0) { const mt = D.more + ' more: your scout or a film session shows them.'; if (draw) yy += ui.para(ctx, mt, x + pad, yy, iw, fs - 2, UI_DIM, 'left', 2) - (fs - 2) * 1.35 + fs + 4; else yy += fs + 4; }
   yy += 2; { ctx.font = fontStr(fs - 2, true); const ww = ctx.measureText('WEAKNESS').width + 10; ctx.font = fontStr(fs - 1, true); const wl = rbWrap(ctx, D.weakText, iw - ww).slice(0, 2), wlh = Math.max((fs - 1) * 1.2, rbLineH(ctx)); if (draw) { ui.heading(ctx, 'WEAKNESS', x + pad, yy, fs - 2, UI_CYAN); wl.forEach((l, k) => ui.heading(ctx, l, x + pad + ww, yy + k * wlh, fs - 1, D.weak ? UI_TEXT : UI_DIM, 'left', iw - ww)); } yy += fs + 10 + (wl.length - 1) * wlh; } /* (2.1 W5: a long weakness wraps, as a tendency does: the pixel font keeps one width from 8 to 13 px) */
   if (draw) { ui.heading(ctx, 'TIP', x + pad, yy, fs - 2, UI_GOLD); ctx.font = fontStr(fs - 2, true); const tw = ctx.measureText('TIP').width + 10; yy += ui.para(ctx, D.tip, x + pad + tw, yy, iw - tw, fs - 1, UI_GOLD, 'left', 3); } else { ctx.font = fontStr(fs - 1, false); yy += rbWrap(ctx, D.tip, iw - 40).length * Math.max((fs - 1) * 1.35, rbLineH(ctx)); }
   return yy - y + pad - 6;
@@ -18183,7 +18278,7 @@ function genesPage2(ctx, ui, c, t) {
   kitPanel(ctx, 674, 26, 572, 668); ui.title(ctx, 'YOUR BADGES', 700, 74, 40); if (!traitsOf(c)) return;
   const k = uiReduceMotion() ? 1 : easeOutCubic(clamp01(t / 0.45)); ctx.save(); ctx.globalAlpha = k; ctx.translate(0, (1 - k) * 24);
   let y2 = 112 + ui.para(ctx, 'Badges are earned, never rolled: each one unlocks by doing its thing and levels up Lv1 → Lv2 → Lv3. The first ones in reach:', 700, 112, 520, 14, UI_TEXT, 'left', 3) + 6;
-  const next = badgeNextUp(c, 3), ch = Math.min(170, (680 - y2 - 12 * (next.length - 1)) / Math.max(1, next.length)); next.forEach(n => { drawTraitCard(ctx, n.id, 700, y2, 520, ch, { B: c, compact: true }); y2 += ch + 12; }); ctx.restore();
+  const bot = ui.phone ? 556 : 680, next = badgeNextUp(c, ui.phone ? 2 : 3), ch = Math.min(170, (bot - y2 - 12 * (next.length - 1)) / Math.max(1, next.length)); /* X11: a phone's CONTINUE sits under the panel: two cards above it (the third ran under it) */ next.forEach(n => { drawTraitCard(ctx, n.id, 700, y2, 520, ch, { B: c, compact: true }); y2 += ch + 12; }); ctx.restore();
 }
 
 // ---------------- R4: teammates in practice ----------------
@@ -18329,7 +18424,7 @@ function tnDrawSide(ctx, ui, c, T, x, y, w, h, P) {
   kitHeader(ctx, 'YOUR NEXT GAME', x + 16, yy, w - 32); yy += P ? 30 : 28; ui.heading(ctx, tnGameWord(T, g).toUpperCase(), x + 16, yy, P ? 17 : 15, UI_GOLD, 'left', w - 32); yy += P ? 18 : 16;
   const ps = P ? 86 : 96; if (o) drawPortrait(ctx, { name: o.name, look: o.look, age: T.lvl === 'hs' ? 16 : T.lvl === 'college' ? 20 : 27 }, o.colors, x + 16, yy, ps);
   hexBadge(ctx, x + w - 56, yy + ps / 2 - 12, P ? 30 : 28, r, { sub: false }); ui.label(ctx, 'RATING', x + w - 56, yy + ps / 2 + (P ? 34 : 30), P ? 14 : 12, UI_DIM, 'center', 100); yy += ps + (P ? 22 : 20);
-  ui.heading(ctx, o ? o.name : e ? e.n : '?', x + 16, yy, P ? 20 : 18, UI_TEXT, 'left', w - 32); yy += P ? 28 : 24; ui.label(ctx, (e ? e.fr : '') + (T.step && g.s ? ' · OVR ' + Math.round(tnStr(c, T, oid)) + ' +' + (g.s * T.step) + ' this round' : ''), x + 16, yy, fs, UI_DIM, 'left', w - 32); yy += P ? 28 : 24;
+  ui.heading(ctx, o ? o.name : e ? e.n : '?', x + 16, yy, P ? 20 : 18, UI_TEXT, 'left', w - 32); yy += P ? 28 : 24; { const fr = e ? e.fr : '', ov = T.step && g.s ? 'OVR ' + Math.round(tnStr(c, T, oid)) : '', up = T.step && g.s ? ' +' + (g.s * T.step) : ''; ctx.font = fontStr(fs, false); ui.label(ctx, rbFirstFit(ctx, [fr + (ov ? ' · ' + ov + up + ' this round' : ''), fr + (ov ? ' · ' + ov + up : ''), ov ? ov + up + ' this round' : fr, ov ? ov + up : fr], w - 32), x + 16, yy, fs, UI_DIM, 'left', w - 32); } /* X11: a long school's name and the round's rating */ yy += P ? 28 : 24;
   ui.label(ctx, 'You: OVR ' + mineO + (M.g ? ' · ' + M.w + '-' + M.l + ' here' : ''), x + 16, yy, fs, mineO >= r ? UI_GREEN : UI_ORANGE, 'left', w - 32);
   crewTnSide(ctx, ui, c, T, o, oid, x + 16, yy + (P ? 32 : 28), w - 32, y + h - 10, P); // 3.0 (§7.5): the prep and the scout's read
 }
@@ -18938,10 +19033,10 @@ function roadBanner(c) {
   const R = roadOf(c), n = roadCount(c), next = roadNext(c), g = roadDef('team5'), goalDone = !!(R && R.done.team5); let line = '', frac = n / ROAD.list.length;
   try {
     if (!next) line = 'Every milestone done. Everything now is legacy.';
-    else if (next.id === 'varsity') line = c.squad === 'jv' ? 'On JV: outplay the starter ' + TM.depth.weeks + ' weeks running.' : 'Tryouts set the depth chart; the starter plays varsity.';
+    else if (next.id === 'varsity') line = c.squad === 'jv' ? 'On JV: outplay the starter ' + TM.depth.weeks + ' weeks running.' : 'Tryouts: the starter plays varsity.';
     else if (next.id === 'top100') line = c.recruit ? 'National rank ' + c.recruit.nat + ': win, and get seen.' : 'Win, and get seen.';
     else if (next.id === 'offer') line = 'Offers come with your recruit stars (now ' + ((c.recruit && c.recruit.stars) || 1) + '★).';
-    else if (next.id === 'colstart') line = c.stage === 'juco' ? 'Junior college: a top-' + JUC.offers[JUC.offers.length - 1][0] + ' finish brings a transfer offer.' : 'Win the depth chart: you are #' + ladderRank(c) + '.';
+    else if (next.id === 'colstart') line = c.stage === 'juco' ? 'JUCO: a top-' + JUC.offers[JUC.offers.length - 1][0] + ' finish brings transfer offers.' : 'Win the depth chart: you are #' + ladderRank(c) + '.';
     else if (next.id === 'prooffer') line = 'Pro interest: ' + amProStars(c) + '★ franchises.';
     else if (next.id === 'rotation') line = 'Win the depth chart: you are #' + ladderRank(c) + '.';
     else if (next.id === 'team3' || next.id === 'team4' || next.id === 'team5') { const st = next.id === 'team3' ? 3 : next.id === 'team4' ? 4 : 5, bar = FRN.bar[st - 1], v = Math.floor(frValue(c)); line = st + '★ teams sign at value ' + bar + ' · you: ' + v + ' (now ' + frMine(c) + '★)' + (st === 5 && FRN.need5 && !frElite(c) ? ', and a playoff series or All-League first.' : '.'); /* V6 (§1.3) */ frac = Math.max(frac, clamp01(v / bar) * 0.999); }
@@ -18990,7 +19085,7 @@ function roadCardScreen(game, c, ev, done) {
 // The whole road: every milestone, what it takes, its reward, and when you reached it.
 function roadScreen(game) {
   const ui = game.ui, P = ui.phone, c = careerOf(game) || amateurOf(game); const items = [btn('Back', 0, 0, 0, 0, () => ui.pop())]; if (P) phoneGrid(ui, items, 980, UI_H - tapH(ui, 44) - 14, 260, 1, 0, 0); else Object.assign(items[0], { x: 1040, y: 640, w: 200, h: 52 });
-  let t = 0; const rewardText = r => r.reward === 'cash' ? '+' + gearMoney(r.cash) : r.reward === 'trait' ? 'A badge level' : r.reward === 'gear' ? (gearItem(r.gear) || { name: 'Gear' }).name + ', a level' : 'Your legacy';
+  let t = 0; const rewardText = r => r.reward === 'cash' ? '+' + gearMoney(r.cash) : r.reward === 'trait' ? 'A badge level' : r.reward === 'gear' ? (gearItem(r.gear) || { name: 'Gear' }).name + ', a level' : 'Your legacy', rewardFit = (ctx, r, w) => { const s = rewardText(r); if (r.reward !== 'gear') return s; const n = (gearItem(r.gear) || { name: 'Gear' }).name; return rbFirstFit(ctx, [s, n + ' +1', n], w); }; /* X11: a long item's name and its level */
   return { widgets: items, name: 'road', update(dt) { t += dt; }, onBack() { ui.pop(); },
     draw(ctx, ui) {
       if (!c) return; const R = roadOf(c), B = roadBanner(c); ui.panel(ctx, 30, 20, 1220, 680); ui.title(ctx, 'ROAD TO THE LEAGUE', 64, 70, P ? 40 : 40);
@@ -19000,7 +19095,7 @@ function roadScreen(game) {
         if (i % 2 === 0) { ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(56, y - rh / 2, 1168, rh); }
         ctx.beginPath(); ctx.arc(80, y, fs * 0.5, 0, TAU); if (st === 'done') { ctx.fillStyle = UI_GOLD; ctx.fill(); } else { ctx.strokeStyle = st === 'next' ? UI_GOLD : 'rgba(243,240,255,0.4)'; ctx.lineWidth = 2; ctx.stroke(); }
         ui.heading(ctx, r.label + (r.goal ? '  ★' : ''), 104, y, fs, col, 'left', 330); ui.label(ctx, r.what, 448, y, fs - 2, st === 'missed' ? UI_DIM : UI_TEXT, 'left', 470);
-        const right = st === 'done' ? 'Season ' + R.done[r.id].season + (R.done[r.id].age ? ' · age ' + R.done[r.id].age : '') : st === 'missed' ? 'Missed' : rewardText(r); ui.label(ctx, right, 1210, y, fs - 2, st === 'done' ? UI_GOLD : UI_DIM, 'right', 286); });
+        const right = st === 'done' ? 'Season ' + R.done[r.id].season + (R.done[r.id].age ? ' · age ' + R.done[r.id].age : '') : st === 'missed' ? 'Missed' : (ctx.font = fontStr(fs - 2, false), rewardFit(ctx, r, 286)); ui.label(ctx, right, 1210, y, fs - 2, st === 'done' ? UI_GOLD : UI_DIM, 'right', 286); });
     } };
 }
 
@@ -19085,7 +19180,7 @@ function hsTryoutDecide(c) {
   hsBuildLeague(c, rng); c.squad = isStarter(c) ? 'varsity' : 'jv'; const rk = ladderRank(c), st = ladderStarterMate(c);
   const res = 'Shootout ' + T.drill + ' · 1v1 vs ' + (sr ? sr.name : 'a senior') + ' ' + (T.game ? (T.game.won ? 'W ' : 'L ') + T.game.my + '–' + T.game.their : '');
   c.events.push({ kind: 'story', who: 'coach', title: rk === 1 ? 'VARSITY STARTER!' : varsity ? 'MADE THE TEAM: #' + rk : 'JV: #' + rk + ' ON THE DEPTH CHART', lines: [res + '.', coach + ': "' + (rk === 1 ? 'You start for the varsity as a ' + year + '. Keep the spot: the depth chart follows how you play."' : (varsity ? 'You made it as a ' + year + ': #' + rk + ' on the depth chart.' : 'Not yet. You start at the bottom: #' + rk + '.') + ' You play JV until you outplay ' + (st ? st.name : 'the starter') + ' ' + TM.depth.weeks + ' weeks running. I watch every JV game."'), 'The school\'s team is five: the starter plays varsity\'s ten district games (the top four make the playoffs, the champion goes to state); the other four play JV, a game a week.'] });
-  tlAdd(c, 'tryout', (rk === 1 ? 'Varsity starter' : 'JV, #' + rk + ' on the depth chart') + ' as a ' + year + ' (' + res + ')'); newsAdd(c, c.name + (rk === 1 ? ' starts for the varsity at ' : ' starts on JV at ') + c.school + ' as a ' + year + '.', 'league');
+  tlAdd(c, 'tryout', (rk === 1 ? 'Varsity starter' : 'JV, #' + rk + ' on the depth chart') + ' as a ' + year); /* X11: the timeline's line (the shootout and the 1v1 are in the coach's message) */ newsAdd(c, c.name + (rk === 1 ? ' starts for the varsity at ' : ' starts on JV at ') + c.school + ' as a ' + year + '.', 'league');
   return T;
 }
 // The depth chart by OVR (a tryout you pass, a junior's first season).
@@ -19598,7 +19693,7 @@ function drawColRow(ctx, ui, c, P, x, y, w, h, focused) {
   ui.label(ctx, COL_CONFS[P.conf].short, x + C.b, y1, 13, UI_TEXT, 'left', C.bw); ui.label(ctx, colTierShort(P), x + C.b, y2, 12, gold ? UI_GOLD : UI_DIM, 'left', C.bw);
   drawStarsTxt(ctx, colStarsNow(P), x + C.c, y1, 14, 'left'); if (mi) ui.label(ctx, mi, x + C.c, y2, 12, UI_DIM, 'left', C.cw);
   if (v != null) { ui.heading(ctx, String(v), x + C.d, y1, 18, sc, 'left', 60); if (sg) ui.label(ctx, sg, x + C.d, y2, 11, sc, 'left', C.dw); }
-  else ui.label(ctx, mine ? 'YOUR PROGRAM' : '', x + C.d, y + h / 2, 12, UI_GOLD, 'left', C.dw);
+  else if (mine) { ctx.font = fontStr(12, false); ui.label(ctx, rbFirstFit(ctx, ['YOUR PROGRAM', 'YOURS'], C.dw), x + C.d, y + h / 2, 12, UI_GOLD, 'left', C.dw); } /* X11: the column's width */
 }
 // A row as a widget: it opens the program's page (with the list around it for Previous / Next).
 function colRowWidget(game, c, getP, getList) { return { kind: 'custom', label: 'Program', x: 0, y: 0, w: 0, h: 0, enabled: true, get prog() { return getP(); },
@@ -19660,7 +19755,7 @@ function colDrawProgramPage(ctx, ui, c, P, view) {
     sec('Campus', x, yy + 8, w); yy += Ph ? 42 : 36; const rows = [['Facilities', !hs || recRevealed(c, P.id) ? '★'.repeat(P.fac) + '☆'.repeat(5 - P.fac) + ' · XP +' + Math.round(colFacPct(P) * 100) + '%' : '? an official visit shows them'], /* 2.1 (§2.3) */ ['NIL market', COL_NIL_WORD[P.nil] + ' (deals ×' + COLG.nilMul[P.nil] + ')'], ['Distance', c ? colMiles(c, P).toLocaleString('en-US') + ' mi from home (' + colStateName(colHome(c).st) + ')' : colPlace(P)]].concat(Ph ? [['Arena', P.arena]] : []);
     return labelValueRows(ctx, ui, rows, x, yy, w, { row: Ph ? 32 : 24, labelSize: Ph ? 17 : 12, valueSize: Ph ? 19 : 13 }); };
   const teamBlock = (x, y, w) => { sec('Depth chart', x, y, w); const fs = Ph ? 19 : 13; let yy = y + (Ph ? 34 : 28);
-    if (!hs || !c) { yy += ui.para(ctx, (c && c.stage === 'college' && colProgOf(c) === P ? 'Your program: your depth chart is on the TEAM tab.' : 'A roster turns over every year: recruits see who would be ahead of them.'), x, yy, w, fs, UI_DIM, 'left', 3); }
+    if (!hs || !c) { yy += ui.para(ctx, (c && c.stage === 'college' && colProgOf(c) === P ? 'Your program: your depth chart is on LEAGUE.' : 'A roster turns over every year: recruits see who would be ahead of them.'), x, yy, w, fs, UI_DIM, 'left', 3); }
     else { const R = colRoster(c, P.id), ahead = R.mates.slice(0, R.start - 1); ui.label(ctx, R.start === 1 ? (Ph ? 'You would start: nobody is ahead of you today.' : 'You\'d start: nobody ahead') : Ph ? 'You would begin #' + R.start + ': ' + ahead.length + ' ahead of you today.' : 'You\'d begin #' + R.start + ': ' + ahead.length + ' ahead', x, yy, fs, R.start === 1 ? UI_GREEN : UI_ORANGE, 'left', w); yy += Ph ? 30 : 26;
       ahead.slice(0, Ph ? 3 : 4).forEach(m => { const ps = Ph ? 40 : 30; drawPortrait(ctx, { name: m.name, look: m.look, age: m.age }, P.colors, x, yy - ps / 2 + 2, ps, 'neutral'); ui.label(ctx, Ph ? m.name + ' · ' + AM_CLASS[clamp((m.cls || 1) - 1, 0, 3)] : m.name, x + ps + 10, yy + 2, fs, UI_TEXT, 'left', w - ps - 10 - (Ph ? 110 : 92)); ui.heading(ctx, 'OVR ' + tmMateOvr(m), x + w, yy + 2, fs, UI_GOLD, 'right', Ph ? 100 : 84); yy += Ph ? 46 : 36; }); }
     sec('History', x, yy + 4, w); yy += Ph ? 40 : 34; const rows = [['National titles', String(colTitles(c, P.id))], ['Pros produced', String(colPros(c, P.id))]];
@@ -19670,7 +19765,7 @@ function colDrawProgramPage(ctx, ui, c, P, view) {
     const v = colInterest(c, P.id), S = colSpots(c, P.id), of = !!colOfferOf(c, P.id), vc = colStageColor(v, of), St = COLG.stages; ui.heading(ctx, String(v), x, yy + (Ph ? 10 : 8), Ph ? 44 : 36, vc, 'left', 120); ctx.font = fontStr(Ph ? 44 : 36, true); const nw = ctx.measureText(String(v)).width;
     const mine = !!S.mine; ui.label(ctx, '/ 100 · ' + (mine ? 'you\'re committed' : of ? 'they offered you' : colStage(v, S.left)), x + nw + 10, yy + (Ph ? 12 : 10), Ph ? 20 : 14, vc, 'left', w - nw - 10); yy += Ph ? 44 : 36; meterBar(ctx, x, yy, w, Ph ? 14 : 10, v / 100, vc);
     yy += Ph ? 30 : 24; const bands = [[St[0], St[1], 'watch'], [St[1], St[2], 'contact'], [St[2], 100, 'offer']]; for (const [k0, k1, t] of bands) { const tx = x + w * k0 / 100; ctx.fillStyle = 'rgba(243,240,255,0.55)'; ctx.fillRect(Math.round(tx), yy - (Ph ? 30 : 24), 2, Ph ? 14 : 10); ui.label(ctx, t, x + w * (k0 + k1) / 200, yy, Ph ? 15 : 11, v >= k0 ? vc : UI_DIM, 'center', w * 0.25); } /* each stage's word in the middle of its band */ yy += Ph ? 38 : 30;
-    const earned = (recOf(c).earned[P.id] || 0); ui.heading(ctx, 'Spots left: ' + S.left + ' of ' + S.total, x, yy, fs + 1, mine ? UI_GOLD : S.left ? UI_TEXT : UI_RED, 'left', w); yy += Ph ? 28 : 22; const Dl = !mine && of && !recHeld(c, P.id) ? recDeadline(c, P.id) : null; ui.label(ctx, mine ? 'One is yours (committed).' : recHeld(c, P.id) ? 'Held for you through Signing Day' : Dl && Dl.soon ? 'Last spot: after game ' + Dl.g + (Dl.y === (c.stageYear || 1) ? ' this season' : ' of your senior season') : earned ? 'Earned (camps, visits, games): +' + Math.round(earned) : 'Earned (camps, visits, games): none yet', x, yy, Ph ? 17 : 12, mine || recHeld(c, P.id) ? UI_GOLD : Dl && Dl.soon ? UI_ORANGE : UI_DIM, 'left', w); yy += Ph ? 32 : 28; /* X9 (3.0 §8) */
+    const earned = (recOf(c).earned[P.id] || 0); ui.heading(ctx, 'Spots left: ' + S.left + ' of ' + S.total, x, yy, fs + 1, mine ? UI_GOLD : S.left ? UI_TEXT : UI_RED, 'left', w); yy += Ph ? 28 : 22; const Dl = !mine && of && !recHeld(c, P.id) ? recDeadline(c, P.id) : null; ui.label(ctx, mine ? 'One is yours (committed).' : recHeld(c, P.id) ? 'Held for you through Signing Day' : Dl && Dl.soon ? 'Last spot: after game ' + Dl.g + (Dl.y === (c.stageYear || 1) ? ' this season' : ' of your senior season') : (ctx.font = fontStr(Ph ? 17 : 12, false), rbFirstFit(ctx, earned ? ['Earned (camps, visits, games): +' + Math.round(earned), 'Earned (camps, visits): +' + Math.round(earned), 'Earned here: +' + Math.round(earned)] : ['Earned (camps, visits, games): none yet', 'Earned (camps, visits): none yet', 'Earned here: none yet'], w)), x, yy, Ph ? 17 : 12, mine || recHeld(c, P.id) ? UI_GOLD : Dl && Dl.soon ? UI_ORANGE : UI_DIM, 'left', w); yy += Ph ? 32 : 28; /* X9 (3.0 §8) */
     for (const r of S.recruits.slice(0, Ph ? 3 : 5)) { const tag = r.status === 'committed' ? 'committed' : r.status === 'elsewhere' ? 'elsewhere' : 'chasing', sn = colShortName(r.name), nm = Ph ? r.name : sn.length > 13 ? r.name.split(' ').slice(-1)[0] : sn, nx = Ph ? w * 0.5 : 176; ui.label(ctx, nm, x, yy, fs, r.status === 'elsewhere' ? UI_DIM : UI_TEXT, 'left', nx - 8); drawStarsTxt(ctx, r.stars, x + nx, yy, fs, 'left'); ui.label(ctx, tag, x + w, yy, Ph ? 16 : 12, r.status === 'committed' ? UI_RED : r.status === 'elsewhere' ? UI_DIM : UI_CYAN, 'right', Ph ? w * 0.26 : 120); yy += Ph ? 30 : 24; }
     return yy; };
   if (Ph) { const x = 40, w = 1200, y = 172; if (view === 0) { const b = chanceBlock(x, y, 760); ui.label(ctx, colCoachTitle(co), 820, y + 40, 19, UI_CYAN, 'left', 420); ui.label(ctx, 'Style: ' + COL_SYS[co.sys].label, 820, y + 76, 19, UI_CYAN, 'left', 420); ui.label(ctx, colTierLabel(P) + ' · ' + COL_NIL_WORD[P.nil] + ' NIL market', 820, y + 112, 19, UI_DIM, 'left', 420); if (co.hot) ui.label(ctx, 'On the hot seat', 820, y + 148, 19, UI_RED, 'left', 420); return b; }
@@ -20673,7 +20768,7 @@ function off2FaRowDraw(ctx, ui, c, R, hot, d, P) {
   ui.label(ctx, (P ? 'title odds ' : 'odds ') + (odds == null ? '—' : oddsPct(odds)) + ' · ' + LG_WINDOW_WORD[lgWindowOf(c, o.club)], nx, l3, ls, UI_DIM, 'left', P ? 360 : 270); /* (W6e: and its title window) */
   const mx = x + (P ? 440 : 346), mw = P ? 300 : 170; ui.heading(ctx, fmtMoney(o.salary) + ' × ' + o.years, mx, l1, P ? 20 : 15, UI_GOLD, 'left', mw); ui.label(ctx, o.promise ? 'starts you' : 'earn it', mx, l2, ls, o.promise ? UI_GREEN : UI_TEXT, 'left', mw); if (!P) ui.label(ctx, o.overCap ? 'over the cap' : 'cap room', mx, l3, ls, o.overCap ? UI_ORANGE : UI_DIM, 'left', mw);
   if (!P) { const tx2 = x + 526; ui.label(ctx, o.opt === 'player' ? 'Player opt.' : o.opt === 'team' ? 'Team opt.' : 'No option', tx2, l1, 13, UI_TEXT, 'left', 150); ui.label(ctx, o.ntc ? 'No-trade' : 'Tradeable', tx2, l2, 13, o.ntc ? UI_GREEN : UI_DIM, 'left', 150); ui.label(ctx, o.exp <= d ? 'Ends today' : 'Ends day ' + o.exp, tx2, l3, 13, o.exp <= d ? UI_ORANGE : UI_DIM, 'left', 150); }
-  else ui.label(ctx, (o.overCap ? 'over the cap · ' : '') + (o.exp <= d ? 'ends today' : 'ends day ' + o.exp) + (o.opt ? ' · ' + o.opt + ' opt.' : '') + (o.ntc ? ' · no-trade' : ''), mx, l3, ls, o.overCap || o.exp <= d ? UI_ORANGE : UI_DIM, 'left', 420);
+  else { const mw2 = Math.max(120, x + w - mx - 14), oc = o.overCap ? 'over the cap · ' : '', op = o.opt ? ' · ' + o.opt + ' opt.' : '', day = o.exp <= d ? 'today' : 'day ' + o.exp; ctx.font = fontStr(ls, false); ui.label(ctx, rbFirstFit(ctx, [oc + 'ends ' + day + op + (o.ntc ? ' · no-trade' : ''), (o.overCap ? 'over cap · ' : '') + day + op + (o.ntc ? ' · NTC' : ''), (o.overCap ? 'over cap · ' : '') + day + op, (o.overCap ? 'over cap · ' : '') + day], mw2), mx, l3, ls, o.overCap || o.exp <= d ? UI_ORANGE : UI_DIM, 'left', mw2); } /* X11: a phone's row (the long line ran past it) */
 }
 // The trade window: the deals, a rebuild's offer of you, and every team's title window.
 function drawOffTrades(ctx, ui, c, O, P) {
@@ -20702,8 +20797,8 @@ function negotiate2Screen(game, oid) {
     const sal = Math.round(A.ask * PR.yearsMul[yrs - 1] / PR.yearsMul[clamp(o.years, 1, PR.yearsMul.length) - 1] * (st.promise && !o.promise && !o.promised ? PR.startMul : 1) / 1000) * 1000;
     if (!P) drawTeamCard(ctx, club, 60, 96, 300, 110, true, null); const tx = P ? 60 : 390; ui.heading(ctx, club.name.toUpperCase(), tx, P ? 104 : 118, P ? 22 : 24, UI_TEXT, 'left', P ? 760 : 840); ui.label(ctx, 'Their offer: ' + fmtMoney(o.salary) + ' × ' + o.years + (o.overCap ? ' (over the cap)' : '') + ' · their most ' + fmtMoney(max), tx, P ? 136 : 150, P ? 16 : 15, UI_TEXT, 'left', P ? 1160 : 840);
     ui.para(ctx, adv.line, tx, P ? 164 : 180, P ? 1160 : 840, P ? 15 : 14, UI_GOLD, 'left', 2);
-    const ry = P ? 212 : 262, rx = P ? 60 : 760; ui.heading(ctx, Math.round((1 - A.risk) * 100) + '% THEY ACCEPT · ' + Math.round(A.risk * 100) + '% THEY WALK', rx, ry, P ? 20 : 22, A.risk > 0.5 ? UI_RED : A.risk > LIFE.counter.safe ? UI_ORANGE : UI_GREEN, 'left'); if (!P) { meterBar(ctx, 760, ry + 22, 440, 14, A.risk, A.risk > 0.5 ? UI_RED : A.risk > LIFE.counter.safe ? UI_ORANGE : UI_GREEN); ui.para(ctx, 'If they say yes: ' + fmtMoney(sal) + ' a season × ' + yrs + (st.opt ? ' · player option' : '') + (st.ntc ? ' · no-trade clause' : '') + '. If not, they walk away and the offer is gone.', 760, ry + 60, 440, 14, UI_TEXT, 'left', 3); ui.para(ctx, 'The risk grows with the raise and each term you add, and shrinks the more they want you (a win-now owner, a better agent). Incentives: All-League +' + Math.round(LIFE.incentives.allLeague * 100) + '%, MVP +' + Math.round(LIFE.incentives.mvp * 100) + '%.', 760, ry + 140, 440, 13, UI_DIM, 'left', 5); }
-    else ui.label(ctx, 'Yes: ' + fmtMoney(sal) + ' × ' + yrs + '. No: they walk.', 360, ry, 16, UI_TEXT, 'left', 860);
+    const ry = P ? 212 : 262, rx = P ? 60 : 760; const pa = Math.round((1 - A.risk) * 100), pw = Math.round(A.risk * 100), hdS = pa + '% ACCEPT · ' + pw + '% WALK'; ctx.font = fontStr(P ? 20 : 22, true); const hd = P ? hdS : rbFirstFit(ctx, [pa + '% THEY ACCEPT · ' + pw + '% THEY WALK', hdS], 1250 - rx); /* X11: 1.25× text on a desktop ran it off the screen */ ui.heading(ctx, hd, rx, ry, P ? 20 : 22, A.risk > 0.5 ? UI_RED : A.risk > LIFE.counter.safe ? UI_ORANGE : UI_GREEN, 'left', P ? 760 : 1250 - rx); if (!P) { meterBar(ctx, 760, ry + 22, 440, 14, A.risk, A.risk > 0.5 ? UI_RED : A.risk > LIFE.counter.safe ? UI_ORANGE : UI_GREEN); ui.para(ctx, 'If they say yes: ' + fmtMoney(sal) + ' a season × ' + yrs + (st.opt ? ' · player option' : '') + (st.ntc ? ' · no-trade clause' : '') + '. If not, they walk away and the offer is gone.', 760, ry + 60, 440, 14, UI_TEXT, 'left', 3); ui.para(ctx, 'The risk grows with the raise and each term you add, and shrinks the more they want you (a win-now owner, a better agent). Incentives: All-League +' + Math.round(LIFE.incentives.allLeague * 100) + '%, MVP +' + Math.round(LIFE.incentives.mvp * 100) + '%.', 760, ry + 140, 440, 13, UI_DIM, 'left', 5); }
+    else { ctx.font = fontStr(20, true); const lx = rx + ctx.measureText(hd).width + 30; ui.label(ctx, 'Yes: ' + fmtMoney(sal) + ' × ' + yrs + '. No: they walk.', lx, ry, 16, UI_TEXT, 'left', Math.max(200, 1220 - lx)); } /* X11: after the odds (it ran under them on a phone) */
   } };
 }
 
@@ -21018,7 +21113,7 @@ function gearTryOn(B, id) {
 }
 
 // ---------------- the week's consumables: once a week each ----------------
-const GEAR_USE = { ice: ['Ice bath', 'Fatigue −' + GEAR.iceBath + ' now'], film: ['Film session', '+' + WK.filmBonus + ' Defense and Shooting in this week\'s game, and ' + GEAR.filmTells + ' more of their tendencies on the scouting card'], drink: ['Sports drink', '+' + Math.round(GEAR.drinkStamina * 100) + '% stamina this game'] }; // 2.0 §4.3
+const GEAR_USE = { ice: ['Ice bath', 'Fatigue −' + GEAR.iceBath + ' now'], film: ['Film session', '+' + WK.filmBonus + ' Defense and Shooting this week; ' + GEAR.filmTells + ' more of their tendencies'], /* X11: four lines on the card (the scouting card's part was cut) */ drink: ['Sports drink', '+' + Math.round(GEAR.drinkStamina * 100) + '% stamina this game'] }; // 2.0 §4.3
 function gearUsed(c) { const B = holderOf(c), G = gearOf(B), key = gearWeekKey(c); if (!G.used || G.used.key !== key) G.used = { key }; return G.used; }
 function gearConsumePrice(c) { return GEAR.consumable[gearStage(c)]; }
 function gearCanConsume(c, kind) { return !!GEAR_USE[kind] && !gearUsed(c)[kind] && gearWallet(c) >= gearConsumePrice(c); }
@@ -21145,7 +21240,7 @@ function guideEntries(game, topic) {
     add('Tournament rewards', c ? tnCredits(c) + ' credits' : '', ['Rewards by your finish: cash, ranking points (this season\'s ranking; a summer\'s count next season), credits (for your crew), fame and recruiting exposure.', 'The champion\'s tournament item (won, never bought, a level stronger than the store\'s); trophies and medals in the trophy room, which count in the legacy score.']);
     add('Sim to next event', '', ['Sims your weeks (your plan, then the game) and stops before a big game (the Boss, the playoffs, the national TV game), for an injury, or for anything that can\'t wait.', 'Sim to end of season stops only for those and before the playoffs. Either ends in one line on HOME; its news is in the headlines.']);
     add('Playing time', c && c.team ? '#' + ladderRank(c) + ' on the depth chart' : '', ['Every team has five. The starter plays the league\'s weekly game; the other four play the league below it: JV in high school, the Reserve League in college, the PBL Development League in the pros.', 'Not starting, you play there yourself, a playable game a week: no lost seasons.', 'The league below has its own standings, rankings and stat lines (League → its door). Its games develop you like any game, but they don\'t count in your season line, the rankings or the records.', 'A pro may ask for a trade after ' + TM.tradeBenchWeeks + ' weeks without starting in a season.']);
-    add('Ceremonies and records', '', ['Awards night closes a season you won something in. The All-Star reveal comes before the weekend, and a Hall of Fame career ends with its induction.', 'THE RECORD BOOK (on the ME tab) keeps your best game at each level and the state, college and PBL records. Break one and a gold toast says so, and the book keeps your name on it.']); // V8 (2.0 §4.9)
+    add('Ceremonies and records', '', ['Awards night closes a season you won something in. The All-Star reveal comes before the weekend, and a Hall of Fame career ends with its induction.', 'THE RECORD BOOK (CAREER → Records) keeps your best game at each level and the state, college and PBL records. Break one and a gold toast says so, and the book keeps your name on it.']); // V8 (2.0 §4.9)
   }
   if (topic === 'buzz') {
     const F = CR.fame; add('Fame', c ? Math.round(B.fame || 0) + ' / ' + MD.fameMax : '', (c ? fameLines(c).map(([l, k]) => [l, k === 'good' ? good : dim]) : []).concat([[pro ? 'The pros, a game you start: a win +' + F.win + ', a loss ' + F.loss + ', +' + (F.perPt / gameScale('pro')).toFixed(2) + ' a point over ' + Math.round(F.ptsRef * gameScale('pro')) + ' (under it costs), a highlight +' + F.highlight + ', a playoff game +' + F.playoff + '; gains × your franchise\'s ' + FRN.fameByStars[0] + '–' + FRN.fameByStars[4] + ' and smaller near the top (at 60, ×' + fameRoom(60).toFixed(2) + ').' : 'High school and college: a win +' + MD.winFame + ', a big night +' + MD.bigFame + ', highlights +' + MD.highlightFame + ' each; a week without a big night loses ' + Math.round(MD.fameDecay * 100) + '%, and a season\'s end keeps ' + Math.round(MD.fameKeep * 100) + '%.', UI_TEXT]].concat(pro ? [['The bench\'s games: none. Player of the week +' + F.potw + ', All-Star +' + F.allStar + ', a title +' + F.title + ', MVP +' + F.mvp + '. ' + guidePct(F.decay) + ' fades every week.', UI_TEXT]] : []).concat([['One meter: sponsors, NIL, offers, the draft, All-Star votes and the home crowd follow it, and the franchises count it in your value (fame / ' + FRN.fameDiv + ').', UI_TEXT]])));
@@ -21212,7 +21307,7 @@ function guideEntries(game, topic) {
   if (topic === 'colleges') { // 2.1 (§2.1): the 64 programs, interest, spots, coaches (read from CONFIG.colleges)
     const I = COLG.interest, hs = !!(am && am.stage === 'hs'), Pm = am ? colProgOf(am) : null, kinds = { power: 'power', mid: 'mid-major', small: 'small schools', academic: 'elite academic' };
     const confs = Object.keys(kinds).map(k => COL_CONFS.filter(q => q.kind === k).map(q => q.short).join(', ') + ' (' + kinds[k] + ')').join('; ');
-    add('The 64 programs', Pm ? 'yours: ' + Pm.name : COLLEGES.length + ' programs', ['Eight conferences of eight: ' + confs + '. Tiers: blue blood (' + COLLEGES.filter(q => q.tier === 3).length + ' programs), power, mid-major, small and elite academic; prestige 1–5★.', 'Each has a coach, a GPA line, facilities, an NIL market, a roster and history (national titles, pros). The college list ranks them all: the RECRUIT tab in high school, Team → Colleges in college.', 'The national tournament takes all 64: your national rank sets your seed (1–16 in each of four regions).']);
+    add('The 64 programs', Pm ? 'yours: ' + Pm.name : COLLEGES.length + ' programs', ['Eight conferences of eight: ' + confs + '. Tiers: blue blood (' + COLLEGES.filter(q => q.tier === 3).length + ' programs), power, mid-major, small and elite academic; prestige 1–5★.', 'Each has a coach, a GPA line, facilities, an NIL market, a roster and history (national titles, pros). The college list (LEAGUE → Colleges, or the recruiting board in high school) ranks them all.', 'The national tournament takes all 64: your national rank sets your seed (1–16 in each of four regions).']);
     const top = hs ? hubRecruitTop(am, 1)[0] : null, R = hs ? recOf(am) : null, F = RCG.fit;
     add('Interest in you', top ? top.name + ' ' + colInterest(am, top.id) : hs ? '' : 'high school', ['0–100 for every program, through high school (2.1 §2.2). First, how you fit its usual recruit: your projected national rank against its level. A power program or a blue blood wants anyone better; a small school doesn\'t reach far up.', 'Your rank comes from how you play (3.0 §8): your rating, titles, the tournaments (AAU, State, Nationals, the All-American Game), points a game and your place in the player rankings (#1: +' + RCG.play.rank + '). Offers & rank shows the parts.', 'Then your coach\'s word (±' + Math.round(I.trust * 50) + ' at trust 0 or 100), home (within ' + I.nearMi + ' mi +' + I.near + ', past ' + I.farMi.toLocaleString('en-US') + ' mi ' + I.far + ').', 'What camps, visits, the scouts at your big games and the summer events add (up to +' + RCG.earnedMax + '; it doesn\'t fade) and the competition for its spots (±' + RCG.compMax + ': the recruits chasing them, rated over or under you).', 'Under its GPA line, at most ' + I.gpaCap + '. A freshman is watched at most (' + I.yearCap[0] + '), a sophomore contacted (' + I.yearCap[1] + '). Watching from ' + COLG.stages[0] + ', contacted from ' + COLG.stages[1] + ', offer range from ' + COLG.stages[2] + '.']);
     add('Offers', hs ? hsLiveOffers(am).length + ' live' : '', ['From your junior year, a program with interest ' + COLG.stages[2] + '+, a scholarship spot open and your GPA over its line offers some week: blue bloods quickly, the others choosing among many, all of them sooner for a recruit better than their usual one.', 'An elite academic program offers from GPA ' + RCG.academicFrom.toFixed(1) + ', on condition: ' + CONFIG.school.gpaReq.academic.toFixed(1) + ' by your senior finals (the senior midterm warns you).', 'A top target (you rate at or above its usual recruit, or its interest is ' + RCG.hold.int + '+): the program holds a spot for you through Signing Day (3.0 §8).', 'An offer can be pulled: grades under its line (a report card warns, the next pulls), a long injury (' + RCG.injuryGames + '+ games) or a filled spot. Always a warning first.']);
@@ -21262,7 +21357,8 @@ const CODEX_FOR = { crew: 'crew', crewrole: 'crew', crewhire: 'crew', crewrecap:
   pregame: 'moves', ampregame: 'moves', practice: 'moves', practicehub: 'moves', threept: 'moves', howto: 'moves', quick: 'moves', film: 'season', road: 'season', roadcard: 'season', bracket: 'season', statebracket: 'season',
   allstar: 'buzz', allstarpick: 'buzz', allstarweekend: 'buzz', message: 'season', amevent: 'season', news: 'buzz', epilogue: 'season', ceremony: 'season', hofinduction: 'season', trophies: 'season', records: 'season', timeline: 'season',
   ladder: 'team', ladderevent: 'team', ladderres: 'team', team: 'team', league: 'league', franchise: 'team', amstandings: 'team', tradecompare: 'team', prooffers: 'team', combine: 'team', management: 'team', negotiate: 'league', draft: 'team', draftstock: 'team', tryout: 'team', tryoutpost: 'team', offseason: 'league',
-  recruiting: 'colleges', recruit: 'colleges', colbrowser: 'colleges', colfilters: 'colleges', colprogram: 'colleges', recactions: 'colleges', recfilm: 'colleges', recwalkon: 'colleges', reclog: 'colleges', signing: 'colleges', visit: 'money', commitday: 'money', colchoice: 'money', amdecision: 'money', summer: 'money', reststudy: 'money', networth: 'money', moneybuilt: 'money', legacy: 'money', hof: 'money', shop: 'shop', staff: 'staff' };
+  rankings: 'season', leaders: 'season', brackets: 'season', districtbracket: 'season', seasonreview: 'season', drillpost: 'season', homemore: 'season', standings: 'team', teams: 'team', teampage: 'team', transfers: 'team', lowerleague: 'team', overseas: 'team', ovsoffers: 'team', /* X11: 3.0's screens */
+  recruiting: 'colleges', recruit: 'colleges', recboard: 'colleges', colbrowser: 'colleges', colfilters: 'colleges', colprogram: 'colleges', recactions: 'colleges', recfilm: 'colleges', recwalkon: 'colleges', reclog: 'colleges', signing: 'colleges', visit: 'money', commitday: 'money', colchoice: 'money', amdecision: 'money', summer: 'money', reststudy: 'money', networth: 'money', moneybuilt: 'money', legacy: 'money', hof: 'money', shop: 'shop', staff: 'staff' };
 const CODEX_HUB = { home: 'season', league: 'team', events: 'season', career: 'you', store: 'shop', play: 'season', train: 'you', me: 'buzz', team: 'team', recruit: 'colleges', shop: 'shop' }; // (3.0's tabs; 2.x's)
 function codexTopicFor(game, s) { const n = (s && s.name) || ''; if (s && s.codex) return s.codex; if (n === 'career' || n === 'amhub') return CODEX_HUB[hubTabNow(game, s && s.ids)] || 'you'; return CODEX_FOR[n] || 'you'; }
 function statsGuideScreen(game, topic) {
@@ -21278,7 +21374,7 @@ function statsGuideScreen(game, topic) {
       if (st.pages[st.t].id === 'traits') { drawCodexTraits(ctx, ui, game, x0 - 20, top, w + 40, bottom, st.pages[st.t].part); return; } // V3 (§2.3)
       const E = st.pages[st.t].E || []; let y = top;
       const two = !P && E.reduce((a, e) => a + guideEntryH(ctx, ui, e, w), 0) > bottom - top; /* a long topic on a desktop: two columns */
-      if (two) { const cw = 560; let yl = top, yr = top; E.forEach(e => { const h = guideEntryH(ctx, ui, e, cw); if (yl <= yr) { drawGuideEntry(ctx, ui, e, x0, yl, cw); yl += h; } else { drawGuideEntry(ctx, ui, e, x0 + cw + 40, yr, cw); yr += h; } }); return; }
+      if (two) { const cw = 560; let yl = top, yr = top; E.forEach(e => { if (yl <= yr) yl += drawGuideEntry(ctx, ui, e, x0, yl, cw); else yr += drawGuideEntry(ctx, ui, e, x0 + cw + 40, yr, cw); }); return; } /* X11: each entry below the last one as drawn (a measured height a line short ran an entry into the next) */
       for (const e of E) y += drawGuideEntry(ctx, ui, e, x0, y, w);
     } };
 }
@@ -21458,12 +21554,12 @@ function shopScreen(game, view0) {
     const status = id => celebOwns(B, id) ? (C.pick === id ? ['USING', UI_GOLD] : RIG_CELEBS.includes(id) ? ['Everyone has it', UI_DIM] : ['Yours', UI_GREEN]) : celebInShop(id) ? ['In the shop · ' + gearMoney(price), UI_GOLD] : ['The Road: ' + (celebRoad(id) || { label: '?' }).label.toLowerCase(), UI_CYAN];
     const rows = shown.map(id => ({ kind: 'custom', label: CELEB_NAMES[id], x: 0, y: 0, w: 0, h: 0, enabled: true, onPress() { st.sel = id; st.say = null; if (P) st.sub = 'celeb'; refresh(); },
       draw(ctx, focused, ui) { const s = st.sel === id, own = celebOwns(B, id), [line, col] = status(id); kitPanel(ctx, this.x, this.y, this.w, this.h, s ? 'rgba(46,36,8,0.92)' : 'rgba(12,16,42,0.9)', { accent: own ? (RIG_CELEBS_NEW.includes(id) ? UI_GOLD : UI_CYAN) : 'rgba(243,240,255,0.25)', radius: 10 }); if (focused || s) { ctx.strokeStyle = UI_GOLD; ctx.lineWidth = 2.5; ctx.beginPath(); roundRectPath(ctx, this.x + 1, this.y + 1, this.w - 2, this.h - 2, 10); ctx.stroke(); }
-        const tx = this.x + 14, tw = this.w - 28; ui.heading(ctx, CELEB_NAMES[id], tx, this.y + this.h * 0.33, P ? 19 : 15, own ? UI_TEXT : UI_DIM, 'left', tw); ui.label(ctx, line, tx, this.y + this.h * 0.72, P ? 15 : 12, col, 'left', tw); } }));
+        const tx = this.x + 14, tw = this.w - 28; ui.heading(ctx, CELEB_NAMES[id], tx, this.y + this.h * 0.33, P ? 19 : 15, own ? UI_TEXT : UI_DIM, 'left', tw); ctx.font = fontStr(P ? 15 : 12, false); ui.label(ctx, rbFirstFit(ctx, [line, line.replace(/^The Road: /, 'Road: '), line.replace(/^The Road: /, '')], tw), tx, this.y + this.h * 0.72, P ? 15 : 12, col, 'left', tw); } })); /* X11: a long milestone's name */
     const sel_ = st.sel, own = sel_ ? celebOwns(B, sel_) : false;
     const use = btn(!sel_ ? 'Use it' : own ? (C.pick === sel_ ? 'Using it' : 'Use it') : celebInShop(sel_) ? 'Buy · ' + gearMoney(price) : 'Unlocks on the Road', 0, 0, 0, 0, () => { if (!sel_) return; if (own) { celebUse(B, sel_); refresh('Next basket: ' + CELEB_NAMES[sel_].toLowerCase() + '.'); return; } if (!celebInShop(sel_)) return; if (gearWallet(c) < price) { refresh('That\'s ' + gearMoney(price) + '. You have ' + gearMoney(gearWallet(c)) + '.'); return; } if (celebBuy(c, sel_)) { celebUse(B, sel_); game.audio.ui('coin'); refresh('Yours. ' + CELEB_NAMES[sel_] + ' after your next basket.'); } }, { primary: true, enabled: !!sel_ && ((own && C.pick !== sel_) || (!own && celebInShop(sel_))) });
     const mix = btn(C.pick === 'mix' ? 'Mixing all ' + celebOwnedList(B).length : 'Mix them all', 0, 0, 0, 0, () => { celebUse(B, 'mix'); refresh('A different one each time: all ' + celebOwnedList(B).length + ' of yours.'); }, { enabled: C.pick !== 'mix' });
     const prev = btn('◀', 0, 0, 0, 0, () => { st.page = (st.page - 1 + pages) % pages; refresh(); }), next = btn('▶', 0, 0, 0, 0, () => { st.page = (st.page + 1) % pages; refresh(); }); prev.hidden = next.hidden = pages < 2;
-    const preview = (ctx, ui, x, y, w, h) => { kitPanel(ctx, x, y, w, h, 'rgba(8,12,36,0.6)'); if (!sel_) { ui.para(ctx, 'Pick one to see it.', x + 16, y + 30, w - 32, P ? 18 : 14, UI_DIM, 'left', 2); return; } const def = shopPlayerDef(c), fy = y + h - 64, sz = Math.min(h * 0.62, w * 0.8); try { drawPlatform(ctx, x + w / 2, fy, sz * 0.36, shopKit(c).colors); drawMannequin(ctx, def, shopKit(c), x + w / 2, fy, sz, 'hyped', 1, t, 'celebrate:' + sel_); } catch (e) { ui.drawFault(e, 'celebration preview'); } ui.heading(ctx, CELEB_NAMES[sel_].toUpperCase(), x + 16, y + 24, P ? 20 : 16, UI_GOLD, 'left', w - 32); ui.label(ctx, celebHow(sel_), x + 16, y + h - 22, P ? 15 : 12, UI_DIM, 'left', w - 32); };
+    const preview = (ctx, ui, x, y, w, h) => { kitPanel(ctx, x, y, w, h, 'rgba(8,12,36,0.6)'); if (!sel_) { ui.para(ctx, 'Pick one to see it.', x + 16, y + 30, w - 32, P ? 18 : 14, UI_DIM, 'left', 2); return; } const def = shopPlayerDef(c), fy = y + h - 64, sz = Math.min(h * 0.62, w * 0.8); try { drawPlatform(ctx, x + w / 2, fy, sz * 0.36, shopKit(c).colors); drawMannequin(ctx, def, shopKit(c), x + w / 2, fy, sz, 'hyped', 1, t, 'celebrate:' + sel_); } catch (e) { ui.drawFault(e, 'celebration preview'); } ui.heading(ctx, CELEB_NAMES[sel_].toUpperCase(), x + 16, y + 24, P ? 20 : 16, UI_GOLD, 'left', w - 32); { const hw = celebHow(sel_); ctx.font = fontStr(P ? 15 : 12, false); ui.label(ctx, rbFirstFit(ctx, [hw, hw.replace(/^The Road: /, 'Road: '), hw.replace(/^The Road: /, '')], w - 32), x + 16, y + h - 22, P ? 15 : 12, UI_DIM, 'left', w - 32); } }; /* X11: a long milestone's name */
     if (!P) { rows.forEach((b, i) => Object.assign(b, { x: SX + (i % 2) * (414 + 12), y: SY + Math.floor(i / 2) * 66, w: 414, h: 58 })); Object.assign(mix, { x: RX + 14, y: RY + RH - 124, w: RW - 28, h: 48 }); Object.assign(use, { x: RX + 14, y: RY + RH - 66, w: RW - 28, h: 52 });
       items.push(...tabs, ...rows, mix, use, back); draw2 = (ctx, ui) => { ui.label(ctx, 'Now: ' + celebPickName(B) + ' after a basket.', SX, SY + 7 * 66 + 12, 13, UI_DIM, 'left', 3 * SW + 2 * SG); preview(ctx, ui, RX, RY, RW, RH - 134); }; }
     else if (!st.sub) { const cw = (1200 - 12) / 2, rh = tapH(game.ui, 44); rows.forEach((b, i) => Object.assign(b, { x: 40 + (i % 2) * (cw + 12), y: 104 + Math.floor(i / 2) * (rh + 12), w: cw, h: rh })); phoneBar(game.ui, pages > 1 ? [back, prev, next, viewSel] : [back, viewSel], pages > 1 ? [1, 0.5, 0.5, 2.4] : [1, 2.4], 40, 1200); items.push(...rows, viewSel, prev, next, back); }
@@ -21530,6 +21626,39 @@ function recordsAfterGame(c, line, played) {
   }
   if (REC_TOASTS.length > 6) REC_TOASTS.splice(0, REC_TOASTS.length - 6); return out;
 }
+
+// ============================================================================
+// SECTION: STORE (3.0 §10) — the future app's store, prepared only. A product catalogue (CONFIG.store.skus: credit
+// packs that only speed things up, one Unlimited unlock, cosmetics; price tiers in ECONOMY.store) and purchase(sku)
+// through a provider interface: { id, enabled, purchase(item) → Promise<{ ok, sku, reason }>, restore() →
+// Promise<[sku]> }. The web build's provider is a disabled stub: it sells nothing and holds no payment code. In an app,
+// purchases must go through Apple's and Google's own billing: a provider for each, installed with storeUseProvider.
+// Fair by design: no paid random rewards (a product gives exactly what it says) and nothing that can't also be earned
+// by playing (each product's earn; the Unlimited unlock comes with a Hall of Fame career).
+// ============================================================================
+const STORE_CFG = CONFIG.store;
+const STORE_STUB = Object.freeze({ id: 'stub', enabled: false, purchase: item => Promise.resolve({ ok: false, sku: item && item.sku, reason: 'disabled' }), restore: () => Promise.resolve([]) });
+let STORE_PROVIDER = STORE_STUB;
+function storeProvider() { return STORE_PROVIDER; }
+function storeUseProvider(p) { STORE_PROVIDER = p && typeof p.purchase === 'function' ? p : STORE_STUB; return STORE_PROVIDER; } // (an app wrapper's billing; anything else falls back to the stub)
+function storeOpen() { return !!(STORE_PROVIDER && STORE_PROVIDER.enabled === true); }
+function storeCatalogue() { return STORE_CFG.skus.map(s => Object.assign({}, s, { tier: (ECONOMY.store.tiers || {})[s.sku] || null })); }
+function storeItem(sku) { return storeCatalogue().find(s => s.sku === sku) || null; }
+// Buy a product: the provider takes the payment, the game gives what it says (storeGrant). The web build: { ok: false, reason: 'disabled' }.
+function purchase(sku, game) {
+  const item = storeItem(sku); if (!item) return Promise.resolve({ ok: false, sku, reason: 'unknown' });
+  if (!storeOpen()) return Promise.resolve({ ok: false, sku, reason: 'disabled' });
+  return Promise.resolve().then(() => STORE_PROVIDER.purchase(item)).then(r => { if (r && r.ok) storeGrant(item, game); return r || { ok: false, sku, reason: 'no answer' }; }, e => ({ ok: false, sku, reason: String((e && e.message) || e) }));
+}
+// What a product gives, the same as earning it: credits to your career's crew purse, the Unlimited unlock, a cosmetic set.
+function storeGrant(item, game) {
+  const g = game || (typeof window !== 'undefined' && window.HH ? window.HH.game : null), s = g && g.save && g.save.data; if (!s || !item) return false;
+  if (item.kind === 'credits') { const c = s.career && s.c1 && s.c1.handedOff ? s.career : s.c1; const B = c ? holderOf(c) : null; if (!B) return false; B.credits = (B.credits || 0) + (item.credits || 0); }
+  else { s.unlocks = s.unlocks || {}; s.unlocks[item.sku] = true; }
+  if (g.save.save) g.save.save(); return true;
+}
+// Earned by playing: the Unlimited unlock with a Hall of Fame career (retireCareer).
+function storeEarn(save, sku) { if (!save || !storeItem(sku)) return false; save.unlocks = save.unlocks || {}; save.unlocks[sku] = true; return true; }
 
 // ============================================================================
 // SECTION: UI (part 16) — V8 (2.0 §4.9): the ceremonies. AWARDS NIGHT at the end of a season with awards (the league's
@@ -21740,22 +21869,22 @@ function bannerNightScreen(game, c, ev, done) {
 function titleEventScreen(game, c, ev, done) { return ev.kind === 'parade' ? paradeScreen(game, c, ev, done) : ev.kind === 'ring' ? ringCeremonyScreen(game, c, ev, done) : bannerNightScreen(game, c, ev, done); }
 
 // ============================================================================
-// SECTION: UI — V13 (2.0 §5): "What's new in 2.0" (W10: in 2.1), a page of what the update changed. It shows once, on the first main
+// SECTION: UI — V13 (2.0 §5): "What's new in 2.0" (W10: in 2.1; X11: in 3.0), a page of what the update changed. It shows once, on the first main
 // menu after the update, for a save from before it (settings.whatsNewSeen; a new player starts with it seen), and
 // again from the main menu's What's new button. Phones page it four at a time; a desktop shows it all in three columns.
 // ============================================================================
-const WHATS_NEW = [ // W10: 2.1's (2.0's list is in CHANGES.md)
-  ['The recruiting game', '64 college programs. Interest that rises and falls, official visits, offers, commitments and Signing Day.'],
-  ['The College Browser', 'Every program: its coach and system, facilities, NIL market, GPA line, roster and distance from home.'],
-  ['Teams come to you', 'No draft: franchises make offers when your value crosses their bar. Play well and better ones call.'],
-  ['Effort matters', 'Playing your games well beats simming them, simmed games score like played ones, and money has uses.'],
-  ['The PBL', 'Sixteen franchises in two conferences, a 15-week season, conference playoffs, award races.'],
-  ['The offseason', 'Seven steps: retirements, free agency week day by day, the trade window, training camp, power rankings.'],
-  ['League life', 'Rosters that move, rookies from your past, title windows, a GOAT ladder and PBL Tonight.'],
-  ['12 chapters', 'Your story from freshman tryouts to your last day: a version for every path, one big decision in each.'],
-  ['Your people', 'A younger sibling, Coach Adeyinka, a best friend, your rival, an agent, a mentor and an owner who remember.'],
-  ['Six endings', 'The Hometown Hero, the Mercenary Champion, the Fallen Star, Family First, the Coach or the Owner.'],
-  ['Previously on...', 'Continue a career and a recap says where you left off. The Story screen shows every choice you made.'],
+const WHATS_NEW = [ // X11: 3.0's (2.1's and 2.0's lists are in CHANGES.md)
+  ['HOME and the week', 'One tap a week: PLAY or SIM from HOME. Your plan trains at every game, and a message comes once a week.'],
+  ['Rankings and charts', 'Weekly player and team rankings at every level, from how people play. The charts are on LEAGUE.'],
+  ['Teammates play', 'Five on every team: the bench plays the league below, and form decides who starts.'],
+  ['Tournaments', 'State, the AAU circuit, the World Cups, the PBL Cup, the Olympics: brackets, medals and rewards.'],
+  ['Items and badges', 'Twelve items with levels and no rarity. Badges earned by doing their thing. Tournament items are won.'],
+  ['Your crew', 'Six roles you hire and level up with credits. They follow you to the pros and show their work.'],
+  ['Recruiting', 'Scouts at your big games, programs at every summer event, offers held or with a deadline, JUCO.'],
+  ['Effort matters', 'The legacy weighs awards, rankings, tournaments and your peak. Fame follows how you play.'],
+  ['Your ceiling', 'CAREER shows each rating against its ceiling. Tournaments, your crew, a facility and badges raise it.'],
+  ['Your save, anywhere', 'Settings → Save copies your career as a code and loads one back. An upright phone turns the game.'],
+  ['Less to manage', 'No story, press, rivals, hype or rarity: the game is the games. Old saves load without them.'],
 ];
 function whatsNewDue(game) { const st = game.save && game.save.data && game.save.data.settings; return !!st && st.whatsNewSeen !== CONFIG.ui.whatsNew; }
 function whatsNewScreen(game) {
@@ -21847,8 +21976,9 @@ class Game {
     const S = this.save.data.settings; this.audio.setVolumes({ master: S.master, sfx: S.sfx, music: S.music }); this.cam.shakeSetting = S.shake; this.cam.reduceMotion = S.reduceMotion; this.fx.reduceMotion = S.reduceMotion; applyKeyMap(S); this.input.setPreset(KEY_PRESETS[S.keyPreset] ? S.keyPreset : 'A'); RBF.textScale = S.textSize === 1.25 ? 1.25 : 1; /* R10: the Custom keys; text size 1× or 1.25× */ const tc = this.input.touch; tc.size = S.touchSize; tc.opacity = S.touchOpacity; tc.leftHanded = S.leftHanded; tc.autoSprint = S.autoSprint !== false; tc.custom = S.touchLayout || null; KEY_LABELS.touch.sprint = tc.autoSprint ? 'Push stick' : 'SPRINT'; tc.computeLayout(this.W, this.H); this._touchKey = null; /* V4: auto-sprint, your layout (and the match's floor band again next frame) */
   }
   resize() {
-    const W = window.innerWidth, H = window.innerHeight; this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.ui.dprCap, this.lowRes ? CONFIG.perf.lowDpr : 99); this.W = W; this.H = H; this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(H * this.dpr); this.canvas.style.width = W + 'px'; this.canvas.style.height = H + 'px'; this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); RBF.minMain = RBF.kHUD = Math.max(2, Math.min(uiK(this.canvas), Math.round(2 * this.dpr))); /* F4: the HUD is laid out in CSS px, so its smallest text is never bigger than its 720p design (a 1080p or a tall window made it 1.5–3× too big for its boxes) */ RBF.textScale = this.save && this.save.data.settings.textSize === 1.25 ? 1.25 : 1;
-    try { const probe = document.getElementById('fontprobe'); probe.style.padding = 'env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; const cs = getComputedStyle(probe); this.safe = { top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0, bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0 }; } catch (e) {}
+    const vw = window.innerWidth, vh = window.innerHeight, S0 = this.save && this.save.data && this.save.data.settings, upright = !!(this.input && this.input.hasTouch) && vh > vw * 1.15 && vw < 900, turn = upright && !(S0 && S0.upright === 'ask'); /* 3.0 (§10): an upright phone turns the game (Settings: Upright phone; 'ask': the rotate screen) */
+    const W = turn ? vh : vw, H = turn ? vw : vh; this.turned = turn ? { vw, vh } : null; INPUT_TURN = this.turned; this.canvas.style.transformOrigin = '0 0'; this.canvas.style.transform = turn ? 'translate(' + vw + 'px, 0) rotate(90deg)' : ''; this.dpr = Math.min(window.devicePixelRatio || 1, CONFIG.ui.dprCap, this.lowRes ? CONFIG.perf.lowDpr : 99); this.W = W; this.H = H; this.canvas.width = Math.round(W * this.dpr); this.canvas.height = Math.round(H * this.dpr); this.canvas.style.width = W + 'px'; this.canvas.style.height = H + 'px'; this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); RBF.minMain = RBF.kHUD = Math.max(2, Math.min(uiK(this.canvas), Math.round(2 * this.dpr))); /* F4: the HUD is laid out in CSS px, so its smallest text is never bigger than its 720p design (a 1080p or a tall window made it 1.5–3× too big for its boxes) */ RBF.textScale = this.save && this.save.data.settings.textSize === 1.25 ? 1.25 : 1;
+    try { const probe = document.getElementById('fontprobe'); probe.style.padding = 'env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; const cs = getComputedStyle(probe), sf = { top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0, bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0 }; this.safe = turn ? { top: sf.right, right: sf.bottom, bottom: sf.left, left: sf.top } : sf; } /* (turned: the screen's edges are the game's sides) */ catch (e) {}
     this.cam.resize(W, H); this.ui.layout(W, H, this.safe); RBF.kUI = Math.max(1, Math.round(UI_H * this.ui.scale * this.dpr / 360 - CONFIG.ui.kBias)); /* (a window the menus shrink to under 7/8 draws 1× text: 2× was 60% too big for an 800 px wide layout) */ /* F4: the menus' pixel size comes from their letterboxed area */ this.input.touch.computeLayout(W, H, this.safe); this._touchKey = null; /* F4: a resize (the guard's low-res step included) lays the controls out again in the match's floor band next frame; it used to leave them over the players */ this.portrait = this.input.hasTouch && H > W * 1.15 && W < 900; this.sceneCanvas.width = Math.min(960, W); this.sceneCanvas.height = Math.round(this.sceneCanvas.width * H / W);
   }
   // ---- match lifecycle ----

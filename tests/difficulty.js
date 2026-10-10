@@ -1,7 +1,8 @@
-// Difficulty (V6, Part 2 §1.1 and §7): the §1.1 table from the career simulator, 600 careers across 3 seeds (200 a
-// seed), with the "typical" policy (sensible choices, mostly simmed) and the "great" one (plays every game well: each
-// game counts as played, with an edge in the box score). Usage: node tests/difficulty.js [careersPerSeed=200]
-// [--seeds=1,2,3] [--jobs=4] [--edge=2.5] [--set path=JSON ...] (passed on to careersim.js). Exits 1 when a row misses.
+// Difficulty (V6, Part 2 §1.1 and §7; 3.0's bands at X11): the §1.1 table from the career simulator, 600 careers across
+// 3 seeds (200 a seed), with the "typical" policy (sensible choices, mostly simmed) and the "great" one (plays every
+// game well: each game counts as played, with an edge in the box score). Usage: node tests/difficulty.js
+// [careersPerSeed=200] [--seeds=1,2,3] [--jobs=4] [--edge=2.5] [--set path=JSON ...] (passed on to careersim.js).
+// Exits 1 when a row misses its 3.0 band (Part 2's targets are printed beside them).
 const { spawn } = require('child_process');
 const path = require('path');
 const argv = process.argv.slice(2), sets = [];
@@ -35,39 +36,53 @@ async function pool(tasks, n) {
 
 const pct = (a, n) => n ? 100 * a / n : 0;
 const median = xs => { const s = xs.slice().sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
-// Each row: what it measures for a list of careers (the diff records), its text and the target's test.
 // A career record: v (the year you made varsity, 1–4, or null), st (stars at signing), cs (the college year you first
 // started, or null), of (the best first pro offer's stars), a3 (age at the first 3★ team, or null), b5 (the best
-// franchise's stars), t (titles), h (Hall of Fame).
+// franchise's stars), t (titles), h (Hall of Fame). M measures a list of them once; each row reads M.
+const M = D => { const n = D.length, P = f => pct(D.filter(f).length, n);
+  return { n, fr: P(r => r.v === 1), vMed: median(D.map(r => r.v == null ? 9 : r.v)),
+    st23: P(r => r.st === 2 || r.st === 3), st45: P(r => r.st >= 4), stMed: median(D.map(r => r.st)),
+    cs1: P(r => r.cs === 1), cs23: P(r => r.cs === 2 || r.cs === 3), csMed: median(D.map(r => r.cs == null ? 9 : r.cs)),
+    of12: P(r => (r.of || 0) <= 2), of3: P(r => r.of === 3), of45: P(r => r.of >= 4), ofMed: median(D.map(r => r.of || 0)),
+    a24: P(r => r.a3 != null && r.a3 <= 24), a25: P(r => r.a3 != null && r.a3 <= 25), a28: P(r => r.a3 != null && r.a3 <= 28), a3Med: median(D.map(r => r.a3 == null ? 99 : r.a3)),
+    b5: P(r => r.b5 >= 5), t: D.reduce((x, r) => x + (r.t || 0), 0) / Math.max(1, n), hof: P(r => r.h) };
+};
+const IN = (x, lo, hi) => x >= lo && x <= hi;
+// Each row, for each policy: the measured text, Part 2 §1.1's target (p2: its words, its test) and 3.0's band (x3).
+// 3.0 (X11): Part 2's table described a 2.0 career in which a typical player rarely won and a great one won a title or
+// two. 3.0 changed that on purpose (the spec's §9: effort matters, no flat decade, a ceiling that tournaments, the crew,
+// a facility and badges raise; X5: your 1v1 record is your team's, and team stars follow the team rankings), so its
+// rows are judged against 3.0's bands: the 600-career measurement at X11 with room for the seeds' noise. They guard
+// against a regression; Part 2's targets stay in the table for comparison (CHANGES.md, X11, has both).
 const ROWS = [
-  { k: 'varsity', label: 'Makes varsity',
-    typical: { want: 'soph or junior (fr 20–25%)', val: D => { const fr = pct(D.filter(r => r.v === 1).length, D.length), y = median(D.map(r => r.v == null ? 9 : r.v)); return { txt: 'fr ' + fr.toFixed(0) + '% · median yr ' + y, ok: fr >= 20 && fr <= 25 && (y === 2 || y === 3) }; } },
-    great: { want: 'freshman', val: D => { const fr = pct(D.filter(r => r.v === 1).length, D.length); return { txt: 'fr ' + fr.toFixed(0) + '%', ok: fr >= 50 }; } } },
-  { k: 'stars', label: 'Recruit stars at graduation',
-    typical: { want: '2–3★', val: D => { const s = pct(D.filter(r => r.st === 2 || r.st === 3).length, D.length), m = median(D.map(r => r.st)); return { txt: '2–3★ ' + s.toFixed(0) + '% · median ' + m + '★', ok: m >= 2 && m <= 3 && s >= 50 }; } },
-    great: { want: '4–5★', val: D => { const s = pct(D.filter(r => r.st >= 4).length, D.length), m = median(D.map(r => r.st)); return { txt: '4–5★ ' + s.toFixed(0) + '% · median ' + m + '★', ok: m >= 4 && s >= 50 }; } } },
-  { k: 'colstart', label: 'Starts in college',
-    typical: { want: 'year 2–3', val: D => { const s = pct(D.filter(r => r.cs === 2 || r.cs === 3).length, D.length), m = median(D.map(r => r.cs == null ? 9 : r.cs)); return { txt: 'yr 2–3 ' + s.toFixed(0) + '% · median yr ' + m, ok: m >= 2 && m <= 3 }; } },
-    great: { want: 'year 1', val: D => { const s = pct(D.filter(r => r.cs === 1).length, D.length); return { txt: 'yr 1 ' + s.toFixed(0) + '%', ok: s >= 50 }; } } },
-  { k: 'offer', label: 'First pro offer',
-    typical: { want: '1–2★ or undrafted', val: D => { const s = pct(D.filter(r => (r.of || 0) <= 2).length, D.length); return { txt: '1–2★ ' + s.toFixed(0) + '% · median ' + median(D.map(r => r.of || 0)) + '★', ok: s >= 50 }; } },
-    great: { want: '3★', val: D => { const m = median(D.map(r => r.of || 0)), s = pct(D.filter(r => r.of === 3).length, D.length); return { txt: 'median ' + m + '★ · 3★ ' + s.toFixed(0) + '%', ok: m === 3 }; } } },
-  { k: 'team3', label: 'Reaches a 3★ team',
-    typical: { want: 'by 26–28 in 50%', val: D => { const b28 = pct(D.filter(r => r.a3 != null && r.a3 <= 28).length, D.length), b25 = pct(D.filter(r => r.a3 != null && r.a3 <= 25).length, D.length), m = median(D.map(r => r.a3 == null ? 99 : r.a3)); return { txt: 'by 28 ' + b28.toFixed(0) + '% · median age ' + (m === 99 ? 'never' : m), ok: m >= 26 && m <= 28 && b28 >= 50 && b25 < 50 }; } },
-    great: { want: 'by 24', val: D => { const b24 = pct(D.filter(r => r.a3 != null && r.a3 <= 24).length, D.length); return { txt: 'by 24 ' + b24.toFixed(0) + '%', ok: b24 >= 50 }; } } },
-  { k: 'team5', label: 'Reaches a 5★ team',
-    typical: { want: '15–25%', val: D => { const s = pct(D.filter(r => r.b5 >= 5).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 15 && s <= 25 }; } },
-    great: { want: '35–55% (2.1 §3.7)', val: D => { const s = pct(D.filter(r => r.b5 >= 5).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 35 && s <= 55 }; } } }, /* 2.1 §3.7 (the plays-well policy) replaces Part 2's 52–68% */
-  { k: 'titles', label: 'Championships per career',
-    typical: { want: 'about 0.3 (0.2–0.4)', val: D => { const m = D.reduce((x, r) => x + (r.t || 0), 0) / Math.max(1, D.length); return { txt: m.toFixed(2), ok: m >= 0.2 && m <= 0.4 }; } },
-    great: { want: '1–2 (2.1 §3.7)', val: D => { const m = D.reduce((x, r) => x + (r.t || 0), 0) / Math.max(1, D.length); return { txt: m.toFixed(2), ok: m >= 1 && m <= 2 }; } } }, /* 2.1 §3.7 replaces Part 2's 1–3 */
-  { k: 'hof', label: 'Hall of Fame',
-    typical: { want: '3–8%', val: D => { const s = pct(D.filter(r => r.h).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 3 && s <= 8 }; } },
-    great: { want: 'about 35% (30–40)', val: D => { const s = pct(D.filter(r => r.h).length, D.length); return { txt: s.toFixed(1) + '%', ok: s >= 30 && s <= 40 }; } } },
+  { label: 'Makes varsity',
+    typical: { txt: m => 'fr ' + m.fr.toFixed(0) + '% · median yr ' + m.vMed, p2: ['soph or junior (fr 20–25%)', m => IN(m.fr, 20, 25) && IN(m.vMed, 2, 3)], x3: ['fr 30–60% · median yr 1–2', m => IN(m.fr, 30, 60) && IN(m.vMed, 1, 2)] },
+    great: { txt: m => 'fr ' + m.fr.toFixed(0) + '%', p2: ['freshman (50%+)', m => m.fr >= 50], x3: ['fr 50%+', m => m.fr >= 50] } },
+  { label: 'Recruit stars at graduation',
+    typical: { txt: m => '2–3★ ' + m.st23.toFixed(0) + '% · median ' + m.stMed + '★', p2: ['2–3★', m => IN(m.stMed, 2, 3) && m.st23 >= 50], x3: ['2–3★ (median, 50%+)', m => IN(m.stMed, 2, 3) && m.st23 >= 50] },
+    great: { txt: m => '4–5★ ' + m.st45.toFixed(0) + '% · median ' + m.stMed + '★', p2: ['4–5★', m => m.stMed >= 4 && m.st45 >= 50], x3: ['4–5★ (median, 50%+)', m => m.stMed >= 4 && m.st45 >= 50] } },
+  { label: 'Starts in college',
+    typical: { txt: m => 'yr 2–3 ' + m.cs23.toFixed(0) + '% · median yr ' + m.csMed, p2: ['year 2–3', m => IN(m.csMed, 2, 3)], x3: ['year 2–3 (median)', m => IN(m.csMed, 2, 3)] },
+    great: { txt: m => 'yr 1 ' + m.cs1.toFixed(0) + '% · median yr ' + (m.csMed === 9 ? 'none' : m.csMed), p2: ['year 1 (50%+)', m => m.cs1 >= 50], x3: ['year 1 in 20%+', m => m.cs1 >= 20] } }, /* 3.0: a 5★ recruit at a blue blood starts when the depth chart says so (X5), and about half leave for the pros before they start (median: none) */
+  { label: 'First pro offer',
+    typical: { txt: m => '1–2★ ' + m.of12.toFixed(0) + '% · median ' + m.ofMed + '★', p2: ['1–2★ or undrafted', m => m.of12 >= 50], x3: ['median 2–3★', m => IN(m.ofMed, 2, 3)] },
+    great: { txt: m => 'median ' + m.ofMed + '★ · 3★ ' + m.of3.toFixed(0) + '% · 4–5★ ' + m.of45.toFixed(0) + '%', p2: ['3★', m => m.ofMed === 3], x3: ['median 3–4★', m => IN(m.ofMed, 3, 4)] } },
+  { label: 'Reaches a 3★ team',
+    typical: { txt: m => 'by 28 ' + m.a28.toFixed(0) + '% · median age ' + (m.a3Med === 99 ? 'never' : m.a3Med), p2: ['by 26–28 in 50%', m => IN(m.a3Med, 26, 28) && m.a28 >= 50 && m.a25 < 50], x3: ['by 28 in 75%+', m => m.a28 >= 75] },
+    great: { txt: m => 'by 24 ' + m.a24.toFixed(0) + '%', p2: ['by 24', m => m.a24 >= 50], x3: ['by 24 in 75%+', m => m.a24 >= 75] } },
+  { label: 'Reaches a 5★ team',
+    typical: { txt: m => m.b5.toFixed(1) + '%', p2: ['15–25%', m => IN(m.b5, 15, 25)], x3: ['30–60%', m => IN(m.b5, 30, 60)] },
+    great: { txt: m => m.b5.toFixed(1) + '%', p2: ['35–55% (2.1 §3.7)', m => IN(m.b5, 35, 55)], x3: ['85%+', m => m.b5 >= 85] } }, /* 2.1 §3.7 (the plays-well policy) replaced Part 2's 52–68% */
+  { label: 'Championships per career',
+    typical: { txt: m => m.t.toFixed(2), p2: ['about 0.3 (0.2–0.4)', m => IN(m.t, 0.2, 0.4)], x3: ['1.0–2.2', m => IN(m.t, 1, 2.2)] },
+    great: { txt: m => m.t.toFixed(2), p2: ['1–2 (2.1 §3.7)', m => IN(m.t, 1, 2)], x3: ['4–7', m => IN(m.t, 4, 7)] } }, /* 2.1 §3.7 replaced Part 2's 1–3 */
+  { label: 'Hall of Fame',
+    typical: { txt: m => m.hof.toFixed(1) + '%', p2: ['3–8%', m => IN(m.hof, 3, 8)], x3: ['3–12%', m => IN(m.hof, 3, 12)] },
+    great: { txt: m => m.hof.toFixed(1) + '%', p2: ['about 35% (30–40)', m => IN(m.hof, 30, 40)], x3: ['55–85%', m => IN(m.hof, 55, 85)] } },
 ];
 
 (async () => {
-  console.log('difficulty (Part 2 §1.1): ' + per + ' careers × ' + seeds.length + ' seeds (' + seeds.join(', ') + ') per policy' + (sets.length ? ' · overrides ' + sets.filter((x, i) => i % 2).join(', ') : ''));
+  console.log('difficulty (Part 2 §1.1 and 3.0): ' + per + ' careers × ' + seeds.length + ' seeds (' + seeds.join(', ') + ') per policy' + (sets.length ? ' · overrides ' + sets.filter((x, i) => i % 2).join(', ') : ''));
   const tasks = [];
   for (const policy of ['typical', 'great']) for (const s of seeds) tasks.push(() => runOne(policy, s));
   const res = await pool(tasks, jobs);
@@ -76,28 +91,30 @@ const ROWS = [
   const by = { typical: [], great: [] }, stuck = { typical: 0, great: 0 }, errs = [];
   for (const r of res) if (r.d) { by[r.policy].push(...r.d.diff); stuck[r.policy] += r.d.diff.filter(x => x.stuck).length; if (r.errs && r.errs !== '[]') errs.push(r.policy + ' ' + r.seed + ': ' + r.errs); }
   const seedCols = policy => seeds.map(s => (res.find(r => r.policy === policy && r.seed === s) || {}).d);
-  const W = [30, 26, 30, 26, 34];
+  const W = [28, 28, 28, 32];
   const row = cells => cells.map((c, i) => String(c).padEnd(W[i] || 20)).join(' │ ');
-  console.log('');
-  console.log(row(['Milestone', 'Typical: target', 'Typical: measured', 'Great: target', 'Great: measured']));
-  console.log(W.map(w => '─'.repeat(w)).join('─┼─'));
-  let misses = 0; const perSeed = [];
-  for (const R of ROWS) {
-    const ty = R.typical.val(by.typical), gr = R.great.val(by.great);
-    if (!ty.ok) misses++; if (!gr.ok) misses++;
-    console.log(row([R.label, R.typical.want, (ty.ok ? '✓ ' : '✗ ') + ty.txt, R.great.want, (gr.ok ? '✓ ' : '✗ ') + gr.txt]));
-    perSeed.push(R.label + ': typical ' + seedCols('typical').map(d => d ? R.typical.val(d.diff).txt : '—').join(' | ') + ' · great ' + seedCols('great').map(d => d ? R.great.val(d.diff).txt : '—').join(' | '));
+  const mm = { typical: M(by.typical), great: M(by.great) };
+  let misses = 0, p2miss = 0; const perSeed = [];
+  for (const policy of ['typical', 'great']) {
+    console.log('');
+    console.log(row([policy === 'typical' ? 'Typical' : 'Great', 'Part 2 §1.1: target', '3.0: band', 'Measured (Part 2 · 3.0)']));
+    console.log(W.map(w => '─'.repeat(w)).join('─┼─'));
+    for (const R of ROWS) { const C = R[policy], m = mm[policy], o2 = C.p2[1](m), o3 = C.x3[1](m);
+      if (!o3) misses++; if (!o2) p2miss++;
+      console.log(row([R.label, C.p2[0], C.x3[0], (o2 ? '✓' : '✗') + ' ' + (o3 ? '✓' : '✗') + ' ' + C.txt(m)])); }
   }
+  for (const R of ROWS) perSeed.push(R.label + ': typical ' + seedCols('typical').map(d => d ? R.typical.txt(M(d.diff)) : '—').join(' | ') + ' · great ' + seedCols('great').map(d => d ? R.great.txt(M(d.diff)) : '—').join(' | '));
   console.log('');
   console.log('by seed (' + seeds.join(' | ') + '):');
   for (const l of perSeed) console.log('  ' + l);
   const xp = (r => { let s6 = 0, s8 = 0; for (let p = 60; p < 70; p++) s6 += 20 * Math.pow(1.11, p - 40); for (let p = 80; p < 90; p++) s8 += 20 * Math.pow(1.11, p - 40); return s8 / s6; })();
   console.log('the XP curve (§1.2): 20 × 1.11^(rating − 40) a point; 80→90 costs ' + xp.toFixed(1) + '× the 60→70 stretch');
   { const L = policy => res.filter(r => r.policy === policy && r.d && Array.isArray(r.d.legacy)).reduce((a, r) => a.concat(r.d.legacy), []), at = (xs, t) => xs.length ? (100 * xs.filter(x => x >= t).length / xs.length).toFixed(1) + '%' : '—'; /* 2.1 (W6): where the Hall of Fame line could go (career.hofScore; a legacy at or over it) */
-    console.log('the Hall of Fame at other lines (a legacy at the line or over it): ' + [80, 84, 88, 92, 96].map(t => t + ' typical ' + at(L('typical'), t) + ' great ' + at(L('great'), t)).join(' · ')); }
+    console.log('the Hall of Fame at other lines (a legacy at the line or over it): ' + [300, 325, 350, 375, 400].map(t => t + ' typical ' + at(L('typical'), t) + ' great ' + at(L('great'), t)).join(' · ')); }
   console.log('careers ' + by.typical.length + ' typical, ' + by.great.length + ' great · stuck ' + (stuck.typical + stuck.great) + ' · ' + Math.round((Date.now() - t0) / 1000) + ' s');
   if (errs.length) console.log('page errors: ' + errs.join(' ; '));
   const ok = !failed.length && !misses && !(stuck.typical + stuck.great) && !errs.length;
-  console.log(ok ? 'PASS the §1.1 table: every row in its band, both policies' : 'FAIL ' + misses + ' row' + (misses === 1 ? '' : 's') + ' outside the band' + (failed.length ? ', ' + failed.length + ' runs failed' : '') + (stuck.typical + stuck.great ? ', stuck careers' : ''));
+  console.log('Part 2 §1.1: ' + (16 - p2miss) + ' of 16 rows in their band (for comparison; 3.0 judges by its own)');
+  console.log(ok ? 'PASS the table: every row in its 3.0 band, both policies' : 'FAIL ' + misses + ' row' + (misses === 1 ? '' : 's') + ' outside the 3.0 band' + (failed.length ? ', ' + failed.length + ' runs failed' : '') + (stuck.typical + stuck.great ? ', stuck careers' : ''));
   process.exit(ok ? 0 : 1);
 })();

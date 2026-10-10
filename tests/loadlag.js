@@ -3,18 +3,20 @@
 // 50 ms), and prints a table: for each step, how long until its first frame, its longest task and its total blocked
 // time (the long tasks' sum).
 //   startup     navigation → the title screen's first frame; then Enter → the menu
-//   screens     creation, events, dialogs, tips, hub tabs, the league, a franchise, staff, the offers, signing day,
-//               awards, the press, the Codex, the main menu's screens
-//   game loads  the tryout shootout, the tryout 1v1, a high school game, a pro game, a Quick 1v1: the press of PLAY
-//               (TIP OFF) → the first frame of the game (not a "Warming up..." frame), then 2.5 s of play
+//   screens     creation, events, a message, tips, HOME's five tabs, the scouting report, LEAGUE's standings, the
+//               Season review and its awards night, the league, a franchise, the crew, the offers, signing day, the
+//               Codex, the main menu's screens (3.0: no story cards, no press room, no staff)
+//   game loads  the tryout shootout, the tryout 1v1, a high school game (HOME's PLAY: 3.0 goes straight to the game), a
+//               pro game (TIP OFF on the scouting report), a Quick 1v1: the press → the first frame of the game (not a
+//               "Warming up..." frame), then 2.5 s of play
 // Targets:
 //   4×  no task over 100 ms on a screen change · a game's first frame within 300 ms of the press, no task over 100 ms
 //       after it · the title within 1.5 s of navigation, under 1.5 s of long tasks before the menu responds
 //   1×  no task over 50 ms anywhere
 // A press runs at the start of a frame, as a click or a key does in the game (the press, the new screen and its first
 // draw land in the same task). A step's window runs from its press to the next step's press, and a task counts in the
-// window where it ends. The player dwells on a screen as a person would (1.2 s on most; 2.5 s on the cards before a game:
-// the scouting card, the tryout card, the Quick 1v1 setup), and the dwell is part of the step. The test's own work
+// window where it ends. The player dwells on a screen as a person would (1.2 s on most; 2.5 s on the screen before a game:
+// HOME, the scouting card, the tryout card, the Quick 1v1 setup), and the dwell is part of the step. The test's own work
 // (fast-forwarding a game to its end, Jump to pro, forcing a starting spot) is marked and left out. Fails on any miss.
 // Usage: node tests/loadlag.js [--rate=4,1] [--phone] [--only=startup|career|pro|quick]
 const { launch, openPage } = require('./lib');
@@ -74,8 +76,8 @@ const INIT = () => {
     };
     const work = (f, a) => ev(([src, a]) => __H.work(() => (0, eval)('(' + src + ')')(a)), [f.toString(), a]);
     const screen = () => ev(() => { const g = HH.game; return g.ui.screen ? g.ui.screen.name : g.mode === 'match' ? 'match' : '(none)'; });
-    // the cards a career puts up on its own (tips, story, the press, awards...), each pressed through as a step
-    const CATS = { tip: 'tips', whatsnew: 'dialogs', dialog: 'dialogs', confirm: 'dialogs', amevent: 'events', genes: 'events', recap: 'events', press: 'press', ceremony: 'awards', allstarpick: 'awards', roadcard: 'events', rivalmoment: 'events', traitevent: 'events', traitpick: 'events', simsummary: 'events', ladderevent: 'events' };
+    // the screens a career puts up on its own (tips, the genes, a message, the Season review, awards...), each pressed through as a step
+    const CATS = { tip: 'tips', whatsnew: 'dialogs', confirm: 'dialogs', message: 'messages', amevent: 'events', genes: 'events', recap: 'events', seasonreview: 'events', ceremony: 'awards', roadcard: 'events', traitevent: 'events', commitday: 'events', crewrecap: 'events', allstarweekend: 'events', tourney: 'events' }; // (3.0: a message for 2.x's dialogs and story cards; no press room, rivals or trait picks)
     const through = async (hubName, label) => {
       for (let i = 0; i < 40; i++) {
         const s = await screen(); if (s === hubName) return;
@@ -110,40 +112,40 @@ const INIT = () => {
       rows.bootBlock = bootBlock;
       if (!ONLY || /career|pro/.test(ONLY) || ONLY === 'startup') {
         if (ONLY !== 'startup') {
-          // ---- a new career: creation, tips, events, the hub's tabs ----
+          // ---- a new career: creation, tips, events, HOME's five tabs (3.0 §2.1) ----
           await step('menu → creation', 'creation', "__H.P('^START YOUR CAREER$')", { want: 'create' });
-          await step('creation: a preset face', 'creation', "const s = g.ui.screen, w = s.widgets.find(w => w.kind === 'custom' && w.onPress && !w.hidden); w.onPress();");
+          await step('creation: a preset face', 'creation', "const s = g.ui.screen, w = s.widgets.find(w => w.kind === 'custom' && w.onPress && !w.hidden) || s.widgets.find(w => w.label === 'PLAYER'); w.onPress(); /* (a phone has no preset faces: its PLAYER page) */");
           await step('creation → face & accessories', 'creation', "__H.P('^Face shape')", { want: 'customize' }).catch(async e => { rows.push({ name: 'creation → face & accessories (skipped: ' + e.message.split(':')[1] + ')', cat: 'info' }); });
           if (await screen() !== 'create') await step('face & accessories → creation', 'creation', "g.ui.pop()", { want: 'create' });
           await step('creation → the hub (START HIGH SCHOOL)', 'creation', "if (g.newCareer) g.newCareer.seed = 2024; __H.P('^START HIGH SCHOOL$')");
           await through('amhub', 'new career');
-          for (const t of ['Train', 'Me', 'Team', 'Shop', 'Play']) { await step('hub tab → ' + t, 'hub tabs', "__H.P('^Tab: " + t + "$')"); if (await screen() !== 'amhub') await through('amhub', 'tab ' + t); }
-          await step('hub → the Codex', 'screens', "g.ui.push(statsGuideScreen(g))");
-          await step('Codex → hub', 'screens', "g.ui.pop()", { want: 'amhub' });
-          await step('hub → a story card', 'events', "const a = g.save.data.c1; a.events.push({ kind: 'story', who: 'coach', title: 'FIRST DAY', lines: ['Coach meets you at the gym door.', '\"Tryouts are Monday. Be early.\"'] }); eventChain(g, a);");
-          await through('amhub', 'story');
+          for (const t of ['League', 'Events', 'Career', 'Store', 'Home']) { await step('tab → ' + t, 'tabs', "__H.P('^Tab: " + t + "$')"); if (await screen() !== 'amhub') await through('amhub', 'tab ' + t); }
+          await step('HOME → the Codex', 'screens', "g.ui.push(statsGuideScreen(g))");
+          await step('Codex → HOME', 'screens', "g.ui.pop()", { want: 'amhub' });
+          await step('HOME → a message', 'messages', "const a = g.save.data.c1; a.inbox = [{ kind: 'dialog', title: 'A SUMMER CAMP INVITE', icon: 'mail', inS: a.season, lines: ['The Elite 100 camp wants you in July: three days against the best juniors in the country, and every college coach in the stands.', 'It costs $400 and a week of rest before the season.'], choice: [{ label: 'Go to the camp', note: 'Fame +4 · fatigue +12 · −$400', fx: { fame: 4, fatigue: 12, money: -400 } }, { label: 'Rest at home', note: 'Fatigue −10', fx: { fatigue: -10 }, def: true }] }]; holderOf(a).msgWk = null; /* 3.0 (§2.3): HOME shows the inbox's message (2.x's story cards) */", { want: 'message' });
+          await through('amhub', 'message');
           // ---- the tryouts: the shootout and the 1v1 ----
-          await step('hub → tryouts', 'screens', "__H.P('^TRYOUTS$')", { want: 'tryout', dwell: 2500 });
+          await step('HOME → tryouts', 'screens', "__H.P('^TRYOUTS$')", { want: 'tryout', dwell: 2500 });
           await game('tryout shootout', "__H.P('^PLAY THE SHOOTOUT$')", null);
           if (await screen() === 'tryoutpost') await step('shootout result → tryouts', 'screens', "__H.P('^CONTINUE$')");
           if (await screen() !== 'tryout') await through('tryout', 'shootout');
           await wait(1300); /* the tryout card, before the 1v1 */
           await game('tryout 1v1', "__H.P('^PLAY THE 1V1')", null);
           for (let i = 0; i < 6 && await screen() !== 'amhub'; i++) { const s = await screen(); if (s === 'tryoutpost') await step('tryout result: CONTINUE', 'screens', "__H.P('^CONTINUE$')"); else await through('amhub', 'tryouts'); }
-          // ---- a high school game ----
-          await work(() => { const a = HH.game.save.data.c1; if (a && a.team && !isStarter(a)) { const L = ladderOf(a); L.splice(L.indexOf('me'), 1); L.unshift('me'); } /* (3.0: you start; the depth chart follows form) */ HH.game.hubTab = 'play'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
-          await step('hub → scouting card', 'screens', "__H.P('^PLAY( GAME)?$')", { want: 'ampregame', dwell: 2500 });
-          await game('high school game', "__H.P('^TIP OFF$')", 'amhub');
-          await step('hub → standings', 'league', "g.ui.push(amStandingsScreen(g))").catch(e => rows.push({ name: 'hub → standings (skipped: ' + e.message + ')', cat: 'info' }));
-          if (await screen() !== 'amhub') await step('standings → hub', 'league', "g.ui.pop()", { want: 'amhub' });
-          await step('hub → awards night', 'awards', "const a = g.save.data.c1; a.events.length = 0; a.events.push({ kind: 'ceremony', title: 'AWARDS NIGHT', sub: (a.school || 'Your school') + ' · season ' + a.season, rows: ['District MVP', 'All-District 1st team', 'District champion'].map(x => ({ award: x, name: a.name, mine: true })) }); eventChain(g, a);");
+          // ---- a high school game: the scouting card (HOME's Scout report; a phone's MORE…), back on HOME, then PLAY (3.0 §2.2: straight to the game) ----
+          await work(() => { const a = HH.game.save.data.c1; if (a && a.team && !isStarter(a)) { const L = ladderOf(a); L.splice(L.indexOf('me'), 1); L.unshift('me'); } if (a) a.ineligible = 0; /* (3.0: you start; the depth chart follows form) */ HH.game.hubTab = 'home'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
+          await step('HOME → scouting card', 'screens', "if (__H.has('^Scout report$')) __H.P('^Scout report$'); else g.ui.push(amPregameScreen(g));", { want: 'ampregame' });
+          await step('scouting card → HOME', 'screens', "g.ui.pop()", { want: 'amhub', dwell: 2500 });
+          await game('high school game', "__H.P('^PLAY$')", 'amhub');
+          await step('HOME → standings', 'league', "g.ui.push(standingsChartScreen(g))", { want: 'standings' }).catch(e => rows.push({ name: 'HOME → standings (skipped: ' + e.message + ')', cat: 'info' })); /* 3.0 (§4.2): LEAGUE's standings */
+          if (await screen() !== 'amhub') await step('standings → HOME', 'league', "g.ui.pop()", { want: 'amhub' });
+          await step('HOME → the Season review', 'awards', "const a = g.save.data.c1; a.events = [{ kind: 'ceremony', title: 'AWARDS NIGHT', sub: (a.school || 'Your school') + ' · season ' + a.season, rows: ['District MVP', 'All-District 1st team', 'District champion'].map(x => ({ award: x, name: a.name, mine: true })) }]; /* 3.0 (§2.2): the season's end is one screen (HOME shows it); awards night is its button */", { want: 'seasonreview' });
+          await step('Season review → awards night', 'awards', "__H.P('^Awards night$')", { want: 'ceremony' });
           await through('amhub', 'awards');
-          await step('hub → the press', 'press', "const a = g.save.data.c1; a.events.length = 0; const o = a.league.opps[0]; a.events.push({ kind: 'press', q: 'Nobody gave you a chance against ' + o.name.split(' ')[0] + '. What changed?', x: { name: a.name, won: true, us: 15, them: 11, opp: o.name, oppId: o.id, upsetWin: true, recs: [] } }); eventChain(g, a);");
-          await through('amhub', 'press');
         }
       }
       if (!ONLY || ONLY === 'pro') {
-        // ---- the pros: Jump to pro (the test's work), the combine, the offers, signing day, the pro hub ----
+        // ---- the pros: Jump to pro (the test's work), the combine, the offers, signing day, the pros' HOME ----
         if (ONLY === 'pro') await work(() => { const g = HH.game; g.save.data.c1 = amCreate(g.save.data, { name: 'Lag Test', look: PRESET_LOOKS[3], number: 7, style: 'slasher', seed: 2024 }); });
         const j = await work(() => { const g = HH.game; const r = devJumpToPro(g, 2024); g.ui.clearTo(amHub(g)); g.ui.push(amCombineScreen(g)); return r; });
         if (!j || !j.ok) throw new Error('Jump to pro: ' + JSON.stringify(j));
@@ -151,23 +153,22 @@ const INIT = () => {
         await step('combine → offers', 'offers', "__H.P('^PRO OFFERS$')", { want: 'prooffers' });
         await step('offers → signing day', 'signing day', "__H.P('^SIGN WITH THE ')", { want: 'draft', dwell: 1500 });
         await ev(() => { const s = HH.game.ui.screen; if (s && s.onTap) s.onTap(0, 0); }); await wait(400);
-        await step('signing day → the pro hub', 'signing day', "__H.P('^START YOUR PRO CAREER$')");
+        await step('signing day → HOME', 'signing day', "__H.P('^START YOUR PRO CAREER$')");
         await through('career', 'pro');
-        for (const t of ['Train', 'Me', 'Team', 'Shop', 'Play']) { await step('pro hub tab → ' + t, 'hub tabs', "__H.P('^Tab: " + t + "$')"); if (await screen() !== 'career') await through('career', 'pro tab ' + t); }
-        await step('pro hub → the league', 'league', "g.ui.push(leagueScreen(g))", { want: 'league' });
-        await step('league → pro hub', 'league', "g.ui.pop()", { want: 'career' });
-        await step('pro hub → your franchise', 'franchise', "const c = g.save.data.career; g.ui.push(franchiseScreen(g, meOf(c).club))", { want: 'franchise' });
-        await step('franchise → pro hub', 'franchise', "g.ui.pop()", { want: 'career' });
-        await step('pro hub → staff', 'staff', "g.ui.push(staffScreen(g))", { want: 'staff' });
-        await step('staff → pro hub', 'staff', "g.ui.pop()", { want: 'career' });
-        await work(() => { const c = HH.game.save.data.career; if (c && c.team && !isStarter(c)) { const L = ladderOf(c); L.splice(L.indexOf('me'), 1); L.unshift('me'); } /* (3.0: you start; the depth chart follows form) */ HH.game.hubTab = 'play'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
-        await step('pro hub → pregame', 'screens', "__H.P('^PLAY$')", { want: 'pregame', dwell: 2500 });
+        for (const t of ['League', 'Events', 'Career', 'Store', 'Home']) { await step('pro tab → ' + t, 'tabs', "__H.P('^Tab: " + t + "$')"); if (await screen() !== 'career') await through('career', 'pro tab ' + t); }
+        await step('HOME → the league', 'league', "g.ui.push(leagueScreen(g))", { want: 'league' });
+        await step('league → HOME', 'league', "g.ui.pop()", { want: 'career' });
+        await step('HOME → your franchise', 'franchise', "const c = g.save.data.career; g.ui.push(franchiseScreen(g, meOf(c).club))", { want: 'franchise' });
+        await step('franchise → HOME', 'franchise', "g.ui.pop()", { want: 'career' });
+        await step('HOME → the crew', 'crew', "g.ui.push(crewScreen(g))", { want: 'crew' }); /* 3.0 (§7): the crew (2.x's staff) */
+        await step('crew → HOME', 'crew', "g.ui.pop()", { want: 'career' });
+        await work(() => { const c = HH.game.save.data.career; if (c && c.team && !isStarter(c)) { const L = ladderOf(c); L.splice(L.indexOf('me'), 1); L.unshift('me'); } /* (3.0: you start; the depth chart follows form) */ HH.game.hubTab = 'home'; HH.game.ui.screen.build && HH.game.ui.screen.build(); });
+        await step('HOME → pregame', 'screens', "if (__H.has('^Scout report$')) __H.P('^Scout report$'); else g.ui.push(pregameScreen(g, userGame(g.save.data.career)));", { want: 'pregame', dwell: 2500 }); /* 3.0: HOME's Scout report (a phone's MORE…); PLAY would go straight to the game */
         await game('pro game', "__H.P('^TIP OFF$')", 'career');
-        await step('pro hub → awards night', 'awards', "const c = g.save.data.career; c.events.length = 0; const ids = c.active; const aw = { mvp: c.meId, dpoy: ids[1], roy: ids[2], mip: ids[3], scoring: c.meId, finalsMvp: ids[4], allLeague: [c.meId, ids[5], ids[6]] }; c.events.push({ kind: 'ceremony', title: 'AWARDS NIGHT', sub: 'The PBL · season ' + c.season, rows: proCeremonyRows(c, aw) }); eventChain(g, c);");
+        await step('HOME → the Season review', 'awards', "const c = g.save.data.career; const ids = c.active; const aw = { mvp: c.meId, dpoy: ids[1], roy: ids[2], mip: ids[3], scoring: c.meId, finalsMvp: ids[4], allLeague: [c.meId, ids[5], ids[6]] }; c.events = [{ kind: 'ceremony', title: 'AWARDS NIGHT', sub: 'The PBL · season ' + c.season, rows: proCeremonyRows(c, aw) }]; /* 3.0 (§2.2): HOME shows the Season review; awards night is its button */", { want: 'seasonreview' });
+        await step('Season review → awards night', 'awards', "__H.P('^Awards night$')", { want: 'ceremony' });
         await through('career', 'pro awards');
-        await step('pro hub → the press', 'press', "const c = g.save.data.career; c.events.length = 0; c.events.push({ kind: 'press', q: 'Big win tonight. Thoughts?', x: { name: meOf(c).name, won: true, us: 21, them: 12, opp: 'Some One' } }); eventChain(g, c);");
-        await through('career', 'pro press');
-        await step('pro hub → main menu', 'screens', "g.ui.clearTo(mainMenu(g))", { want: 'menu' });
+        await step('HOME → main menu', 'screens', "g.ui.clearTo(mainMenu(g))", { want: 'menu' });
       }
       if (!ONLY || ONLY === 'quick') {
         if (await screen() !== 'menu') await step('→ main menu', 'screens', "g.ui.clearTo(mainMenu(g))", { want: 'menu' });

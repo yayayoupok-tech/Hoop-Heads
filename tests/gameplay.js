@@ -1,9 +1,10 @@
-// 2.0 §3 (V4): gameplay. Opponent scouting (every career opponent's personality, four tendencies, weakness and tip; the
-// card before a game, all four tendencies after a Film week), bots that play to their card (bot-vs-bot games with and
-// without each tendency and personality), the signature moves (Behind-the-back, Snatch-back, Euro-step, Reverse dunk,
-// Pull-up three) and the move list, shot feedback, the contest ring, the block's swat and hit-stop, the POKED sound,
-// the phone controls (bigger buttons, the layout editor, auto-sprint, vibration), overtime's next basket, and the
-// season's Boss.   node tests/gameplay.js
+// 2.0 §3 (V4): gameplay, on the 3.0 build. Opponent scouting (every career opponent's personality, four tendencies,
+// weakness and tip; the card before a game: 3.0's PLAY goes straight to the game and HOME's Scout report opens the card;
+// with no Film weeks or film room (3.0 §1), reading the report studies that opponent), bots that play to their card
+// (bot-vs-bot games with and without each tendency and personality), the signature moves (Behind-the-back, Snatch-back,
+// Euro-step, Reverse dunk, Pull-up three) and the move list, shot feedback, the contest ring, the block's swat and
+// hit-stop, the POKED sound, the phone controls (bigger buttons, the layout editor, auto-sprint, vibration), overtime's
+// next basket, and the season's Boss (3.0: a top badge at Lv3, and beating them adds fame).   node tests/gameplay.js
 const { launch, openPage, runner } = require('./lib');
 (async () => {
   const b = await launch(); const R = runner('gameplay'); const D = await openPage(b); const { ev, page } = D; const step = (n, f) => R.step(n, f, D);
@@ -33,21 +34,28 @@ const { launch, openPage, runner } = require('./lib');
     if (r.shortPost > r.posts * 0.25) throw new Error('short players post up too often');
   });
 
-  await step('the card before a game (§3): an amateur PLAY opens the scouting report (both cards, the personality, the traits, the tendencies, the weakness, a tip); TIP OFF starts the game with the opponent\'s personality and tendencies in the engine; the pro tale of the tape carries the same card; the film room shows all four', async () => {
+  await step('the card before a game (§3): 3.0\'s PLAY on HOME goes straight to the game (§2.2) with the opponent\'s personality and tendencies in the engine; HOME\'s Scout report opens the scouting report (the personality, their badges, the tendencies, the weakness, a tip) and its TIP OFF starts the same game; the pro tale of the tape carries the same card; no film room (3.0 §1): reading the report studies that opponent instead (Film Junkie\'s deed, once a week)', async () => {
     const r = await ev(() => {
-      const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Scout Test', look: PRESET_LOOKS[3], number: 7, style: 'shooter', seed: 4242, seasonLength: 11, gameLength: 120 }); g.save.data.c1 = a; a.events.length = 0; hsAutoResolve(a); a.events.length = 0; if (a.team && !isStarter(a)) ladderInit(a, 1); /* V6: a harder tryout can leave you on the bench (no PLAY): start this one */ g.ui.clearTo(amHub(g));
-      const hub = g.ui.screen, play = hub.widgets.find(w => w.label === 'PLAY'); if (!play) throw new Error('no PLAY on the hub'); play.onPress(); const s = g.ui.screen; if (!s || s.name !== 'ampregame') throw new Error('PLAY opened ' + (s && s.name));
+      const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Scout Test', look: PRESET_LOOKS[3], number: 7, style: 'shooter', seed: 4242, seasonLength: 11, gameLength: 120 }); g.save.data.c1 = a; a.events.length = 0; hsAutoResolve(a); a.events.length = 0; if (a.team && !isStarter(a)) ladderInit(a, 1); /* V6: a harder tryout can leave you on the bench (no PLAY): start this one */ g.hubTab = 'home'; g.ui.clearTo(amHub(g));
+      const o = amNext(a).opp, S = scoutOf(o), W = () => (g.ui.screen.widgets || []).filter(w => !w.hidden && w.label), film = () => (trDeeds(a) || {}).film || 0;
+      const engine = () => { const m = g.match, q = m && m.teams[1].players[0]; return !!q && q.pers === S.pers && JSON.stringify(q.tend) === JSON.stringify(S.tend) && !!(q.brain && q.brain.tm); }; // the bot plays all four, shown or not
+      const play = W().find(w => w.label === 'PLAY'); if (!play) throw new Error('no PLAY on HOME'); play.onPress(); if (g.mode !== 'match' || g.ui.screen) throw new Error('PLAY opened ' + (g.ui.screen ? g.ui.screen.name : 'no game')); const out = { play: engine(), noFilm: typeof filmRoomScreen === 'undefined' }; g.quitToMenu();
+      const rep = W().find(w => w.label === 'Scout report'); if (!rep) throw new Error('no Scout report on HOME: ' + W().map(w => w.label).join(' | ')); const f0 = film(); rep.onPress(); const s = g.ui.screen; if (!s || s.name !== 'ampregame') throw new Error('Scout report opened ' + (s && s.name));
       const cv = document.createElement('canvas'); cv.width = 1280; cv.height = 720; const ctx = cv.getContext('2d'); const texts = []; const ft = ctx.fillText.bind(ctx); ctx.fillText = (t, x, y, mw) => { texts.push(String(t)); return ft(t, x, y, mw); }; s.draw(ctx, g.ui);
-      const o = amNext(a).opp, S = scoutOf(o), want = [SC.tend[S.tend[0]].text, SC.tend[S.tend[1]].text, scoutPersName(S.pers).toUpperCase()]; const miss = want.filter(w => !texts.some(t => t.includes(w)));
-      s.widgets.find(w => w.label === 'TIP OFF').onPress(); const m = g.match; if (!m) throw new Error('TIP OFF started no game'); const q = m.teams[1].players[0];
-      const out = { miss, pers: q.pers === S.pers, tend: JSON.stringify(q.tend) === JSON.stringify(S.tend), tm: q.brain ? q.brain.tm : null };
-      g.quitToMenu();
-      const c = testProLeague(21, g.save.data); g.save.data.career = c; g.save.data.c1 = null; const gm = userGame(c); const ps = pregameScreen(g, gm); const t2 = []; const ctx2 = cv.getContext('2d'); ctx2.fillText = (t, x, y, mw) => { t2.push(String(t)); }; ps.draw(ctx2, g.ui); const opp = c.players[opponentOf(c, gm)], S2 = scoutOf(opp, c.seed); out.pro = t2.some(t => t.includes(SC.tend[S2.tend[0]].text)); const def = engineDef(c, opp.id); out.proDef = def.pers === S2.pers && def.tend.length === 4;
-      const fr = filmRoomScreen(g); const t3 = []; ctx2.fillText = (t) => { t3.push(String(t)); }; fr.draw(ctx2, g.ui); out.film = S2.tend.every(t => t3.some(x => x.includes(SC.tend[t].text)));
+      const want = [SC.tend[S.tend[0]].text, SC.tend[S.tend[1]].text, scoutPersName(S.pers).toUpperCase(), 'WEAKNESS', 'TIP'].concat(trActive(o).map(id => traitName(id).toUpperCase())); out.miss = want.filter(w => !texts.some(t => t.includes(w)));
+      out.studied = !!a.wk && a.wk.studied === o.id && film() === f0 + 1; g.ui.pop(); W().find(w => w.label === 'Scout report').onPress(); out.once = film() === f0 + 1; // the same opponent read twice in a week counts once
+      g.ui.screen.widgets.find(w => w.label === 'TIP OFF').onPress(); if (!g.match) throw new Error('TIP OFF started no game'); out.tipoff = engine(); g.quitToMenu();
+      const c = testProLeague(21, g.save.data); g.save.data.career = c; g.save.data.c1 = null; g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); const gm = userGame(c), opp = c.players[opponentOf(c, gm)], S2 = scoutOf(opp, c.seed);
+      const pr = W().find(w => w.label === 'Scout report'); if (!pr) throw new Error('no Scout report on the pro HOME'); pr.onPress(); const ps = g.ui.screen; if (!ps || ps.name !== 'pregame') throw new Error('the pro Scout report opened ' + (ps && ps.name));
+      const t2 = []; const ctx2 = cv.getContext('2d'); ctx2.fillText = (t, x, y, mw) => { t2.push(String(t)); }; ps.draw(ctx2, g.ui); out.pro = t2.some(t => t.includes(SC.tend[S2.tend[0]].text)); const def = engineDef(c, opp.id); out.proDef = def.pers === S2.pers && JSON.stringify(def.tend) === JSON.stringify(S2.tend); out.proStudied = !!c.me.wk && c.me.wk.studied === opp.id; g.ui.pop();
+      out.line = scoutPersName(S.pers).toUpperCase() + ' · ' + S.tend.join('/');
       return out;
     });
+    if (r.play !== true) throw new Error('PLAY: the engine did not get the personality and tendencies');
     if (r.miss.length) throw new Error('the card is missing ' + r.miss.join(', '));
-    if (!r.pers || !r.tend || !r.tm) throw new Error('the engine did not get the personality and tendencies'); if (!r.pro || !r.proDef) throw new Error('the pro card or def'); if (!r.film) throw new Error('the film room shows every tendency');
+    if (!r.tipoff) throw new Error('TIP OFF: the engine did not get the personality and tendencies'); if (!r.pro || !r.proDef) throw new Error('the pro card or def');
+    if (!r.noFilm || !r.studied || !r.once || !r.proStudied) throw new Error('no film room, reading the report studies them (once a week): ' + JSON.stringify([r.noFilm, r.studied, r.once, r.proStudied]));
+    return 'PLAY and TIP OFF: ' + r.line + ' in the engine · the card and the pro tape show it · a read studies them once';
   });
 
   // bot-vs-bot games, the subject with and without one tendency (the same seeds): the subject's action rate per game
@@ -181,19 +189,25 @@ const { launch, openPage, runner } = require('./lib');
     for (const k in r) if (r[k][0] !== false || r[k][1] !== true) throw new Error(k + ': ' + r[k]);
   });
 
-  await step('the Boss (§3): once a season the best regular-season opponent on your schedule (never your rival, not in the first two weeks) plays with a Legendary trait; the hub, the card and tip-off say BOSS; beating them adds hype; the next season has a new Boss and the old one plays as themselves', async () => {
+  await step('the Boss (§3): once a season the best regular-season opponent on your schedule (not in the first two weeks; 3.0: no rivals) plays with a top badge at its top level (3.0: Lv3, no Legendary rarity); the hub, the card and tip-off say BOSS; beating them adds fame (3.0: hype is fame); the next season has a new Boss and the old one plays as themselves', async () => {
     const r = await ev(() => {
       const g = HH.game; localStorage.clear(); g.save = new SaveSystem(); const a = amCreate(g.save, { name: 'Boss Test', look: PRESET_LOOKS[2], number: 5, style: 'slasher', seed: 777, seasonLength: 11, gameLength: 120 }); g.save.data.c1 = a; a.events.length = 0; hsAutoResolve(a); a.events.length = 0;
-      amBossEnsure(a); const L = a.league, out = { boss: L.boss }; if (!L.boss) return out; const o = amOppById(a, L.boss), w = L.schedule.indexOf(L.boss); out.week = w; out.leg = o.tr && TR.list[o.tr.third] && TR.list[o.tr.third].r === 'L'; out.rival = !!o.rival;
-      let best = -1; for (let i = SC.boss.minWeek; i < L.schedule.length; i++) { const q = amOppById(a, L.schedule[i]); if (q && !q.rival) best = Math.max(best, ovrOf(q.r, q.height)); } out.best = ovrOf(o.r, o.height) === best;
-      out.def = amOppDef(o, 0).traits.includes(o.tr.third); const once = L.boss; amBossEnsure(a); out.once = L.boss === once;
-      L.week = w; const opts = amMatchOpts(g, a, o, 0); out.optsBoss = opts.boss === true; const h0 = a.hype || 0; const res = amApplyResult(a, o, 20, 10, { pts: 20, fgm: 9, fga: 15, tpm: 2, tpa: 4, reb: 3, stl: 1, blk: 0 }, true); out.bossWon = res.bossWon; out.hype = (a.hype || 0) - h0;
-      const c = testProLeague(33, g.save.data); proBossEnsure(c); out.pro = !!(c.boss && c.boss.id); if (c.boss && c.boss.id) { const p = c.players[c.boss.id]; out.proLeg = TR.list[p.tr.third] && TR.list[p.tr.third].r === 'L'; out.proRival = c.boss.id === c.rivalId; const old = c.boss.id; c.season++; c.phase = 'regular'; c.week = 0; proBossEnsure(c); out.newSeason = c.boss.season === c.season; out.oldClean = old === c.boss.id || !c.players[old].tr.third; }
+      amBossEnsure(a); const L = a.league, out = { boss: L.boss }; if (!L.boss) return out; const o = amOppById(a, L.boss), w = L.schedule.indexOf(L.boss), T = traitsOf(o); out.week = w; out.badge = T && T.boss; out.top = !!T && SC.boss.badges.includes(T.boss) && trLvOf(o, T.boss) === trTop(T.boss) && badgeShow(o) === T.boss;
+      let best = -1; for (let i = SC.boss.minWeek; i < L.schedule.length; i++) { const q = amOppById(a, L.schedule[i]); if (q) best = Math.max(best, ovrOf(q.r, q.height)); } out.best = ovrOf(o.r, o.height) === best;
+      const d = amOppDef(o); out.def = d.traits.includes(T.boss) && d.traitLv[T.boss] === trTop(T.boss); const once = L.boss; amBossEnsure(a); out.once = L.boss === once;
+      L.week = w; if (a.team && !isStarter(a)) ladderInit(a, 1); /* you start: HOME's next game is the Boss's */ out.hub = amHubData(g, a).opp.boss === true; g.hubTab = 'home'; g.ui.clearTo(amHub(g));
+      const rep = g.ui.screen.widgets.find(x => x.label === 'Scout report'); if (rep) { rep.onPress(); const cv = document.createElement('canvas'); cv.width = 1280; cv.height = 720; const ctx = cv.getContext('2d'), texts = []; ctx.fillText = t => { texts.push(String(t)); }; g.ui.screen.draw(ctx, g.ui); out.card = texts.includes('BOSS'); g.ui.pop(); }
+      const opts = amMatchOpts(g, a, o, 0); out.optsBoss = opts.boss === true;
+      const line = () => ({ pts: 20, fgm: 9, fga: 15, tpm: 2, tpa: 4, reb: 3, stl: 1, blk: 0 }), twin = JSON.parse(JSON.stringify(a)); twin.league.boss = null; /* the same win against them as a plain opponent */
+      const f0 = a.fame || 0, res = amApplyResult(a, o, 20, 10, line(), true), t0 = twin.fame || 0; amApplyResult(twin, amOppById(twin, o.id), 20, 10, line(), true); out.bossWon = res.bossWon; out.fame = Math.round(((a.fame || 0) - f0 - ((twin.fame || 0) - t0)) * 1e6) / 1e6; out.want = SC.boss.fame;
+      const c = testProLeague(33, g.save.data); proBossEnsure(c); out.pro = !!(c.boss && c.boss.id); if (c.boss && c.boss.id) { const old = c.boss.id, p = c.players[old], PT = traitsOf(p); out.proTop = SC.boss.badges.includes(c.boss.trait) && PT.boss === c.boss.trait && trLvOf(p, PT.boss) === trTop(PT.boss); out.proIs = proIsBoss(c, old) && engineDef(c, old).traits.includes(PT.boss);
+        for (const k of RATING_KEYS) p.r[k] = 30; /* last season's Boss slips: someone else is the best next season */ c.season++; c.phase = 'regular'; c.week = 0; proBossEnsure(c); out.newSeason = c.boss.season === c.season && !!c.boss.id && c.boss.id !== old && proIsBoss(c, c.boss.id); out.oldClean = !traitsOf(p).boss && !proIsBoss(c, old) && !engineDef(c, old).traits.some(id => SC.boss.badges.includes(id)); }
       return out; });
     console.log('     ' + JSON.stringify(r));
-    if (!r.boss || !(r.week >= SC_minWeek()) || !r.leg || r.rival || !r.best || !r.def || !r.once || !r.optsBoss) throw new Error('amateur Boss: ' + JSON.stringify(r));
-    if (!r.bossWon || !(r.hype >= 3)) throw new Error('beating the Boss: ' + r.bossWon + ' hype +' + r.hype);
-    if (!r.pro || !r.proLeg || r.proRival || !r.newSeason || !r.oldClean) throw new Error('pro Boss: ' + JSON.stringify(r));
+    if (!r.boss || !(r.week >= SC_minWeek()) || !r.top || !r.best || !r.def || !r.once || !r.hub || !r.card || !r.optsBoss) throw new Error('amateur Boss: ' + JSON.stringify(r));
+    if (!r.bossWon || Math.abs(r.fame - r.want) > 1e-6) throw new Error('beating the Boss: ' + r.bossWon + ' fame +' + r.fame + ' over the same win against a plain opponent (want +' + r.want + ')');
+    if (!r.pro || !r.proTop || !r.proIs || !r.newSeason || !r.oldClean) throw new Error('pro Boss: ' + JSON.stringify(r));
+    return 'week ' + (r.week + 1) + ', ' + r.badge + ' at its top level · beating them: fame +' + r.fame + ' · a new pro Boss next season';
     function SC_minWeek() { return 2; }
   });
 

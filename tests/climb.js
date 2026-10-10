@@ -48,25 +48,20 @@ const { launch, openPage, runner } = require('./lib');
     return 'C pool ' + c0.toFixed(1) + ' · A ' + pool('A', false).toFixed(1) + ' · F ' + pool('F', false).toFixed(1) + ' · simmed C ' + pool('C', true).toFixed(1);
   }));
 
-  await step('the practice load cap (§1.2): a week pays at most 1.25 × a normal week; past it, practice turns into fatigue', () => ev(() => {
-    const a = wkLoadCap(100, 100), b = wkLoadCap(200, 100); if (a.xp !== 100 || a.fatigue !== 0) throw new Error('under the cap'); if (b.xp !== 125 || Math.abs(b.fatigue - WK.loadFatigue * 0.75) > 1e-9) throw new Error('over: ' + JSON.stringify(b));
-    const c = amCreate(defaultSave(), { name: 'Grinder', look: PRESET_LOOKS[1], number: 8, style: 'shooter', seed: 515 }); c.fatigue = 0;
-    const normal = amSessionXp(c, 'normal'), hard = amSessionXp(c, 'hard'); const r1 = amPractice(c, 'shooting', 'normal', normal); if (r1.loadFatigue) throw new Error('a normal session is under the cap');
-    c.wk = {}; c.fatigue = 0; const r2 = amPractice(c, 'shooting', 'hard', hard); const capX = WK.loadCap * normal; if (!(r2.loadFatigue > 0 && Math.abs(r2.xp - capX) < 1)) throw new Error('a hard session: ' + r2.xp + ' XP (cap ' + capX.toFixed(1) + '), +' + r2.loadFatigue + ' fatigue');
-    // a played drill is measured against a drill played to an average score, not the simmed session
-    c.wk = {}; c.fatigue = 0; const avg = amDrillXp(c, 'shooting', 'normal', WK.drillGreat.shooting * WK.loadDrillRef); const r3 = amPractice(c, 'shooting', 'normal', avg, true); if (r3.loadFatigue) throw new Error('an average drill is under the cap');
-    c.wk = {}; c.fatigue = 0; const great = amDrillXp(c, 'shooting', 'hard', 999); const r4 = amPractice(c, 'shooting', 'hard', great, true); if (!(r4.loadFatigue > 0 && r4.loadFatigue < 15)) throw new Error('a great hard drill: +' + r4.loadFatigue + ' fatigue');
-    const p = testProLeague(43); p.me.fatigue = 0; const pn = proSessionXp(p, 'shooting', 'normal'), r5 = proPractice(p, 'shooting', 'hard', proSessionXp(p, 'shooting', 'hard')); if (!(r5.loadFatigue > 0)) throw new Error('the pro cap');
-    if (Math.abs(r5.xp - WK.loadCap * pn) > 1) throw new Error('pro capped XP ' + r5.xp + ' vs ' + (WK.loadCap * pn).toFixed(1));
-    return 'hard session +' + r2.loadFatigue + ' fatigue · great hard drill ' + Math.round(great) + ' → ' + Math.round(r4.xp) + ' XP, +' + r4.loadFatigue + ' fatigue';
+  await step('the weekly drill (3.0 §3, was the practice load cap): it adds at most +' + 50 + '% to the week\'s training, however great the score, once a week; a week without it trains at the plain rate', () => ev(() => {
+    const M = WK.drill.bonus, c = amCreate(defaultSave(), { name: 'Grinder', look: PRESET_LOOKS[1], number: 8, style: 'sharpshooter', seed: 515 }); c.fatigue = 0; c.wk = {}; c.plan = 'focus'; c.focus = 'shooting';
+    const top = drillBonusFor('shooting', 999), avg = drillBonusFor('shooting', WK.drill.great.shooting / 2), none = drillBonusFor('shooting', 0); if (Math.abs(top - M) > 1e-9 || !(avg > 0 && avg < M) || none !== 0) throw new Error('the bonus by score: ' + [none, avg, top].join(' / '));
+    const d = wkDrillDone(c, 'shooting', 999); if (!d || d.bonus !== M || wkDrillDone(c, 'shooting', 999)) throw new Error('once a week: ' + JSON.stringify(d));
+    const xpIn = amSessionXp(c), r = amPractice(c, 'shooting'); if (!r || Math.abs(r.xp - Math.round(xpIn * (1 + M))) > 1) throw new Error('the drilled week: ' + (r && r.xp) + ' XP of ' + xpIn);
+    const c2 = amCreate(defaultSave(), { name: 'Plain', look: PRESET_LOOKS[1], number: 8, style: 'sharpshooter', seed: 515 }); c2.fatigue = 0; c2.wk = {}; c2.plan = 'focus'; c2.focus = 'shooting'; const r2 = amPractice(c2, 'shooting'); if (!r2 || Math.abs(r2.xp - Math.round(amSessionXp(c2))) > 1) throw new Error('a plain week: ' + (r2 && r2.xp));
+    return 'the drill: +' + Math.round(100 * avg) + '% at half a great score, +' + Math.round(100 * M) + '% at most · a drilled week ' + r.xp + ' XP, a plain one ' + r2.xp;
   }));
-
   await step('setbacks (§1.2): an injury can cost 1–3 rating points for good, longer ones more often; a physio cuts the odds (V10; R7: nutrition & physio)', () => ev(() => {
     const L = WK.injuryLoss; if (JSON.stringify(L.odds) !== '[0.25,0.5,0.85]') throw new Error('odds ' + JSON.stringify(L.odds));
     const rng = new RNG(5), by = {}, pts = new Set(); for (let i = 0; i < 6000; i++) { const B = {}; const inj = wkInjure(B, rng); const g = inj.games; const b = by[g] || (by[g] = [0, 0]); b[0]++; if (inj.loss) { b[1]++; pts.add(inj.loss.pts); const [lo, hi] = L.pts[clamp(g - 1, 0, 2)]; if (inj.loss.pts < lo || inj.loss.pts > hi) throw new Error(g + ' games: ' + inj.loss.pts + ' points'); if (!['spd', 'jmp'].includes(inj.loss.k)) throw new Error('the loss hits ' + inj.loss.k); } }
     for (const g in by) { const want = L.odds[clamp(g - 1, 0, 2)], got = by[g][1] / by[g][0]; if (Math.abs(got - want) > 0.04) throw new Error(g + '-game injuries cost points ' + (100 * got).toFixed(0) + '% (want ' + 100 * want + '%)'); }
     if (Math.min(...pts) !== 1 || Math.max(...pts) !== 3) throw new Error('points ' + [...pts]);
-    let n0 = 0, n1 = 0; const r2 = new RNG(6), r3 = new RNG(6); for (let i = 0; i < 4000; i++) { if (wkInjure({}, r2).loss) n0++; if (wkInjure({ staff: { v: 2, physio: { tier: 5 } } }, r3).loss) n1++; } if (!(n1 < n0 * (1 - SF.physioLoss[5] + 0.1))) throw new Error('a 5★ physio: ' + n1 + ' losses vs ' + n0); /* V10: the physio (R7: nutrition & physio) */
+    let n0 = 0, n1 = 0; const r2 = new RNG(6), r3 = new RNG(6), mk = () => { const B = {}; crewOf(B).staff.physio = { id: 'x', name: 'Test Physio', role: 'physio', lv: 5, yrs: 0 }; return B; }, cut = crewVal(mk(), 'physio', 'loss'); for (let i = 0; i < 4000; i++) { if (wkInjure({}, r2).loss) n0++; if (wkInjure(mk(), r3).loss) n1++; } if (!(cut > 0 && n1 < n0 * (1 - cut + 0.1))) throw new Error('a Lv5 physio: ' + n1 + ' losses vs ' + n0 + ' (cut ' + cut + ')'); /* 3.0 (§7): the crew's physio (was V10's staff tier) */
     // it comes off the rating once, and says so
     const c = amCreate(defaultSave(), { name: 'Hurt', look: PRESET_LOOKS[3], number: 3, style: 'slasher', seed: 616 }); c.injury = { name: 'Knee sprain', games: 3, loss: { k: 'jmp', pts: 2 } }; const before = c.r.jmp; const got = injuryLossApply(c);
     if (!got || c.r.jmp !== before - 2 || injuryLossApply(c)) throw new Error('applied once: ' + before + ' → ' + c.r.jmp); if (injLossText(c.injury) !== ', and −2 Hops for good') throw new Error('text: ' + injLossText(c.injury));

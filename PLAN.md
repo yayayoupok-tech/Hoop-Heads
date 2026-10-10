@@ -437,10 +437,14 @@ orange, 3× XP; the focus picker, the profile, the Codex) and raised by tourname
 and a skills coach; a good grade pays more XP in the pros (no flat decade); the legacy re-weighted toward awards, the
 player rankings, tournaments and medals and peak OVR (a bench ring half; the Hall at 350) (`tests/progress30.js`: play-well
 careers +687% legacy over lazy ones, 6+ OVR gains in their first 8 pro seasons 90% of the time, fame 74/47/18 by policy).
-Part 2 §1.1's difficulty bands (`tests/difficulty.js`) predate 3.0's crew, badges and tournaments: X11 retunes or
-re-bands them.
-**X11 — App readiness, the full suite, version 3.0, the republish** — §10–11: every §11 table printed; the README's
-feature list rewritten for 3.0 (it still describes 2.1's story, press room, rarities and staff).
+Part 2 §1.1's difficulty bands (`tests/difficulty.js`) predate 3.0's crew, badges and tournaments: X11 re-bands them.
+**X11 — App readiness, the full suite, version 3.0, the republish** *(done)* — §10: every price in one table
+(`ECONOMY`), a STORE module (a product catalogue, `purchase(sku)` through a provider; the web build's is a disabled stub,
+no payment code; fair products, each earnable by playing), SAVE apart from the pros' progression with one storage
+adapter, save codes (`HH3:`; Settings → Save), an upright phone that turns the game (Settings → Display), offline;
+`tests/store30.js`. §11: the whole suite on the final build, every table printed (CHANGES.md, X11); thirteen suites
+rewritten for 3.0 and the bugs they found fixed; `tests/difficulty.js` judged by 3.0's bands with Part 2's targets
+beside them. Version 3.0, What's new in 3.0, the README rewritten, the artifact republished.
 
 ## Testing every milestone
 

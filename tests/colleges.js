@@ -1,21 +1,23 @@
-// 2.1 §2.1 (W3): every college, browsable. The 64 programs (8 conferences of 8, the same 64 the national tournament
-// uses) and what each one has: a place, colors and a pixel crest, an arena, a tier and prestige, a coach (style,
-// tenure, hot seat), academics (a GPA line, majors), facilities, an NIL market, the depth chart you'd join, history
-// (titles, pros, a rival). Per career, from the seed: coaches, rosters, the recruits chasing the scholarship spots,
-// interest in you. The College Browser (filters, sorting, search), a program's page with "Your chances", the high
-// school hub's RECRUIT tab, the Codex page; offers, your team, your conference and the national field come from the
-// registry; old saves keep their program.
+// 2.1 §2.1 (W3), as 3.0 left it: every college, browsable. The 64 programs (8 conferences of 8, the same 64 the
+// national tournament uses) and what each one has: a place, colors and a pixel crest, an arena, a tier and prestige, a
+// coach (style, tenure, hot seat), a GPA line, facilities, an NIL market, the depth chart you'd join, history (titles,
+// pros); 3.0 §1 took the majors and the rivals. Per career, from the seed: coaches, rosters, the recruits chasing the
+// scholarship spots, interest in you. The college list (3.0 §1, §8: all 64 ranked, no search or filters), a program's
+// page with "Your chances" (X9: a held spot), recruiting in high school (3.0 §2.1: a card and a button on HOME open the
+// recruiting board, 2.1's RECRUIT tab; Colleges on LEAGUE), the same on a phone, the Codex page; offers, your team, your
+// conference and the national field come from the registry; old saves keep their program.
 // node tests/colleges.js   (ONLY=<regex> runs the matching steps)
 const { launch, openPage, runner } = require('./lib');
 const path = require('path'), fs = require('fs');
 
 // Installed on each page: a high school career (sophomore by default) with its team; a college career at a program
-// (by id); the strings one synchronous UI draw shows.
+// (by id); the strings one synchronous UI draw shows, and the ones it cuts to fit.
 const LIB = `
 window.tMkHs = (seed, year) => { const g = HH.game, a = amCreate(defaultSave(), { name: 'College Test', look: PRESET_LOOKS[seed % 16], number: 4, style: 'slasher', seed }); hsSimTryout(a); a.events.length = 0; a.stageYear = year || 2; g.save.data.c1 = a; g.save.data.career = null; return a; };
 window.tMkCol = (seed, pid) => { const a = tMkHs(seed, 4); for (const k of RATING_KEYS) a.r[k] = Math.max(a.r[k], 64); a.gpa = 3.5; a.offers = []; hsOfferCheck(a, amRng(a), 'final'); a.events.length = 0; amStartRecruiting(a, amRng(a)); a.events.length = 0;
   let o = a.decision.offers.find(x => !x.draft && (!pid || x.pid === pid)); if (!o) { o = colOfferFrom(a, colProg(pid), 'final'); a.decision.offers.push(o); } amChooseCollege(a, o); a.events.length = 0; return a; };
 window.tTexts = g => { g.ui.trans = null; RBF.boxes = []; let X = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { X = RBF.boxes || []; RBF.boxes = null; } return X.map(x => String(x.t)).join(' | '); };
+window.tCut = g => { g.ui.trans = null; RBF.boxes = []; let X = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { X = RBF.boxes || []; RBF.boxes = null; } return X.filter(x => x.cut).map(x => '"' + x.cut + '" → "' + x.t + '"'); };
 window.tSmall = g => { const ui = g.ui, s = ui.screen; return (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && w.kind !== 'text' && (w.w * ui.scale < 63.5 || w.h * ui.scale < 63.5)).map(w => (w.label || w.kind) + ' ' + Math.round(w.w * ui.scale) + '×' + Math.round(w.h * ui.scale)); };
 `;
 const OLD_NAMES = ['Pine Ridge College', 'Eastbrook College', 'Lakeshore Tech', 'Harbor City University', 'Granite Valley State', 'Northgate University', 'Riverside State', 'Summit A&M', 'Coastal University', 'Royal Oak University', 'Kingsbridge University',
@@ -25,15 +27,15 @@ const OLD_NAMES = ['Pine Ridge College', 'Eastbrook College', 'Lakeshore Tech', 
   const b = await launch(); const R = runner('colleges');
   const P = await openPage(b, { wait: 900 }); const { ev } = P; await ev(src => { (0, eval)(src); }, LIB);
 
-  await R.step('the registry: 64 programs in 8 conferences of 8 (3 power, 2 mid-major, 2 small, the Laurel League); every field there and sane; rivals pair up; 5 blue bloods; the 24 names from before 2.1', () => ev(OLD => {
+  await R.step('the registry: 64 programs in 8 conferences of 8 (3 power, 2 mid-major, 2 small, the Laurel League); every field there and sane; no rivals (3.0 §1); 5 blue bloods; the 24 names from before 2.1', () => ev(OLD => {
     const bad = []; if (COLLEGES.length !== 64) bad.push('programs ' + COLLEGES.length); if (COL_CONFS.map(q => q.kind).join() !== 'power,power,power,mid,mid,small,small,academic') bad.push('kinds ' + COL_CONFS.map(q => q.kind));
     for (let k = 0; k < COL_CONFS.length; k++) { const M = colMembers(k); if (M.length !== 8) bad.push(COL_CONFS[k].name + ' has ' + M.length); if (new Set(M.map(q => q.colors.join())).size !== M.length) bad.push(COL_CONFS[k].name + ' shares colors'); }
     if (new Set(COLLEGES.map(q => q.id)).size !== 64 || new Set(COLLEGES.map(q => q.name)).size !== 64) bad.push('ids or names repeat');
     for (const q of COLLEGES) { const f = [];
       if (!q.city || !COL_STATES[q.st]) f.push('place'); if (!q.colors.every(x => /^#[0-9A-F]{6}$/i.test(x)) || q.colors[0] === q.colors[1]) f.push('colors'); if (!q.arena) f.push('arena');
       if (![0, 1, 2, 3].includes(q.tier) || !(q.stars >= 1 && q.stars <= 5) || !(q.fac >= 1 && q.fac <= 5) || ![0, 1, 2].includes(q.nil)) f.push('tier/stars/fac/nil');
-      if (!q.majors.length || q.majors.some(m => !SCH_MAJOR[m])) f.push('majors'); if (!(Number.isInteger(q.titles) && q.titles >= 0 && Number.isInteger(q.pros) && q.pros >= 0)) f.push('history');
-      const rv = colProg(q.rival); if (!rv || rv.id === q.id || rv.rival !== q.id || rv.conf !== q.conf) f.push('rival'); if (q.academic !== (COL_CONFS[q.conf].kind === 'academic')) f.push('academic');
+      if (!(Number.isInteger(q.titles) && q.titles >= 0 && Number.isInteger(q.pros) && q.pros >= 0)) f.push('history');
+      if (q.rival != null) f.push('a rival (3.0 §1: rivals, all of them, are gone)'); if (q.academic !== (COL_CONFS[q.conf].kind === 'academic')) f.push('academic');
       if (!(q.x >= 0 && q.x <= 100 && q.y >= 0 && q.y <= 60)) f.push('map'); if (!colTierLabel(q) || !(colGpaReq(q) > 0)) f.push('labels');
       if (f.length) bad.push(q.id + ': ' + f.join(',')); }
     const blue = COLLEGES.filter(q => q.tier === 3).map(q => q.id).sort().join(); if (blue !== 'kingsbridge,marlowe,royaloak,thornfield,vallance') bad.push('blue bloods ' + blue);
@@ -76,41 +78,40 @@ const OLD_NAMES = ['Pine Ridge College', 'Eastbrook College', 'Lakeshore Tech', 
     if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); const W = v0.filter(v => v >= S[0]).length, O = v0.filter(v => v >= S[2]).length; return 'a junior: ' + W + ' programs watching or more, ' + O + ' in offer range · near ' + near + ' / far ' + far;
   }), P);
 
-  await R.step('the browser\'s list: filters (a conference: its 8; Blue blood: the 5; 5★; GPA lines you meet; within 300 mi; interested in me: 25+), the search by name, the sorts (interest high first, name, stars, distance, GPA line, conference)', () => ev(() => {
-    const a = tMkHs(31, 3), bad = [], st0 = { conf: 0, tier: 0, stars: 0, gpa: 0, dist: 0, mine: false, sort: 0, q: '', page: 0 }, L = o => colBrowseList(a, Object.assign({}, st0, o)); a.gpa = 2.6;
-    if (L({}).length !== 64) bad.push('all ' + L({}).length);
-    for (let k = 0; k < 8; k++) { const x = L({ conf: k + 1 }); if (x.length !== 8 || x.some(q => q.conf !== k)) bad.push('conference ' + k); }
-    if (L({ tier: 1 }).map(q => q.id).sort().join() !== 'kingsbridge,marlowe,royaloak,thornfield,vallance') bad.push('blue blood'); if (L({ tier: 5 }).some(q => !q.academic) || L({ tier: 5 }).length !== 8) bad.push('elite academic');
-    if (L({ stars: 1 }).some(q => q.stars !== 5) || L({ stars: 5 }).some(q => q.stars !== 1)) bad.push('stars'); const g = L({ gpa: 1 }); if (!g.length || g.some(q => colGpaReq(q) > a.gpa) || g.length === 64) bad.push('GPA lines you meet ' + g.length);
-    const d = L({ dist: 1 }); if (d.some(q => colMiles(a, q) > 300)) bad.push('within 300 mi'); const m = L({ mine: true }); if (m.some(q => colInterest(a, q.id) < COLG.stages[0])) bad.push('interested in me');
-    const s = L({ q: 'oak' }).map(q => q.name); if (!s.includes('Royal Oak University') || s.some(n => !/oak/i.test(n + ' ' + colPlace(colProgByName(n))))) bad.push('search oak: ' + s);
-    const mono = (arr, f) => arr.every((q, i) => i === 0 || f(arr[i - 1]) <= f(q));
-    if (!mono(L({ sort: 0 }), q => -colInterest(a, q.id))) bad.push('sort interest'); if (!mono(L({ sort: 1 }), q => q.name)) bad.push('sort name'); if (!mono(L({ sort: 2 }), q => -q.stars)) bad.push('sort stars'); if (!mono(L({ sort: 3 }), q => colMiles(a, q))) bad.push('sort distance'); if (!mono(L({ sort: 4 }), q => colGpaReq(q))) bad.push('sort GPA'); if (!mono(L({ sort: 5 }), q => q.conf)) bad.push('sort conference');
-    const c = tMkCol(32); if (!mono(colBrowseList(c, Object.assign({}, st0)), q => q.conf)) bad.push('college: Interest sorts by conference'); if (colBrowseFilterCount(Object.assign({}, st0, { conf: 2, mine: true, q: 'x' })) !== 3) bad.push('filter count');
-    if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'GPA 2.60 meets ' + g.length + ' lines · ' + d.length + ' within 300 mi · ' + m.length + ' interested · "oak": ' + s.length;
+  await R.step('the college list (3.0 §1, §8: no search keyboard, no filters): all 64 programs, each once, ranked by prestige (its stars now), then level (blue bloods first), then name; a program\'s stars follow its rankings (X4); the same list in college; the list keeps only its page', () => ev(() => {
+    const g = HH.game, a = tMkHs(31, 3), bad = [], L = colRankList(), ids = L.map(q => q.id);
+    if (L.length !== 64 || new Set(ids).size !== 64 || COLLEGES.some(q => !ids.includes(q.id))) bad.push('the list: ' + L.length + ' (' + new Set(ids).size + ' distinct)');
+    const sn = colStarsNow, before = (p, q) => sn(p) > sn(q) || (sn(p) === sn(q) && (p.tier > q.tier || (p.tier === q.tier && p.name < q.name))), at = L.findIndex((q, i) => i > 0 && !before(L[i - 1], q)); if (at > 0) bad.push('out of order at #' + (at + 1) + ': ' + L[at - 1].name + ' before ' + L[at].name);
+    if (ids.slice(0, 5).sort().join() !== 'kingsbridge,marlowe,royaloak,thornfield,vallance') bad.push('the first five: ' + ids.slice(0, 5));
+    colWorld(a).stars = { pineridge: 5, royaloak: 4 }; const L2 = colRankList().map(q => q.id), i5 = L2.indexOf('pineridge'), i4 = L2.indexOf('royaloak'); a.cw.stars = {}; if (i5 !== 4 || i4 !== 5) bad.push('the rankings\' stars: Pine Ridge at 5★ #' + (i5 + 1) + ', Royal Oak at 4★ #' + (i4 + 1));
+    tMkCol(32); if (colRankList().map(q => q.id).join() !== ids.join()) bad.push('another list in college');
+    g.colBrowse = null; const st = colBrowseState(g); if (Object.keys(st).join() !== 'page') bad.push('the list keeps ' + Object.keys(st)); const old = ['colBrowseList', 'colBrowseFilterCount', 'colFiltersScreen'].filter(f => typeof window[f] === 'function'); if (old.length) bad.push('2.x filters: ' + old.join(', '));
+    if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'by stars 5/4/3/2/1: ' + [5, 4, 3, 2, 1].map(s => L.filter(q => sn(q) === s).length).join('/') + ' · #1 ' + L[0].name + ', #64 ' + L[63].name + ' · moved to 5★, Pine Ridge College ranks #' + (i5 + 1);
   }), P);
 
-  await R.step('the College Browser (desktop): 8 rows a page with crest, name, place, tier, prestige, interest and miles; the selects, Interested in me, Search, Clear filters; paging; a row opens its program\'s page, Previous / Next walk the list', () => ev(() => {
-    const g = HH.game, a = tMkHs(41, 3), bad = []; g.colBrowse = null; g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); g.ui.push(collegeBrowserScreen(g)); const s = g.ui.screen; s.update(0.016); if (s.name !== 'colbrowser') throw new Error('screen ' + s.name);
-    const labels = s.widgets.filter(w => !w.hidden).map(w => w.label); for (const l of ['Conference', 'Tier', 'Stars', 'GPA', 'Miles', 'Sort', 'Interested in me', 'Search', 'Clear filters', '◀ Prev', 'Next ▶', 'Back']) if (!labels.includes(l)) bad.push('no ' + l);
-    const rows = s.widgets.filter(w => /^Program/.test(w.label) && !w.hidden); if (rows.length !== COLG.pageRows.desk) bad.push(rows.length + ' rows');
-    const T = tTexts(g); const first = rows[0].prog; if (!first) bad.push('no program in the first row'); else for (const t of [first.name, colTierShort(first), COL_CONFS[first.conf].short, String(colInterest(a, first.id)), colMiles(a, first).toLocaleString('en-US') + ' mi', 'Page 1 / 8']) if (!T.includes(t)) bad.push('the list does not show "' + t + '"');
-    s.widgets.find(w => w.label === 'Next ▶').onPress(); s.update(0.016); if (rows[0].prog === first || g.colBrowse.page !== 1) bad.push('Next');
-    const conf = s.widgets.find(w => w.label === 'Conference'); conf.set(8); s.update(0.016); const shown = s.widgets.filter(w => /^Program/.test(w.label) && !w.hidden); if (shown.length !== 8 || shown.some(w => !w.prog.academic) || g.colBrowse.page !== 0) bad.push('the Laurel League filter: ' + shown.length);
-    s.widgets.find(w => w.label === 'Clear filters').onPress(); s.update(0.016); if (g.colBrowse.conf !== 0) bad.push('Clear filters');
-    const r0 = s.widgets.find(w => /^Program/.test(w.label) && !w.hidden), want = r0.prog; r0.onPress(); const p = g.ui.screen; if (p.name !== 'colprogram' || p.prog !== want.id) bad.push('a row opens ' + p.name + ' ' + p.prog);
-    const list = colBrowseList(a, g.colBrowse); p.widgets.find(w => /Next/.test(w.label)).onPress(); if (p.prog !== list[1].id) bad.push('Next on the page: ' + p.prog + ' (wanted ' + list[1].id + ')'); p.widgets.find(w => /Previous/.test(w.label)).onPress(); p.widgets.find(w => /Previous/.test(w.label)).onPress(); if (p.prog !== list[list.length - 1].id) bad.push('Previous wraps');
-    p.update(0.016); const rv = p.widgets.find(w => /^Rival: /.test(w.label)); const cur = colProg(p.prog); rv.onPress(); if (p.prog !== cur.rival) bad.push('Rival');
-    g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'first row ' + first.name + ' (' + colInterest(a, first.id) + ')';
+  await R.step('the college list (desktop): 8 rows a page, ranked #1 to #64, with crest, name, place, conference, tier, stars, miles, your interest and its stage; no filters, sort or search (3.0 §1); ◀ Prev / Next ▶ page through 8 pages and wrap, clear of Back (X9); a row opens its program\'s page, ◀ Previous / Next ▶ there walk the ranked list', () => ev(() => {
+    const g = HH.game, a = tMkHs(41, 3), bad = [], L = colRankList(), per = COLG.pageRows.desk; g.colBrowse = null; g.hubTab = 'home'; g.ui.clearTo(amHub(g)); g.ui.push(collegeBrowserScreen(g)); const s = g.ui.screen; if (s.name !== 'colbrowser') throw new Error('screen ' + s.name);
+    const rows = () => s.widgets.filter(w => /^Program/.test(w.label) && w.prog && !w.hidden), ids = W => W.map(w => w.prog.id).join(), labels = s.widgets.filter(w => !w.hidden).map(w => w.label), btns = ['◀ Prev', 'Next ▶', 'Back'].map(l => s.widgets.find(w => w.label === l && !w.hidden));
+    btns.forEach((b, i) => { if (!b) bad.push('no ' + ['◀ Prev', 'Next ▶', 'Back'][i]); }); const old = labels.filter(l => /^(Conference|Tier|Stars|GPA|Miles|Sort|Interested in me|Search|Clear filters|Filters)/.test(l)); if (old.length) bad.push('2.x controls: ' + old.join(', '));
+    const B = btns.filter(Boolean), hit = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h; if (B.some((p, i) => B.some((q, j) => j > i && hit(p, q)))) bad.push('the buttons overlap');
+    if (ids(rows()) !== L.slice(0, per).map(q => q.id).join()) bad.push('page 1: ' + ids(rows()));
+    const T = tTexts(g), first = L[0]; for (const t of ['RANK', 'PROGRAM', 'CONFERENCE', 'STARS', 'INTEREST', '#1', '#' + per, 'Page 1 / 8', first.name, colPlace(first), COL_CONFS[first.conf].short, colTierShort(first), String(colInterest(a, first.id)), colMiles(a, first).toLocaleString('en-US') + ' mi']) if (!T.includes(t)) bad.push('the list does not show "' + t + '"');
+    s.widgets.find(w => w.label === 'Next ▶').onPress(); if (g.colBrowse.page !== 1 || ids(rows()) !== L.slice(per, 2 * per).map(q => q.id).join()) bad.push('Next ▶: page ' + (g.colBrowse.page + 1));
+    for (let i = 0; i < 2; i++) s.widgets.find(w => w.label === '◀ Prev').onPress(); if (g.colBrowse.page !== 7 || ids(rows()) !== L.slice(7 * per).map(q => q.id).join()) bad.push('◀ Prev wraps to page ' + (g.colBrowse.page + 1));
+    const T8 = tTexts(g), hot = rows().map(w => w.prog).find(q => colInterest(a, q.id) >= COLG.stages[0]); if (!T8.includes('Page 8 / 8') || !T8.includes('#64')) bad.push('page 8 does not say so'); if (!hot) bad.push('nobody on page 8 is interested'); else if (!T8.includes(colStage(colInterest(a, hot.id)))) bad.push('no stage for ' + hot.name);
+    const r = rows()[per - 1], want = r.prog; r.onPress(); const p = g.ui.screen; if (p.name !== 'colprogram' || p.prog !== want.id) bad.push('a row opens ' + p.name + ' ' + p.prog);
+    p.update(0.016); const nx = p.widgets.find(w => w.label === 'Next ▶' && !w.hidden), pv = p.widgets.find(w => w.label === '◀ Previous' && !w.hidden); if (!nx || !pv) bad.push('no ◀ Previous / Next ▶ on the page'); else { nx.onPress(); if (p.prog !== L[0].id) bad.push('Next ▶ from #64: ' + p.prog + ' (wanted ' + L[0].id + ')'); pv.onPress(); pv.onPress(); if (p.prog !== L[62].id) bad.push('◀ Previous: ' + p.prog + ' (wanted ' + L[62].id + ')'); }
+    g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'page 1: ' + first.name + ' … ' + L[per - 1].name + ' · page 8: ' + hot.name + ' ' + colInterest(a, hot.id) + ' (' + colStage(colInterest(a, hot.id)) + ')';
   }), P);
 
-  await R.step('a program\'s page (desktop) shows it all: name, place, conference, tier, prestige, arena; the coach (name, style, tenure); GPA line and majors; facilities, NIL market, distance; the players ahead of you with OVR; titles, pros, rival; your interest, its stage, the spots and the recruits chasing them', () => ev(() => {
+  await R.step('a program\'s page (desktop) shows it all: name, place, conference, tier, prestige, arena; the coach (name, style, tenure); the GPA line; facilities, NIL market, distance; the players ahead of you with OVR; titles and pros (3.0 §1: no majors, no rival); your interest, its stage, the spots, what you\'ve earned there and the recruits chasing them; a top target\'s offer held (X9); nothing cut', () => ev(() => {
     const g = HH.game, a = tMkHs(51, 3), bad = []; a.gpa = 3.5; const q = colProg('summitam'); g.ui.clearTo(amHub(g)); g.ui.push(collegeProgramScreen(g, q.id)); g.ui.screen.update(0.016); const T = tTexts(g), co = colCoach(a, q.id), Rr = colRoster(a, q.id), S = colSpots(a, q.id), v = colInterest(a, q.id);
-    const want = [q.name, colPlace(q), COL_CONFS[q.conf].name, colTierLabel(q), q.arena, co.name, 'Style: ' + COL_SYS[co.sys].label, colTenureText(co), 'GPA line ' + colGpaReq(q).toFixed(1), 'Majors:', 'Facilities', 'NIL market', 'Distance', colMiles(a, q).toLocaleString('en-US') + ' mi', 'National titles', String(colTitles(a, q.id)), 'Pros produced', 'Rival', colProg(q.rival).name, String(v), 'Spots left: ' + S.left + ' of ' + S.total];
-    for (const m of Rr.mates.slice(0, Math.min(4, Rr.start - 1))) want.push(m.name, 'OVR ' + tmMateOvr(m)); for (const r of S.recruits.slice(0, 5)) want.push(colShortName(r.name));
-    for (const t of want) if (!T.includes(t)) bad.push('no "' + t + '"');
+    const want = [q.name, colPlace(q), COL_CONFS[q.conf].name, colTierLabel(q), q.arena, co.name, 'Style: ' + COL_SYS[co.sys].label, colTenureText(co), 'GPA line ' + colGpaReq(q).toFixed(1), 'Facilities', 'NIL market', COL_NIL_WORD[q.nil], 'Distance', colMiles(a, q).toLocaleString('en-US') + ' mi', 'National titles', String(colTitles(a, q.id)), 'Pros produced', String(colPros(a, q.id)), String(v), '/ 100 · ' + colStage(v, S.left), 'Spots left: ' + S.left + ' of ' + S.total, 'Earned'];
+    for (const m of Rr.mates.slice(0, Math.min(4, Rr.start - 1))) want.push(m.name, 'OVR ' + tmMateOvr(m)); for (const r of S.recruits.slice(0, 5)) want.push(r.name.split(' ').slice(-1)[0]); /* (a long name shows its last name) */
+    for (const t of want) if (!T.includes(t)) bad.push('no "' + t + '"'); if (/Majors|Rival/.test(T)) bad.push('majors or a rival (3.0 §1)'); const cut = tCut(g); if (cut.length) bad.push('cut: ' + cut.join(', '));
+    const H = colProg('cedarfalls'); a.offers.push(colOfferFrom(a, H, 'junior')); recHold(a, H.id); g.ui.clearTo(amHub(g)); g.ui.push(collegeProgramScreen(g, H.id)); const TH = tTexts(g); for (const t of ['/ 100 · they offered you', 'Held for you through Signing Day']) if (!TH.includes(t)) bad.push(H.name + ' (held): no "' + t + '"');
     const P2 = colProg('ashford'); g.ui.clearTo(amHub(g)); g.ui.push(collegeProgramScreen(g, P2.id)); const T2 = tTexts(g); if (!T2.includes('Elite academic') || !T2.includes('GPA line 3.3')) bad.push('an elite academic page');
-    g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 8).join(' | ')); return q.name + ': coach ' + co.name + ' (' + COL_SYS[co.sys].label + '), you\'d begin #' + Rr.start + ', interest ' + v + ', spots ' + S.left + '/' + S.total;
+    g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 8).join(' | ')); return q.name + ': coach ' + co.name + ' (' + COL_SYS[co.sys].label + '), you\'d begin #' + Rr.start + ', interest ' + v + ', spots ' + S.left + '/' + S.total + ' · ' + H.name + ': held for you';
   }), P);
 
   await R.step('offers come from the registry (id, colors, coach); the page says "Offered"; an offer holds no spot (2.1: whoever commits first gets it) unless you\'re one of its top targets (3.0 §8: then it holds one through Signing Day), your commitment does; the recruits commit in the order they come and the first take the spots', () => ev(() => {
@@ -159,40 +160,47 @@ const OLD_NAMES = ['Pine Ridge College', 'Eastbrook College', 'Lakeshore Tech', 
       g.save.data = defaultSave(); g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'Granite Valley State → ' + colConfName(a) + ' · Old Test University in the ' + COL_CONFS[k].name + ' for ' + out.name;
     }, raw); }, P);
 
-  await R.step('the RECRUIT tab (high school only): six tabs, key 5 opens it; College Browser (gold), Offers & rank (the offer dot), Signing Day when it\'s time; the programs most interested in you, a tap opens the page; not in college', () => ev(() => {
-    const g = HH.game, a = tMkHs(91, 3), bad = []; g.hubTab = 'play'; g.ui.clearTo(amHub(g)); const s = g.ui.screen; const tabs = s.widgets.filter(w => w.hubTab).map(w => w.label).join(); if (tabs !== 'Tab: Play,Tab: Train,Tab: Me,Tab: Team,Tab: Recruit,Tab: Shop') bad.push('tabs ' + tabs);
-    s.update(0.016, { anyKey: 'Digit5' }); if (g.hubTab !== 'recruit' || s.tab !== 'recruit') bad.push('key 5 → ' + g.hubTab);
-    const W = s.widgets.filter(w => !w.hubTab && !w.hidden), L = W.map(w => w.label); const br = W.find(w => w.label === 'College Browser'); if (!br || !br.primary) bad.push('College Browser (gold)'); if (!L.includes('Offers & rank')) bad.push('Offers & rank'); if (L.includes('Choose your college')) bad.push('Choose before it\'s time');
-    const rows = W.filter(w => 'prog' in w); const top = hubRecruitTop(a, 6); if (rows.length !== 6 || rows.map(w => w.prog.id).join() !== top.map(q => q.id).join()) bad.push('rows ' + rows.map(w => w.prog && w.prog.id));
+  await R.step('recruiting on HOME (high school only; 3.0 §2.1: five tabs, no RECRUIT tab): an old save\'s recruit tab opens HOME, keys 1–5 switch tabs; the RECRUITING card and the Recruiting button (the offer dot, on the HOME tab too) open the board: Colleges (gold), Offers & rank, Recruiting log, Signing Day when it\'s time; the six programs most interested in you, a tap opens the page; not in college (the Road on HOME, Colleges on LEAGUE)', () => ev(() => {
+    const g = HH.game, a = tMkHs(91, 3), bad = []; g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); const s = g.ui.screen; const tabs = s.widgets.filter(w => w.hubTab).map(w => w.label).join(); if (tabs !== 'Tab: Home,Tab: League,Tab: Events,Tab: Career,Tab: Store') bad.push('tabs ' + tabs); if (s.tab !== 'home') bad.push('the recruit tab opens ' + s.tab);
+    s.update(0.016, { anyKey: 'Digit5' }); if (g.hubTab !== 'store' || s.tab !== 'store') bad.push('key 5 → ' + g.hubTab); s.update(0.016, { anyKey: 'Digit1' }); if (g.hubTab !== 'home' || s.tab !== 'home') bad.push('key 1 → ' + g.hubTab);
+    const top = hubRecruitTop(a, 6), card = () => amHubData(g, a).recruitCard || {}, rb = () => s.widgets.find(w => w.label === 'Recruiting' && !w.hidden), home = () => tTexts(g).replace(/ \| /g, ' '); /* (a line can wrap) */
+    for (const t of ['RECRUITING', card().stars, card().rank, card().line]) if (!t || !home().includes(t)) bad.push('the card on HOME: no "' + t + '"'); if (!rb()) throw new Error('no Recruiting button on HOME | ' + bad.join(' | ')); if (rb().dot()) bad.push('a dot with no offer');
+    a.offers.push(colOfferFrom(a, top[0], 'junior')); a.offersSeen = 0; s.build(); const B0 = hubBadges(g, a); if (!B0.home || B0.league) bad.push('the offer dot is not on HOME: ' + JSON.stringify(B0)); if (!rb().dot()) bad.push('no dot on Recruiting'); if (!home().includes('1 offer · best: ' + top[0].name)) bad.push('the card: ' + card().line);
+    rb().onPress(); const bd = g.ui.screen; if (bd.name !== 'recboard') throw new Error('Recruiting opens ' + bd.name + ' | ' + bad.join(' | ')); if (hubBadges(g, a).home) bad.push('the dot stays');
+    const W = bd.widgets.filter(w => !w.hidden), L = W.map(w => w.label), br = W.find(w => w.label === 'Colleges'); if (!br || !br.primary) bad.push('Colleges (gold)'); for (const l of ['Offers & rank', 'Recruiting log', 'Back']) if (!L.includes(l)) bad.push('no ' + l); if (L.includes('Choose your college') || L.includes('Signing Day')) bad.push('Signing Day before it\'s time');
+    const rows = W.filter(w => w.prog); if (rows.length !== 6 || rows.map(w => w.prog.id).join() !== top.map(q => q.id).join()) bad.push('rows ' + rows.map(w => w.prog && w.prog.id));
     const T = tTexts(g); for (const t of ['YOUR RECRUITMENT', 'MOST INTERESTED IN YOU', top[0].name]) if (!T.toUpperCase().includes(t.toUpperCase())) bad.push('no "' + t + '"');
-    a.offers.push(colOfferFrom(a, top[0], 'junior')); a.offersSeen = 0; if (!hubBadges(g, a).recruit || hubBadges(g, a).team) bad.push('the offer dot is not on RECRUIT'); s.build(); const of = s.widgets.find(w => w.label === 'Offers & rank'); if (!of.dot()) bad.push('no dot on Offers & rank'); of.onPress(); g.ui.pop(); if (hubBadges(g, a).recruit) bad.push('the dot stays');
+    for (const [l, want] of [['Colleges', 'colbrowser'], ['Offers & rank', 'recruiting'], ['Recruiting log', 'reclog']]) { const w = W.find(x => x.label === l); if (!w) continue; w.onPress(); if (g.ui.screen.name !== want) bad.push(l + ' opens ' + g.ui.screen.name); g.ui.pop(); }
     rows[0].onPress(); if (g.ui.screen.name !== 'colprogram' || g.ui.screen.prog !== top[0].id) bad.push('a row opens ' + g.ui.screen.name); g.ui.pop();
-    a.stageYear = 4; amStartRecruiting(a, amRng(a)); a.events.length = 0; g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); if (!g.ui.screen.widgets.some(w => w.label === 'Signing Day' && !w.hidden)) bad.push('no Signing Day at decision time'); /* 2.1 (§2.5) */
-    const c = tMkCol(92); g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); const s2 = g.ui.screen; if (s2.widgets.some(w => w.label === 'Tab: Recruit') || s2.tab !== 'play') bad.push('a RECRUIT tab in college'); g.hubTab = 'team'; s2.build(); if (!s2.widgets.some(w => w.label === 'Colleges')) bad.push('no Colleges button in college');
-    g.hubTab = 'play'; g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'top: ' + top.slice(0, 3).map(q => q.name + ' ' + colInterest(a, q.id)).join(', ');
+    a.stageYear = 4; amStartRecruiting(a, amRng(a)); a.events.length = 0; g.hubTab = 'home'; g.ui.clearTo(amHub(g)); const h4 = g.ui.screen; if (!h4.widgets.some(w => w.label === 'SIGNING DAY' && w.primary)) bad.push('no SIGNING DAY on HOME'); /* 2.1 (§2.5) */
+    h4.widgets.find(w => w.label === 'Recruiting').onPress(); const W4 = g.ui.screen.widgets; if (!W4.some(w => w.label === 'Signing Day' && !w.hidden && w.primary) || W4.find(w => w.label === 'Colleges').primary) bad.push('no Signing Day (gold) on the board at decision time');
+    const c = tMkCol(92); g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); const s2 = g.ui.screen; if (s2.tab !== 'home' || s2.widgets.some(w => w.label === 'Recruiting') || amHubData(g, c).recruitCard || !s2.widgets.some(w => w.label === 'The road') || !/ROAD TO THE LEAGUE/.test(tTexts(g))) bad.push('recruiting on HOME in college'); g.hubTab = 'league'; s2.build(); if (!s2.widgets.some(w => w.label === 'Colleges')) bad.push('no Colleges on LEAGUE in college');
+    g.hubTab = 'home'; g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return 'top: ' + top.slice(0, 3).map(q => q.name + ' ' + colInterest(a, q.id)).join(', ');
   }), P);
 
-  await R.step('the Codex: a Colleges & recruiting page (the programs, interest, spots, coaches, facilities and NIL; your values); no undefined or NaN; ? on the browser, a program\'s page and the RECRUIT tab opens it', () => ev(() => {
+  await R.step('the Codex: a Colleges & recruiting page (the programs, interest, spots, coaches, facilities and NIL; your values); no undefined or NaN; it points to 3.0\'s screens (no RECRUIT or Team tab); ? on the college list, a program\'s page and the recruiting board (HOME → Recruiting) opens it', () => ev(() => {
     const g = HH.game, bad = []; const a = tMkHs(101, 3); const E = guideEntries(g, 'colleges'), titles = E.map(e => e.title); for (const t of ['The 64 programs', 'Interest in you', 'Scholarship spots', 'Coaches', 'Facilities, NIL and distance']) if (!titles.includes(t)) bad.push('no ' + t);
     const all = JSON.stringify(E); if (/undefined|NaN|\[object/.test(all)) bad.push('undefined/NaN'); if (!E.find(e => e.title === 'Interest in you').value) bad.push('no interest value in high school');
+    const tabs2 = all.match(/[^."]*\b(RECRUIT tab|Team → )[^."]*/g); if (tabs2) bad.push('2.x tabs: "' + tabs2.map(x => x.trim()).join('", "') + '"');
     const c = tMkCol(102); const E2 = guideEntries(g, 'colleges'); if (!/^yours: /.test(E2[0].value) || /undefined|NaN/.test(JSON.stringify(E2))) bad.push('college values ' + E2[0].value);
-    g.save.data.c1 = a; for (const [tag, open] of [['browser', () => { g.ui.clearTo(amHub(g)); g.ui.push(collegeBrowserScreen(g)); }], ['program', () => { g.ui.clearTo(amHub(g)); g.ui.push(collegeProgramScreen(g, 'royaloak')); }], ['recruit tab', () => { g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); }]]) { open(); const t = codexTopicFor(g, g.ui.screen); if (t !== 'colleges') bad.push(tag + ' → ' + t); }
+    g.save.data.c1 = a; for (const [tag, open] of [['college list', () => { g.ui.clearTo(amHub(g)); g.ui.push(collegeBrowserScreen(g)); }], ['program', () => { g.ui.clearTo(amHub(g)); g.ui.push(collegeProgramScreen(g, 'royaloak')); }], ['recruiting board', () => { g.hubTab = 'home'; g.ui.clearTo(amHub(g)); g.ui.screen.widgets.find(w => w.label === 'Recruiting').onPress(); }]]) { open(); const t = codexTopicFor(g, g.ui.screen); if (t !== 'colleges') bad.push('? on the ' + tag + ' (' + g.ui.screen.name + ') → ' + t); }
     g.ui.clearTo(amHub(g)); g.ui.push(statsGuideScreen(g, 'colleges')); const T = tTexts(g); if (!/COLLEGES & RECRUITING|Colleges & recruiting/i.test(T) || !/THE 64 PROGRAMS/i.test(T)) bad.push('the page does not show');
-    g.hubTab = 'play'; g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return E.length + ' entries · college: ' + E2[0].value;
+    g.hubTab = 'home'; g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 6).join(' | ')); return E.length + ' entries · college: ' + E2[0].value;
   }), P);
 
   // ---------------- phones ----------------
   const Q = await openPage(b, { wait: 900, phone: true }); await Q.ev(src => { (0, eval)(src); }, LIB);
-  await R.step('phones: the RECRUIT tab, the browser (3 rows a page, Filters / Sort / Search, the filter sheet), a program\'s page in three views (Your chances, Coach & school, Team & history); every tap target 64 px or more; no undefined or NaN', () => Q.ev(() => {
+  await R.step('phones: HOME\'s MORE… → Recruiting (the board: Colleges / Offers & rank / Recruiting log, the two programs most interested in you), a program\'s page in three views (Your chances, Coach & school, Team & history), the college list (3 rows a page, ◀ Prev / Next ▶ / Back; no filters, sort or search); every tap target 64 px or more; no undefined or NaN', () => Q.ev(() => {
     const g = HH.game, bad = [], seen = []; const a = tMkHs(111, 3); a.offers.push(colOfferFrom(a, hubRecruitTop(a, 1)[0], 'junior'));
-    const check = (tag, open, want) => { open(); const s = g.ui.screen; if (s.update) s.update(0.016); const sm = tSmall(g); if (sm.length) bad.push(tag + ' small: ' + sm.slice(0, 3).join(', ')); const T = tTexts(g); if (/undefined|NaN/.test(T)) bad.push(tag + ': undefined/NaN'); for (const t of want || []) if (!T.includes(t)) bad.push(tag + ': no "' + t + '"'); seen.push(tag); return s; };
-    const top = hubRecruitTop(a, 2);
-    check('recruit tab', () => { g.hubTab = 'recruit'; g.ui.clearTo(amHub(g)); }, [top[0].name]);
-    const s = check('browser', () => { g.colBrowse = null; g.ui.push(collegeBrowserScreen(g)); }, ['page 1 / ']); if (s.widgets.filter(w => /^Program/.test(w.label) && !w.hidden).length !== COLG.pageRows.phone) bad.push('phone rows');
-    check('filters', () => { s.widgets.find(w => /^Filters/.test(w.label)).onPress(); }); if (g.ui.screen.name !== 'colfilters') bad.push('the filter sheet: ' + g.ui.screen.name); g.ui.screen.widgets.find(w => w.label === 'Tier').set(1); g.ui.screen.widgets.find(w => w.label === 'Done').onPress(); s.update(0.016); if (!/^Filters \(1\)/.test(s.widgets.find(w => /^Filters/.test(w.label)).label)) bad.push('the filter count'); if (s.widgets.filter(w => /^Program/.test(w.label) && !w.hidden).some(w => w.prog.tier !== 3)) bad.push('the sheet\'s filter');
-    const p = check('program: chances', () => { g.ui.clearTo(amHub(g)); g.ui.push(collegeProgramScreen(g, top[0].id)); }, ['Spots left', top[0].name]); const v = p.widgets.find(w => w.label === 'View');
-    check('program: coach & school', () => { v.set(1); }, ['Style: ', 'GPA line', 'Facilities']); check('program: team & history', () => { v.set(2); }, ['National titles', 'Rival: ' + colProg(top[0].rival).name]);
-    g.hubTab = 'play'; g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 8).join(' | ')); return seen.join(', ');
+    const check = (tag, open, want) => { open(); const s = g.ui.screen; if (s.update) s.update(0.016, {}); const sm = tSmall(g); if (sm.length) bad.push(tag + ' small: ' + sm.slice(0, 3).join(', ')); const T = tTexts(g); if (/undefined|NaN/.test(T)) bad.push(tag + ': undefined/NaN'); for (const t of want || []) if (!T.includes(t)) bad.push(tag + ': no "' + t + '"'); seen.push(tag); return s; };
+    const top = hubRecruitTop(a, 2), press = l => { const w = g.ui.screen.widgets.find(x => x.label === l && !x.hidden); if (!w) throw new Error('no ' + l + ' on ' + g.ui.screen.name + ' | ' + bad.join(' | ')); w.onPress(); }, rowsOf = s => s.widgets.filter(w => /^Program/.test(w.label) && w.prog && !w.hidden);
+    check('home', () => { g.hubTab = 'home'; g.ui.clearTo(amHub(g)); }); check('more', () => press('MORE…'), ['Recruiting']);
+    const bd = check('board', () => press('Recruiting'), [top[0].name, top[1].name]); if (bd.name !== 'recboard') bad.push('Recruiting opens ' + bd.name); else { const L = bd.widgets.filter(w => !w.hidden).map(w => w.label); for (const l of ['Colleges', 'Offers & rank', 'Recruiting log']) if (!L.includes(l)) bad.push('the board: no ' + l); if (rowsOf(bd).map(w => w.prog.id).join() !== top.map(q => q.id).join()) bad.push('the board\'s rows'); }
+    const p = check('program: chances', () => rowsOf(g.ui.screen)[0].onPress(), ['Spots left', top[0].name, '/ 100 · they offered you']); const v = p.widgets.find(w => w.label === 'View');
+    check('program: coach & school', () => { v.set(1); }, ['Style: ', 'GPA line', 'Facilities']); check('program: team & history', () => { v.set(2); }, ['National titles', 'Pros produced']); if (/Rival/.test(tTexts(g))) bad.push('a rival (3.0 §1)'); g.ui.pop();
+    const n = Math.ceil(COLLEGES.length / COLG.pageRows.phone), s = check('list', () => press('Colleges'), ['page 1 / ' + n]); if (s.name !== 'colbrowser' || rowsOf(s).length !== COLG.pageRows.phone) bad.push('phone rows ' + rowsOf(s).length); if (s.widgets.some(w => /^(Filters|Sort|Search)/.test(w.label || ''))) bad.push('Filters / Sort / Search on a phone');
+    check('list: page 2', () => press('Next ▶'), ['page 2 / ' + n]); if (rowsOf(s).map(w => w.prog.id).join() !== colRankList().slice(3, 6).map(q => q.id).join()) bad.push('page 2: ' + rowsOf(s).map(w => w.prog.id));
+    g.hubTab = 'home'; g.ui.clearTo(mainMenu(g)); if (bad.length) throw new Error(bad.slice(0, 8).join(' | ')); return seen.join(', ');
   }), Q);
 
   await b.close(); process.exit(R.done() ? 1 : 0);

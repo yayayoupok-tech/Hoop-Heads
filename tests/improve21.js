@@ -1,9 +1,12 @@
-// 2.1 §1 (W2): the playtest's improvements, one step each. GPA (§1.5): Study is a plan of its own, the hub warns under
-// 2.3, the drift stops at a C+ (a player who never studies ends near 2.0-2.5), a study sprint is worth 0.4+ through the
-// next report card, college AUTO studies too. Leaving college (§1.7): the agent's advice and the projected offers before
-// the choice; ready (OVR 70+ or 5-star interest) -> "Teams would sign you now" and Turn pro is the default, else Return.
-// Teams come to you (§1.1): free agency's default is the move up; an in-season trade offer once you cross a better
-// franchise's bar. Money (§1.4): the six big buys. Old saves. (The policy tables: tests/effort.js; parity: tests/parity.js.)
+// 2.1 §1 (W2): the playtest's improvements, one step each, on the 3.0 build. GPA (§1.5): Study is a plan of its own (3.0:
+// one of the four standing plans, Auto / Focus / Rest / Study, run at the game), the hub warns under 2.3, the drift stops
+// at a C+ (a player who never studies ends near 2.0-2.5), college AUTO studies too, and academic probation's push is worth
+// 0.4+ by the next report card (3.0: the story's study sprint is gone; under 2.3 the coach makes every week a Study week).
+// Leaving college (§1.7): the agent's advice and the projected offers before the choice; ready (OVR 70+ or 5-star
+// interest) -> "Teams would sign you now" and Turn pro is the default, else Return. Teams come to you (§1.1): free
+// agency's default is the move up; an in-season trade offer once you cross a better franchise's bar (3.0: an urgent
+// message on HOME, and hype is fame). Money (§1.4): the six big buys. Old saves. (The policy tables: tests/effort.js;
+// parity: tests/parity.js.)
 // node tests/improve21.js   (ONLY=<regex> runs the matching steps)
 const { launch, openPage, runner } = require('./lib');
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
@@ -18,12 +21,13 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
   const texts = `(g => { g.ui.trans = null; RBF.boxes = []; try { g.drawUI(g.ctx, g.W, g.H); } finally { var X = RBF.boxes || []; RBF.boxes = null; } return X.map(x => x.t).join(' | '); })`;
 
   // ---------------- GPA (§1.5) ----------------
-  await R.step('GPA (§1.5): Study is the fourth plan in high school and college (Practice / Rest / Film / Study) and not in the pros; pressing it studies (+0.3)', () => ev(([mkHs, mkCol, mkPro]) => {
+  await R.step('GPA (§1.5): Study is the fourth plan in high school and college (3.0: Auto / Focus / Rest / Study) and not in the pros; pressing it makes Study the standing plan, and every week then studies at the game (GPA +0.3, fatigue −10) until you change it', () => ev(([mkHs, mkCol, mkPro]) => {
     const g = HH.game, labels = c => { g.save.data.c1 = c; g.save.data.career = null; return planButtons(g, careerKit(g)).map(w => w.label); };
-    const h = eval(mkHs)(101), hs = labels(h), col = labels(eval(mkCol)(102, 3.0)); if (hs.join().toLowerCase() !== 'practice,rest,film,study' || col.join() !== hs.join()) throw new Error('high school ' + hs + ' · college ' + col);
+    const h = eval(mkHs)(101), hs = labels(h), col = labels(eval(mkCol)(102, 3.0)); if (hs.join().toLowerCase() !== 'auto,focus,rest,study' || col.join() !== hs.join()) throw new Error('high school ' + hs + ' · college ' + col);
     const { save, c } = eval(mkPro)(103); g.save.data.career = c; g.save.data.c1 = null; const pro = planButtons(g, careerKit(g)).map(w => w.label); if (pro.some(l => /^study$/i.test(l)) || pro.length !== 3) throw new Error('the pros: ' + pro);
-    g.save.data.c1 = h; g.save.data.career = null; h.gpa = 2.5; h.wk = null; const st = planButtons(g, careerKit(g)).find(w => w.plan === 'study'); st.onPress(); if (Math.abs(h.gpa - (2.5 + HS.studyGpa)) > 1e-6 || (h.wk && h.wk.done) !== 'study') throw new Error('Study: GPA ' + h.gpa + ', week ' + JSON.stringify(h.wk && h.wk.done));
-    return 'high school and college: ' + hs.join(' / ') + ' · pros: ' + pro.join(' / ');
+    g.save.data.c1 = h; g.save.data.career = null; h.gpa = 2.5; h.fatigue = 30; h.wk = null; h.plan = 'auto'; const st = planButtons(g, careerKit(g)).find(w => w.plan === 'study'); st.onPress(); if (h.plan !== 'study' || h.gpa !== 2.5) throw new Error('pressing Study: plan ' + h.plan + ', GPA ' + h.gpa + ' (the week runs at the game)');
+    const wks = []; for (let i = 0; i < 2; i++) { const g0 = h.gpa, f0 = h.fatigue; amStartGame(h); /* the week's plan at tip-off */ if (Math.abs(h.gpa - Math.min(4, g0 + HS.studyGpa)) > 1e-6 || Math.abs(h.fatigue - Math.max(0, f0 - HS.studyRest)) > 1e-6 || (h.wk && h.wk.done) !== 'study' || h.plan !== 'study') throw new Error('Study week ' + (i + 1) + ': GPA ' + g0 + ' → ' + h.gpa + ', fatigue ' + f0 + ' → ' + h.fatigue + ', week ' + JSON.stringify(h.wk && h.wk.done) + ', plan ' + h.plan); wks.push(g0.toFixed(2) + ' → ' + h.gpa.toFixed(2)); wkNew(h); }
+    return 'high school and college: ' + hs.join(' / ') + ' · pros: ' + pro.join(' / ') + ' · two Study weeks: GPA ' + wks.join(', ');
   }, B), P);
 
   await R.step('GPA (§1.5): the hub warns under 2.3 (orange "STUDY", red under 2.0), not at 2.3 or in the pros; the pill is drawn on the hub, desktop and phone', async () => {
@@ -46,14 +50,16 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
     return 'drift ends at ' + HS.gpaFloor + ' (from 3.4 and 3.6) · college AUTO: Study, GPA 2.10 → ' + c.gpa.toFixed(2);
   }, B), P);
 
-  await R.step('GPA (§1.5): a study sprint in the probation story raises GPA by 0.4+, and it holds through the next report card', () => ev(([mkHs, mkCol]) => {
-    const keep = SAGA_ARCS.probation.chance; SAGA_ARCS.probation.chance = 1; try {
-      const c = eval(mkCol)(131, 3, 0); c.events.length = 0; sagaOf(c).quota = 99; c.gpa = 1.4; amReportCard(c, 'mid'); const card = c.events.find(e => e.saga && e.saga.arc === 'probation');
-      if (!card || !card.choice || !/Study sprint/.test(card.choice[0].label)) throw new Error('the probation card: ' + (card && card.title)); const g0 = c.gpa; stChoose(c, card, 0); const g1 = c.gpa;
-      for (let i = 0; i < 6; i++) schoolGradeWeek(c); c.events.length = 0; amReportCard(c, 'end'); const g2 = c.gpa;
-      if (g1 - g0 < 0.4 - 1e-9 || g2 - g0 < 0.4 - 1e-9) throw new Error('GPA ' + g0 + ' → ' + g1 + ' (sprint) → ' + g2 + ' (report card)');
-      return 'GPA ' + g0.toFixed(2) + ' → ' + g1.toFixed(2) + ' after the sprint → ' + g2.toFixed(2) + ' at the next report card';
-    } finally { SAGA_ARCS.probation.chance = keep; }
+  await R.step('GPA (§1.5): academic probation\'s push (3.0: the story\'s study sprint is gone; the coach\'s rule instead): a college midterm under 1.5 is probation, every week under 2.3 after it is a Study week on its own (the plan stays Focus), and the GPA is up 0.4+ at the next report card, which lifts the probation', () => ev(([mkHs, mkCol]) => {
+    const c = eval(mkCol)(131, 3, 0), L = c.league; c.plan = 'focus'; c.focus = 'shooting';
+    const sim = () => { c.events.length = 0; const g0 = c.gpa, r = amSimGame(c); if (!r) throw new Error('no game in week ' + (L.week + 1)); return { g0, plan: r.wk && r.wk.plan }; }; // a week through the real loop: the plan at tip-off, the game, the grades' drift, a report card
+    for (let i = 0; i < 12 && L.week < SCH.collegeMidWeek - 1; i++) sim(); if (L.week !== SCH.collegeMidWeek - 1 || L.exMid) throw new Error('the week before the midterm: week ' + L.week);
+    c.gpa = 1.1; sim(); /* the midterm week: a Study week on its own (1.10 → 1.40), then the report card */ const card = c.events.find(e => e.title === 'REPORT CARD');
+    if (!L.exMid || c.probation !== 1 || !card || !card.lines.some(l => /academic probation/.test(l))) throw new Error('the midterm at GPA ' + c.gpa + ': probation ' + c.probation + ' · ' + JSON.stringify(card && card.lines));
+    const g0 = c.gpa, W = []; while (!L.exFin && W.length < 12) W.push(sim()); const g2 = c.gpa, off = W.filter(w => w.g0 < HS.autoStudyAt && w.plan !== 'study');
+    if (!L.exFin || off.length || W[0].plan !== 'study' || c.plan !== 'focus') throw new Error('the weeks to the next report card (GPA at tip-off, the week): ' + W.map(w => w.g0 + ' ' + w.plan).join(', ') + ' · plan ' + c.plan);
+    if (g2 - g0 < 0.4 - 1e-9 || c.probation !== 0 || c.scholarship === 'lost') throw new Error('GPA ' + g0 + ' → ' + g2 + ' at the next report card · probation ' + c.probation + ' · scholarship ' + c.scholarship);
+    return 'GPA ' + g0.toFixed(2) + ' at the midterm (probation) → ' + W.filter(w => w.plan === 'study').length + ' of ' + W.length + ' weeks Study on their own (plan: Focus) → ' + g2.toFixed(2) + ' at the next report card: probation lifted, ' + c.scholarship + ' scholarship kept';
   }, B), P);
 
   await R.step('GPA (§1.5): careers that never study end high school and college near 2.0-2.5 (the career simulator, --week=nostudy, 24 careers)', () => new Promise((res, rej) => {
@@ -82,7 +88,7 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
   }, [mkCol, texts]), P);
 
   // ---------------- teams come to you (§1.1) ----------------
-  const setValue = `((c, lo, hi, hype) => { const me = meOf(c); for (let x = 30; x <= 99; x++) { for (const k of RATING_KEYS) me.r[k] = x; c.me.fame = 0; c.me.hype = hype || 0; const v = frValue(c); if (v >= lo && v < hi) return v; } throw new Error('no ratings give a value in ' + lo + '-' + hi); })`;
+  const setValue = `((c, lo, hi, fame) => { const me = meOf(c); for (let x = 30; x <= 99; x++) { for (const k of RATING_KEYS) me.r[k] = x; c.me.fame = fame || 0; const v = frValue(c); if (v >= lo && v < hi) return v; } throw new Error('no ratings give a value in ' + lo + '-' + hi); })`; // (3.0: hype is fame, and fame counts in the value)
   const onClub = `((c, s) => { const me = meOf(c), T = frTable(c), id = frByStars(T, s).find(x => x !== me.club) || frByStars(T, s)[0]; const mate = c.active.find(x => x !== c.meId && c.players[x].club === id); if (mate) c.players[mate].club = me.club; me.club = id; if (c.me.contract) c.me.contract.club = id; tmSyncPro(c); return id; })`;
   await R.step('teams come to you (§1.1): free agency brings 3 offers with the best franchise your value reaches, and its default (first, gold) is that move up', () => ev(([mkPro, setValue, onClub]) => {
     const g = HH.game, { save, c } = eval(mkPro)(161); g.save.data.career = c; eval(onClub)(c, 2); const v = eval(setValue)(c, FRN.bar[3] + 0.5, FRN.bar[4] - 0.5);
@@ -92,16 +98,17 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
     return 'value ' + v.toFixed(1) + ' on a 2★: ' + O.map(o => o.kind + ' ' + o.stars + '★').join(', ') + ' · default: ' + fa[0].label;
   }, [mkPro, setValue, onClub]), P);
 
-  await R.step('teams come to you (§1.1): crossing a better franchise\'s bar (3+ over yours) brings an in-season trade offer, once a season; ACCEPT is the card\'s default; accepting moves you up with no hype lost', () => ev(([mkPro, setValue, onClub]) => {
+  await R.step('teams come to you (§1.1): crossing a better franchise\'s bar (3+ over yours) brings an in-season trade offer, once a season; HOME shows it at once as a message (3.0 §2.3: urgent) with ACCEPT THE TRADE its default; accepting moves you up with no fame lost (3.0: hype is fame)', () => ev(([mkPro, setValue, onClub]) => {
     const g = HH.game, { save, c } = eval(mkPro)(171); g.save.data.career = c; const from = eval(onClub)(c, 2); c.phase = 'regular'; c.week = 1; c.me.offerSeason = null;
     eval(setValue)(c, FRN.bar[1] + FRN.offerBy, FRN.bar[2]); if (proTradeOfferCheck(c)) throw new Error('3 over the 2★ bar but under the 3★ bar: no call yet');
-    const v = eval(setValue)(c, FRN.bar[2] + 0.3, FRN.bar[3] - 0.5, 40); const dest = proTradeOfferCheck(c), ev0 = c.events.find(e => e.kind === 'tradeoffer');
+    const v = eval(setValue)(c, FRN.bar[2] + 0.3, FRN.bar[3] - 0.5, 30); const dest = proTradeOfferCheck(c), ev0 = c.events.find(e => e.kind === 'tradeoffer');
     if (!dest || !ev0 || frStars(c, dest) !== 3 || ev0.dest !== dest) throw new Error('value ' + v.toFixed(1) + ': ' + dest + ' · ' + JSON.stringify(ev0 && ev0.title));
     if (proTradeOfferCheck(c)) throw new Error('a second call the same season');
-    g.ui.clearTo(careerHub(g)); const s = storyEventScreen(g, c, ev0, () => {}); g.ui.push(s); const live = () => (g.ui.screen.widgets || []).filter(w => !w.hidden && w.label && w.onPress && w.enabled !== false); for (let i = 0; i < 12 && !live().some(w => /ACCEPT/.test(w.label)); i++) { const S2 = g.ui.screen; if (S2.finish) S2.finish(); const nx = live().find(w => w.label === '▼'); if (nx) nx.onPress(); else if (S2.update) S2.update(1, {}); } const W = live().filter(w => w.label !== '▼'); if (!/ACCEPT/.test(W[0].label) || !W[0].primary) throw new Error('the card: ' + W.map(w => w.label + (w.primary ? '*' : '')).join(', '));
-    const h0 = c.me.hype; c.events.length = 0; proTradeOfferAnswer(c, ev0, true); if (meOf(c).club !== dest || c.me.hype !== h0) throw new Error('accepted: club ' + meOf(c).club + ' (want ' + dest + '), hype ' + h0 + ' → ' + c.me.hype);
+    g.hubTab = 'home'; g.ui.clearTo(careerHub(g)); const hub = g.ui.screen; hub.update(1 / 60, {}); /* HOME's queue: an urgent message shows at once */ const s = g.ui.screen; if (evClass(ev0, c) !== 'urgent' || !s || s.name !== 'message') throw new Error('HOME showed ' + (s && s.name) + ' (the offer is ' + evClass(ev0, c) + ')');
+    const W = (s.widgets || []).filter(w => !w.hidden && w.label && w.onPress && w.enabled !== false); if (!/^ACCEPT/.test(W[0].label) || !W[0].primary || W.filter(w => w.primary).length !== 1 || s.focus !== 0) throw new Error('the message: ' + W.map(w => w.label + (w.primary ? '*' : '')).join(', ') + ' · focus ' + s.focus);
+    const f0 = c.me.fame, goal = frGoals(c).s3 ? 0 : FRN.goalFame[0]; /* (a first 3★ team is a goal that pays fame) */ W[0].onPress(); if (meOf(c).club !== dest || Math.abs(c.me.fame - Math.min(MD.fameMax, f0 + goal)) > 1e-9 || g.ui.screen !== hub) throw new Error('accepted: club ' + meOf(c).club + ' (want ' + dest + '), fame ' + f0 + ' → ' + c.me.fame + ' (want +' + goal + ', the 3★ goal), back on ' + (g.ui.screen && g.ui.screen.name));
     if (!c.news.some(n => /made the call/.test(n.text || n.t || n))) throw new Error('the news: ' + JSON.stringify(c.news.slice(-2)));
-    return 'value ' + v.toFixed(1) + ' on a 2★ (' + clubOf(from).name + ') → the ' + clubOf(dest).name + ' (3★) called · ' + W.map(w => w.label + (w.primary ? ' (default)' : '')).join(' / ') + ' · hype ' + h0 + ' kept';
+    return 'value ' + v.toFixed(1) + ' on a 2★ (' + clubOf(from).name + ') → the ' + clubOf(dest).name + ' (3★) called · ' + W.map(w => w.label + (w.primary ? ' (default)' : '')).join(' / ') + ' · fame ' + f0 + ' → ' + c.me.fame + (goal ? ' (the 3★ goal +' + goal + ')' : '') + ', none lost';
   }, [mkPro, setValue, onClub]), P);
 
   await R.step('teams come to you (§1.1): a 5★ franchise calls only with the 5★ condition (a playoff series or an All-League team) and an open spot you\'d win; after the deadline nobody calls', () => ev(([mkPro, setValue, onClub]) => {
@@ -113,14 +120,14 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
   }, [mkPro, setValue, onClub]), P);
 
   // ---------------- money (§1.4) ----------------
-  await R.step('money (§1.4): the six big buys: a stake (from season 4: a dividend, a share that grows), a facility (+8% practice XP, upkeep), sneaker shares (move, sell), a family home (confidence), charity (fame, hype; once a season), the arena (fame, legacy); net worth counts the assets', () => ev(([mkHs, mkCol, mkPro]) => {
+  await R.step('money (§1.4): the six big buys: a stake (from season 4: a dividend, a share that grows), a facility (+8% practice XP, upkeep), sneaker shares (move, sell), a family home (confidence), charity (fame; once a season; 3.0: no hype), the arena (fame, legacy); net worth counts the assets', () => ev(([mkHs, mkCol, mkPro]) => {
     const g = HH.game, { save, c } = eval(mkPro)(191); g.save.data.career = c; const M = c.me; M.money = 2e8; c.season = 2; const out = [];
     const [okS, why] = bigCan(c, 'stake'); if (okS || !/season 4/.test(why)) throw new Error('a stake before season 4: ' + why); c.season = 4;
-    const nw0 = proNetWorth(c), xp0 = proTrainMul(c, 'shooting'), conf0 = M.confidence || 0, fame0 = M.fame || 0, hype0 = M.hype || 0, leg0 = legacyOf(c).score;
+    const nw0 = proNetWorth(c), xp0 = proTrainMul(c, 'shooting'), conf0 = M.confidence || 0, fame0 = M.fame || 0, leg0 = legacyOf(c).score;
     for (const id of BIG_IDS) { const m0 = M.money; if (!bigBuy(c, id)) throw new Error('could not buy ' + id + ': ' + bigCan(c, id)[1]); if (M.money !== m0 - bigCost(c, id) && id !== 'stake') throw new Error(id + ' cost ' + (m0 - M.money)); out.push(id + ' ' + fmtMoney(m0 - M.money)); }
     if (Math.abs(proTrainMul(c, 'shooting') - xp0 - BIG.facility.xp * proXpMul(c) * pblSysXpMul(c, 'shooting')) > 1e-6) /* (2.1: × the coach's system for a fit) */ throw new Error('practice XP × ' + xp0.toFixed(3) + ' → ' + proTrainMul(c, 'shooting').toFixed(3) + ' (+' + BIG.facility.xp + ' × the XP base)');
     if ((M.confidence || 0) < Math.min(MD.confMax, conf0 + BIG.family.conf) - 1e-6) throw new Error('family: confidence ' + conf0 + ' → ' + M.confidence); const cf = M.confidence; M.confidence = 0; bigWeekly(c); if (Math.abs(M.confidence - BIG.family.weeklyConf) > 1e-9) throw new Error('family: a week\'s confidence ' + M.confidence); M.confidence = cf;
-    if ((M.fame || 0) < Math.min(100, fame0 + BIG.charity.fame + BIG.arena.fame) - 1e-6 || (M.hype || 0) < Math.min(MD.hypeMax, hype0 + BIG.charity.hype) - 1e-6) throw new Error('fame ' + fame0 + ' → ' + M.fame + ', hype ' + hype0 + ' → ' + M.hype);
+    if ((M.fame || 0) < Math.min(100, fame0 + BIG.charity.fame + BIG.arena.fame) - 1e-6) throw new Error('fame ' + fame0 + ' → ' + M.fame); /* 3.0: no hype (fame is the one meter) */
     if (bigCan(c, 'charity')[0]) throw new Error('a second charity event the same season'); if (legacyOf(c).score !== leg0 + BIG.arena.legacy) throw new Error('legacy ' + leg0 + ' → ' + legacyOf(c).score);
     if (!(bigWorth(c) > 0) || Math.abs(proNetWorth(c) - (nw0 - (BIG.stake.costPerStar * frMine(c) + BIG.facility.cost + BIG.sneaker.share + BIG.family.cost + BIG.charity.cost + BIG.arena.cost)) - bigWorth(c)) > 1) throw new Error('net worth ' + nw0 + ' → ' + proNetWorth(c) + ' (assets ' + bigWorth(c) + ')');
     bigBuy(c, 'sneaker'); bigBuy(c, 'sneaker'); if (bigCan(c, 'sneaker')[0] || bigOf(c).sneaker.shares !== BIG.sneaker.max) throw new Error('sneaker shares stop at ' + BIG.sneaker.max);

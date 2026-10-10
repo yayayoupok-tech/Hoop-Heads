@@ -3,7 +3,9 @@
 // owner, coach, market, fans, rival, history); team strength and title odds; the top 8 in best-of-3 rounds and the
 // Finals; the Finals MVP; a title's parade, ring and banner; dynasties; the 5★ spots' scarcity; the owners' moves and a
 // rebuild's offer; the Road's new goals and jerseys retired; the offers as team cards (an axis each), the plain-words
-// bar, the combine's stock tags; every new screen on a desktop and a phone. Usage: node tests/proteams.js
+// bar, the combine's stock tags; every new screen on a desktop and a phone (3.0: the hub is HOME's five tabs, an old tab
+// id opening its new home (team → LEAGUE, play → HOME); a title's parade, ring and banner come in the Season review
+// (§2.2); the trophy case (CAREER → Trophies) lists the legacy's X10 weights). Usage: node tests/proteams.js
 const { launch, openPage, runner } = require('./lib');
 (async () => {
   const browser = await launch(); const R = runner('pro teams'); const D = await openPage(browser); const { ev } = D; const step = (n, f) => R.step(n, f, D);
@@ -135,7 +137,7 @@ const { launch, openPage, runner } = require('./lib');
     ok('franchise', () => { g.ui.clearTo(careerHub(g)); g.ui.push(franchiseScreen(g, me.club)); }); ok('franchise-other', () => { g.ui.clearTo(careerHub(g)); g.ui.push(franchiseScreen(g, frIds().find(k => k !== me.club))); });
     ok('league-franchises', () => { g.leagueTab = { tab: 1, player: 0 }; g.ui.clearTo(careerHub(g)); g.ui.push(leagueScreen(g)); });
     ok('trade', () => { g.ui.clearTo(careerHub(g)); g.ui.push(tradeCompareScreen(g, frIds().find(k => k !== me.club))); }); ok('moving-up', () => { g.mgmtTab = { tab: 0 }; g.ui.clearTo(careerHub(g)); g.ui.push(managementScreen(g)); });
-    for (const kind of ['parade', 'ring', 'banner']) ok(kind, () => { c.events = [{ kind, club: me.club, season: 2, year: frYear(2), run: 2, frRun: 2, rings: 2, fans: frFans(c, me.club), oppName: 'Sam Ray', score: '2-1', fmvp: kind !== 'ring', fmvpName: 'Ty Bench' }]; g.ui.clearTo(careerHub(g)); g.ui.update(0.1, g.input); });
+    for (const kind of ['parade', 'ring', 'banner']) ok('season review: ' + kind, () => { /* 3.0: the parade, the ring and the banner come in the Season review */ c.events = [{ kind, club: me.club, season: 2, year: frYear(2), run: 2, frRun: 2, rings: 2, fans: frFans(c, me.club), oppName: 'Sam Ray', score: '2-1', fmvp: kind !== 'ring', fmvpName: 'Ty Bench' }]; g.ui.clearTo(careerHub(g)); g.ui.update(0.1, g.input); });
     c.events.length = 0; for (const id of c.active) c.standings[id] = { w: 3, l: 3, pf: 0, pa: 0, strk: 0 }; c.standings[c.meId].w = 9; c.week = c.schedule.length; startPlayoffs(c); c.events.length = 0;
     ok('bracket', () => { g.ui.clearTo(careerHub(g)); g.ui.push(bracketScreen(g)); }); ok('hub-team-playoffs', () => { g.hubTab = 'team'; g.ui.clearTo(careerHub(g)); }); ok('hub-play-playoffs', () => { g.hubTab = 'play'; g.ui.clearTo(careerHub(g)); });
     const c2 = testProLeague(32, g.save.data); g.save.data.career = c2; c2.events.length = 0; g.save.data.c1.handedOff = true; c2.me.contract.years = 1; for (const id of c2.active) c2.stats[id].g = 10; endSeason(c2); c2.offseason.step = 1; offseasonProgression(c2); c2.offseason.step = 2; offseasonMoves(c2); c2.events.length = 0;

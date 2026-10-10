@@ -1,11 +1,13 @@
-// 2.1 §3.3–3.6 (W6): the offseason in seven screens, contracts and the free agency week, league life, media and the
-// owners. The steps: Awards Night, aging, retirements (tributes), the free agency week (offers by day: accept, counter or
-// wait; over-cap offers; a cheap owner lets you walk; win-now owners chase), the trade window (a rebuild may trade you;
-// a no-trade clause makes it your call), training camp (two goals that pay), the preseason power rankings; contracts
-// (years, options, the no-trade clause, incentives) and the agent's negotiation (cap room, advice, risk); the other
-// fifteen sign, trade, cut, extend, age and retire; rookies from the college system with your old teammates; title
-// windows and hunger; the GOAT ladder and the records; PBL Tonight, the power rankings and the national TV game; a
-// meddler's story beats; the hub's value meter; old saves; the screens (desktop and phone).
+// 2.1 §3.3–3.6 (W6), on the 3.0 build: the offseason in eight screens (3.0 §5 added the Summer), contracts and the free
+// agency week, league life, media and the owners. The steps: Awards Night, aging, retirements (tributes), the free agency
+// week (offers by day: accept, counter or wait; over-cap offers; a cheap owner lets you walk; win-now owners chase), the
+// trade window (a rebuild may trade you; a no-trade clause makes it your call), the Summer, training camp (two goals that
+// pay), the preseason power rankings; contracts (years, options, the no-trade clause, incentives) and the negotiation
+// (cap room, advice, risk; 3.0 §7: the agent is on your crew, each level a safer counter); the other fifteen sign, trade,
+// cut, extend, age and retire; rookies from the college system with your old teammates; title windows and hunger; the
+// GOAT ladder and the records; PBL Tonight, the power rankings and the national TV game; a meddler's beats (3.0 §2.3:
+// messages; the press room is gone); the value meter in the hub's header (3.0 §2.1: on HOME and every tab); old saves;
+// the screens (desktop and phone: HOME's five tabs, the meddler's three messages).
 // node tests/life21.js   (ONLY=<regex> runs the matching steps)
 const fs = require('fs'), path = require('path');
 const { launch, openPage, runner } = require('./lib');
@@ -22,14 +24,15 @@ window.tFaults = g => { const B = tTexts(g), out = B.filter(x => x.cut).map(x =>
 window.tSmall = g => { const ui = g.ui, s = ui.screen; return (s.widgets || []).filter(w => !w.hidden && w.enabled !== false && w.kind !== 'text' && (w.w * ui.scale < 63.5 || w.h * ui.scale < 63.5)).map(w => (w.label || w.kind) + ' ' + Math.round(w.w * ui.scale) + '×' + Math.round(w.h * ui.scale)); };
 window.ok = (bad, msg) => bad.length ? Promise.reject(new Error(bad.slice(0, 6).join('; '))) : msg; /* (the steps' verdict, in the page) */
 window.tRng = v => ({ next: () => v, int: n => 0, pick: a => a[0], shuffle: a => a, gauss: () => 0 });
-// Every W6 screen, drawn once each: [name, faults].
+// Every W6 screen (3.0: HOME's five tabs, the meddler's beats as messages), drawn once each: [name, faults].
 window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = tPro(641, 86); const me = meOf(c); c.me.awards.push({ s: 0, name: 'All-League 1st Team' }, { s: 0, name: 'All-League 2nd Team' });
   const look = (name, open) => { g.ui.clearTo(careerHub(g)); open(); const s = g.ui.screen; if (s.update) s.update(0.016, {}); if (g.ui.screen && g.ui.screen.finish) g.ui.screen.finish(); const F = tFaults(g).concat(phone ? tSmall(g).map(x => 'SMALL ' + x) : []); if (F.length) bad.push(name + ': ' + F.slice(0, 3).join(' | ')); };
-  tSim(save, c => c.week >= 5); for (const t of ['play', 'team', 'me']) { g.hubTab = t; look('hub ' + t, () => {}); }
+  tSim(save, c => c.week >= 5); for (const t of HUB_TAB_IDS) { g.hubTab = t; look('hub ' + t, () => {}); } /* 3.0 (§2.1): HOME and its tabs */
   for (const [i, pg] of [[1, 0], [9, 0], [9, 1], [10, 0], [10, 1], [11, 0]]) look('league tab ' + i + '/' + pg, () => { g.leagueTab = { tab: i, player: 0, pow: pg, goat: pg }; g.ui.push(leagueScreen(g)); });
   look('franchise page', () => { g.frTab = { tab: 0 }; g.ui.push(franchiseScreen(g, me.club)); });
   for (const t of ['league', 'team']) { const s0 = statsGuideScreen(g, t); g.ui.clearTo(careerHub(g)); g.ui.push(s0); tTexts(g); /* (measured the way the game draws it: inside the UI's transform) */ const opts = s0.widgets[0].options.map((o, i) => [o, i]).filter(([o]) => o.indexOf(t === 'league' ? 'The PBL' : 'Team & pro value') === 0); for (const [o, i] of opts) look('codex ' + o, () => { g.ui.push(s0); s0.widgets[0].set(i); }); }
-  { const club = me.club; c.fr[club].owner = { name: 'Dex Calloway', kind: 'meddler' }; c.me.meddle = null; c.standings[c.meId].strk = -4; const ev = lgMeddleWeek(c, tRng(0)); c.events.length = 0; if (ev) look('meddler (' + ev.beat + ')', () => g.ui.push(storyEventScreen(g, c, ev, () => {}))); else bad.push('no meddler beat'); }
+  { const club = me.club, st = c.standings[c.meId], K = JSON.stringify([st, c.week, c.me.benchSeason || 0, c.fr[club].coach, c.team.coach, c.team.trust]), back = () => { const k = JSON.parse(K); Object.assign(st, k[0]); c.week = k[1]; c.me.benchSeason = k[2]; c.fr[club].coach = k[3]; c.team.coach = k[4]; c.team.trust = k[5]; c.me.meddle = null; }; c.fr[club].owner = { name: 'Dex Calloway', kind: 'meddler' }; /* 3.0 (§2.3): each beat is a message (the press beat is gone): its conditions, its card, then the career as it was */
+    for (const [beat, set] of [['minutes', () => { c.me.benchSeason = 2; }], ['shop', () => { st.w = 1; st.l = 4; }], ['coach', () => { c.week = PBL.deadlineWeek; st.w = 1; st.l = 6; }]]) { c.me.meddle = null; set(); const ev = lgMeddleWeek(c, tRng(0)); c.events.length = 0; if (ev && ev.beat === beat) look('meddler (' + beat + ')', () => g.ui.push(eventScreen(g, c, ev, () => {}))); else bad.push('no meddler beat (' + beat + ': ' + (ev && ev.beat) + ')'); back(); } }
   tSim(save, c => c.phase === 'offseason'); c.me.contract.years = 1;
   look('offseason 0 awards', () => g.ui.push(offseasonScreen(g)));
   for (const k of [1, 2, 3]) { tStep(c, k, { signDay: 9 }); look('offseason ' + k + ' ' + LG_OFF_STEPS[k], () => g.ui.push(offseasonScreen(g))); }
@@ -73,19 +76,22 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
     return ok(bad, seen.join(' · '));
   }), P);
 
-  await R.step('the agent\'s negotiation: their most (cap room), the asks with their risk (it grows with the ask, the day and the extra terms; a better agent lowers it), the advice; a yes signs the asked salary, a no and the team walks', () => ev(() => {
+  await R.step('the agent\'s negotiation: their most (cap room), the asks with their risk (it grows with the ask, the day and the extra terms), your crew\'s agent (3.0 §7: each level takes CREW.roles.agent.odds off the risk, a level more once they know your game), the advice in their name with the odds in words; a yes signs the asked salary, a no and the team walks', () => ev(() => {
     const bad = [], g = HH.game, save = g.save.data, out = [];
     const c = tPro(621, 82); tSim(save, c => c.phase === 'offseason'); c.me.contract.years = 1; tStep(c, 3, { signDay: 99 }); const O = c.offseason; let o = lgUserFaLive(c)[0]; if (!o) return Promise.reject(new Error('no offer'));
     const A = lgCounterAsks(c, o); for (let i = 1; i < A.length; i++) if (A[i].risk + 1e-9 < A[i - 1].risk) bad.push('risk falls ' + A.map(a => a.risk.toFixed(2)).join(' '));
     if (A[0].ask !== Math.round(o.salary / 1000) * 1000) bad.push('the +0 ask ' + A[0].ask + ' vs ' + o.salary); const max = lgTeamMax(c, o); if (A.some(a => a.ask > max)) bad.push('an ask over their most'); if (lgCounterRisk(c, o, max + 5e6) < 0.95) bad.push('over their most is not refused');
     const r1 = lgCounterRisk(c, o, A[2].ask), d0 = O.day; O.day = 4; const r4 = lgCounterRisk(c, o, A[2].ask); O.day = d0; if (!(r4 > r1)) bad.push('the day: ' + r1 + ' → ' + r4);
     const rt = lgCounterRisk(c, o, A[1].ask, { ntc: true, opt: 'player', promise: true }); if (!(rt > lgCounterRisk(c, o, A[1].ask))) bad.push('extra terms');
-    const ag0 = lgCounterRisk(c, o, A[2].ask); c.me.staff = c.me.staff || {}; proHireAgent(c); const ag1 = lgCounterRisk(c, o, A[2].ask); if (staffTier(c, 'agent') && !(ag1 < ag0)) bad.push('an agent ' + ag0 + ' → ' + ag1);
-    const adv = lgAgentAdvice(c, o); if (!adv || !/^Your (agent|gut): /.test(adv.line) || !(adv.i >= 0 && adv.i < A.length)) bad.push('advice ' + JSON.stringify(adv)); out.push(adv.line);
+    /* 3.0 (§7): the agent is a crew member; the biggest ask's risk (clear of the 3% floor) by the agent's level at work */
+    const top = A[A.length - 1].ask, ag0 = lgCounterRisk(c, o, top), gut = lgAgentAdvice(c, o).line; if (crewMember(c.me, 'agent') || c.me.agent) bad.push('an agent before one was hired'); if (!(ag0 - CREW.roles.agent.odds[CREW.maxLv] > 0.03)) bad.push('the ask is too safe to read the agent: ' + ag0);
+    if (!crewHire(c, crewCandidates(c, 'agent')[0])) bad.push('no agent hired'); const Ag = crewMember(c.me, 'agent') || { lv: 0 }, lv0 = Ag.lv, byLv = [];
+    for (let lv = 1; lv <= CREW.maxLv + 1; lv++) { Ag.lv = Math.min(lv, CREW.maxLv); Ag.yrs = lv > CREW.maxLv ? CREW.knows : 0; const r = lgCounterRisk(c, o, top); byLv.push(r); if (Math.abs(ag0 - r - CREW.roles.agent.odds[lv - 1]) > 1e-9) bad.push('Lv' + lv + ': ' + ag0.toFixed(3) + ' → ' + r.toFixed(3)); } Ag.lv = lv0; Ag.yrs = 0;
+    const adv = lgAgentAdvice(c, o); if (!/^Your gut: /.test(gut) || !adv || adv.line.indexOf(crewFirst(Ag) + ', your agent: ') !== 0 || !(adv.i >= 0 && adv.i < A.length) || (adv.i > 0 && !/\d+% they accept, \d+% they walk/.test(adv.line))) bad.push('advice ' + JSON.stringify([gut, adv])); out.push(adv.line);
     const yes = lgUserCounter(c, o, A[1].ask, {}, tRng(0.999)); if (!yes || !yes.ok || c.me.contract.salary !== A[1].ask) bad.push('a yes: ' + JSON.stringify(yes) + ' ' + (c.me.contract && c.me.contract.salary));
     const c2 = tPro(622, 82); tSim(save, c => c.phase === 'offseason'); c2.me.contract.years = 1; tStep(c2, 3, { signDay: 99 }); const o2 = lgUserFaLive(c2)[0]; const no = o2 && lgUserCounter(c2, o2, lgCounterAsks(c2, o2)[3].ask, {}, tRng(0));
     if (!no || no.ok || o2.gone !== 'walked' || c2.offseason.fa.done || !c2.news.some(n => /Talks break down/.test(n.t))) bad.push('a no: ' + JSON.stringify(no) + ' ' + (o2 && o2.gone));
-    return ok(bad, 'risks ' + A.map(a => '+' + Math.round(a.p * 100) + '% ' + Math.round(a.risk * 100) + '%').join(', ') + ' · ' + out[0]);
+    return ok(bad, 'risks ' + A.map(a => '+' + Math.round(a.p * 100) + '% ' + Math.round(a.risk * 100) + '%').join(', ') + ' · +' + Math.round(A[A.length - 1].p * 100) + '% with an agent at Lv1–' + CREW.maxLv + ' (and knowing your game) ' + byLv.map(r => Math.round(r * 100) + '%').join('/') + ' · ' + out[0]);
   }), P);
 
   await R.step('over the cap a team offers less (×LIFE.overCapMul, at least the exception); win-now owners chase on day 1 and pay more; a cheap owner of yours lets you walk past LIFE.cheapWalk', () => ev(() => {
@@ -175,27 +181,35 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
     return ok(bad, '"' + T.head + '" · #1 the ' + frNick(P_[0].id) + ': ' + P_[0].line);
   }), P);
 
-  await R.step('owners react: a meddler blasts the team after a slide (you answer the press), tells the coach to play you, shops you before the deadline, fires the coach (a new system, the trust starts over); two beats a season at most', () => ev(() => {
-    const bad = [], out = [], c = tPro(731), club = meOf(c).club; c.fr[club].owner = { name: 'Dex Calloway', kind: 'meddler' }; c.week = 5; const st = c.standings[c.meId] || (c.standings[c.meId] = { w: 0, l: 0, strk: 0 });
-    st.strk = -3; st.w = 2; st.l = 3; const e1 = lgMeddleWeek(c, tRng(0)); if (!e1 || e1.beat !== 'press') bad.push('press ' + (e1 && e1.beat)); else { const O1 = lgMeddleOptions(c, e1), t0 = c.team.trust; O1[0].pick(); if (c.team.trust !== Math.min(100, t0 + 6)) bad.push('defend: trust ' + t0 + ' → ' + c.team.trust); out.push(e1.beat + ' (' + O1.map(o => o.label).join(' / ') + ')'); }
-    c.me.benchSeason = 3; const e2 = lgMeddleWeek(c, tRng(0)); if (!e2 || e2.beat !== 'minutes') bad.push('minutes ' + (e2 && e2.beat)); else out.push(e2.beat);
-    if (lgMeddleWeek(c, tRng(0))) bad.push('a third beat'); if (lgMeddleWeek(c, tRng(0.99))) bad.push('the odds');
-    c.season++; c.me.meddle = null; c.me.benchSeason = 0; st.strk = 0; c.week = 8; st.w = 1; st.l = 6; const co0 = frCoachOf(c, club).name, e3 = lgMeddleWeek(c, tRng(0)); if (!e3) bad.push('no beat'); else if (e3.beat === 'shop') { lgMeddleOptions(c, e3)[1].pick(); if (c.me.shopped !== c.season) bad.push('shopped'); out.push('shop'); } else bad.push('shop: ' + e3.beat);
-    c.season++; c.me.meddle = null; c.week = PBL.deadlineWeek + 1; const e4 = lgMeddleWeek(c, tRng(0)); if (!e4 || e4.beat !== 'coach' || frCoachOf(c, club).name === co0 && !e4.forced) bad.push('coach ' + (e4 && e4.beat)); else out.push('coach: ' + co0 + ' → ' + frCoachOf(c, club).name);
+  await R.step('owners react (3.0 §2.3: the press room is gone, the beats are messages): a slide alone makes no news; a meddler tells the coach to play you (thank the owner or back the coach), shops you before the deadline (a trade call comes easier), fires the coach (a new system, the trust starts over); each beat a message in the inbox (one a week, dropped past its season); two beats a season at most', () => ev(() => {
+    const bad = [], out = [], g = HH.game, c = tPro(731), club = meOf(c).club; c.fr[club].owner = { name: 'Dex Calloway', kind: 'meddler' }; c.week = 5; const st = c.standings[c.meId] || (c.standings[c.meId] = { w: 0, l: 0, strk: 0 });
+    st.strk = -3; st.w = 3; st.l = 3; const e0 = lgMeddleWeek(c, tRng(0)); if (e0) bad.push('a slide alone: ' + e0.beat + ' (2.x: the press)');
+    c.me.benchSeason = 3; const e1 = lgMeddleWeek(c, tRng(0)); if (!e1 || e1.beat !== 'minutes') bad.push('minutes ' + (e1 && e1.beat)); else { const s1 = eventScreen(g, c, e1, () => {}), L = (s1 ? s1.widgets : []).map(w => w.label), O1 = lgMeddleOptions(c, e1);
+      if (evClass(e1, c) !== 'message' || !c.events.includes(e1) || !c.news.some(n => /tells the coach to play/.test(n.t)) || !O1.every(o => L.includes(o.label))) bad.push('the minutes message: ' + evClass(e1, c) + ' ' + L.join(' / '));
+      const t0 = c.team.trust, f0 = c.me.fame || 0; O1[0].pick(); if (c.team.trust !== clamp(t0 - 5, 0, 100) || c.me.fame !== clamp(f0 + 3, 0, 100)) bad.push('thank the owner: trust ' + t0 + ' → ' + c.team.trust + ', fame ' + f0 + ' → ' + c.me.fame); out.push(e1.beat + ' (' + O1.map(o => o.label).join(' / ') + ')'); }
+    evRoute(c, null, null); if (!(c.inbox || []).includes(e1) || evNextMessage(c) !== e1) bad.push('not in the inbox');
+    st.w = 1; st.l = 4; if (lgMeddleWeek(c, tRng(0.99))) bad.push('the odds'); const e2 = lgMeddleWeek(c, tRng(0)); if (!e2 || e2.beat !== 'shop') bad.push('shop ' + (e2 && e2.beat)); else { lgMeddleOptions(c, e2)[1].pick(); if (c.me.shopped !== c.season) bad.push('shopped'); out.push('shop'); }
+    evRoute(c, null, null); if (evNextMessage(c)) bad.push('two messages in a week');
+    c.week = PBL.deadlineWeek; st.w = 1; st.l = 6; if (lgMeddleWeek(c, tRng(0))) bad.push('a third beat');
+    c.season++; if (evNextMessage(c) || (c.inbox || []).includes(e2)) bad.push('last season\'s message stayed'); c.me.benchSeason = 0; st.strk = 0; const co0 = frCoachOf(c, club).name, e3 = lgMeddleWeek(c, tRng(0)), t3 = clamp(TM.trustStart.pro + PBL.sysTrust[frSysFit(c, club).tier], 0, 100);
+    if (!e3 || e3.beat !== 'coach' || frCoachOf(c, club).name === co0 && !e3.forced || c.team.trust !== t3 || lgMeddleOptions(c, e3).length !== 1) bad.push('coach ' + (e3 && e3.beat) + ' trust ' + c.team.trust); else out.push('coach: ' + co0 + ' → ' + frCoachOf(c, club).name + ' (trust ' + t3 + ')');
     c.fr[club].owner.kind = 'patient'; c.me.meddle = null; if (lgMeddleWeek(c, tRng(0))) bad.push('a patient owner meddled');
     return ok(bad, out.join(' · '));
   }), P);
 
-  await R.step('the hub\'s value meter (your value against every star bar), the title window on the franchise page, the franchises list and the offers; past LIFE.starContend\'s bar your club builds around you (it contends; LIFE.starEdge the season after)', () => ev(() => {
+  await R.step('the value meter in the hub\'s header strip (3.0 §2.1: on HOME and every tab: VALUE and your value against every star bar, a tick each for 2★–5★, green up to your franchise, gold the bars you pass), the title window on the franchise page, the franchises list and the offers; past LIFE.starContend\'s bar your club builds around you (it contends; LIFE.starEdge the season after)', () => ev(() => {
     const bad = [], g = HH.game, save = g.save.data, c = tPro(741, 80); tSim(save, c => c.week >= 2); const club = meOf(c).club, w = LG_WINDOW_WORD[lgWindowOf(c, club)];
-    g.hubTab = 'team'; g.ui.clearTo(careerHub(g)); const hub = tSaid(g); if (!hub.includes('VALUE ' + Math.round(frValue(c))) || !hub.includes('5★')) bad.push('no meter: ' + hub.slice(0, 160));
+    /* the meter's bars are ticks (their 2★–5★ labels only when they fit apart): drawValueMeter is watched for its value, its width and its 2×14 ticks */
+    const V = 'VALUE ' + Math.round(frValue(c)), dvm = window.drawValueMeter, seen = []; let M = null, tk = ''; window.drawValueMeter = function (ctx, ui, v) { const T = [], fr = ctx.fillRect; ctx.fillRect = function (x, y, tw, th) { if (tw === 2 && th === 14) T.push(String(this.fillStyle).toLowerCase()); return fr.apply(this, arguments); }; let r = 0; try { r = dvm.apply(this, arguments); } finally { delete ctx.fillRect; } M = { v: v.v, now: v.now, r, T }; return r; };
+    try { for (const t of HUB_TAB_IDS) { g.hubTab = t; g.ui.clearTo(careerHub(g)); M = null; const hub = tSaid(g), want = [2, 3, 4, 5].map(s => s <= frMine(c) ? 'g' : frValue(c) >= FRN.bar[s - 1] ? 'y' : '-').join(''), got = M ? M.T.map(x => x === UI_GREEN.toLowerCase() ? 'g' : x === UI_GOLD.toLowerCase() ? 'y' : '-').join('') : '';
+        if (!hub.includes(V) || !M || !(M.r > 0) || M.v !== frValue(c) || M.now !== frMine(c) || got !== want) bad.push('no meter on ' + t + ': ' + JSON.stringify(M) + ' ' + hub.slice(0, 100)); else { seen.push(t); tk = got; } } } finally { window.drawValueMeter = dvm; }
     g.frTab = { tab: 0 }; g.ui.clearTo(careerHub(g)); g.ui.push(franchiseScreen(g, club)); if (!tSaid(g).includes(w)) bad.push('franchise page lacks ' + w);
     g.leagueTab = { tab: 1, player: 0 }; g.ui.clearTo(careerHub(g)); g.ui.push(leagueScreen(g)); const L = tSaid(g); if (!['Contender', 'Rising', 'Rebuilding'].every(x => L.includes(x))) bad.push('franchises list');
     tSim(save, c => c.phase === 'offseason'); c.me.contract.years = 1; const sc = LIFE.starContend, Fm = c.fr[club]; if (Fm.owner.kind === 'cheap') Fm.owner.kind = 'patient'; LIFE.starContend = 1; /* teams act at bars: past the bar (here every value), your club builds around you */
     try { tStep(c, 3, { signDay: 99 }); } finally { LIFE.starContend = sc; } g.ui.clearTo(careerHub(g)); g.ui.push(offseasonScreen(g)); const F = tSaid(g); if (!/Contender|Rising|Rebuilding/.test(F)) bad.push('offers lack the window');
     if (Fm.starC !== c.season || Fm.mode !== 'contend' || !lgStarClub(c, club) || frIds().some(id => id !== club && lgStarClub(c, id))) bad.push('your club does not build around you: ' + JSON.stringify([Fm.starC, Fm.mode, c.season]));
     { const ph = c.phase; c.phase = 'regular'; c.season++; const e = lgHungerEdge(c, club), want = lgHungry(c, club) ? (lgHungerSet(c)[0] === club && lgDrought(c, club) >= LIFE.hungerLong[0] ? LIFE.hungerLong[1] : LIFE.hungerEdge) : LIFE.starEdge; c.season--; c.phase = ph; if (e !== want) bad.push('the season after: edge ' + e); }
-    return ok(bad, 'the meter, the franchise page (' + w + '), the list and the offers; your club builds around you (' + Fm.mode + ', +' + LIFE.starEdge + ' the season after)');
+    return ok(bad, V + ' on ' + seen.join('/') + ' (2★–5★ ticks ' + tk + ': g reached, y passed), the franchise page (' + w + '), the list and the offers; your club builds around you (' + Fm.mode + ', +' + LIFE.starEdge + ' the season after)');
   }), P);
 
   // old saves: the W5 build (the PBL before W6): in the offseason (finishes the old way) and mid-season (ends in the new one)
@@ -212,7 +226,7 @@ window.tScreens = (g, phone) => { const bad = [], save = g.save.data; const c = 
     return out.join(' · ');
   }, P);
 
-  await R.step('screens (desktop): the hub, the League (franchises, power, GOAT, records), the franchise page, the Codex, a meddler\'s card, the seven offseason steps, the free agency week and the negotiation: no cut or overlapping text', () => ev(() => { const bad = tScreens(HH.game, false); return ok(bad, 'all clean'); }), P);
+  await R.step('screens (desktop): HOME and its tabs (3.0), the League (franchises, power, GOAT, records), the franchise page, the Codex, the meddler\'s messages (3.0: minutes, shop, coach), the eight offseason steps, the free agency week and the negotiation: no cut or overlapping text', () => ev(() => { const bad = tScreens(HH.game, false); return ok(bad, 'all clean'); }), P);
   if (P.errors.length) console.log('page errors:', P.errors.slice(0, 5));
   const Q = await openPage(b, { wait: 900, phone: true }); await Q.ev(src => { (0, eval)(src); }, LIB);
   await R.step('screens (phone): the same, with 64 px targets', () => Q.ev(() => { const bad = tScreens(HH.game, true); return bad.length ? Promise.reject(new Error(bad.slice(0, 6).join('; '))) : 'all clean'; }), Q);

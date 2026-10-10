@@ -1,121 +1,63 @@
 # Hoop Heads
 
-**Version 2.1.** An offline 1v1 arcade basketball career game in a single `index.html`. You start as a 14-year-old high school freshman, get recruited by real-feeling college programs, go to college, sign with one of the sixteen franchises of the Pro Basketball League (PBL), rated 1 to 5 stars, and work your way onto a great one: seasons, playoffs and rings, awards, contracts and free agency, your staff, the shop, school and your grades, injuries, a rival, the press, a story in twelve chapters with six endings, getting older, and a Hall of Fame vote when you retire. No online play, no accounts, no analytics and no network requests: the pixel font is drawn in code too. The league, its franchises and every name in it are invented.
+**Version 3.0.** An offline 1v1 arcade basketball career game in a single `index.html`. You start as a 14-year-old high school freshman, play your way through the tournaments and the recruiting of a whole basketball world, go to college, sign with one of the sixteen franchises of the Pro Basketball League (PBL), rated 1 to 5 stars, and work your way onto a great one: seasons, playoffs and rings, the Cup, the World Cup and the Olympics, awards, contracts and free agency, a crew that works for you, the store, school and your grades, injuries, getting older, and a Hall of Fame vote when you retire. Every week is one tap: PLAY or SIM from HOME, and training happens by itself. No online play, no accounts, no analytics, no purchases and no network requests: the pixel font is drawn in code too. The league, its franchises and every name in it are invented.
 
 One pixel-art world (the Retro look: a 360-row pixel grid, the Retro Ball Font, pixel menus), big-head caricature players drawn in code, bouncy physics, dunks, blocks, hooks, fadeaways, ankle breakers, posters. Under the hood: a fixed-step 120 Hz simulation, real ball physics with an analytic shot solver, and bots that press the same virtual buttons you do.
 
-## What's new in 2.1
+## What's new in 3.0: the Retro Bowl rework
 
-Hoop Heads 2.1, in ten milestones (W1–W10; `CHANGES.md` has each one and the 2.1 report). A "What's new in 2.1"
-screen shows once after the update, and the main menu keeps a button for it.
+Hoop Heads 3.0, in eleven milestones (X1–X11; `CHANGES.md` has each one with its tables). The career plays like Retro Bowl: one HOME, one tap a week, a world that keeps score of how you play.
 
-- **The recruiting game.** 64 college programs in eight conferences, each with a coach and a system, facilities, an NIL
-  market, a GPA line, a roster and a history; the Recruit tab and the ranked college list. Interest comes from how you
-  play (your rating, titles, the tournaments, points and the player ranking), from college scouts at your big games and
-  from the programs watching each summer event (your scout names them and, at Lv3, gets you into the invitation-only
-  ones); camps and five official visits. Offers come by themselves: a top target's is held through Signing Day, the
-  rest come with a deadline before a filled spot takes them. Commitments, flips, a coaching carousel, Signing Day;
-  with no offer a walk-on, a prep year, junior college (then transfer offers) or a club abroad.
-- **Teams come to you.** No draft: franchises make offers when your value crosses their bar, and a better one calls with
-  a trade in the season. Playing your games well pays (legacy, stars and titles well above simming everything), simmed
-  games score like played ones, and money has big buys worth making.
-- **The PBL.** Sixteen franchises in two conferences, each with an owner, a GM's plan, a coach's system, a payroll and
-  chemistry; a fifteen-week season with rivalry week, the All-Star break, the trade deadline and a national TV game;
-  conference playoffs and a best-of-5 Finals; award races all season.
-- **The offseason and league life.** Seven steps (retirements, re-signing, free agency week day by day, the trade
-  window, training camp, power rankings); contracts with options and incentives; rosters that move, rookies from your
-  own past, title windows, a GOAT ladder, PBL Tonight.
-- **A story in twelve chapters.** From the night before freshman tryouts to your last day, a chapter for every stage
-  with a version for every path, a title card, one big decision that's remembered, and a closing scene. Your people:
-  a younger sibling, Coach Adeyinka, a best friend (a teammate, your agent, your rival's agent, or gone their own way),
-  your rival, an agent, a journalist, a veteran mentor and an owner. "Previously on Hoop Heads" when you continue, the
-  Story screen as chapters, twelve cutscene backgrounds, and six endings, each with your sibling's last line.
-- **Fixes from the playtest.** A running clock, one attempt in the All-Star 3-point contest, records shown on the hub,
-  and more (W1).
+- **Fixes first.** A long session no longer grows in memory (50 career games stay within +150 MB), and career games score 12–18 points a side in 70–80 seconds.
+- **Less to manage.** The story campaign, press conferences, rivals, hype (fame is the one meter), item rarity, recruiting busywork (film, emails, monthly actions) and the old staff menu are gone. Old saves load with them taken out.
+- **HOME and the week.** Five tabs along the bottom: HOME, LEAGUE, EVENTS, CAREER and STORE. PLAY goes to the game and one result screen, SIM shows a toast, and the season's end is one review. A plan that sticks (Auto, Focus, Rest or Study) trains at every game in +1 steps, with "+1 in about N weeks" on every rating and an optional 30-second drill worth up to +50%. Messages say one thing and come one a week.
+- **Rankings and charts.** Weekly player and team rankings at every level, from how people play, never from OVR. The LEAGUE tab's charts: rankings, leaders, standings, brackets, your team and your own charts.
+- **Teammates and the leagues below.** Every team has five, and all five play: the four behind the starter play JV, the Reserve League or the PBL Development League, and the depth chart follows form (ahead of the starter three weeks running takes the spot). Transfers at every level, a Transfers chart, an Overseas League below the PBL, and the PBL's teams as cards with their dynasties.
+- **Tournaments.** One engine for State, the HS Nationals, the AAU circuit, the Elite Camp, the All-American Game, the U17 and U21 World Cups, the conference and national tournaments, the Preseason Invitational, the PBL Cup, Blacktop Kings, the World Cup and the Olympics: knockouts, groups with medals, a skills challenge and a showcase, harder by level, tier and round, each with a bracket chart and rewards (cash, ranking points, credits, fame, recruiting exposure, tournament items, trophies and medals).
+- **Items and badges.** The store's twelve items with levels 1–5 and no rarity (never more than +4 to a rating, all of it together); tournament items are won, never bought. Seventeen badges, each earned by doing its thing, Lv1 to Lv3.
+- **Your crew.** Six roles (a skills coach, a scout, a strength coach, a physio, a mental coach and an agent), levels 1–5 bought with credits, slots by stage, and they follow you from high school to the pros. Their work shows every week on HOME, in every game and before every tournament.
+- **Recruiting like real life.** Interest comes from how you play: your rating and titles, the tournaments, your points and the national player ranking. College scouts come to your big games, every summer event has its programs (your scout names them and, at Lv3, gets you into the invitation-only ones), offers come by themselves (a top target's is held through Signing Day, the rest come with a deadline), and with no offer there is junior college, a club abroad, a walk-on or a prep year.
+- **Progression.** The legacy weighs what you did (awards, the player rankings, tournaments and medals, your peak OVR), not only the rings; your ceiling is shown on CAREER, and tournaments, your crew, a training facility and badges raise it; a play-well career keeps climbing through its twenties; fame follows your role, your stats and your wins, and fades.
+- **App-ready.** Every price lives in one table; a store module is prepared for a future app (it sells nothing here, and anything it would sell can be earned by playing); saves are versioned and can be copied out as a code and loaded back; an upright phone turns the game to fill the screen.
 
-Old saves load and carry on: a career from before 2.1 joins the chapters where it is (the ones it passed are marked
-missed) and keeps its old ending if none of them was told.
+## Earlier versions
 
-## What's new in 2.0
+- **2.1** brought the recruiting game (64 college programs in eight conferences), the PBL's sixteen franchises in two conferences with owners, GMs and coach systems, the offseason in seven steps with free agency day by day, and teams that come to you instead of a draft.
+- **2.0** brought the Road to the League, scouting cards and signature moves, the XP curve and grades, school and the GPA, the shop, pro teams with crests, playoffs, rings and banners, the Codex, new celebrations and arenas, and a frame time halved on a phone.
 
-Hoop Heads 2.0 and its Part 2, in fourteen milestones (V1–V14; `CHANGES.md` has each one and the 2.0 report). A
-"What's new in 2.0" screen shows once after the update, and the main menu keeps a button for it.
-
-- **Traits.** Seventeen traits in four rarities (Common 55%, Uncommon 28%, Rare 13%, Legendary 4%; every generated
-  player rolls one with the same odds). Rarer is stronger: a Common trait is about +5–8% at one thing, a Legendary one
-  about +30% or game-changing. Each levels from Bronze to Silver (×1.5) and Gold (×2) by doing its thing, and at 1,000
-  career points you pick a third.
-- **Gameplay.** Every opponent has a personality and four tendencies the bots play to, shown on a scouting card.
-  Signature moves, steals that count only when the defense secures the ball (STEAL, or a grey POKED), blocks that read
-  right, bigger phone buttons, a sudden-death overtime and a shot chart in practice.
-- **Road to the League.** Fourteen milestones from varsity to the Hall of Fame on the hub; the goal is a 5★ team. A
-  five-tab hub (Play · Train · Me · Team · Shop) with a season calendar, red dots for anything new, **Sim to next big
-  moment** and **Sim the rest of the season**.
-- **A harder climb.** The next +1 costs 20 × 1.11^(rating − 40) XP, ×3 past your hidden potential, and a game's grade
-  scales its XP (A 1.5×, B 1.2×, C 1×, D 0.6×, F 0.3×). Slumps, injuries that can cost rating points, and at most one
-  5★ starting spot opens per team a season. A typical career reaches a 5★ team 15–25% of the time; a great one about
-  60%.
-- **A real story.** Fifteen arcs over three acts (6–8 in a career), people who remember your choices, six endings and
-  the Story so far. An awards night, the All-Star reveal, a Hall of Fame induction, and a record book with a toast for
-  every record you break.
-- **School.** One GPA from high school through college: midterms and finals, eligibility (under 2.0 you sit), offers
-  that need grades (elite academic programs ask for 3.3), scholarships, tuition and student loans, a major and a degree
-  that change your ending.
-- **The shop.** Gear in slots with rarities and levels (never more than +4 to a rating, all of it together), a weekly
-  stock at a shop with a keeper at each level, a try-on, extras for the week, a lifestyle, signature collabs from the
-  Road, and celebrations.
-- **Your crew.** Six staff you hire, level up with credits (Lv1–5, no rarity) and keep from high school to retirement:
-  a skills coach, a strength coach, a physio, a scout, a mental coach and an agent. Their work shows every week on
-  HOME, in every game (on your bench, in each result's crew line), before every tournament (the prep) and in a season's
-  grades; they call with their news (a tight hamstring, a rival's offer for one of them, a team asking about you).
-- **Pro teams.** Twelve PBL franchises with cities, crests, owners, coaches, markets, fans, history and rivalries; title
-  odds on the hub and on every offer; top-8 playoffs with best-of-3 rounds and a Finals MVP; a parade, a ring ceremony,
-  a banner in the rafters and dynasties.
-- **The Codex.** Press ? or tap the ? on any screen for the page about it. Hover or tap a stat for a one-line tip and a
-  link to its page.
-- **Looks.** Six new celebrations, a new arena at every level, and more names and faces in every league.
-- **Speed.** V2 halved the frame time at 4× CPU throttling (about a mid-range phone): measured back to back, the median
-  frame went from 32 to 14–15 ms on a phone layout and from 40 to 12–14 ms on a desktop, and the frame guard sheds cost
-  within 0.2 s (it took 2.3 s).
-
-Old saves load and carry on: every 2.0 system fills in on a save's first load.
+3.0 keeps all of that except what it took out on purpose (above). `CHANGES.md` has every version's details.
 
 ## Play it
 
-Open `index.html` in a current Chrome, Safari, Firefox or Edge. It works from a double-click on the file and when hosted on any static host (GitHub Pages, Vercel). Landscape only on phones. If the page is embedded in another page, click the court once so it receives the keyboard.
+Open `index.html` in a current Chrome, Safari, Firefox or Edge. It works from a double-click on the file, when hosted on any static host (GitHub Pages, Vercel) and with no network at all. If the page is embedded in another page, click the court once so it receives the keyboard.
 
-On a phone every button is at least 64 px, and long screens (settings, Quick 1v1, the face editor, lists) turn into pages with ◀ ▶. If a match runs slow, a frame guard sheds cost one step at a time: the crowd at 15 Hz and half resolution, then no floor reflections, then no bloom, then a lower resolution for the match. In a Legends View match the thumb controls sit in the strip of floor under the players, and they fade to 40% while you aren't touching them.
+On a phone every button is at least 64 px, and long screens (settings, Quick 1v1, the face editor, lists) turn into pages with ◀ ▶. The game plays in landscape: on a phone held upright it turns itself to fill the screen, so it works with the rotation lock on too (Settings → Display → Upright phone: Turn the game, or Ask to rotate). If a match runs slow, a frame guard sheds cost one step at a time: the crowd at 15 Hz and half resolution, then no floor reflections, then no bloom, then a lower resolution for the match. In a Legends View match the thumb controls sit in the strip of floor under the players, and they fade to 40% while you aren't touching them.
 
 ## The career
 
-One life, from a 14-year-old freshman to the Hall of Fame vote. Every game of it is one-on-one: your school, your
-college program and your pro franchise are your team (its name, colors, uniform, coach and teammates, who show up in
-practice and in the story), your 1v1 record is the team's record and your titles are the team's titles. The hub's
-header always says which team you're on and how good it is: varsity (you start) or JV (the four behind play JV), the
-program's tier from small school to blue blood, the franchise's stars and its rank of the sixteen.
+One life, from a 14-year-old freshman to the Hall of Fame vote. Every game of it is one-on-one: your school, your college program and your pro franchise are your team (its name, colors, uniform, coach and four teammates), your 1v1 record is the team's record and your titles are the team's titles.
 
-1. **Create your player.** Pick a face (the beard you pick shows from day one), a jersey number and a play style (Sharpshooter, Playmaker, Slasher, Lockdown, Post Scorer or Rim Protector) and a game length (1, 2 or 3 minutes; 1 by default; the clock runs through dead balls until the last 10 seconds, so a one-minute game takes about 75 seconds). There is no height slider and there are no rating sliders.
-2. **Your genes and your traits.** Adult height, growth pattern (early, normal or late bloomer) and wingspan are rolled once; a doctor projects your adult height, give or take an inch, and you find out the rest as you grow. Your hidden potential, the ceiling of each rating, is rolled too: scouts narrow it down as you play. You also get two traits out of 17 in four rarities (Common 55%, Uncommon 28%, Rare 13%, Legendary 4%): a Signature one on the genes card and a Hidden one that shows itself in your sophomore season, and at 1,000 career points you pick a third from three. Every trait has an upside and a small cost (Gym Rat: +8% practice XP, −3% fatigue recovery in Rest weeks; a Legendary's cost is only flavor), and levels from Bronze to Silver and Gold by doing its thing. Every generated player carries one trait rolled with the same odds.
-3. **The depth chart.** Every team has five. The starter plays the week's game; the four behind play the league below (JV, the Reserve League, the PBL Development League), a real game a week with standings and rankings, and when you don't start you play there yourself. The chart follows form (the last three games' points): a bench player ahead of the starter three weeks running takes the spot. Big programs start you lower, small ones at the top. Coach trust grows with wins and good weeks: it adds practice XP, a little form, and a word with recruiters and scouts. A pro with four weeks off the top rung in a season can ask for a trade or take a buyout.
-4. **High school.** Tryouts first (a 60-second shootout, then a 1v1 against a senior) set your place on the school's depth chart: the starter plays varsity, the rest JV. One transfer between seasons (a stronger program or a weaker one). No PBL offers at the end of your amateur years? A season in the Overseas League, and a top-3 finish brings them. A six-team district plays a double round robin, the top four play the district playoffs, and the district champions meet in a 16-team state tournament. Senior night, a rivalry game, midterms and finals (Cram, Balanced or Skip the studying; a report card under a 2.0 GPA sits you two games), and four summers: the AAU circuit (recruiters watch, you start the season tired), a skills camp, rest or a summer job.
-5. **The week.** Before every game: **Practice** (XP in your focus rating), **Rest** (fatigue −25; an injury heals a game faster), **Film** (learn the next opponent: +Defense and Shooting in that game), and in high school and college **Study** (GPA +0.3). Every game week takes a little off your GPA, down to a C+ (2.2) if you never study; under 2.3 the hub warns you and your coach makes the week a Study week. Then PLAY the game yourself or SIM it, or sim ahead: **Sim to next big moment** stops before a big game (your rival, the Boss, a rivalry, the playoffs) or after a big moment, **Sim the rest of the season** only for injuries, offers, decisions and the playoffs. Every game adds fatigue; past 50 you play worse and get hurt more, and over 70 the week starts on Rest (Settings → Career injuries turns injuries off). A game's grade (A to F) scales the XP it pays.
-6. **Recruiting.** 64 college programs in eight conferences of eight (three power, two mid-major, two small-school and the Laurel League's elite academic programs), each with a city and state, colors and a pixel crest, an arena, a tier (blue blood, power, mid-major, small, elite academic) and prestige (1–5★), a coach (a style: Pace, Defense, Development or Iso; a tenure; a hot seat), a GPA line and majors, facilities (XP +0 to +9%), an NIL market, the roster you'd join and its history (titles, pros, a rival school). The high school hub's **Recruit** tab and the **College Browser** (filters for conference, tier, stars, the GPA line, distance and "interested in me", six sorts, a name search) open any program's page: everything above and your chances there. Interest (0–100) moves through high school: how you fit the program's usual recruit (your projected national rank against its level), your coach's word, home, your character in the press room, the contact you earn and the competition for its spots; watching from 25, contacted from 50, offer range from 70. From your junior year a program with interest 70+ and a scholarship spot open offers some week (an elite academic program from a 3.0 GPA, on condition of its 3.3 by your senior finals). Named recruits, your rival among them, commit and take the spots: an offer holds none, whoever commits first gets it. An offer can be pulled (grades under its line, a long injury, interest under 50, a filled spot), always after a warning. Three actions a month from your sophomore year (send film, an email, your coach's call, a camp with a showcase game, an unofficial visit) and five official visits, each a weekend in three scenes that shows the facilities and how the coach develops players. A verbal commitment takes a spot and stops the other programs from rising; a flip costs hype and brings a press storm; your coach can leave (follow, stay or reopen). Signing Day is binding, with a hat on the table for every program that offered; with no offer, walk on (no scholarship, the bottom of the depth chart), take a prep year (dominate it and a star comes back) or go pro. A College test in the junior year rewards Study weeks. A national rank in a class of 3,000 and a star rating; blue bloods ask for a 2.5 GPA, everyone else 2.0.
-7. **College.** Up to four seasons: marquee non-conference games, your program's real conference (its seven others) and its tournament, and the national tournament of all 64 programs (your national rank sets your seed; the program's titles go into its history). Team → Colleges opens the browser. Scouts grade every game (your pro stock); NIL deals pay for appearances (money you keep, fatigue it costs); a season on the bench opens the transfer portal; an agent can get you more on every contract for a share of it. A full ride takes a 3.5 GPA and four stars at commitment; otherwise you pay part of the tuition, and a student loan covers what you can't. You pick a major, and four seasons (or summer classes in the pros) earn a degree, which changes your ending. Under a 1.5 GPA comes Academic Probation (a study sprint is worth +0.5). After each season: turn pro, or stay. Your agent's advice and the offers you'd get show before you choose; at OVR 70+ (or 5★ interest) the agent says teams would sign you now and Turn pro is the default, otherwise going back is.
-8. **The combine and signing day.** Height (barefoot and in shoes), wingspan, reach, vertical, agility and bench, revealed one by one. There is no draft: the scouts' score decides which franchises want you, and three make offers (the best that wants you, one a star lower that starts you, and a rebuild that starts you and pays more), each with the franchise's title odds and where you'd start. You pick on signing day.
-9. **The pros.** Sixteen franchises of the Pro Basketball League in two conferences of eight (East and West; every rival in the same one), rated 1 to 5 stars, each with a city, a crest, an owner (win-now, patient, cheap or a meddler), a GM's plan for the season (Contend, Rebuild or Balanced), a coach with a system (Pace, Iso, Defense or Development) you fit or don't, a market, fans, history back to 1979 (the four newest joined in 2016 and 2024) and a rival. A franchise is its starter (the league player; its depth chart decides whether that's you) and four on the bench, each with ratings, an age and a contract; its payroll (the five and the rest of the roster) sits under a $120M soft cap or over it, and cheap owners never pay the luxury tax above $140M. Team strength is the starter, the bench and chemistry (+1 a season the same five stay, up to +3): the simulated games and the title odds use it. Stars bring facilities (practice XP +3% at 1★ up to +15% at 5★), pay, fame a game and a deeper bench, and they move each offseason with the standings; owners trade and sign to contend or rebuild, a rebuild can trade you, and the benches age, re-sign and change. A season is fifteen weeks, everyone once: week 4 is rivalry week, week 8 the All-Star break (a 3-point contest and the All-Star 1v1), week 10 the trade deadline and week 13 your national TV game (twice the hype on the line). The top four of each conference play best-of-3 conference semifinals and finals, then a best-of-5 Finals (the better record hosts games 1, 3 and 5 before a louder crowd) and a Finals MVP; a title brings a parade, a ring ceremony and a banner, and titles in a row are a dynasty. The award races run all season: a weekly MVP ladder (the top five, with arrows), Rookie of the Year, Defensive Player, Most Improved, Sixth Man (a bench player: you, if you sat half the season), All-League 1st and 2nd teams, Player of the Week. **Moving up:** your value (OVR + fame/15 + hype/30) against each star level's bar. Free agency brings three offers (your team, the best franchise that wants you, one that starts you; the best is the default when it beats your team), and a trade request goes at most a star up, once every two seasons. Teams come to you too: in the season, once your value is 3+ over your franchise's bar and reaches a better one's, that franchise calls with a trade offer (accept it and you lose no hype). **The goal** is on the hub's Road to the League: a 3★ team, then a 5★ team, starting for one, and a ring with one. Contracts you negotiate (1 to 5 seasons; a promised start costs 10%) and what money buys: your staff, a home gym, a lifestyle (a car, a house for your family and more, each paying something every week), sponsors, a signature shoe line once your hype reaches 60, and big buys priced for a pro: a stake in your team (a dividend, and a share that grows), a private training facility (practice XP +8%), sneaker company shares (they rise and fall), a home for your parents, a charity event a season (fame) and your name on the arena back home (legacy).
-10. **The shop and your staff.** The hub's Shop tab is a storefront with a keeper at each level (the corner shop, campus sports, the pro shop): six items a week on its shelves, gear in five slots you wear plus training and recovery slots, common to epic (+1 a level to one rating, in games only, and never more than +4 to a rating all together), a try-on that shows your ratings old → new, extras for the week (an ice bath, a drink, a film session), and celebrations. Signature collabs come from the Road, never from money. In the pros you hire a staff: an agent, a skills coach, a strength trainer, a physio, a nutritionist and a mental coach, 1★ to 5★ (the best that will talk to you follows your fame), each with a salary and a personality.
-11. **Hype and the press room.** Hype runs from 0 to 100. It lifts sponsor offers, the scouts' score and your value to the franchises, recruiting, All-Star votes and the home crowd; it costs too: losses shake you more, from 60 defenses key on you, from 70 the media eats into practice and your rival is fired up. Big games end in the press room with four answers (Team first, Confident, Trash talk, No comment), none best: each says what it does.
-12. **The story.** The career is told in twelve chapters (The Kid from your school, Varsity, The Spotlight, Signing Day, Freshman Wall, March, The Decision, Rookie, Prime, The Ring Chase, Finals or The One That Got Away, and Legacy), each with a title card, a version for your path, one big decision ("This will be remembered") and a closing scene; side stories (6 to 8 of fifteen arcs over three acts) fill the gaps. Three to five scenes a season, never more than two in a row, every one with a choice, in RPG dialogue boxes with the speaker's portrait and a cutscene background, and no scene twice in a career. Every choice trades one thing for another, the people in it remember (each has a meter), and flags carry choices forward: your best friend becomes your agent or your rival's, the big agency's deals come out, Coach Adeyinka comes back to coach you. "Previously on Hoop Heads" recaps where you left off. The Story so far tells your career back. Awards night, the All-Star reveal and a Hall of Fame induction are ceremonies, and the record book toasts every record you break. THE DAILY DRIBBLE has the headlines and a social feed that reacts to your games, press answers, trades and signings.
-13. **Getting better.** XP comes slowly and the top is steep: the next +1 costs 20 × 1.11^(rating − 40) XP (60 to 70 is about 2,700 XP, 80 to 90 about 21,700), and past your hidden potential every +1 costs three times as much. In the career simulator a typical player is 68 OVR at 25 and peaks around 70 at 29. Every game gives XP, scaled by its grade (a simmed game pays half); it grows with winning and follows your game (made shots build Shooting, rim finishes Finishing, rebounds Strength and Hops, steals and blocks Defense), plus your practice focus. Teens learn fastest; after 30 the legs go first. Slumps come and go, and an injury can cost rating points. Moves unlock as your ratings grow.
-14. **Retirement and the epilogue.** A legacy score from your pro career decides the Hall of Fame vote. The story ends one of six ways, as a cutscene: chapter 12's closing scene with your sibling's last line (the Mercenary Champion, the Fallen Star, the Owner, the Hometown Hero, Family First or the Coach; a career from before 2.1's chapters: Passing the Torch, The Legend, Two Old Rivals, Home, The Long Road or The Work). Then what your money builds: a foundation (legacy), a youth academy (your next career starts ahead), a franchise stake (the owner's ending) or a free ending as a coach or a broadcaster; your major and your degree pick its version. The **Trophy case** holds every award from high school on, and the **Timeline** charts your OVR by age with everything that happened.
-15. **The Codex.** Press ? or tap the ? on any screen for its page; it explains every number: your value right now, what raises and lowers it, and what it does in the game's own numbers. Hype, for example, lists what yours earns you and what it costs you right now. Hover or tap a stat chip or meter for a one-line tip with a link to its page.
-16. **The Road to the League and the hub.** Fourteen milestones from making varsity to the Hall of Fame, each with a reward; the goal is a 5★ team. The hub has five tabs (Play · Train · Me · Team · Shop; keys 1–5), and in high school a sixth, Recruit, before Shop (keys 1–6): a left rail on a desktop, a bottom bar on a phone, a red dot on a tab with something new.
+1. **Create your player.** Pick a face, a jersey number and a play style (Sharpshooter, Playmaker, Slasher, Lockdown, Post Scorer or Rim Protector) and a game length (1, 2 or 3 minutes; 1 by default). There is no height slider and there are no rating sliders.
+2. **Your genes, your ceiling and your badges.** Adult height, growth pattern (early, normal or late bloomer) and wingspan are rolled once; a doctor projects your adult height. Each skill has a ceiling, your potential (rolled at the start) plus what raises it: past it every +1 costs three times the XP. CAREER rates every rating against its ceiling ("Shooting 78 / 82") and shows CEILING with what raised it. Badges are earned, never rolled: each of the seventeen unlocks by doing its thing and levels up to Lv3 the same way.
+3. **HOME and the week.** HOME is your week: the next game (PLAY or SIM), the season, the table, the next event, your crew's report and the headlines; LEAGUE has the charts, EVENTS the tournaments and the calendar, CAREER you (ratings, badges, records, the Road), and STORE the store. Your plan stays until you change it: Auto trains your best-value rating, Focus one rating you pick, Rest takes fatigue off, Study raises your GPA; over 70 fatigue the week rests on its own. A message comes at most once a week.
+4. **The depth chart.** Every team has five. The starter plays the week's game; the four behind play the league below (JV, the Reserve League, the PBL Development League), a real game a week with standings and rankings, and when you don't start you play there yourself. The chart follows form (the last three games' points).
+5. **High school.** Tryouts set your place on the depth chart: the starter plays varsity, the rest JV. A district, the state playoffs and the HS Nationals; in the summers the AAU circuit, the Elite Camp, the U17 World Cup or a summer job; the All-American Game for the top 24 seniors. Your GPA: every game week takes a little off, a Study week puts it back, and an offer needs its line.
+6. **Recruiting.** 64 college programs in eight conferences, each with a place, a crest, an arena, a tier from small school to blue blood, a coach and a system, facilities, an NIL market, a GPA line and spots to fill. Interest comes from how you play; college scouts come to your big games (the playoffs, senior night, the Boss, a ranked opponent) and your grade moves their interest; each summer event has its programs. Offers come by themselves: a top target's is held through Signing Day, the rest come with a deadline before a filled spot takes them. With no offer: junior college (then transfer offers by your finish), a club abroad, a walk-on or a prep year.
+7. **College.** Up to four seasons: the Preseason Invitational, your conference and its tournament, the national tournament of all 64, the U21 World Cup; NIL deals, and the combine when you leave.
+8. **The pros.** Sixteen PBL franchises in two conferences, rated 1 to 5 stars, each with a city, a crest, an owner, a GM's plan and a coach's system. There is no draft: franchises make offers when your value (OVR, fame and playoff wins) crosses their bar, and a better one calls with a trade. A fifteen-week season with the PBL Cup's group nights and knockout weekend, the All-Star weekend, the trade deadline and a national TV game; the conference playoffs and the Finals; the awards; the offseason in seven steps with free agency day by day; Blacktop Kings in the summer, the World Cup and the Olympics two years apart for the league's top four.
+9. **Tournaments.** Every field plays at its level plus its tier (local, state, national, international, Olympic), and every round adds to it: the rating shows before each game. The rewards: cash, ranking points, credits, fame, recruiting exposure, the champion's tournament item, trophies and medals for the trophy room, the legacy, and a higher ceiling.
+10. **The store.** Twelve items, the same every week, levels 1–5 at the stage's prices (a high schooler's $60, a pro's $400K), never more than +4 to a rating all together; extras for the week, celebrations; in the pros a lifestyle and big buys (a stake in your team, a training facility that raises your ceiling, a home for your parents, your name on an arena).
+11. **Your crew.** One slot in high school, three in college, six in the pros; three candidates a role, levels 1–5 bought with credits (from wins, tournaments and Road goals), and two seasons together make them work a level higher. They show on HOME, in every result, on your bench in games and before every tournament (the prep), and they call with their news.
+12. **Getting better.** Every game gives XP by what you did in it and its grade (in the pros an A pays 1.8×, a simmed game half); the next +1 costs 20 × 1.11^(rating − 40) XP, ×3 past its ceiling; teens learn fastest and after 30 the legs go first.
+13. **Fame.** In the pros the games you start move it: wins, your points against the league's line, highlights and playoff games (a loss or a quiet night costs a little; the bench's games none); it fades 3% a week, and gains shrink near the top. Sponsors, your market value, All-Star votes, the home crowd and the franchises' bars follow it.
+14. **Retirement.** The legacy: a title 10 (from the bench 5), MVP 8, Finals MVP 4, All-League 4 (2nd team 2), every other award and All-Star, each season in the player rankings' top 10 (#1: 3), tournaments and medals, 1.5 a point of peak OVR over 70, the seasons and the points. 350 puts you in the Hall of Fame (525: the first ballot). Then what your money builds: a foundation, a youth academy for your next career, or a stake in your franchise.
+15. **The Road to the League and the Codex.** Fourteen milestones from making varsity to the Hall of Fame, each with a reward; the goal is a 5★ team. Press ? or tap the ? on any screen for its page in the Codex; it explains every number in the game's own terms. Hover or tap a stat for a one-line tip.
 
 Every opponent is a real engine player with their own ratings and size, so a 7′1″ rim protector and a 5′11″ guard play completely differently.
 
-The main menu also has Quick 1v1 (any two players, any court, any format, and three rulesets: Arcade full court, Street Sim with fouls, or **Street half court** with a check ball at the top, clearing the ball past the arc after a stop, make-it-take-it, win by 2 and scoring by 1s and 2s or 2s and 3s), the Hall of Fame and **Save slots** (three careers, each with its own Hall of Fame and records). Settings → Gameplay → Career games picks full or half court for the career. **Practice** holds shooting practice (every rebound comes back to you), the 3-Point Contest (threes only: you walk from rack to rack and Shoot is the only button) and the tutorial. The credits are in Settings, and the **Art Lab** is in the dev menu (also `index.html?artlab`).
+The main menu also has Quick 1v1 (any two players, any court, any format, and three rulesets: Arcade full court, Street Sim with fouls, or **Street half court** with a check ball at the top, clearing the ball past the arc after a stop, make-it-take-it, win by 2), practice, the Hall of Fame and **Save slots** (three careers, each with its own Hall of Fame and records).
 
-**Settings** has five tabs: Graphics (Retro, Retro sharp or Smooth; the camera; shake), Audio, Controls (keys A, B or your own, remapped action by action; the touch controls), Gameplay (difficulty, rules, the career's court, game length and injuries, the shot meter, power-ups in Quick 1v1, first-time tips) and Accessibility (text size 1× or 1.25×, reduce motion, colorblind-safe jerseys). The first time you reach each part of the career a short tip explains it.
+**Settings** has six tabs: Graphics (Retro, Retro sharp or Smooth; the camera; shake), Audio, Controls (keys A, B or your own, remapped action by action; the touch controls), Gameplay (difficulty, rules, the career's court, game length and injuries, the weekly drill, the shot meter, power-ups in Quick 1v1, first-time tips), Display (text size 1× or 1.25×, reduce motion, colorblind-safe jerseys, the upright phone) and Save (copy this save as a code, load a code or a file).
 
 ## Height matters
 
@@ -160,77 +102,77 @@ Everything is exposed on `window.HH` for scripting: `HH.simulateMatch(...)`, `HH
 
 ## Tech
 
-Vanilla JavaScript (ES2020+), Canvas 2D and Web Audio. All art is drawn in code and all sound is synthesized. Every tuning number lives in the `CONFIG` object at the top of the file. Pictures that are painted once and kept (faces and portraits, a venue's layers and crowd, the players' poses, the menus' text, panels and buttons) are made ahead of time by a bake worker, the page's own code running in a Web Worker on OffscreenCanvas, and kept for the session; a browser without one makes them on the main thread in small slices, behind a short "Warming up..." bar before a game. Gameplay randomness comes from a seeded RNG, so any match can be reproduced from its seed, and the career has its own seeded stream. Your games run on the full engine. AI-vs-AI league games use a fast statistical model fitted by least squares to 4,000 headless engine games, so standings and stat lines match what the engine produces. A rating is the engine attribute × 10, from high school to retirement. Saves live in `localStorage`: slot 1 under `hoopheads.save.v1` (schema version 5), slots 2 and 3 under `hoopheads.save.v1.slot2` and `.slot3`; a save that can't be read is kept aside under `.corrupt`. A career from the first high-school build carries over with its ratings, height and history, and a save from before 2.0 picks up every 2.0 system (hidden potential, the saga, grades, staff, the shop, the franchises' identities) on its first load. Careers from older builds (the team career and the first pro-only 1v1 career) can't continue, so their name and face prefill a new player. If storage is missing or corrupted, the game still runs.
+Vanilla JavaScript (ES2020+), Canvas 2D and Web Audio. All art is drawn in code and all sound is synthesized. Every tuning number lives in the `CONFIG` object at the top of the file, and every price in the `ECONOMY` table just above it. Pictures that are painted once and kept (faces and portraits, a venue's layers and crowd, the players' poses, the menus' text, panels and buttons) are made ahead of time by a bake worker, the page's own code running in a Web Worker on OffscreenCanvas, and kept for the session; a browser without one makes them on the main thread in small slices, behind a short "Warming up..." bar before a game. Gameplay randomness comes from a seeded RNG, so any match can be reproduced from its seed, and the career has its own seeded stream. Your games run on the full engine. AI-vs-AI league games use a fast statistical model fitted by least squares to headless engine games, so standings and stat lines match what the engine produces. A rating is the engine attribute × 10, from high school to retirement.
+
+**Saves** are versioned (schema version 6) and live in the device's storage through one adapter (`SAVE_STORAGE`: the browser's `localStorage` here): slot 1 under `hoopheads.save.v1`, slots 2 and 3 under `.slot2` and `.slot3`; a save that can't be read is kept aside under `.corrupt`. Settings → Save copies a slot as a code (`HH3:` and its JSON with the app, the schema version and the game's version) and loads a code or a file back into the slot: an older save is brought up to date by the same migrations that every old save goes through, a newer one is refused. Old saves load: 3.0 takes out what it removed (the story, press, the rival, hype, rarity, the old staff) without a word. If storage is missing or corrupted, the game still runs.
+
+**App-ready (prepared, not live).** The code keeps its SAVE, ECONOMY, STORE and UI sections apart, so it can move into an app wrapper. `ECONOMY` holds every price: cash (earned by playing) buys items and their levels, crew salaries, school, camps, a lifestyle and the big buys; credits (from wins, tournaments and Road goals) level up the crew. The STORE section is a product catalogue (credit packs that only speed things up, one Unlimited unlock, cosmetics: jerseys, shoes, courts and celebrations) and `purchase(sku)` through a provider interface; the web build's provider is a disabled stub with no payment code, so it sells nothing. There are no paid random rewards, and everything in the catalogue can also be earned by playing (Unlimited comes with a Hall of Fame career). In an app, purchases must go through Apple's and Google's own billing, as a provider behind the same interface.
 
 ## Tests
 
-The game has no build step and no dependencies. The tests use Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`, or a global install):
+The game has no build step for players and no dependencies. The tests use Playwright with Chromium (`npm i -D playwright && npx playwright install chromium`, or a global install). `CHANGES.md` has every table they print; X11's section has the full suite's run.
+
+3.0's targets (§11), one suite each:
+
+```
+node tests/memory.js [50] [--phone]   # 50 career games against new opponents: memory within +150 MB of the level after game 5
+node tests/loop.js                 # a season's weeks at each level through the real screens: at most 2 screens between games on PLAY, 1 on SIM
+node tests/pace.js [8] [seed]      # career games played in the engine: 12–18 points a side, 70–80 s a game, at every level
+node tests/rankings.js [careers]   # weekly rankings follow how people play: the top scorer in the top 10 in 95%+ of seasons, teams by record
+node tests/lower.js                # five on a team, the leagues below, the depth chart by form (3 weeks ahead takes the spot), transfers, the Overseas League
+node tests/tourney.js              # every tournament runs and has a bracket chart, NPC strength rises each round and tier, rewards, the Olympics and the World Cup alternate
+node tests/recruit30.js            # recruiting (§8): interest from how you play, scouts at big games, the summer's programs, offers held and deadlines, the roads with no offer, the 600-career table
+node tests/progress30.js [100] [seed] [par]   # progression (§9): fame by role, stats and wins, the ceiling shown and raised, the legacy's parts, and the table (play-well +40% legacy, OVR gains, fame spread)
+node tests/crew.js                 # the crew (§7): roles, levels, credits, slots, the report, messages, the prep, and the §7.6 balance table (1,200 careers a policy)
+node tests/items.js                # no rarity anywhere, the +4 cap (a property test), tournament items (never bought), badges earned
+node tests/store30.js              # app readiness (§10): the stub provider sells nothing, every price from the one table, fair products, save codes, the upright phone, offline
+node tests/oldsaves.js [actions]   # every save in tests/fixtures (from older builds) loads with what 3.0 removed taken out, and plays on through the UI
+node tests/screens30.js [dir] [--only=desktop|phone|desktop125|phone125]   # the overflow audit of every 3.0 screen at a desktop, a phone and 1.25× text
+```
+
+The whole game and its systems:
 
 ```
 node tests/check-syntax.js         # node --check on the game's script
-node tests/smoke.js                # the whole game through the UI at 1280×720, other modes, old-save migrations,
-                                   # regression checks, and the phone layout with touch at 844×390 (zero errors allowed)
-node tests/devtools.js             # bot sims (1v1 Pro mirror, Legend vs Pro, 3v3), shot lab, tunneling test
-node tests/balance.js [n]          # a scripted "human" plays real matches: points per possession by strategy vs Pro and Legend
-node tests/gate.js [n] [perCell]   # the balance gate: Legends and Classic Pro mirror PPP, Legend vs Pro, and the harness by layout
-node tests/stylemix.js [n]         # bots play to their build: post-ups, jumpers, threes and drives by play style
-node tests/heighttest.js [n]       # 2.12 m against 1.82 m, with and without the career's height shifts
-node tests/careersim.js [40] [seed] [--set career.proMean=83 ...]   # whole simulated careers against the career targets
-                                   # (the week, press answers, recruiting, franchises and gear included); --set tries a CONFIG value;
-                                   # --fa=stars|money|yours|best|starter, --trade=up|never, --spend=smart|none and --gear=buy|none
-                                   # pick the policies; --policy=great plays every game well (Part 2's "great" career);
-                                   # --menus=never takes every card's default, --week=rest|nostudy, --parity=n, --json;
-                                   # --rec=typical|none|early|late (the recruit's actions and commitment), --hsOnly --spread=12 (the
-                                   # recruiting tables alone, 2.1 §2.7's by stars and 3.0 §8's by the national rank at signing:
-                                   # high school only, talent spread over every star level)
-node tests/perf.js                 # frame cost at phone size in the arena, at each performance-guard level
-node tests/modes.js                # every mode played to its end through its screens (quick 1v1, the 3-point contest,
-                                   # practice, the tutorial, and the career's games, drills, challenges and All-Star weekend)
-node tests/oldsaves.js [actions]   # every save in tests/fixtures (from older builds) reloaded and played on through the UI
-node tests/phoneaudit.js [dir] [--desktop] [--size=WxH@dpr] [--text125]   # every screen (about 130) at 844×390, 1280×720 or any
-                                   # window, optionally at 1.25× text: tap targets under 64 px, overlapping or cut text, text under
-                                   # a figure, overlaps, off-screen or unlaid widgets, labels off their buttons
-node tests/fullcareer.js [--phone] [--jump]  # one whole career through the screens, title to the Hall of Fame (a real match
-                                   # at each level); --jump plays a high school game, then the dev menu's Jump to pro, then the pros
-node tests/fixes.js                # 2.0's must-fix bugs that need a page (ONLY=<regex> runs matching steps)
-node tests/steals.js               # steal consistency: every STEAL callout and stat is a real change of possession
-node tests/boxscore.js             # box-score invariants over 2,000 simmed games (3PM ≤ 3PA ≤ FGA, points add up)
-node tests/perf4x.js [--phone-only] # frame times at 4× CPU throttling (phone and desktop) with forced dunks and blocks
-node tests/loadlag.js [--rate=4,1] [--only=startup|career|pro|quick] [--phone]   # loading lag: every screen change and game load at 4× and 1× CPU, a table, fails on any miss
-node tests/traits.js               # the badges (3.0 §6.3): their numbers, deeds and levels, cards and chips, the Codex page, old saves
-node tests/gameplay.js             # scouting, bots playing to their card, signature moves, overtime, the phone buttons
-node tests/flow.js                 # the career flow: pace, the week, playing time, the Road, sim ahead, the five-tab hub
-node tests/climb.js                # the climb's rules: the XP curve, hidden potential, grades, setbacks, 5★ scarcity
-node tests/difficulty.js           # Part 2's §1.1 table: 600 careers on 3 seeds, a typical and a great policy (2.1 §3.7's bands for the great one: a 5★ team 35–55%, 1–2 titles; the Hall of Fame at other lines too)
-node tests/school.js               # GPA and school: offers, exams, eligibility, scholarships, tuition, majors
-node tests/shop.js                 # the store (3.0 §6.1): twelve items, levels 1–5, prices by stage, the +4 cap (property test), no rarity, try-on, old gear
+node tests/smoke.js                # the whole game through the UI at 1280×720, other modes, old-save migrations, regression checks, and the phone with touch (zero errors allowed)
+node tests/flow.js                 # the career flow: pace, the week, playing time, the Road, sim ahead, the hub's tabs
+node tests/fullcareer.js [--phone] [--jump]   # one whole career through the screens, title to the Hall of Fame
+node tests/modes.js                # every mode played to its end through its screens
+node tests/fixes.js                # 2.0's must-fix bugs that need a page
+node tests/gameplay.js             # scouting and the pregame card, the Boss, signature moves, overtime, the phone buttons
+node tests/traits.js               # the badges: their numbers, deeds and levels, cards and chips, the Codex page, old saves
+node tests/shop.js                 # the store: twelve items, levels 1–5, prices by stage, the +4 cap, lifestyle, old gear
+node tests/climb.js                # the climb's rules: the XP curve, the ceiling, grades, the weekly drill, setbacks, 5★ scarcity
+node tests/school.js               # GPA and school: offers, eligibility, Study weeks, scholarships, tuition
+node tests/colleges.js             # the 64 colleges: the registry, the ranked list, a program's page, recruiting on HOME, the Codex, phones
 node tests/proteams.js             # pro teams: identity, title odds, playoffs and the Finals, rings, banners, dynasties
-node tests/pbl21.js                # 2.1's PBL: sixteen franchises in two conferences, owners, GMs, coach systems and fit, rosters, payroll, chemistry, team strength, the fifteen weeks and their key weeks, the conference playoffs, the award races, the benches' offseason, a 2.0 save's expansion, the screens
-node tests/life21.js               # 2.1's offseason and league life: the seven steps, the free agency week (offers by day, the agent's counter, over-cap and cheap owners), options, the no-trade clause and incentives, the trade window and rebuilds, training camp, AI trades, retirements and rookies (your old teammates), title windows and hunger, the GOAT ladder and records, PBL Tonight, power rankings and the TV game, a meddler's beats, the value meter, W5 saves, the screens
-node tests/league30.js [3] [30] [seed]   # §3.7 for the league: 30 seasons a league with a league-average you: AI trades a season, a new champion, every franchise's title
+node tests/pbl21.js                # the PBL: sixteen franchises, owners, GMs, coach systems, rosters, payroll, the fifteen weeks, the playoffs, award races
+node tests/life21.js               # the offseason and league life: the seven steps, free agency day by day, the agent, contracts, owners, the value meter
+node tests/improve21.js            # Study and the GPA floor, leaving college, offers and trades that come to you, big buys
+node tests/playtest3.js            # 2.1's playtest fixes and the running clock
 node tests/polish.js               # the Codex everywhere, tooltips, dots, What's new, legibility, celebrations, arenas
 node tests/hudaudit.js             # the match HUD's text at several window sizes: nothing overlaps
-node tests/playtest3.js            # 2.1's playtest fixes and the running clock, one step each
-node tests/improve21.js            # 2.1's improvements: Study and the GPA floor, leaving college, offers that come to you, big buys
-node tests/colleges.js             # 2.1's 64 colleges: the registry, coaches, interest, the browser, a program's page, offers and spots, the field of 64, old saves, the Recruit tab
-node tests/recruit30.js            # 3.0 §8's recruiting: interest from how you play, scouts at big games, the summer's programs and your scout's invites, offers held and deadlines, spots, warnings and pulls, camps and visits, commitment and flips, the carousel, Signing Day, walk-ons, the prep year, junior college and a club abroad, the College test, the college list, the screens, the Codex, old saves, and the §8 table (600 careers)
-node tests/parity.js [12] [seed]   # your simmed points against your played points (the AI at your controls), every level within 10%
-node tests/pace.js [8] [seed]      # 3.0 (§0.2): career games played in the engine: 12–18 points a side, 70–80 s a game, at every level
-node tests/memory.js [50] [--phone]   # 3.0 (§0.1): 50 career games against new opponents: memory within +150 MB of the level after game 5
-node tests/loop.js                 # 3.0 (§2.2): a season's weeks at each level through the real screens: at most 2 screens between games on PLAY, 1 on SIM; the plan and the messages
-node tests/screens30.js [dir] [--only=desktop|phone|desktop125|phone125]   # 3.0 (§11): the overflow audit of the 3.0 screens (HOME's tabs, results, messages…) at a desktop, a phone and 1.25× text
-node tests/rankings.js [careers]  # 3.0 (§4.1): weekly rankings at each level follow how people play: the top scorer in the top 10, teams by record, not OVR
-node tests/lower.js                # 3.0 (§4.3–4.5): five on a team, the leagues below, the depth chart by form (§11), transfers, the Overseas League, the PBL's teams
-node tests/tourney.js              # 3.0 (§5): every tournament runs and has a bracket chart, NPC strength rises each round and tier, rewards, the Olympics and the World Cup alternate (§11), and the table
-node tests/items.js                # 3.0 (§6, §11): no rarity anywhere, the +4 cap (a property test), tournament items (never bought, upgraded with cash, in the trophy room), badges earned
-node tests/effort.js [200] [seed] [par]   # the career policies: plays well + good choices vs sims everything, never opening a menu,
-                                   # a smart spender (legacy, 5★ teams, titles, money left over)
-node tests/traitbalance.js [n] [seed] [par]                      # every badge forced on n careers: legacy against the median
-node tests/gen_oldsaves.js [dir]   # rebuilds the old-build fixtures by running earlier builds from git history
-node tests/beforeafter.js <dir>    # pairs shots/audit with a fresh shots.js run into shots/before-after/
-node tests/artlab.js <m> <round>   # Art Lab + in-match screenshots → shots/<m>/round-<round>/
-node tests/reel.js <m> <round> [court] [seconds]   # plays a bot match and screenshots each key animation (dunk, crossover, rim hang...)
-node tests/shots.js <dir>          # a screenshot of every screen (the audit and before/after gallery)
+node tests/phoneaudit.js [dir] [--desktop] [--size=WxH@dpr] [--text125]   # every screen at a phone, a desktop or any window: tap targets, cut or overlapping text
+node tests/loadlag.js [--rate=4,1] [--only=startup|career|pro|quick] [--phone]   # every screen change and game load at 4× and 1× CPU
+node tests/perf.js                 # frame cost at phone size in the arena, at each performance-guard level
+node tests/perf4x.js [--phone-only]   # frame times at 4× CPU throttling with forced dunks and blocks
+node tests/boxscore.js             # box-score invariants over 2,000 simmed games
+node tests/steals.js               # every STEAL callout and stat is a real change of possession
+node tests/parity.js [12] [seed]   # your simmed points against your played points, every level within 10%
+node tests/league30.js [3] [30] [seed]   # 30 seasons of a league: trades, new champions, every franchise's title odds
+```
+
+Simulators and tools:
+
+```
+node tests/careersim.js [40] [seed] [--policy=great] [--crew=auto|none|full|<role>] [--seasons] [--hsOnly --spread=12] [--json] [--set career.x=1 ...]
+                                   # whole simulated careers from a freshman to retirement: the tables by level, the crew, recruiting and the §9 numbers
+node tests/effort.js [200] [seed] [par]   # the career policies: plays well + good choices against sims everything, never opening a menu, a smart spender
+node tests/difficulty.js           # the difficulty table over 600 careers (a typical and a great policy): 3.0's bands, Part 2's targets beside them
+node tests/traitbalance.js [n] [seed] [par]   # every badge forced on n careers: legacy against the median
+node tests/devtools.js             # bot sims (1v1 Pro mirror, Legend vs Pro, 3v3), the shot lab, the tunneling test
+node tests/balance.js [n] · gate.js · stylemix.js · heighttest.js   # the engine's balance harnesses
+node tests/gen_oldsaves.js [dir] · beforeafter.js · artlab.js · reel.js · shots.js · gallery.js   # fixtures and screenshots
 ```
 
 `AUDIT.md` is the baseline audit, `PLAN.md` the milestone plan, and `CHANGES.md` logs every tuned number.
