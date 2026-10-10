@@ -463,7 +463,10 @@ suite once at the end, 1v1 only (no story, rivals, rarity or arcade extras).
 scratch list), toasts in the top band, crew hires in credits with salaries only in the pros, no bench limbo (a call-up
 or the agent's trade), Most Improved never to the MVP, PBL rankings on PBL games only, the 3-Point Contest's field, team
 names for abbreviations, the last "rival" text, three small layout fixes (`tests/fixes40.js`).
-**Y2 — The visual kit** — §1.
+**Y2 — The visual kit** *(done)* — §1: a career's screens on their level's color with the league's logo and the year as
+a watermark; the logo, framed panels with the title in the border, chunky shadowed capitals, five stars with halves,
+mood faces, the credits counter, the header and its "i", the bottom row and the TIP line (`149_v4kit.js`; the Art Lab's
+Kit 4.0; `tests/kit40.js`).
 **Y3 — HOME** — §2.1.
 **Y4 — PREGAME and POSTGAME** — §2.2–2.3, with the kit and ball pickers.
 **Y5 — TEAM, the PLAYER page and VIEW ALL TEAMS** — §2.4.
@@ -494,6 +497,7 @@ node tests/loop.js                 # 3.0: the weekly loop's screens between game
 node tests/screens30.js [dir]      # 3.0: the overflow audit of the 3.0 screens at a desktop, a phone and 1.25× text (§11)
 node tests/rankings.js [n]         # 3.0: rankings follow how people play at each level (§4.1, §11)
 node tests/fixes40.js [--phone]    # 4.0: the §0 fixes (stars, toasts, crew pay, bench limbo, awards, rankings, the 3-Point Contest, names)
+node tests/kit40.js [--phone]      # 4.0: the visual kit (§1): level backgrounds, stars, moods, panels, the header and the bottom row
 node tests/gate.js [n] [hn]        # the §2 Legends View gate: mirror, Legend vs Pro and the harness in both layouts (L1)
 node tests/tojpeg.js <dir>         # milestone screenshots: PNG → JPEG
 ```

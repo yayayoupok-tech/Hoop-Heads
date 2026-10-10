@@ -10083,6 +10083,198 @@ function phoneBar(ui, items, weights, x, w) {
 function drawPagerLabel(ctx, P, x, y, align) { if (!P || P.pages < 2) return; const sect = P.sect(); kitChip(ctx, (sect ? sect.toUpperCase() + '  ·  ' : '') + 'PAGE ' + P.label(), x, y, { size: 20, fill: 'rgba(8,12,36,0.85)', stroke: 'rgba(94,224,255,0.6)', color: UI_CYAN, align: align || 'right' }); }
 
 // ============================================================================
+// SECTION: UI KIT, PART 2 — 4.0 (§1): the Retro Bowl look. One saturated color per level (high school deep red,
+// college green, the PBL royal blue) with a faint repeating watermark of the league's logo and the year; dark navy
+// panels with a thick light outline and the title cut into the top border; chunky capitals, white with a dark shadow,
+// and big numbers; ratings as five stars with halves (offense cyan, defense red, players and the crew gold); mood faces
+// (a yellow smile, an orange so-so, a red frown); the credits counter; the header on every screen (the credits on the
+// left, the league's logo and three stars each side of the title, an "i" or the career year on the right); the bottom
+// row of chunky buttons (square icons, two-line labels, the main action bottom right with ▶); a TIP line above it.
+// Everything here draws on the UI's design grid (UI_W × UI_H) and never throws.
+// ============================================================================
+Object.assign(ART, {
+  rbk: {
+    colors: { hs: ['#B4283C', '#7C1626'], college: ['#26884C', '#145A2F'], pro: ['#2B54CE', '#18328E'] }, // a level's background: the top and the foot of a soft gradient
+    wm: { w: 300, h: 168, a: 0.085, logo: 50, year: 22 }, // the watermark's tile (design units: two logos and years to a tile, staggered), its alpha and sizes
+    tag: { hs: 'MHL', college: 'C1C', pro: 'PBL' }, // the leagues' marks: the Metro High School League, the Collegiate 1v1 Conference, the Pro Basketball League
+    navy: 'rgba(10,16,48,0.93)', line: '#E6EAFF', lineW: 4, titlePx: 16, ink: '#080A20', // panels; the text's shadow
+    off: '#5EE0FF', def: '#FF5A5A', gold: '#FFD23F', empty: 'rgba(255,255,255,0.16)', // stars: offense, defense, players and the crew; an empty star
+    mood: [[67, '#FFD23F'], [34, '#FF9A2E'], [0, '#FF4A4A']], // a mood face: from this %, this color (a smile, a so-so, a frown)
+    btn: { fill: '#18235E', hot: '#26338A', line: '#E6EAFF', main: '#FFD23F', mainHot: '#FFE27A', mainInk: '#1A1206', h: 66, gap: 10, icon: 66 }, // the bottom row
+    perStar: 4,               // a player's stars: half a star for every perStar / 2 OVR from the level's middle (2.5 stars)
+    header: { y: 36, h: 56 }, // the header's middle and height
+  },
+});
+const RBK = ART.rbk;
+// ---------------- the level and the year ----------------
+// The career's level: 'hs', 'college' or 'pro' (null: no career). The combine and junior college count as college,
+// the Overseas League as the pros.
+function rbLevelOf(data) {
+  const c = data && data.career; if (c && c.phase !== 'retired' && isPro(c)) return 'pro';
+  const a = data && data.c1; if (!a || a.handedOff) return null; return a.stage === 'hs' ? 'hs' : a.stage === 'college' || a.stage === 'juco' || a.stage === 'combine' ? 'college' : 'pro';
+}
+// The season as a year: the pros' (frYear: the first pro season is FRN.year1); an amateur's freshman year is eight before it.
+function rbYearOf(data) { const c = data && data.career; if (c && isPro(c)) return frYear(c.season || 1); const a = data && data.c1; return FRN.year1 - 8 + Math.max(0, ((a && a.season) || 1) - 1); }
+function rbYearShort(y) { return '\'' + String(y % 100).padStart(2, '0'); }
+// The level a screen draws on: a career's screens (the hub is in the stack) take its color; the menus keep the arena.
+function rbUiLevel(ui) { try { const g = ui && ui.game; if (!g || g.mode === 'match' || !ui.stack.some(s => s && (s.name === 'career' || s.name === 'amhub' || s.rbLevel))) return null; const s = ui.screen; if (s && s.rbLevel) return s.rbLevel; return rbLevelOf(g.save && g.save.data); } catch (e) { return null; } }
+// ---------------- the background ----------------
+const _rbTiles = new Map();
+function rbTile(lv, year, k) {
+  const key = lv + '|' + year + '|' + k; let c = _rbTiles.get(key); if (c) return c; const W = RBK.wm, w = Math.round(W.w * k), h = Math.round(W.h * k);
+  c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.setTransform(k, 0, 0, k, 0, 0); g.globalAlpha = W.a;
+  for (const [cx, cy] of [[W.w * 0.25, W.h * 0.3], [W.w * 0.75, W.h * 0.8]]) { rbLogo(g, cx - W.logo * 0.55, cy, W.logo, lv, { mono: true }); g.font = fontStr(W.year, true); g.fillStyle = '#FFFFFF'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(String(year), cx + W.logo * 0.27 + 8, cy); } /* (the year after the shield) */
+  _rbTiles.set(key, c); while (_rbTiles.size > 6) _rbTiles.delete(_rbTiles.keys().next().value); return c;
+}
+// The level's color, its watermark over it, and an overlay's dim in it (returns true when dimmed: UI.drawBackground's
+// contract). Baked once into a screen-sized picture (one for the screens, one with an overlay's dim) and copied each
+// frame: drawn fresh every frame it cost screen changes 100–190 ms tasks at 4× CPU.
+const _rbBack = new Map();
+function rbBackdropPic(lv, year, W, H, k, ox, oy, dim) {
+  const key = [lv, year, W, H, k, ox, oy, dim || 0].join('|'); let c = _rbBack.get(key); if (c) { _rbBack.delete(key); _rbBack.set(key, c); return c; }
+  c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d', { alpha: false }), C = RBK.colors[lv] || RBK.colors.pro;
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, C[0]); gr.addColorStop(1, C[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  const pat = g.createPattern(rbTile(lv, year, k), 'repeat'); if (pat) { g.translate(ox, oy); g.fillStyle = pat; g.fillRect(-ox, -oy, W, H); g.setTransform(1, 0, 0, 1, 0, 0); }
+  if (dim > 0) { g.fillStyle = 'rgba(4,8,30,' + dim + ')'; g.fillRect(0, 0, W, H); }
+  _rbBack.set(key, c); while (_rbBack.size > 2) _rbBack.delete(_rbBack.keys().next().value); return c;
+}
+function rbBackdrop(ctx, W_, H_, lv, year, dpr, dim, ui) {
+  const d = dpr || 1, W = Math.max(1, Math.round(W_ * d)), H = Math.max(1, Math.round(H_ * d)); ctx.save();
+  try { const k = Math.max(0.5, Math.round((ui && ui.scale ? ui.scale * d : d) * 4) / 4), ox = ui ? Math.round((ui.ox || 0) * d) : 0, oy = ui ? Math.round((ui.oy || 0) * d) : 0, pic = rbBackdropPic(lv, year, W, H, k, ox, oy, dim > 0 ? Math.round(dim * 100) / 100 : 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(pic, 0, 0);
+  } catch (e) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = (RBK.colors[lv] || RBK.colors.pro)[1]; ctx.fillRect(0, 0, W, H); } finally { ctx.restore(); } return dim > 0;
+}
+// The level's color and watermark in a box on the design grid (the Art Lab's swatches, a card).
+function rbFillLevel(ctx, x, y, w, h, lv, year) {
+  const C = RBK.colors[lv] || RBK.colors.pro; ctx.save();
+  try { const gr = ctx.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, C[0]); gr.addColorStop(1, C[1]); ctx.fillStyle = gr; ctx.fillRect(x, y, w, h);
+    const k = Math.max(0.5, Math.round(Math.hypot(ctx.getTransform().a, ctx.getTransform().b) * 4) / 4), pat = ctx.createPattern(rbTile(lv, year, k), 'repeat'); if (pat && pat.setTransform) { pat.setTransform(new DOMMatrix([1 / k, 0, 0, 1 / k, x, y])); ctx.fillStyle = pat; ctx.fillRect(x, y, w, h); }
+  } catch (e) { /* decoration */ } finally { ctx.restore(); }
+}
+// ---------------- the league's logo ----------------
+// A shield with a ball and the league's mark (mono: white only, for the watermark). x, y: the left edge and the middle.
+function rbLogo(ctx, x, y, s, lv, opts) {
+  opts = opts || {}; const C = RBK.colors[lv] || RBK.colors.pro, w = s * 0.82, h = s, top = y - h / 2, mono = !!opts.mono; ctx.save();
+  try { const path = () => { ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x + w, top); ctx.lineTo(x + w, top + h * 0.58); ctx.quadraticCurveTo(x + w, top + h * 0.86, x + w / 2, top + h); ctx.quadraticCurveTo(x, top + h * 0.86, x, top + h * 0.58); ctx.closePath(); };
+    path(); ctx.fillStyle = mono ? 'rgba(255,255,255,0)' : '#FFFFFF'; ctx.fill(); ctx.lineWidth = Math.max(1.5, s * 0.07); ctx.strokeStyle = mono ? '#FFFFFF' : RBK.ink; ctx.stroke();
+    if (!mono) { ctx.save(); path(); ctx.clip(); ctx.fillStyle = C[0]; ctx.fillRect(x, top, w, h * 0.42); ctx.fillStyle = lv === 'pro' ? '#D8323C' : C[1]; ctx.fillRect(x, top + h * 0.42, w, h * 0.12); ctx.restore(); }
+    const small = s < 56, bx = x + w / 2, by = top + h * (small ? 0.56 : 0.68), br = s * (small ? 0.24 : 0.17); /* (a small logo: the ball alone, its mark wouldn't fit) */ ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fillStyle = mono ? '#FFFFFF' : '#FF8A2A'; ctx.fill(); if (!mono) { ctx.strokeStyle = RBK.ink; ctx.lineWidth = Math.max(1, s * 0.035); ctx.stroke(); ctx.beginPath(); ctx.moveTo(bx - br, by); ctx.lineTo(bx + br, by); ctx.moveTo(bx, by - br); ctx.lineTo(bx, by + br); ctx.stroke(); }
+    if (!small) { ctx.font = fontStr(Math.max(8, s * 0.26), true); ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const B = RBF.boxes; RBF.boxes = null; try { ctx.fillText(RBK.tag[lv] || 'PBL', x + w / 2, top + h * 0.22, w * 0.9); } finally { RBF.boxes = B; } } /* (the mark is the logo's art, not a line of text) */
+  } catch (e) { /* the logo is decoration */ } finally { ctx.restore(); } return w;
+}
+// ---------------- text ----------------
+// Chunky capitals, white (or a color) with a dark drop shadow. The shadow isn't text for the audits.
+function rbText(ctx, text, x, y, px, color, align, maxW) {
+  text = String(text == null ? '' : text); if (!text) return 0; ctx.font = fontStr(px, true); ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle'; const d = Math.max(1.5, Math.round(px / 9));
+  const B = RBF.boxes; RBF.boxes = null; try { ctx.fillStyle = RBK.ink; if (maxW) ctx.fillText(text, x + d, y + d, maxW); else ctx.fillText(text, x + d, y + d); } finally { RBF.boxes = B; }
+  ctx.fillStyle = color || '#FFFFFF'; if (maxW) ctx.fillText(text, x, y, maxW); else ctx.fillText(text, x, y); return Math.min(maxW || Infinity, ctx.measureText(text).width);
+}
+// The TIP line above the bottom row: "TIP! " in gold, the rest white.
+function rbTip(ctx, text, y, maxW) {
+  const t = String(text || '').toUpperCase(); if (!t) return; ctx.font = fontStr(14, true); const w0 = ctx.measureText('TIP! ').width, room = (maxW || UI_W - 80) - w0, tw = Math.min(room, ctx.measureText(t).width), x = UI_W / 2 - (w0 + tw) / 2;
+  rbText(ctx, 'TIP!', x, y, 14, RBK.gold, 'left'); rbText(ctx, t, x + w0, y, 14, '#FFFFFF', 'left', room);
+}
+// ---------------- panels ----------------
+// A dark navy box with a thick light outline; the title sits in a gap cut into the top border (align 'left' or 'center').
+function rbPanel(ctx, x, y, w, h, title, opts) {
+  opts = opts || {}; const lw = opts.lineW || RBK.lineW, r = opts.radius != null ? opts.radius : 6, line = opts.line || RBK.line; ctx.save();
+  try { ctx.fillStyle = opts.fill || RBK.navy; ctx.beginPath(); roundRectPath(ctx, x, y, w, h, r); ctx.fill();
+    let g0 = null, g1 = null; const T = title ? String(title).toUpperCase() : ''; let px = opts.titlePx || RBK.titlePx;
+    if (T) { ctx.font = fontStr(px, true); let tw = ctx.measureText(T).width; const room = w - 2 * r - 40; if (tw > room) { px = Math.max(10, px * room / tw); ctx.font = fontStr(px, true); tw = Math.min(room, ctx.measureText(T).width); } const pad = 10, cx = opts.align === 'center' ? x + w / 2 : x + r + 18 + tw / 2; g0 = cx - tw / 2 - pad; g1 = cx + tw / 2 + pad; }
+    ctx.lineWidth = lw; ctx.strokeStyle = line; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (g0 == null) roundRectPath(ctx, x, y, w, h, r); else { ctx.moveTo(g1, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.lineTo(g0, y); }
+    ctx.stroke(); if (T) rbText(ctx, T, (g0 + g1) / 2, y, px, opts.titleColor || '#FFFFFF', 'center', g1 - g0 - 16);
+  } catch (e) { /* a panel never throws */ } finally { ctx.restore(); }
+}
+// ---------------- stars ----------------
+// Five stars with halves: v from 0 to 5 (to the nearest half). kind: 'off' (cyan), 'def' (red), 'gold' (players and
+// the crew) or a color. x: the left edge, y: the middle, s: one star's size. Returns the row's width.
+function rbStarPath(ctx, cx, cy, R) { ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * 0.45 : R; if (i) ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); else ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } ctx.closePath(); }
+function rbStars(ctx, x, y, v, s, kind, count) {
+  const N = count || 5, col = kind === 'off' ? RBK.off : kind === 'def' ? RBK.def : kind === 'gold' || !kind ? RBK.gold : kind, n = Math.round(clamp(Number(v) || 0, 0, N) * 2) / 2, gap = s * 0.12, R = s / 2; ctx.save();
+  try { for (let i = 0; i < N; i++) { const cx = x + R + i * (s + gap), fill = clamp(n - i, 0, 1);
+      rbStarPath(ctx, cx + 1.5, y + 1.5, R); ctx.fillStyle = RBK.ink; ctx.fill(); rbStarPath(ctx, cx, y, R); ctx.fillStyle = RBK.empty; ctx.fill();
+      if (fill > 0) { ctx.save(); ctx.beginPath(); ctx.rect(cx - R, y - R, fill >= 1 ? 2 * R : R, 2 * R); ctx.clip(); rbStarPath(ctx, cx, y, R); ctx.fillStyle = col; ctx.fill(); ctx.restore(); }
+      rbStarPath(ctx, cx, y, R); ctx.lineWidth = Math.max(1, s * 0.07); ctx.strokeStyle = RBK.ink; ctx.stroke(); }
+  } catch (e) { /* stars never throw */ } finally { ctx.restore(); } return N * s + (N - 1) * gap;
+}
+function rbStarsW(s, count) { const N = count || 5; return N * s + (N - 1) * s * 0.12; }
+// A player's stars against the level: the level's middle is 2.5 stars, half a star for every RBK.perStar / 2 OVR.
+function rbStarVal(ovr, mean) { return clamp(Math.round((2.5 + ((Number(ovr) || 0) - (Number(mean) || 0)) / RBK.perStar) * 2) / 2, 0.5, 5); }
+// ---------------- mood faces ----------------
+// A round face: a yellow smile from RBK.mood[0][0]%, an orange so-so, a red frown. Returns the kind.
+function rbMoodKind(pct) { const p = Number(pct) || 0; return p >= RBK.mood[0][0] ? 'smile' : p >= RBK.mood[1][0] ? 'meh' : 'frown'; }
+function rbMood(ctx, cx, cy, r, pct) {
+  const k = rbMoodKind(pct), col = k === 'smile' ? RBK.mood[0][1] : k === 'meh' ? RBK.mood[1][1] : RBK.mood[2][1]; ctx.save();
+  try { ctx.beginPath(); ctx.arc(cx + 1.5, cy + 1.5, r, 0, TAU); ctx.fillStyle = RBK.ink; ctx.fill(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = Math.max(1.2, r * 0.12); ctx.strokeStyle = RBK.ink; ctx.stroke();
+    ctx.fillStyle = RBK.ink; const ew = Math.max(1.5, r * 0.16), eh = Math.max(2, r * 0.3); ctx.fillRect(cx - r * 0.38 - ew / 2, cy - r * 0.36, ew, eh); ctx.fillRect(cx + r * 0.38 - ew / 2, cy - r * 0.36, ew, eh);
+    ctx.beginPath(); ctx.lineWidth = Math.max(1.5, r * 0.14); ctx.lineCap = 'round';
+    if (k === 'smile') ctx.arc(cx, cy + r * 0.05, r * 0.48, 0.15 * Math.PI, 0.85 * Math.PI); else if (k === 'frown') ctx.arc(cx, cy + r * 0.62, r * 0.42, 1.2 * Math.PI, 1.8 * Math.PI); else { ctx.moveTo(cx - r * 0.38, cy + r * 0.38); ctx.lineTo(cx + r * 0.38, cy + r * 0.38); }
+    ctx.stroke();
+  } catch (e) { /* a face never throws */ } finally { ctx.restore(); } return k;
+}
+// ---------------- the credits counter ----------------
+// A coin and the number. x: the left edge, y: the middle. Returns the width.
+function rbCoin(ctx, cx, cy, r) {
+  ctx.save(); try { ctx.beginPath(); ctx.arc(cx + 1.5, cy + 1.5, r, 0, TAU); ctx.fillStyle = RBK.ink; ctx.fill(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fillStyle = '#FFD23F'; ctx.fill(); ctx.lineWidth = Math.max(1.2, r * 0.14); ctx.strokeStyle = '#A8730A'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.55, 0, TAU); ctx.lineWidth = Math.max(1, r * 0.12); ctx.strokeStyle = '#C98F12'; ctx.stroke(); ctx.fillStyle = '#FFF2B0'; ctx.fillRect(cx - r * 0.5, cy - r * 0.62, r * 0.22, r * 0.22);
+  } catch (e) { /* decoration */ } finally { ctx.restore(); }
+}
+function rbCredits(ctx, x, y, n, opts) { opts = opts || {}; const r = opts.r || 15; rbCoin(ctx, x + r, y, r); const w = rbText(ctx, String(Math.max(0, Math.round(Number(n) || 0))), x + 2 * r + 8, y, opts.px || 22, '#FFFFFF', 'left'); return 2 * r + 8 + w; }
+// ---------------- the header ----------------
+// H: { credits, title, lv, year (the right side's career year: 'Y4'; else the "i"), sub }. The "i" is a widget
+// (rbInfoWidget) so it can be tapped; the header draws everything else.
+function rbHeader(ctx, ui, H) {
+  H = H || {}; const y = RBK.header.y, lv = H.lv || 'pro';
+  try { if (H.credits != null) rbCredits(ctx, 24, y, H.credits);
+    const title = String(H.title || '').toUpperCase(), px = H.px || 30; ctx.font = fontStr(px, true); const tw = Math.min(620, ctx.measureText(title).width), sw = rbStarsW(16, 3), cx = UI_W / 2;
+    rbText(ctx, title, cx, y, px, '#FFFFFF', 'center', 620); const L = 40, gap = 14; rbStars(ctx, cx - tw / 2 - gap - sw, y, 3, 16, 'gold', 3); rbStars(ctx, cx + tw / 2 + gap, y, 3, 16, 'gold', 3); /* (three stars each side of the title) */
+    rbLogo(ctx, cx - tw / 2 - gap - sw - 10 - L * 0.82, y, L, lv); rbLogo(ctx, cx + tw / 2 + gap + sw + 10, y, L, lv);
+    if (H.year) { rbText(ctx, H.year, UI_W - 30, y, 26, '#FFFFFF', 'right'); }
+    if (H.sub) rbText(ctx, H.sub, cx, y + 34, 14, RBK.gold, 'center', 700);
+  } catch (e) { /* the header never throws */ }
+}
+// The header's "i": opens this screen's Codex page (the ? key's page). The screen takes ownHelp so the margin chip goes.
+function rbInfoWidget(game) { return { kind: 'custom', rbInfo: true, label: 'i', x: UI_W - 64, y: RBK.header.y - 22, w: 44, h: 44, enabled: true, onPress() { try { uiOpenCodex(game, game.ui.screen); } catch (e) { /* the Codex is optional */ } }, draw(ctx, focused) { rbIconBtn(ctx, this, focused, 'info'); } }; }
+// ---------------- the bottom row ----------------
+// Square icon buttons ('gear', 'home', 'back', 'info'), two-line text buttons and the main action at the bottom right
+// (gold, with ▶). items: [{ icon | label, onPress, main, dot, enabled, sub }]. Returns widgets laid out along the bottom.
+function rbBottomRow(ui, items, opts) {
+  opts = opts || {}; const B = RBK.btn, h = opts.h || (ui && ui.phone ? Math.max(B.h, tapH(ui, B.h)) : B.h), y = (opts.y != null ? opts.y : UI_H - h - 14), x0 = opts.x0 != null ? opts.x0 : 24, x1 = opts.x1 != null ? opts.x1 : UI_W - 24, gap = B.gap;
+  const icons = items.filter(it => it.icon), main = items.find(it => it.main), texts = items.filter(it => !it.icon && !it.main), iw = h, mw = main ? Math.max(220, Math.min(300, (x1 - x0) * 0.24)) : 0;
+  const room = x1 - x0 - icons.length * (iw + gap) - (main ? mw + gap : 0), tw = texts.length ? (room - gap * (texts.length - 1)) / texts.length : 0; let x = x0; const out = [];
+  for (const it of items) { if (it.main) continue; const w = it.icon ? iw : tw; out.push(rbRowWidget(it, x, y, w, h)); x += w + gap; }
+  if (main) out.push(rbRowWidget(main, x1 - mw, y, mw, h)); return out;
+}
+function rbRowWidget(it, x, y, w, h) { return { kind: 'custom', rbRow: true, icon: it.icon || null, label: it.label || (it.icon ? RB_ICON_NAME[it.icon] || it.icon : ''), sub: it.sub || null, main: !!it.main, dot: it.dot || null, x, y, w, h, enabled: it.enabled !== false, onPress: it.onPress, draw(ctx, focused) { if (this.icon) rbIconBtn(ctx, this, focused, this.icon); else rbTextBtn(ctx, this, focused); } }; }
+const RB_ICON_NAME = { gear: 'Settings', home: 'Home', back: 'Back', info: 'Codex' };
+function rbBtnBox(ctx, w, focused, main) {
+  const B = RBK.btn, hot = !!focused, dis = w.enabled === false; ctx.fillStyle = RBK.ink; ctx.beginPath(); roundRectPath(ctx, w.x + 3, w.y + 4, w.w, w.h, 6); ctx.fill();
+  ctx.fillStyle = dis ? '#2A2F4A' : main ? (hot ? B.mainHot : B.main) : (hot ? B.hot : B.fill); ctx.beginPath(); roundRectPath(ctx, w.x, w.y, w.w, w.h, 6); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = dis ? 'rgba(230,234,255,0.35)' : main ? RBK.ink : B.line; ctx.stroke();
+}
+function rbTextBtn(ctx, w, focused) {
+  ctx.save(); try { rbBtnBox(ctx, w, focused, w.main); const L = String(w.label || '').toUpperCase().split('\n'), col = w.enabled === false ? 'rgba(243,240,255,0.45)' : w.main ? RBK.btn.mainInk : '#FFFFFF', arrow = w.main ? ' ▶' : '', px = L.length > 1 ? 17 : 22, lh = px * 1.15, mx = w.w - 20;
+    if (w.main) { ctx.font = fontStr(px, true); ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; L.forEach((l, i) => ctx.fillText(l + (i === L.length - 1 ? arrow : ''), w.x + w.w / 2, w.y + w.h / 2 + (i - (L.length - 1) / 2) * lh + 1, mx)); }
+    else L.forEach((l, i) => rbText(ctx, l, w.x + w.w / 2, w.y + w.h / 2 + (i - (L.length - 1) / 2) * lh + 1, px, col, 'center', mx));
+    if (w.dot) { let on = false; try { on = typeof w.dot === 'function' ? w.dot() : !!w.dot; } catch (e) { /* no dot */ } if (on) uiDot(ctx, w.x + w.w - 10, w.y + 10, 8); }
+  } catch (e) { /* a button never throws */ } finally { ctx.restore(); }
+}
+function rbIconBtn(ctx, w, focused, icon) {
+  ctx.save(); try { rbBtnBox(ctx, w, focused, false); const cx = w.x + w.w / 2, cy = w.y + w.h / 2, s = Math.min(w.w, w.h) * 0.3; ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = Math.max(2, s * 0.22); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    if (icon === 'gear') { ctx.beginPath(); for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, r = i % 2 ? s : s * 0.78; if (i) ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); else ctx.moveTo(cx + r, cy); } ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.arc(cx, cy, s * 0.36, 0, TAU); ctx.fillStyle = w.enabled === false ? '#2A2F4A' : focused ? RBK.btn.hot : RBK.btn.fill; ctx.fill(); }
+    else if (icon === 'home') { ctx.beginPath(); ctx.moveTo(cx - s, cy - s * 0.05); ctx.lineTo(cx, cy - s); ctx.lineTo(cx + s, cy - s * 0.05); ctx.closePath(); ctx.fill(); ctx.fillRect(cx - s * 0.7, cy - s * 0.1, s * 1.4, s * 1.05); ctx.fillStyle = focused ? RBK.btn.hot : RBK.btn.fill; ctx.fillRect(cx - s * 0.2, cy + s * 0.35, s * 0.4, s * 0.6); }
+    else if (icon === 'back') { ctx.beginPath(); ctx.moveTo(cx + s * 0.7, cy - s); ctx.lineTo(cx - s * 0.8, cy); ctx.lineTo(cx + s * 0.7, cy + s); ctx.closePath(); ctx.fill(); }
+    else { ctx.font = fontStr(Math.round(s * 1.7), true); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('i', cx, cy + 1); }
+  } catch (e) { /* a button never throws */ } finally { ctx.restore(); }
+}
+// ---------------- a meter ----------------
+// A chunky bar in segments (FANS, the salary, a facility): k from 0 to 1.
+function rbBar(ctx, x, y, w, h, k, color, segs) {
+  const n = segs || 12, gap = 3, sw = (w - gap * (n - 1)) / n, on = Math.round(clamp01(Number(k) || 0) * n); ctx.save();
+  try { for (let i = 0; i < n; i++) { ctx.fillStyle = i < on ? (color || RBK.gold) : 'rgba(255,255,255,0.14)'; ctx.fillRect(Math.round(x + i * (sw + gap)), y, Math.max(1, Math.round(sw)), h); } } catch (e) { /* decoration */ } finally { ctx.restore(); }
+}
+
+// ============================================================================
 // SECTION: UI (part 1) — arena-style canvas UI (keyboard, gamepad, touch), widgets, shared drawing helpers
 // ============================================================================
 const UI_W = CONFIG.ui.designW, UI_H = CONFIG.ui.designH;
@@ -10173,7 +10365,7 @@ class UI {
     return best;
   }
   // --- drawing ---
-  drawBackground(ctx, W_, H_, dim) { return kitBackdrop(ctx, W_, H_, this.t, this.game.dpr || 1, dim); } // (V15: dim > 0: an overlay's underlay; true when the backdrop came pre-dimmed)
+  drawBackground(ctx, W_, H_, dim) { const lv = rbUiLevel(this); if (lv) return rbBackdrop(ctx, W_, H_, lv, rbYearOf(this.game.save.data), this.game.dpr || 1, dim, this); return kitBackdrop(ctx, W_, H_, this.t, this.game.dpr || 1, dim); } // 4.0 (§1): a career's screens on its level's color and watermark // (V15: dim > 0: an overlay's underlay; true when the backdrop came pre-dimmed)
   begin(ctx) { ctx.save(); ctx.translate(this.ox, this.oy); ctx.scale(this.scale, this.scale); }
   end(ctx) { ctx.restore(); }
   panel(ctx, x, y, w, h, color) { kitPanel(ctx, x, y, w, h, color); }
@@ -11007,14 +11199,14 @@ const LAB_CAST = [
 const LAB_EXPRS = ['neutral', 'hyped', 'shocked', 'angry'];                                      // the phone-size grid
 const LAB_EXPRS_ALL = ['neutral', 'focused', 'hyped', 'shocked', 'tired', 'angry', 'effort'];   // the 250 px sheet
 const LAB_POSES = ['idle', 'run', 'dribble', 'jumpshot', 'dunk', 'defense', 'block', 'celebrate'];
-const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd', 'Venues', 'Body', 'Clips', 'UI kit', 'Legends check', 'Retro check', 'Symmetry'];
+const LAB_VIEWS = ['Faces · phone', 'Faces · 250 px', 'Poses', 'Hair', 'Crowd', 'Venues', 'Body', 'Clips', 'UI kit', 'Legends check', 'Retro check', 'Symmetry', 'Kit 4.0'];
 // §10 the Legends check: eight players covering the six face shapes, the five noses, the skin range and the hair styles —
 // [LAB_CAST index, face shape, nose]. Page 0 lines them up at Legends View size on the floor with reflections; pages 1–8
 // are 384 px portraits in every expression and the laugh; page 9 is the pose strip.
 const LEGENDS_CHECK = [[0, 0, 0], [2, 3, 1], [3, 1, 3], [5, 5, 2], [6, 2, 4], [8, 4, 1], [9, 0, 3], [11, 1, 2]];
 const LEGENDS_POSES = ['run', 'jumpshot', 'dunk', 'flipdunk', 'knockdown', 'celebrate'];
 function labLegendsCast(k) { const [i, shape, nose] = LEGENDS_CHECK[k]; const c = LAB_CAST[i]; const face = faceParamsFromSeed(hashString(c.name + '|')); face.shape = shape; face.nose = nose; return Object.assign({}, c, { look: Object.assign({}, c.look, { face }), idx: i }); }
-function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 7 : view === 11 ? 6 : 1; }
+function labPageCount(view) { return view === 7 ? labClipPages() : view === 9 ? 2 + LEGENDS_CHECK.length : view === 10 ? 7 : view === 11 ? 6 : view === 12 ? 3 : 1; }
 const LAB_HAIR_NAMES = ['Buzz', 'Taper fade', 'High top', 'Afro', 'Curly top', 'Twists', 'Locs', 'Cornrows', 'Box braids', 'Bun', 'Side part', 'Mohawk', 'Long', 'Bald'];
 const LAB_FACIAL_NAMES = ['None', 'Stubble', 'Mustache', 'Goatee', 'Chin strap', 'Full beard'];
 
@@ -11089,10 +11281,22 @@ function artLabScreen(game) {
     onBack() { game.ui.pop(); },
     draw(ctx, ui) {
       ctx.fillStyle = '#0A0E26'; ctx.fillRect(0, 0, UI_W, UI_H);
-      try { [labViewFacesSmall, labViewFacesLarge, labViewPoses, labViewHair, labViewCrowd, labViewVenues, labViewBody, labViewClips, labViewUIKit, labViewLegends, labViewRetro, labViewSymmetry][st.view](ctx, ui, st, t); } catch (e) { labFail(e); }
+      try { [labViewFacesSmall, labViewFacesLarge, labViewPoses, labViewHair, labViewCrowd, labViewVenues, labViewBody, labViewClips, labViewUIKit, labViewLegends, labViewRetro, labViewSymmetry, labViewKit40][st.view](ctx, ui, st, t); } catch (e) { labFail(e); }
       ui.heading(ctx, 'ART LAB', 1090, 32, 22, UI_GOLD, 'right'); // F10: after the view, so a 250 px high top can't cover it
     } };
   return scr;
+}
+// 4.0 (§1): the Retro Bowl kit on each level's color (a page each): the header, panels with their titles in the border,
+// stars (offense, defense, gold; every half), mood faces, the credits counter, a meter, the TIP line and the bottom row.
+function labViewKit40(ctx, ui, st, t) {
+  const lv = ['hs', 'college', 'pro'][clamp(st.page | 0, 0, 2)], year = FRN.year1 + (lv === 'pro' ? 3 : lv === 'college' ? -2 : -6); rbFillLevel(ctx, 0, 60, UI_W, UI_H - 60, lv, year);
+  ctx.save(); ctx.translate(0, 40); rbHeader(ctx, ui, { credits: 71, title: RBK.tag[lv] + ' ' + rbYearShort(year), lv, year: 'Y4' }); ctx.restore();
+  rbPanel(ctx, 40, 120, 560, 250, 'Stars · every half'); [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].forEach((v, i) => { const y = 150 + (i % 5) * 42, x = 64 + Math.floor(i / 5) * 270; rbStars(ctx, x, y, v, 22, ['off', 'def', 'gold'][i % 3]); rbText(ctx, String(v), x + 160, y, 16, '#FFFFFF', 'left'); });
+  rbPanel(ctx, 640, 120, 280, 250, 'Morale', { align: 'center' }); [[90, 'smile'], [50, 'so-so'], [12, 'frown']].forEach(([p, k], i) => { rbMood(ctx, 700, 172 + i * 70, 24, p); rbText(ctx, p + '% ' + k.toUpperCase(), 740, 172 + i * 70, 18, '#FFFFFF', 'left'); });
+  rbPanel(ctx, 960, 120, 280, 250, 'Fans 56%'); rbBar(ctx, 984, 160, 232, 22, 0.56, RBK.gold); rbText(ctx, 'OFFENSE', 984, 220, 16, '#FFFFFF', 'left'); rbStars(ctx, 984, 248, 4.5, 20, 'off'); rbText(ctx, 'DEFENSE', 984, 290, 16, '#FFFFFF', 'left'); rbStars(ctx, 984, 318, 3, 20, 'def');
+  rbPanel(ctx, 40, 410, 1200, 150, 'Salary $12.7M / $18.0M'); rbBar(ctx, 64, 450, 700, 26, 12.7 / 18, '#4CE07A', 18); rbCredits(ctx, 800, 463, 1250); rbText(ctx, 'BIG NUMBERS', 64, 520, 34, '#FFFFFF', 'left'); rbLogo(ctx, 1100, 490, 70, lv);
+  rbTip(ctx, 'Upgrading your rehab facility speeds up energy recovery', 590);
+  const row = rbBottomRow(ui, [{ icon: 'gear' }, { icon: 'home' }, { label: 'Front\noffice' }, { label: 'Team' }, { label: 'Hall of\nfame' }, { label: 'Continue', main: true }], { y: 622, h: 66 }); row.forEach((w, i) => w.draw(ctx, i === 3));
 }
 function labCaption(ctx, text, x, y, size, color, align) { ctx.font = fontStr(size || 12, false); ctx.fillStyle = color || UI_DIM; ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y); }
 function labViewFacesSmall(ctx, ui, st, t) {

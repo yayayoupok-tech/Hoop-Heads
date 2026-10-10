@@ -118,6 +118,7 @@ The game has no build step for players and no dependencies. The tests use Playwr
 node tests/memory.js [50] [--phone] [--snap=5,30 --snapdir=DIR]   # 50 career games against new opponents: memory within +150 MB of the level after game 5 (--snap: heap snapshots)
 node tests/heapdiff.js a b [top]   # 4.0: what grew between two heap snapshots, by constructor, and the canvases and bitmaps alive
 node tests/fixes40.js [--phone]    # 4.0 (§0): the league's stars, toasts, crew pay in credits, no bench limbo, Most Improved, PBL rankings, the 3-Point Contest, team names, no rivals
+node tests/kit40.js [--phone]      # 4.0 (§1): the visual kit: each level's background, stars with halves, mood faces, panels, the header and the bottom row
 node tests/loop.js                 # a season's weeks at each level through the real screens: at most 2 screens between games on PLAY, 1 on SIM
 node tests/pace.js [8] [seed]      # career games played in the engine: 12–18 points a side, 70–80 s a game, at every level
 node tests/rankings.js [careers]   # weekly rankings follow how people play: the top scorer in the top 10 in 95%+ of seasons, teams by record

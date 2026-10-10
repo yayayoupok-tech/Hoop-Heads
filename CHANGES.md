@@ -3,6 +3,42 @@
 The design spec gives starting values and asks for every change to be logged here with the reason. New constants added
 without a spec value are listed per milestone too.
 
+## Y2 (4.0) — the visual kit
+
+The request's §1: the Retro Bowl look, as a kit the 4.0 screens are built from (`149_v4kit.js`, `ART.rbk`). The screens
+move onto it from Y3 (HOME) on; this milestone puts a career's screens on their level's background and adds the parts,
+an Art Lab page of them (Kit 4.0, a page a level) and `tests/kit40.js`.
+
+- **The background:** one saturated color a level, in a soft top-to-foot gradient (high school deep red #B4283C,
+  college green #26884C, the PBL royal blue #2B54CE), under a faint repeating watermark of the league's logo and the
+  season's year (two to a 300 × 168 tile, staggered, 8.5% white). Every screen of a career takes it (the hub is in
+  the screen stack); the title, the menus and Quick 1v1 keep the arena. The season as a year: the pros' first season
+  is 2031 (as the franchises' history already had it), an amateur's freshman year eight before.
+- **The league's logo:** a shield in the level's colors with a ball and the league's mark (MHL, the Metro High School
+  League; C1C, the Collegiate 1v1 Conference; PBL); small logos (the header's) show the ball alone.
+- **Panels:** dark navy with a thick light outline; the title sits in a gap cut into the top border ("SALARY $12.7M /
+  $18.0M"), and a long title shrinks to fit.
+- **Text:** chunky capitals, white with a dark drop shadow (the shadow isn't text for the audits); big numbers.
+- **Stars:** five with halves (to the nearest half), offense cyan, defense red, players and the crew gold. A player's
+  stars against the level: its middle is 2.5, half a star every 2 OVR (`rbk.perStar` 4), from 0.5 to 5.
+- **Mood faces:** a yellow smile from 67%, an orange so-so from 34%, a red frown under.
+- **The credits counter:** a gold coin and the number.
+- **The header:** the credits on the left; the league's logo and three stars each side of the title; the career year
+  (Y4) or an "i" on the right that opens the screen's Codex page (the margin's ? chip goes on such a screen).
+- **The bottom row:** square icon buttons (settings, home, back), two-line text buttons sharing the row, and the main
+  action at the bottom right in gold with ▶; tap-sized on a phone. A segmented meter (FANS, the salary, a facility)
+  and the TIP line above the row.
+
+- **Baked once, copied each frame.** Drawn fresh every frame (a full-screen gradient and the watermark's pattern), the
+  background cost the career's screen changes 100–190 ms tasks at 4× CPU (`tests/loadlag.js`: 43 misses). It's baked
+  into a screen-sized picture (one plain, one with an overlay's dim; two kept) and copied: 13 misses, against 12 for
+  the Y1 build in the same session and 5 at X11, the rest of the gap this session's machine (the same steps miss on
+  the Y1 build; the full suite at Y11 measures it again).
+
+### Checks
+
+`tests/kit40.js` 7/7 (desktop and phone), `tests/smoke.js` 134/134, `tests/fixes40.js` 9/9, `tests/loadlag.js` (above).
+
 ## Y1 (4.0) — the §0 fixes
 
 The request "Hoop Heads 4.0: the Retro Bowl format", §0: what the 3.0 played careers found, fixed before the new
